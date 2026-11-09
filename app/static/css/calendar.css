@@ -1208,8 +1208,8 @@ body:not(.embed-scope):not(.assessment-scope-solo) .calendar-shell.mod-shell--na
     min-height: 2.35rem;
     padding: 0.35rem 0.85rem;
     border-radius: var(--mod-radius-pill, 1.5rem);
-    background: var(--bs-body-bg, #fff);
-    border: 1px solid var(--bs-border-color, #ced4da);
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
     cursor: text;
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
@@ -1223,10 +1223,29 @@ body:not(.embed-scope):not(.assessment-scope-solo) .calendar-shell.mod-shell--na
     box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent);
 }
 
-.calendar-sidebar-filter > .bi-funnel {
+.calendar-sidebar-filter > .bi-funnel,
+.calendar-sidebar-filter > .bi-search {
     flex-shrink: 0;
     font-size: 0.9rem;
     color: var(--accent-color, var(--bs-primary));
+}
+
+.calendar-sidebar-filter-clear {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 1.1rem;
+    line-height: 1;
+    color: var(--bs-secondary-color) !important;
+    text-decoration: none !important;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.calendar-sidebar-filter-clear:hover {
+    color: var(--bs-body-color) !important;
 }
 
 .calendar-sidebar-filter-input {
@@ -1246,6 +1265,19 @@ body:not(.embed-scope):not(.assessment-scope-solo) .calendar-shell.mod-shell--na
 .calendar-sidebar-filter-input::placeholder {
     color: var(--bs-secondary-color, #6c757d);
     opacity: 0.9;
+}
+
+.calendar-sidebar-filter-input::-webkit-search-cancel-button,
+.calendar-sidebar-filter-input::-webkit-search-decoration,
+.calendar-sidebar-filter-input::-webkit-search-results-button,
+.calendar-sidebar-filter-input::-webkit-search-results-decoration {
+    -webkit-appearance: none;
+    appearance: none;
+    display: none;
+}
+
+.calendar-nav-item.d-none {
+    display: none !important;
 }
 
 
@@ -2220,7 +2252,7 @@ body:not(.embed-scope):not(.assessment-scope-solo) .calendar-shell.mod-shell--na
     pointer-events: none;
 }
 
-/* Collapsible room folder in calendar sidebar */
+/* Collapsible category folders in calendar sidebar */
 .calendar-sidebar-folder-btn {
     border-radius: var(--mod-radius-pill, 1.5rem);
     color: var(--bs-body-color);
@@ -2232,6 +2264,15 @@ body:not(.embed-scope):not(.assessment-scope-solo) .calendar-shell.mod-shell--na
     background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent) !important;
 }
 
-.calendar-sidebar-folder-btn[aria-expanded="false"] .calendar-sidebar-folder-chevron {
+.calendar-sidebar-folder-chevron,
+.calendar-folder-chevron {
+    color: var(--bs-secondary-color);
+    transition: transform 0.15s ease;
+}
+
+.calendar-sidebar-folder-btn[aria-expanded="false"] .calendar-sidebar-folder-chevron,
+.calendar-sidebar-folder-btn[aria-expanded="false"] .calendar-folder-chevron,
+.calendar-sidebar-folder-btn.collapsed .calendar-sidebar-folder-chevron,
+.calendar-sidebar-folder-btn.collapsed .calendar-folder-chevron {
     transform: rotate(-90deg);
 }

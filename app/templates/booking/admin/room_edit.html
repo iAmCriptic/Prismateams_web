@@ -5,6 +5,13 @@
 
 {% block settings_content %}
 <div class="sp-page sp-page--fluid settings-admin-booking">
+  <div class="mod-back-row mb-3">
+    <a href="{{ url_for('settings.booking_rooms') }}" class="mod-back-link">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i>
+      <span>{{ _('layout.nav.back') }}</span>
+    </a>
+  </div>
+
   <header class="sp-page-header settings-admin-booking-header">
     <div class="settings-admin-booking-header-text">
       <h1 class="sp-page-title">
@@ -12,12 +19,6 @@
         <span>{% if is_new %}Neuen Raum anlegen{% else %}{{ room.name }} bearbeiten{% endif %}</span>
       </h1>
       <p class="sp-page-lead">Stammdaten, Ausstattung, Kalenderfarbe und Bild für diesen Raum konfigurieren.</p>
-    </div>
-    <div class="settings-admin-booking-header-actions">
-      <a href="{{ url_for('settings.booking_rooms') }}" class="btn mod-pill-btn mod-pill-btn--outline">
-        <i class="bi bi-arrow-left" aria-hidden="true"></i>
-        Zurück zur Übersicht
-      </a>
     </div>
   </header>
 
@@ -123,12 +124,12 @@
     </section>
 
     <div class="sp-form-actions d-flex align-items-center gap-2 mt-4 pt-3 border-top">
-      <button type="submit" class="btn btn-accent rounded-pill mod-pill-btn">
+      <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent">
         <i class="bi bi-check2"></i>
         <span>{% if is_new %}Raum erstellen{% else %}Änderungen speichern{% endif %}</span>
       </button>
-      <a href="{{ url_for('settings.booking_rooms') }}" class="btn btn-outline-secondary rounded-pill mod-pill-btn">
-        Abbrechen
+      <a href="{{ url_for('settings.booking_rooms') }}" class="btn mod-pill-btn mod-pill-btn--outline-muted">
+        {{ _('common.cancel') }}
       </a>
     </div>
   </form>

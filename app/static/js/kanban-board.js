@@ -2812,8 +2812,23 @@
     if (collapse) collapse.checked = !!filterState.collapse_empty;
   }
 
+  function updateSearchClearButtons() {
+    const query = (filterState.q || '').trim();
+    document.getElementById('kanbanBoardSearchClear')?.classList.toggle('d-none', !query);
+    document.getElementById('kanbanBoardSearchClearMobile')?.classList.toggle('d-none', !query);
+  }
+
   function readFilterState() {
-    filterState.q = (document.getElementById('kanbanFilterKeyword')?.value || '').trim();
+    const navInput = document.getElementById('kanbanBoardSearchInput');
+    const mobileInput = document.getElementById('kanbanBoardSearchInputMobile');
+    const modalInput = document.getElementById('kanbanFilterKeyword');
+    const qVal = (navInput?.value || mobileInput?.value || modalInput?.value || filterState.q || '').trim();
+    filterState.q = qVal;
+    if (navInput && navInput.value !== qVal) navInput.value = qVal;
+    if (mobileInput && mobileInput.value !== qVal) mobileInput.value = qVal;
+    if (modalInput && modalInput.value !== qVal) modalInput.value = qVal;
+    updateSearchClearButtons();
+
     filterState.no_members = !!document.getElementById('kanbanFilterNoMembers')?.checked;
     filterState.assigned_to_me = !!document.getElementById('kanbanFilterAssignedMe')?.checked;
     filterState.assignee_ids = filterState.no_members
@@ -2856,6 +2871,60 @@
     document.getElementById('kanbanFilterBtn')?.classList.toggle('is-active', n > 0);
   }
 
+  function applyInstantLocalSearch(rawQuery) {
+    const query = (rawQuery || '').trim().toLowerCase();
+    filterState.q = query;
+    updateSearchClearButtons();
+
+    const navInput = document.getElementById('kanbanBoardSearchInput');
+    const mobileInput = document.getElementById('kanbanBoardSearchInputMobile');
+    const modalInput = document.getElementById('kanbanFilterKeyword');
+    if (navInput && navInput.value !== rawQuery) navInput.value = rawQuery;
+    if (mobileInput && mobileInput.value !== rawQuery) mobileInput.value = rawQuery;
+    if (modalInput && modalInput.value !== rawQuery) modalInput.value = rawQuery;
+
+    updateFilterBadge();
+
+    if (!query && countActiveFilters() === 0) {
+      listsEl.querySelectorAll('.kanban-card').forEach((el) => el.classList.remove('is-filtered-out'));
+      listsEl.querySelectorAll('.kanban-list-col').forEach((el) => el.classList.remove('is-collapsed-by-filter'));
+      const emptyHint = document.getElementById('kanbanBoardSearchEmpty');
+      if (emptyHint) emptyHint.classList.add('d-none');
+      return;
+    }
+
+    if (query) {
+      let totalVisibleCards = 0;
+      let totalVisibleLists = 0;
+
+      listsEl.querySelectorAll('.kanban-list-col').forEach((col) => {
+        const titleEl = col.querySelector('.kanban-list-col__title');
+        const listTitle = (titleEl?.textContent || '').trim().toLowerCase();
+        const listMatches = Boolean(listTitle && listTitle.includes(query));
+
+        const cards = col.querySelectorAll('.kanban-card');
+        let cardMatchesInCol = 0;
+
+        cards.forEach((cardEl) => {
+          const cardText = (cardEl.textContent || '').toLowerCase();
+          const cardMatches = listMatches || cardText.includes(query);
+          cardEl.classList.toggle('is-filtered-out', !cardMatches);
+          if (cardMatches) cardMatchesInCol++;
+        });
+
+        const showCol = listMatches || cardMatchesInCol > 0;
+        col.classList.toggle('is-collapsed-by-filter', !showCol);
+        if (showCol) totalVisibleLists++;
+        totalVisibleCards += cardMatchesInCol;
+      });
+
+      const emptyHint = document.getElementById('kanbanBoardSearchEmpty');
+      if (emptyHint) {
+        emptyHint.classList.toggle('d-none', !(totalVisibleCards === 0 && totalVisibleLists === 0));
+      }
+    }
+  }
+
   async function applyFilters() {
     readFilterState();
     updateFilterBadge();
@@ -2863,6 +2932,8 @@
     if (!active) {
       listsEl.querySelectorAll('.kanban-card').forEach((el) => el.classList.remove('is-filtered-out'));
       listsEl.querySelectorAll('.kanban-list-col').forEach((el) => el.classList.remove('is-collapsed-by-filter'));
+      const emptyHint = document.getElementById('kanbanBoardSearchEmpty');
+      if (emptyHint) emptyHint.classList.add('d-none');
       return;
     }
     try {
@@ -2883,18 +2954,37 @@
         body,
       });
       const ids = new Set(data.card_ids || []);
+      const matchingListIds = new Set(data.list_ids || []);
+      let totalVisibleCards = 0;
+      let totalVisibleLists = 0;
+
       listsEl.querySelectorAll('.kanban-card').forEach((el) => {
-        el.classList.toggle('is-filtered-out', !ids.has(Number(el.dataset.cardId)));
+        const isMatch = ids.has(Number(el.dataset.cardId));
+        el.classList.toggle('is-filtered-out', !isMatch);
+        if (isMatch) totalVisibleCards++;
       });
       listsEl.querySelectorAll('.kanban-list-col').forEach((col) => {
-        if (!filterState.collapse_empty) {
-          col.classList.remove('is-collapsed-by-filter');
-          return;
-        }
+        const colListId = Number(col.dataset.listId);
+        const listMatches = matchingListIds.has(colListId);
         const cards = col.querySelectorAll('.kanban-card');
-        const anyVisible = Array.from(cards).some((c) => !c.classList.contains('is-filtered-out'));
-        col.classList.toggle('is-collapsed-by-filter', cards.length > 0 && !anyVisible);
+        const anyCardVisible = Array.from(cards).some((c) => !c.classList.contains('is-filtered-out'));
+
+        if (filterState.q) {
+          const showCol = listMatches || anyCardVisible;
+          col.classList.toggle('is-collapsed-by-filter', !showCol);
+          if (showCol) totalVisibleLists++;
+        } else if (filterState.collapse_empty) {
+          col.classList.toggle('is-collapsed-by-filter', cards.length > 0 && !anyCardVisible);
+        } else {
+          col.classList.remove('is-collapsed-by-filter');
+        }
       });
+
+      const emptyHint = document.getElementById('kanbanBoardSearchEmpty');
+      if (emptyHint) {
+        const showEmpty = Boolean(filterState.q && totalVisibleCards === 0 && totalVisibleLists === 0);
+        emptyHint.classList.toggle('d-none', !showEmpty);
+      }
     } catch (err) {
       console.warn('Kanban filter failed', err);
     }
@@ -3112,6 +3202,11 @@
 
   document.getElementById('kanbanFilterReset')?.addEventListener('click', () => {
     filterState.q = '';
+    const navInput = document.getElementById('kanbanBoardSearchInput');
+    const mobileInput = document.getElementById('kanbanBoardSearchInputMobile');
+    if (navInput) navInput.value = '';
+    if (mobileInput) mobileInput.value = '';
+    updateSearchClearButtons();
     filterState.no_members = false;
     filterState.assigned_to_me = false;
     filterState.assignee_ids = [];
@@ -3162,6 +3257,45 @@
       if (none) none.checked = false;
     }
     scheduleFilter();
+  });
+
+  // Topbar / Navbar & Mobile Search
+  const navSearchInput = document.getElementById('kanbanBoardSearchInput');
+  const mobileSearchInput = document.getElementById('kanbanBoardSearchInputMobile');
+  const navSearchClear = document.getElementById('kanbanBoardSearchClear');
+  const mobileSearchClear = document.getElementById('kanbanBoardSearchClearMobile');
+  const mobileSearchBtn = document.getElementById('kanbanMobileSearchBtn');
+  const mobileSearchWrap = document.getElementById('kanbanMobileSearchWrap');
+
+  [navSearchInput, mobileSearchInput].filter(Boolean).forEach((input) => {
+    input.addEventListener('input', () => {
+      applyInstantLocalSearch(input.value);
+      scheduleFilter();
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && input.value) {
+        e.preventDefault();
+        applyInstantLocalSearch('');
+        applyFilters();
+      }
+    });
+  });
+
+  [navSearchClear, mobileSearchClear].filter(Boolean).forEach((btn) => {
+    btn.addEventListener('click', () => {
+      applyInstantLocalSearch('');
+      applyFilters();
+      if (navSearchInput) navSearchInput.focus();
+    });
+  });
+
+  mobileSearchBtn?.addEventListener('click', () => {
+    if (!mobileSearchWrap) return;
+    const isHidden = mobileSearchWrap.classList.contains('d-none');
+    mobileSearchWrap.classList.toggle('d-none', !isHidden);
+    if (isHidden && mobileSearchInput) {
+      mobileSearchInput.focus();
+    }
   });
 
   function stopPolling() {

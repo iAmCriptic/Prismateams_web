@@ -85,12 +85,7 @@
                 <i class="bi bi-plus-lg"></i>
                 <span>{{ _('booking.sidebar.book_internally') }}</span>
             </a>
-            {% if current_user.is_admin %}
-            <a href="{{ url_for('settings.booking_room_create') }}" class="btn mod-pill-btn mod-pill-btn--outline">
-                <i class="bi bi-gear"></i>
-                <span>{{ _('booking.rooms.admin_new_room') }}</span>
-            </a>
-            {% endif %}
+
         </div>
     </div>
 

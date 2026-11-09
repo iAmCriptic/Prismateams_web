@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from io import BytesIO
 import json
 
-from flask import Blueprint, flash, jsonify, redirect, render_template, request, send_file, session, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, send_file, session, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_
 from sqlalchemy.orm import joinedload

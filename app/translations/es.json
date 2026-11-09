@@ -27,7 +27,7 @@
       "notifications": "Notificaciones",
       "notifications_short": "Alertas",
       "home": "Inicio",
-      "booking": "Reservas",
+      "booking": "Reserva de salas",
       "kanban": "Kanban",
       "events": "Eventos",
       "shortlinks": "Enlaces cortos",
@@ -1526,7 +1526,7 @@
         "module_manuals": "Manuales",
         "module_inventory": "Inventario",
         "module_wiki": "Wiki",
-        "module_booking": "Reservas",
+        "module_booking": "Reserva de salas",
         "module_music": "Música",
         "module_media_downloader": "Media Downloader",
         "module_assessment": "Evaluación",
@@ -4273,6 +4273,11 @@
       "group_public": "Público",
       "group_events": "Eventos",
       "search": "Buscar personas…",
+      "search_calendars": "Buscar calendarios…",
+      "category_general": "General",
+      "category_teams": "Calendarios de equipo",
+      "category_people": "Personas",
+      "no_results": "No se encontraron calendarios",
       "others": "Otros calendarios",
       "edit": "Ajustes",
       "hide": "Ocultar calendario",
@@ -6248,7 +6253,7 @@
         "archived": "Archivada"
       },
       "empty": "No hay solicitudes de reserva",
-      "sidebar_brand": "Reservas",
+      "sidebar_brand": "Reserva de salas",
       "nav": {
         "overview": "Resumen",
         "neu": "Nuevas",
@@ -6404,6 +6409,16 @@
           "title": "Módulo de música",
           "description": "Conectar y configurar Spotify y YouTube Music",
           "short": "Providers"
+        },
+        "booking_rooms": {
+          "title": "Gestión de salas",
+          "description": "Gestionar salas, equipamiento y calendarios",
+          "short": "Salas"
+        },
+        "booking_module": {
+          "title": "Reserva de salas",
+          "description": "Gestionar salas, equipamiento, formularios y roles",
+          "short": "Salas y formularios"
         }
       }
     },
@@ -6886,7 +6901,9 @@
       "grid_view": "Cuadrícula",
       "vis_private": "Privado",
       "vis_team": "Equipo",
-      "vis_public": "Público"
+      "vis_public": "Público",
+      "search_placeholder": "Buscar tableros…",
+      "no_search_results": "No se encontraron tableros coincidentes"
     },
     "board": {
       "add_list": "Añadir lista",
@@ -6903,7 +6920,9 @@
       "background_upload": "Subir imagen",
       "background_clear": "Quitar imagen",
       "background_image_set": "Imagen de fondo configurada",
-      "background_image_optional": "Opcional: sube tu propia imagen (se muestra sobre el color)"
+      "background_image_optional": "Opcional: sube tu propia imagen (se muestra sobre el color)",
+      "search_placeholder": "Buscar tarjetas o listas…",
+      "no_search_results": "No se encontraron tarjetas o listas coincidentes"
     },
     "custom_fields": {
       "title": "Campos personalizados",

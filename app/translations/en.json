@@ -27,7 +27,7 @@
       "notifications": "Notifications",
       "notifications_short": "Alerts",
       "home": "Home",
-      "booking": "Bookings",
+      "booking": "Room booking",
       "kanban": "Kanban",
       "events": "Events",
       "shortlinks": "Short links",
@@ -1536,7 +1536,7 @@
         "module_manuals": "Manuals",
         "module_inventory": "Inventory",
         "module_wiki": "Wiki",
-        "module_booking": "Bookings",
+        "module_booking": "Room booking",
         "module_music": "Music",
         "module_media_downloader": "Media Downloader",
         "module_assessment": "Assessment",
@@ -4306,6 +4306,11 @@
       "group_public": "Public",
       "group_events": "Events",
       "search": "Search people…",
+      "search_calendars": "Search calendars…",
+      "category_general": "General",
+      "category_teams": "Team calendars",
+      "category_people": "People",
+      "no_results": "No calendars found",
       "others": "Other calendars",
       "edit": "Settings",
       "hide": "Hide calendar",
@@ -6255,7 +6260,7 @@
   },
   "booking": {
     "requests": {
-      "page_title": "Booking Requests - Team Portal",
+      "page_title": "Room booking - Team Portal",
       "breadcrumb_dashboard": "Dashboard",
       "breadcrumb_requests": "Booking Requests",
       "heading": "Booking Requests",
@@ -6282,7 +6287,7 @@
         "archived": "Archived"
       },
       "empty": "No booking requests available",
-      "sidebar_brand": "Bookings",
+      "sidebar_brand": "Room booking",
       "nav": {
         "overview": "Overview",
         "neu": "New",
@@ -6438,6 +6443,16 @@
           "title": "Music Module",
           "description": "Connect and configure Spotify and YouTube Music",
           "short": "Providers"
+        },
+        "booking_rooms": {
+          "title": "Room management",
+          "description": "Manage rooms, equipment and calendars",
+          "short": "Rooms"
+        },
+        "booking_module": {
+          "title": "Room booking",
+          "description": "Manage rooms, equipment, booking forms and roles",
+          "short": "Rooms & Forms"
         }
       }
     },
@@ -6463,7 +6478,7 @@
       "inactive": "Inactive"
     },
     "sidebar": {
-      "rooms_heading": "Rooms & Calendars",
+      "rooms_heading": "Rooms",
       "all_rooms": "All Rooms",
       "requests_heading": "Booking Requests",
       "internal_bookings": "Internal Bookings",
@@ -6978,7 +6993,9 @@
       "grid_view": "Grid",
       "vis_private": "Private",
       "vis_team": "Team",
-      "vis_public": "Public"
+      "vis_public": "Public",
+      "search_placeholder": "Search boards…",
+      "no_search_results": "No matching boards found"
     },
     "board": {
       "add_list": "Add list",
@@ -6995,7 +7012,9 @@
       "background_upload": "Upload image",
       "background_clear": "Remove image",
       "background_image_set": "Background image is set",
-      "background_image_optional": "Optional: upload your own image (shown over the color)"
+      "background_image_optional": "Optional: upload your own image (shown over the color)",
+      "search_placeholder": "Search cards or lists…",
+      "no_search_results": "No matching cards or lists found"
     },
     "custom_fields": {
       "title": "Custom fields",

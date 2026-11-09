@@ -214,14 +214,30 @@
   color: transparent;
 }
 
-.settings-shell .mod-back-link,
 .settings-shell a.sp-sidepanel-link,
-.settings-shell .sp-page a:not(.mod-nav-link):not(.sp-hub-tile):not(.btn):not(.sp-info) {
+.settings-shell .sp-page a:not(.mod-nav-link):not(.sp-hub-tile):not(.btn):not(.sp-info):not(.mod-back-link):not(.mod-list-table a):not(.mod-list-name) {
   background: var(--sp-accent-fill);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   color: transparent;
+}
+
+.settings-shell .mod-back-link {
+  color: var(--bs-secondary-color, #6c757d) !important;
+  -webkit-text-fill-color: var(--bs-secondary-color, #6c757d) !important;
+  background: none !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.settings-shell .mod-back-link:hover,
+.settings-shell .mod-back-link:focus {
+  color: var(--accent-color, var(--bs-primary)) !important;
+  -webkit-text-fill-color: var(--accent-color, var(--bs-primary)) !important;
 }
 
 .settings-shell .settings-nav-section-title,

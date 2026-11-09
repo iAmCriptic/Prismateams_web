@@ -193,8 +193,8 @@
         <div class="settings-nav-section-title">{{ _('settings.sidebar.sections.modules') }}</div>
     </div>
     {% if is_module_enabled('module_booking') %}
-    <a href="{{ url_for('settings.booking_forms') }}" class="nav-link mod-nav-link{% if booking_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-calendar-check me-2"></i>{{ _('booking.admin.cards.booking_forms.title') }}
+    <a href="{{ url_for('settings.booking_rooms') }}" class="nav-link mod-nav-link{% if ep.startswith('settings.booking_') %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-door-open me-2"></i>{{ _('layout.nav.booking') }}
     </a>
     {% endif %}
     {% if is_module_enabled('module_music') %}

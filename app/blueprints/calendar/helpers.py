@@ -1,6 +1,6 @@
 """Shared helpers for the calendar module."""
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, Response, current_app, session
 from flask_login import login_required, current_user
 from app import db
 from app.models.calendar import Calendar, CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
@@ -86,11 +86,28 @@ def sanitize_event_color(raw_color):
 
 
 def _selected_calendar_ids_from_request(user):
-    """Parse ?calendars= from query; default = personal + public when multi on."""
+    """Parse ?calendars= from query, session, or cookie; default = personal + public when multi on."""
     multi = is_calendar_multi_enabled()
     if not multi:
         return []
     raw = request.args.get('calendars')
+    if raw:
+        ids = parse_calendar_ids_param(raw)
+        if ids:
+            session['calendar_selected_ids'] = ids
+            return ids
+    # Session fallback
+    sess_ids = session.get('calendar_selected_ids')
+    if sess_ids and isinstance(sess_ids, list):
+        return [int(x) for x in sess_ids if str(x).isdigit()]
+    # Cookie fallback
+    cookie_raw = request.cookies.get('pt_calendar_selected_ids')
+    if cookie_raw:
+        c_ids = parse_calendar_ids_param(cookie_raw)
+        if c_ids:
+            session['calendar_selected_ids'] = c_ids
+            return c_ids
+    # Default calendars
     defaults = []
     if is_calendar_personal_enabled() and user:
         p = get_or_create_personal_calendar(user)
@@ -104,10 +121,7 @@ def _selected_calendar_ids_from_request(user):
         d = default_calendar_for_user(user)
         if d:
             defaults.append(d.id)
-    ids = parse_calendar_ids_param(raw, default_ids=defaults)
-    if not ids and defaults:
-        ids = list(defaults)
-    return ids
+    return defaults
 
 
 def _sidebar_context(user, selected_ids=None):
@@ -141,7 +155,14 @@ def _sidebar_context(user, selected_ids=None):
     from app.models.team import Team
     team_ids = list(user_calendar_team_ids(user))
     teams = Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all() if team_ids else []
+    raw_view = request.args.get('view')
+    if raw_view in ('month', 'week', 'day', 'list'):
+        session['calendar_view'] = raw_view
+    active_view = raw_view or session.get('calendar_view') or request.cookies.get('pt_calendar_view') or 'month'
+    if active_view not in ('month', 'week', 'day', 'list'):
+        active_view = 'month'
     return {
+        'active_view': active_view,
         'calendar_multi_enabled': True,
         'calendar_personal_enabled': is_calendar_personal_enabled(),
         'calendar_team_enabled': is_calendar_team_enabled(),

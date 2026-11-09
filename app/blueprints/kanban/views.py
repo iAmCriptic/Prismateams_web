@@ -102,11 +102,14 @@ def index():
 
     teams = _user_kanban_teams(current_user)
     allowed = set(get_allowed_visibilities(current_user))
+    q = (request.args.get('q') or '').strip()
     base = (
         accessible_boards_query(current_user, include_closed=False)
         .options(joinedload(KanbanBoard.team))
         .order_by(KanbanBoard.updated_at.desc())
     )
+    if q:
+        base = base.filter(KanbanBoard.title.ilike(f"%{q}%"))
 
     def vis_query(vis):
         return base.filter(KanbanBoard.visibility == vis)
@@ -254,6 +257,7 @@ def index():
         unread_counts_by_board=unread_counts_by_board,
         section_filter=section,
         filter_team_id=filter_team_id,
+        search_query=q,
         active_nav=active_nav,
         list_has_more=list_has_more,
         list_page=list_page,

@@ -514,4 +514,83 @@
       }
     });
   });
+
+  // Live-Suche nach Boards auf der Startseite (Navbar & Mobile)
+  (function initKanbanBoardSearch() {
+    var inputs = [
+      qs('#kanbanIndexSearchInput'),
+      qs('#kanbanIndexSearchInputMobile')
+    ].filter(Boolean);
+    var clearBtns = [
+      qs('#kanbanIndexSearchClear'),
+      qs('#kanbanIndexSearchClearMobile')
+    ].filter(Boolean);
+    var emptyHint = qs('#kanbanBoardSearchEmpty');
+
+    if (!inputs.length) return;
+
+    function applySearch(rawQuery) {
+      var query = (rawQuery || '').trim().toLowerCase();
+
+      clearBtns.forEach(function (btn) {
+        btn.classList.toggle('d-none', !query);
+      });
+
+      var boardWrappers = qsa('[data-board-wrapper]');
+      var totalVisible = 0;
+
+      boardWrappers.forEach(function (el) {
+        var name = (el.getAttribute('data-board-search-name') || '').toLowerCase();
+        var team = (el.getAttribute('data-board-search-team') || '').toLowerCase();
+        var match = !query || name.includes(query) || team.includes(query);
+        el.classList.toggle('d-none', !match);
+        if (match) totalVisible++;
+      });
+
+      // Filter sections: hide sections that have no visible boards when searching
+      qsa('.kanban-section').forEach(function (sec) {
+        if (!query) {
+          sec.classList.remove('d-none');
+        } else {
+          var itemsInSec = sec.querySelectorAll('[data-board-wrapper]:not(.d-none)');
+          sec.classList.toggle('d-none', itemsInSec.length === 0);
+        }
+      });
+
+      if (emptyHint) {
+        emptyHint.classList.toggle('d-none', !(query && boardWrappers.length > 0 && totalVisible === 0));
+      }
+    }
+
+    inputs.forEach(function (input) {
+      input.addEventListener('input', function () {
+        var val = input.value;
+        inputs.forEach(function (other) {
+          if (other !== input) other.value = val;
+        });
+        applySearch(val);
+      });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && input.value) {
+          e.preventDefault();
+          inputs.forEach(function (inp) { inp.value = ''; });
+          applySearch('');
+        }
+      });
+    });
+
+    clearBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        inputs.forEach(function (inp) {
+          inp.value = '';
+        });
+        if (inputs[0]) inputs[0].focus();
+        applySearch('');
+      });
+    });
+
+    if (inputs[0] && inputs[0].value) {
+      applySearch(inputs[0].value);
+    }
+  })();
 })();

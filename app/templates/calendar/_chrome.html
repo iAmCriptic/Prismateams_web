@@ -43,23 +43,24 @@
 {% endmacro %}
 
 {% macro calendar_view_pills(variant='toolbar', with_ids=false) %}
+{% set av = active_view|default('month') %}
 <div class="calendar-view-pills calendar-view-pills--{{ variant }}" role="group" aria-label="{{ _('calendar.index.heading') }}">
-    <button type="button" class="calendar-view-pill active"{% if with_ids %} id="monthViewBtn"{% endif %} data-calendar-view="month" title="{{ _('calendar.index.view_buttons.month') }}">
+    <button type="button" class="calendar-view-pill {% if av == 'month' %}active{% endif %}"{% if with_ids %} id="monthViewBtn"{% endif %} data-calendar-view="month" title="{{ _('calendar.index.view_buttons.month') }}">
         <i class="bi bi-calendar-month" aria-hidden="true"></i>
         <span class="calendar-view-pill-label calendar-view-pill-label--full">{{ _('calendar.index.view_buttons.month') }}</span>
         <span class="calendar-view-pill-label calendar-view-pill-label--short" aria-hidden="true">{{ _('calendar.index.view_buttons.month_short') }}</span>
     </button>
-    <button type="button" class="calendar-view-pill"{% if with_ids %} id="weekViewBtn"{% endif %} data-calendar-view="week" title="{{ _('calendar.index.view_buttons.week') }}">
+    <button type="button" class="calendar-view-pill {% if av == 'week' %}active{% endif %}"{% if with_ids %} id="weekViewBtn"{% endif %} data-calendar-view="week" title="{{ _('calendar.index.view_buttons.week') }}">
         <i class="bi bi-calendar-week" aria-hidden="true"></i>
         <span class="calendar-view-pill-label calendar-view-pill-label--full">{{ _('calendar.index.view_buttons.week') }}</span>
         <span class="calendar-view-pill-label calendar-view-pill-label--short" aria-hidden="true">{{ _('calendar.index.view_buttons.week_short') }}</span>
     </button>
-    <button type="button" class="calendar-view-pill"{% if with_ids %} id="dayViewBtn"{% endif %} data-calendar-view="day" title="{{ _('calendar.index.view_buttons.day') }}">
+    <button type="button" class="calendar-view-pill {% if av == 'day' %}active{% endif %}"{% if with_ids %} id="dayViewBtn"{% endif %} data-calendar-view="day" title="{{ _('calendar.index.view_buttons.day') }}">
         <i class="bi bi-calendar-day" aria-hidden="true"></i>
         <span class="calendar-view-pill-label calendar-view-pill-label--full">{{ _('calendar.index.view_buttons.day') }}</span>
         <span class="calendar-view-pill-label calendar-view-pill-label--short" aria-hidden="true">{{ _('calendar.index.view_buttons.day_short') }}</span>
     </button>
-    <button type="button" class="calendar-view-pill"{% if with_ids %} id="listViewBtn"{% endif %} data-calendar-view="list" title="{{ _('calendar.index.view_buttons.list') }}">
+    <button type="button" class="calendar-view-pill {% if av == 'list' %}active{% endif %}"{% if with_ids %} id="listViewBtn"{% endif %} data-calendar-view="list" title="{{ _('calendar.index.view_buttons.list') }}">
         <i class="bi bi-list-ul" aria-hidden="true"></i>
         <span class="calendar-view-pill-label calendar-view-pill-label--full">{{ _('calendar.index.view_buttons.list') }}</span>
         <span class="calendar-view-pill-label calendar-view-pill-label--short" aria-hidden="true">{{ _('calendar.index.view_buttons.list_short') }}</span>
@@ -87,17 +88,26 @@
 </div>
 {% endmacro %}
 
+{% macro calendar_sidebar_filter(id_suffix='') %}
+<div class="calendar-sidebar-filter-wrap">
+    <label class="calendar-sidebar-filter" for="calendarSearchFilter{{ id_suffix }}">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="search"
+               class="calendar-sidebar-filter-input"
+               id="calendarSearchFilter{{ id_suffix }}"
+               placeholder="{{ _('calendar.sidebar.search_calendars') }}"
+               aria-label="{{ _('calendar.sidebar.search_calendars') }}"
+               autocomplete="off"
+               spellcheck="false">
+        <button type="button" class="btn btn-sm btn-link text-muted p-0 calendar-sidebar-filter-clear d-none" id="calendarSearchFilterClear{{ id_suffix }}" aria-label="{{ _('common.cancel') }}">
+            <i class="bi bi-x"></i>
+        </button>
+    </label>
+</div>
+{% endmacro %}
+
 {% macro calendar_people_filter(id_suffix='') %}
-<label class="calendar-sidebar-filter" for="calendarPeopleSearch{{ id_suffix }}">
-    <i class="bi bi-funnel" aria-hidden="true"></i>
-    <input type="search"
-           class="calendar-sidebar-filter-input"
-           id="calendarPeopleSearch{{ id_suffix }}"
-           placeholder="{{ _('calendar.sidebar.search') }}"
-           aria-label="{{ _('calendar.sidebar.search') }}"
-           autocomplete="off"
-           spellcheck="false">
-</label>
+{{ calendar_sidebar_filter(id_suffix) }}
 {% endmacro %}
 
 {% macro calendar_modals() %}
@@ -231,6 +241,9 @@
     <button type="button" class="btn calendar-sidebar-reset w-100 text-start mb-2 flex-shrink-0" id="calendarResetBtnDesktop">
         <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('calendar.sidebar.reset') }}
     </button>
+    <div class="px-1 mb-2 flex-shrink-0">
+        {{ calendar_sidebar_filter('Desktop') }}
+    </div>
     {% endif %}
     <nav class="mod-sidebar-nav calendar-sidebar-nav nav flex-column gap-1" {% if interactive %}id="calendarSidebarNav"{% endif %}>
         {% macro cal_nav_item(cal, label=none) %}
@@ -293,33 +306,65 @@
             {% endif %}
         </div>
         {% endmacro %}
+        {# Eigener Kalender (ohne Kategorie) #}
         {% if sc.personals %}
         {% for cal in sc.personals %}
         {{ cal_nav_item(cal) }}
         {% endfor %}
         {% endif %}
-        {% if sc.teams %}
-        {% for cal in sc.teams %}
-        {{ cal_nav_item(cal) }}
-        {% endfor %}
-        {% endif %}
-        {% if sc.publics %}
-        {% for cal in sc.publics %}
-        {{ cal_nav_item(cal) }}
-        {% endfor %}
-        {% endif %}
-        {% if sc.events %}
-        {{ cal_nav_item(sc.events) }}
-        {% endif %}
-        {% if sc.rooms %}
-        <div class="calendar-sidebar-folder-wrap mt-2 mb-1">
+        {# Kategorie Allgemein #}
+        {% if sc.publics or sc.events %}
+        <div class="calendar-sidebar-folder-wrap mt-2 mb-1" data-calendar-folder="general">
             <button type="button" class="btn calendar-sidebar-folder-btn w-100 d-flex align-items-center justify-content-between text-start p-1"
-                    data-bs-toggle="collapse" data-bs-target="#calendarRoomsCollapse" aria-expanded="true">
+                    data-bs-toggle="collapse" data-bs-target="#calendarGeneralCollapse" aria-expanded="true" aria-controls="calendarGeneralCollapse">
+                <span class="d-flex align-items-center gap-2">
+                    <i class="bi bi-globe" aria-hidden="true"></i>
+                    <span class="fw-semibold small text-uppercase">{{ _('calendar.sidebar.category_general') }}</span>
+                </span>
+                <i class="bi bi-chevron-down calendar-sidebar-folder-chevron small" aria-hidden="true"></i>
+            </button>
+            <div class="collapse show" id="calendarGeneralCollapse">
+                <div class="calendar-sidebar-folder-body d-flex flex-column gap-1 pt-1">
+                    {% for cal in sc.publics %}
+                    {{ cal_nav_item(cal) }}
+                    {% endfor %}
+                    {% if sc.events %}
+                    {{ cal_nav_item(sc.events) }}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {# Kategorie Teamkalender #}
+        {% if sc.teams %}
+        <div class="calendar-sidebar-folder-wrap mt-2 mb-1" data-calendar-folder="teams">
+            <button type="button" class="btn calendar-sidebar-folder-btn w-100 d-flex align-items-center justify-content-between text-start p-1"
+                    data-bs-toggle="collapse" data-bs-target="#calendarTeamsCollapse" aria-expanded="true" aria-controls="calendarTeamsCollapse">
+                <span class="d-flex align-items-center gap-2">
+                    <i class="bi bi-people" aria-hidden="true"></i>
+                    <span class="fw-semibold small text-uppercase">{{ _('calendar.sidebar.category_teams') }}</span>
+                </span>
+                <i class="bi bi-chevron-down calendar-sidebar-folder-chevron small" aria-hidden="true"></i>
+            </button>
+            <div class="collapse show" id="calendarTeamsCollapse">
+                <div class="calendar-sidebar-folder-body d-flex flex-column gap-1 pt-1">
+                    {% for cal in sc.teams %}
+                    {{ cal_nav_item(cal) }}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {# Kategorie Raeume #}
+        {% if sc.rooms %}
+        <div class="calendar-sidebar-folder-wrap mt-2 mb-1" data-calendar-folder="rooms">
+            <button type="button" class="btn calendar-sidebar-folder-btn w-100 d-flex align-items-center justify-content-between text-start p-1"
+                    data-bs-toggle="collapse" data-bs-target="#calendarRoomsCollapse" aria-expanded="true" aria-controls="calendarRoomsCollapse">
                 <span class="d-flex align-items-center gap-2">
                     <i class="bi bi-door-open" aria-hidden="true"></i>
                     <span class="fw-semibold small text-uppercase">{{ _('calendar.sidebar.rooms') }}</span>
                 </span>
-                <i class="bi bi-chevron-down calendar-folder-chevron small" aria-hidden="true"></i>
+                <i class="bi bi-chevron-down calendar-sidebar-folder-chevron small" aria-hidden="true"></i>
             </button>
             <div class="collapse show" id="calendarRoomsCollapse">
                 <div class="calendar-sidebar-folder-body d-flex flex-column gap-1 pt-1">
@@ -330,19 +375,29 @@
             </div>
         </div>
         {% endif %}
+        {# Kategorie Personen #}
         {% if sc.others %}
-        <hr class="my-2">
-        {% if interactive %}
-        <div class="px-1 mb-2 calendar-sidebar-filter-wrap">
-            {{ calendar_people_filter('Sidebar') }}
+        <div class="calendar-sidebar-folder-wrap mt-2 mb-1" data-calendar-folder="people">
+            <button type="button" class="btn calendar-sidebar-folder-btn w-100 d-flex align-items-center justify-content-between text-start p-1"
+                    data-bs-toggle="collapse" data-bs-target="#calendarPeopleCollapse" aria-expanded="true" aria-controls="calendarPeopleCollapse">
+                <span class="d-flex align-items-center gap-2">
+                    <i class="bi bi-person" aria-hidden="true"></i>
+                    <span class="fw-semibold small text-uppercase">{{ _('calendar.sidebar.category_people') }}</span>
+                </span>
+                <i class="bi bi-chevron-down calendar-sidebar-folder-chevron small" aria-hidden="true"></i>
+            </button>
+            <div class="collapse show" id="calendarPeopleCollapse">
+                <div class="calendar-sidebar-folder-body d-flex flex-column gap-1 pt-1" id="calendarOthersList">
+                    {% for cal in sc.others %}
+                    {{ cal_nav_item(cal) }}
+                    {% endfor %}
+                </div>
+            </div>
         </div>
         {% endif %}
-        <div id="calendarOthersList">
-            {% for cal in sc.others %}
-            {{ cal_nav_item(cal) }}
-            {% endfor %}
+        <div class="calendar-sidebar-no-results text-muted small text-center py-3 d-none">
+            {{ _('calendar.sidebar.no_results') }}
         </div>
-        {% endif %}
     </nav>
 </aside>
 
@@ -364,6 +419,9 @@
         <button type="button" class="btn calendar-sidebar-reset w-100 text-start mb-2 flex-shrink-0" id="calendarResetBtnMobile">
             <i class="bi bi-arrow-counterclockwise me-1"></i>{{ _('calendar.sidebar.reset') }}
         </button>
+        <div class="px-1 mb-2 flex-shrink-0">
+            {{ calendar_sidebar_filter('Mobile') }}
+        </div>
         <div id="calendarMobileNavBody" class="mod-sidebar-nav calendar-sidebar-nav nav flex-column gap-1 flex-grow-1 min-height-0 overflow-auto"></div>
     </div>
 </div>

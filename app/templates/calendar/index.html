@@ -74,7 +74,8 @@
 
 <div class="calendar-view-stage">
 <!-- Monatsansicht -->
-<div id="monthView" class="calendar-view calendar-view--active">
+{% set av = active_view|default('month') %}
+<div id="monthView" class="calendar-view {% if av == 'month' %}calendar-view--active{% endif %}" {% if av != 'month' %}style="display: none;"{% endif %}>
     <div class="row mb-2 calendar-view-nav flex-shrink-0 align-items-center">
         <div class="col min-width-0">
             <h3 id="currentMonth" class="mb-0 text-truncate"></h3>
@@ -106,7 +107,7 @@
 </div>
 
 <!-- Terminübersicht -->
-<div id="listView" class="calendar-view" style="display: none;">
+<div id="listView" class="calendar-view {% if av == 'list' %}calendar-view--active{% endif %}" {% if av != 'list' %}style="display: none;"{% endif %}>
     <h1 class="h4 mb-3 calendar-list-title">{{ _('calendar.index.heading') }}</h1>
     {% if events %}
     <div class="list-group">
@@ -162,7 +163,7 @@
 </div>
 
 <!-- Wochenansicht -->
-<div id="weekView" class="calendar-view" style="display: none;">
+<div id="weekView" class="calendar-view {% if av == 'week' %}calendar-view--active{% endif %}" {% if av != 'week' %}style="display: none;"{% endif %}>
     <div class="row mb-2 calendar-view-nav flex-shrink-0 align-items-center">
         <div class="col min-width-0">
             <h4 id="weekTitle" class="mb-0 text-truncate">{{ _('calendar.index.week.title_prefix') }}</h4>
@@ -183,7 +184,7 @@
 </div>
 
 <!-- Tagesansicht -->
-<div id="dayView" class="calendar-view" style="display: none;">
+<div id="dayView" class="calendar-view {% if av == 'day' %}calendar-view--active{% endif %}" {% if av != 'day' %}style="display: none;"{% endif %}>
     <div class="row mb-2 calendar-view-nav flex-shrink-0 align-items-center">
         <div class="col min-width-0">
             <h4 id="dayTitle" class="mb-0 text-truncate">{{ _('calendar.index.day.title') }}</h4>
@@ -320,7 +321,10 @@ function calendarQuerySuffix() {
 function persistSelectedCalendars() {
     if (!CAL_MULTI) return;
     const ids = getSelectedCalendarIds();
-    try { localStorage.setItem(CAL_STORAGE_KEY, JSON.stringify(ids)); } catch (e) {}
+    try {
+        localStorage.setItem(CAL_STORAGE_KEY, JSON.stringify(ids));
+        document.cookie = 'pt_calendar_selected_ids=' + encodeURIComponent(ids.join(',')) + '; path=/; max-age=31536000; SameSite=Lax';
+    } catch (e) {}
 }
 
 function reloadWithCalendars(ids) {
@@ -465,7 +469,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         function resetCalendars() {
             const ids = personalId ? [personalId] : [];
-            try { localStorage.setItem(CAL_STORAGE_KEY, JSON.stringify(ids)); } catch (e) {}
+            try {
+                localStorage.setItem(CAL_STORAGE_KEY, JSON.stringify(ids));
+                document.cookie = 'pt_calendar_selected_ids=' + encodeURIComponent(ids.join(',')) + '; path=/; max-age=31536000; SameSite=Lax';
+            } catch (e) {}
             reloadWithCalendars(ids);
         }
         const resetDesktop = document.getElementById('calendarResetBtnDesktop');
@@ -473,19 +480,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (resetDesktop) resetDesktop.addEventListener('click', resetCalendars);
         if (resetMobile) resetMobile.addEventListener('click', resetCalendars);
 
-        function bindPeopleSearch(input, scope) {
-            if (!input) return;
-            input.addEventListener('input', function() {
-                const q = this.value.trim().toLowerCase();
-                const root = scope || document;
-                root.querySelectorAll('#calendarOthersList .calendar-nav-item').forEach(item => {
-                    const name = (item.dataset.calendarName || '').toLowerCase();
-                    item.style.display = (!q || name.includes(q)) ? '' : 'none';
-                });
-            });
-        }
-        bindPeopleSearch(document.getElementById('calendarPeopleSearchSidebar'), document.getElementById('calendarSidebarNav'));
-
+        // Setup mobile sidebar clone first
         const mobileNav = document.getElementById('calendarMobileNavBody');
         const desktopNav = document.getElementById('calendarSidebarNav');
         if (mobileNav && desktopNav) {
@@ -494,13 +489,123 @@ document.addEventListener('DOMContentLoaded', function() {
             mobileNav.querySelectorAll('label[for]').forEach(el => {
                 el.setAttribute('for', el.getAttribute('for') + '_m');
             });
+            mobileNav.querySelectorAll('[data-bs-target]').forEach(el => {
+                const target = el.getAttribute('data-bs-target');
+                if (target && target.startsWith('#')) {
+                    el.setAttribute('data-bs-target', target + '_m');
+                }
+            });
+            mobileNav.querySelectorAll('[aria-controls]').forEach(el => {
+                const ctrl = el.getAttribute('aria-controls');
+                if (ctrl) {
+                    el.setAttribute('aria-controls', ctrl + '_m');
+                }
+            });
             mobileNav.querySelectorAll('.calendar-visibility-check').forEach(cb => {
                 cb.addEventListener('change', function() {
                     onVisibilityCheckboxChange(this);
                 });
             });
-            bindPeopleSearch(document.getElementById('calendarPeopleSearchSidebar_m'), mobileNav);
         }
+
+        // Unified calendar search across both desktop and mobile sidebars
+        const searchDesktop = document.getElementById('calendarSearchFilterDesktop');
+        const searchMobile = document.getElementById('calendarSearchFilterMobile');
+        const clearDesktop = document.getElementById('calendarSearchFilterClearDesktop');
+        const clearMobile = document.getElementById('calendarSearchFilterClearMobile');
+
+        function applyCalendarFilter(query) {
+            const q = (query || '').trim().toLowerCase();
+            const roots = [desktopNav, mobileNav].filter(Boolean);
+
+            roots.forEach(root => {
+                let totalVisible = 0;
+
+                // Show ONLY matching calendars by actual name using d-none (!important)
+                root.querySelectorAll('.calendar-nav-item').forEach(item => {
+                    const name = (item.dataset.calendarName || item.dataset.calendarRawName || '').trim().toLowerCase();
+                    const matches = !q || name.includes(q);
+                    item.classList.toggle('d-none', !matches);
+                    if (matches) totalVisible++;
+                });
+
+                // Handle category folders: when searching, hide category headers so only the matching calendar items appear
+                root.querySelectorAll('.calendar-sidebar-folder-wrap').forEach(folder => {
+                    const items = folder.querySelectorAll('.calendar-nav-item');
+                    if (!items.length) return;
+                    const visibleItems = folder.querySelectorAll('.calendar-nav-item:not(.d-none)');
+                    const collapseEl = folder.querySelector('.collapse');
+                    const folderBtn = folder.querySelector('.calendar-sidebar-folder-btn');
+
+                    if (!q) {
+                        folder.classList.remove('d-none');
+                        if (folderBtn) folderBtn.classList.remove('d-none');
+                        if (folder.dataset.wasCollapsed === 'true') {
+                            if (collapseEl && collapseEl.classList.contains('show')) {
+                                collapseEl.classList.remove('show');
+                                const toggleBtn = folder.querySelector('[data-bs-toggle="collapse"]');
+                                if (toggleBtn) {
+                                    toggleBtn.setAttribute('aria-expanded', 'false');
+                                    toggleBtn.classList.add('collapsed');
+                                }
+                            }
+                        }
+                        delete folder.dataset.wasCollapsed;
+                    } else {
+                        if (visibleItems.length === 0) {
+                            folder.classList.add('d-none');
+                        } else {
+                            folder.classList.remove('d-none');
+                            // Hide the folder button during search so ONLY matching calendar entries appear
+                            if (folderBtn) folderBtn.classList.add('d-none');
+                            if (collapseEl && !collapseEl.classList.contains('show')) {
+                                if (typeof folder.dataset.wasCollapsed === 'undefined') {
+                                    folder.dataset.wasCollapsed = 'true';
+                                }
+                                collapseEl.classList.add('show');
+                            }
+                        }
+                    }
+                });
+
+                // "No results" message
+                const noResults = root.querySelector('.calendar-sidebar-no-results');
+                if (noResults) {
+                    noResults.classList.toggle('d-none', !q || totalVisible > 0);
+                }
+            });
+        }
+
+        function syncCalendarFilter(val) {
+            [searchDesktop, searchMobile].forEach(inp => {
+                if (inp && inp.value !== val) inp.value = val;
+            });
+            [clearDesktop, clearMobile].forEach(btn => {
+                if (btn) btn.classList.toggle('d-none', !val);
+            });
+            applyCalendarFilter(val);
+        }
+
+        [searchDesktop, searchMobile].forEach(inp => {
+            if (!inp) return;
+            inp.addEventListener('input', function() {
+                syncCalendarFilter(this.value);
+            });
+            inp.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && this.value) {
+                    e.preventDefault();
+                    syncCalendarFilter('');
+                }
+            });
+        });
+
+        [clearDesktop, clearMobile].forEach(btn => {
+            if (!btn) return;
+            btn.addEventListener('click', function() {
+                syncCalendarFilter('');
+                if (searchDesktop) searchDesktop.focus();
+            });
+        });
     }
 
     const newCalType = document.getElementById('newCalType');
@@ -558,7 +663,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    let currentViewKey = 'month';
+    const CAL_ACTIVE_VIEW = {{ active_view|default('month')|tojson }};
+    let currentViewKey = (function() {
+        try {
+            const local = localStorage.getItem('pt_calendar_active_view');
+            if (local && ['month', 'week', 'day', 'list'].includes(local)) return local;
+        } catch (e) {}
+        return CAL_ACTIVE_VIEW || 'month';
+    })();
     let viewSwitchAnimating = false;
     const VIEW_ANIM_MS = 220;
 
@@ -603,6 +715,10 @@ document.addEventListener('DOMContentLoaded', function() {
             setViewPillsActive(viewKey);
             currentViewKey = viewKey;
             viewSwitchAnimating = false;
+            try {
+                localStorage.setItem('pt_calendar_active_view', viewKey);
+                document.cookie = 'pt_calendar_view=' + encodeURIComponent(viewKey) + '; path=/; max-age=31536000; SameSite=Lax';
+            } catch (e) {}
         }
 
         if (!animate || reducedMotion || !outgoing || outgoing === incoming) {
@@ -638,12 +754,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
+    // Initial view restoration
+    if (currentViewKey && currentViewKey !== 'month') {
+        switchView(currentViewKey, { animate: false, force: true });
+    }
+
     // Calendar Navigation
     // Persistente Ansicht: gespeicherten Monat/Woche/Tag wiederherstellen
-    const CAL_STORAGE_KEY = 'calendar.view.state';
+    const CAL_VIEW_STATE_STORAGE_KEY = 'calendar.view.state';
     function loadStoredDate(field) {
         try {
-            const raw = sessionStorage.getItem(CAL_STORAGE_KEY);
+            const raw = sessionStorage.getItem(CAL_VIEW_STATE_STORAGE_KEY);
             if (!raw) return null;
             const data = JSON.parse(raw);
             const value = data && data[field];
@@ -656,10 +777,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     function saveStoredDate(field, date) {
         try {
-            const raw = sessionStorage.getItem(CAL_STORAGE_KEY);
+            const raw = sessionStorage.getItem(CAL_VIEW_STATE_STORAGE_KEY);
             const data = raw ? JSON.parse(raw) : {};
             data[field] = date.toISOString();
-            sessionStorage.setItem(CAL_STORAGE_KEY, JSON.stringify(data));
+            sessionStorage.setItem(CAL_VIEW_STATE_STORAGE_KEY, JSON.stringify(data));
         } catch (e) {
             // ignorieren
         }

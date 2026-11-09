@@ -625,15 +625,20 @@ def api_filter_cards(board_id):
     activity = data.get('activity')  # week|two_weeks|four_weeks|none_four_weeks
 
     matching = []
+    matching_list_ids = []
     now = portal_now_naive()
     from datetime import timedelta
     for lst in board.lists:
         if lst.archived_at:
             continue
+        list_title_matches = bool(q and q in (lst.title or '').lower())
+        if list_title_matches:
+            matching_list_ids.append(lst.id)
+        list_has_matching_cards = False
         for card in lst.cards:
             if card.archived_at:
                 continue
-            if q:
+            if q and not list_title_matches:
                 hay = f"{card.title or ''} {card.description or ''}".lower()
                 label_names = ' '.join((cl.label.name or '') for cl in card.card_labels if cl.label).lower()
                 member_names = ' '.join(
@@ -677,7 +682,15 @@ def api_filter_cards(board_id):
                 if activity == 'none_four_weeks' and stamp and stamp >= now - timedelta(days=28):
                     continue
             matching.append(card.id)
-    return jsonify({'card_ids': matching})
+            list_has_matching_cards = True
+        if list_has_matching_cards and lst.id not in matching_list_ids:
+            matching_list_ids.append(lst.id)
+    return jsonify({
+        'ok': True,
+        'card_ids': matching,
+        'list_ids': matching_list_ids,
+        'count': len(matching),
+    })
 
 
 @kanban_bp.route('/api/templates', methods=['GET', 'POST'])

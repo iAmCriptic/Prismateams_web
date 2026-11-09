@@ -139,6 +139,33 @@
     color: var(--bs-danger, #dc3545) !important;
 }
 
+.booking-room-nav-item {
+    position: relative;
+}
+
+.booking-room-collapse-btn {
+    border-radius: var(--mod-radius-pill);
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, background-color 0.15s ease;
+}
+
+.booking-room-collapse-btn:hover {
+    background: rgba(127, 127, 127, 0.15);
+}
+
+.booking-room-collapse-btn .booking-chevron {
+    transition: transform 0.2s ease;
+    display: inline-block;
+}
+
+.booking-room-collapse-btn.collapsed .booking-chevron,
+.booking-room-collapse-btn[aria-expanded="false"] .booking-chevron {
+    transform: rotate(-90deg);
+}
+
 .booking-main {
     flex: 1 1 auto;
     min-width: 0;

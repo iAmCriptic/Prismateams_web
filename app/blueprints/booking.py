@@ -68,22 +68,47 @@ def _booking_sidebar_context(form_id=None, room_id=None, view='overview'):
     elif current_form is None:
         form_id = None
 
-    pending_counts = {}
-    if forms:
-        rows = (
-            db.session.query(BookingRequest.form_id, func.count(BookingRequest.id))
-            .filter(BookingRequest.status == 'pending')
-            .group_by(BookingRequest.form_id)
-            .all()
-        )
-        pending_counts = {fid: count for fid, count in rows}
-
-    conflict_count = BookingRequest.query.filter_by(has_conflict=True).count()
-    internal_count = BookingRequest.query.filter_by(booking_type='internal').count()
+    if room_id is not None:
+        try:
+            room_id = int(room_id)
+        except (TypeError, ValueError):
+            room_id = None
 
     current_room = None
     if room_id:
         current_room = next((r for r in rooms if r.id == room_id), None)
+
+    # Gesamt-Zähler für "Neu" (ausstehend)
+    total_pending = BookingRequest.query.filter_by(status='pending').count()
+
+    # Raumbezogene Zähler für Unterteilung: Kollision, Angenommen, Abgelehnt, Archiviert
+    room_counts = {
+        r.id: {'conflicts': 0, 'accepted': 0, 'rejected': 0, 'archived': 0, 'pending': 0}
+        for r in rooms
+    }
+    if rooms:
+        status_rows = (
+            db.session.query(BookingRequest.room_id, BookingRequest.status, func.count(BookingRequest.id))
+            .filter(BookingRequest.room_id.isnot(None))
+            .group_by(BookingRequest.room_id, BookingRequest.status)
+            .all()
+        )
+        for rid, st, count in status_rows:
+            if rid in room_counts and st in room_counts[rid]:
+                room_counts[rid][st] = count
+
+        conflict_rows = (
+            db.session.query(BookingRequest.room_id, func.count(BookingRequest.id))
+            .filter(BookingRequest.room_id.isnot(None), BookingRequest.has_conflict.is_(True))
+            .group_by(BookingRequest.room_id)
+            .all()
+        )
+        for rid, count in conflict_rows:
+            if rid in room_counts:
+                room_counts[rid]['conflicts'] = count
+
+    conflict_count = BookingRequest.query.filter_by(has_conflict=True).count()
+    internal_count = BookingRequest.query.filter_by(booking_type='internal').count()
 
     return {
         'booking_forms': forms,
@@ -93,19 +118,26 @@ def _booking_sidebar_context(form_id=None, room_id=None, view='overview'):
         'current_room_id': room_id,
         'current_room': current_room,
         'current_view': view,
-        'pending_counts': pending_counts,
+        'pending_counts': {r.id: room_counts[r.id]['pending'] for r in rooms},
         'conflict_count': conflict_count,
         'internal_count': internal_count,
+        'total_pending_count': total_pending,
+        'room_counts': room_counts,
     }
 
 
-def _form_dashboard_stats(form_id):
-    """Kennzahlen für die Formular-Übersicht."""
+def _form_dashboard_stats(form_id=None, room_id=None):
+    """Kennzahlen für die Übersicht (global, formular- oder raumspezifisch)."""
     today = date.today()
     window_end = today + timedelta(days=30)
     month_start = today.replace(day=1)
 
-    base = BookingRequest.query.filter_by(form_id=form_id)
+    base = BookingRequest.query
+    if room_id:
+        base = base.filter_by(room_id=room_id)
+    elif form_id:
+        base = base.filter_by(form_id=form_id)
+
     count_pending = base.filter_by(status='pending').count()
     count_accepted = base.filter_by(status='accepted').count()
     count_rejected = base.filter_by(status='rejected').count()
@@ -117,30 +149,36 @@ def _form_dashboard_stats(form_id):
 
     upcoming_q = (
         BookingRequest.query
-        .filter_by(form_id=form_id, status='accepted')
+        .filter_by(status='accepted')
         .filter(BookingRequest.event_date.isnot(None))
         .filter(BookingRequest.event_date >= today)
         .filter(BookingRequest.event_date <= window_end)
     )
-    upcoming_count = upcoming_q.count()
-    busy_days = (
-        db.session.query(func.count(func.distinct(BookingRequest.event_date)))
-        .filter(
-            BookingRequest.form_id == form_id,
-            BookingRequest.status == 'accepted',
-            BookingRequest.event_date.isnot(None),
-            BookingRequest.event_date >= today,
-            BookingRequest.event_date <= window_end,
-        )
-        .scalar()
-    ) or 0
+    if room_id:
+        upcoming_q = upcoming_q.filter_by(room_id=room_id)
+    elif form_id:
+        upcoming_q = upcoming_q.filter_by(form_id=form_id)
 
-    this_month = (
-        BookingRequest.query
-        .filter_by(form_id=form_id)
-        .filter(BookingRequest.created_at >= datetime.combine(month_start, time.min))
-        .count()
+    upcoming_count = upcoming_q.count()
+
+    busy_q = db.session.query(func.count(func.distinct(BookingRequest.event_date))).filter(
+        BookingRequest.status == 'accepted',
+        BookingRequest.event_date.isnot(None),
+        BookingRequest.event_date >= today,
+        BookingRequest.event_date <= window_end,
     )
+    if room_id:
+        busy_q = busy_q.filter(BookingRequest.room_id == room_id)
+    elif form_id:
+        busy_q = busy_q.filter(BookingRequest.form_id == form_id)
+    busy_days = busy_q.scalar() or 0
+
+    month_q = BookingRequest.query.filter(BookingRequest.created_at >= datetime.combine(month_start, time.min))
+    if room_id:
+        month_q = month_q.filter_by(room_id=room_id)
+    elif form_id:
+        month_q = month_q.filter_by(form_id=form_id)
+    this_month = month_q.count()
 
     upcoming_events = (
         upcoming_q
@@ -148,9 +186,14 @@ def _form_dashboard_stats(form_id):
         .limit(8)
         .all()
     )
+
+    recent_q = BookingRequest.query
+    if room_id:
+        recent_q = recent_q.filter_by(room_id=room_id)
+    elif form_id:
+        recent_q = recent_q.filter_by(form_id=form_id)
     recent_requests = (
-        BookingRequest.query
-        .filter_by(form_id=form_id)
+        recent_q
         .order_by(BookingRequest.created_at.desc())
         .limit(10)
         .all()
@@ -580,34 +623,42 @@ def requests():
         view = 'overview'
 
     form_id = request.args.get('form_id', type=int)
-    ctx = _booking_sidebar_context(form_id=form_id, view=view)
+    room_id = request.args.get('room_id', type=int)
+    ctx = _booking_sidebar_context(form_id=form_id, room_id=room_id, view=view)
     view = ctx['current_view']
     current_form = ctx['current_form']
+    current_room = ctx['current_room']
 
     stats = None
     requests_list = []
     unread_by_request = {}
-    if current_form:
-        if view == 'overview':
-            stats = _form_dashboard_stats(current_form.id)
+
+    if view == 'overview':
+        stats = _form_dashboard_stats(
+            form_id=form_id if not room_id else None,
+            room_id=room_id
+        )
+    else:
+        query = BookingRequest.query
+        if room_id:
+            query = query.filter_by(room_id=room_id)
+        elif form_id:
+            query = query.filter_by(form_id=form_id)
+
+        if view == 'conflicts':
+            query = query.filter_by(has_conflict=True)
+        elif view == 'internal':
+            query = query.filter_by(booking_type='internal')
+        elif view == 'neu':
+            query = query.filter_by(status='pending')
         else:
-            if view == 'conflicts':
-                query = BookingRequest.query.filter_by(has_conflict=True)
-                if current_form:
-                    query = query.filter_by(form_id=current_form.id)
-                requests_list = query.order_by(BookingRequest.created_at.desc()).all()
-            elif view == 'internal':
-                query = BookingRequest.query.filter_by(booking_type='internal')
-                if current_form:
-                    query = query.filter_by(form_id=current_form.id)
-                requests_list = query.order_by(BookingRequest.created_at.desc()).all()
-            else:
-                status = VIEW_TO_STATUS.get(view)
-                query = BookingRequest.query.filter_by(form_id=current_form.id)
-                if status:
-                    query = query.filter_by(status=status)
-                requests_list = query.order_by(BookingRequest.created_at.desc()).all()
-            if requests_list:
+            status = VIEW_TO_STATUS.get(view)
+            if status:
+                query = query.filter_by(status=status)
+
+        requests_list = query.order_by(BookingRequest.created_at.desc()).all()
+
+    if requests_list:
                 try:
                     ids = [r.id for r in requests_list]
                     rows = (

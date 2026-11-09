@@ -27,7 +27,7 @@
       "notifications": "Benachrichtigungen",
       "notifications_short": "Info",
       "home": "Home",
-      "booking": "Buchungen",
+      "booking": "Raumbuchung",
       "kanban": "Kanban",
       "events": "Veranstaltungen",
       "shortlinks": "Kurzlinks",
@@ -1536,7 +1536,7 @@
         "module_manuals": "Anleitungen",
         "module_inventory": "Lagerverwaltung",
         "module_wiki": "Wiki",
-        "module_booking": "Buchungen",
+        "module_booking": "Raumbuchung",
         "module_music": "Musik",
         "module_media_downloader": "Media Downloader",
         "module_assessment": "Bewertung",
@@ -4651,6 +4651,11 @@
       "group_public": "Public",
       "group_events": "Veranstaltungen",
       "search": "Personen suchen…",
+      "search_calendars": "Kalender suchen…",
+      "category_general": "Allgemein",
+      "category_teams": "Teamkalender",
+      "category_people": "Personen",
+      "no_results": "Keine Kalender gefunden",
       "others": "Andere Kalender",
       "edit": "Einstellungen",
       "hide": "Kalender verstecken",
@@ -6272,10 +6277,10 @@
       "mailbox_not_created": "Briefkasten wurde noch nicht erstellt."
     },
     "requests": {
-      "page_title": "Buchungsanfragen - Team Portal",
+      "page_title": "Raumbuchung - Team Portal",
       "breadcrumb_dashboard": "Dashboard",
       "breadcrumb_requests": "Buchungsanfragen",
-      "heading": "Buchungsanfragen",
+      "heading": "Raumbuchung",
       "filters": {
         "pending": "Ausstehend",
         "accepted": "Angenommen",
@@ -6299,7 +6304,7 @@
         "archived": "Archiviert"
       },
       "empty": "Keine Buchungsanfragen vorhanden",
-      "sidebar_brand": "Buchungen",
+      "sidebar_brand": "Raumbuchung",
       "nav": {
         "overview": "Übersicht",
         "neu": "Neu",
@@ -6455,6 +6460,16 @@
           "title": "Musikmodul",
           "description": "Spotify und YouTube Music verbinden und konfigurieren",
           "short": "Provider"
+        },
+        "booking_rooms": {
+          "title": "Raumverwaltung",
+          "description": "Räume, Ausstattung und Kalender verwalten",
+          "short": "Räume"
+        },
+        "booking_module": {
+          "title": "Raumbuchung",
+          "description": "Räume, Ausstattung, Buchungsformulare und Rollen verwalten",
+          "short": "Räume & Formulare"
         }
       }
     },
@@ -6463,7 +6478,7 @@
       "inactive": "Inaktiv"
     },
     "sidebar": {
-      "rooms_heading": "Räume & Kalender",
+      "rooms_heading": "Räume",
       "all_rooms": "Alle Räume",
       "requests_heading": "Buchungsanfragen",
       "internal_bookings": "Interne Belegungen",
@@ -6978,7 +6993,9 @@
       "grid_view": "Raster",
       "vis_private": "Privat",
       "vis_team": "Team",
-      "vis_public": "Öffentlich"
+      "vis_public": "Öffentlich",
+      "search_placeholder": "Boards suchen…",
+      "no_search_results": "Keine passenden Boards gefunden"
     },
     "board": {
       "add_list": "Liste hinzufügen",
@@ -6995,7 +7012,9 @@
       "background_upload": "Bild hochladen",
       "background_clear": "Bild entfernen",
       "background_image_set": "Hintergrundbild ist gesetzt",
-      "background_image_optional": "Optional: eigenes Bild hochladen (wird über der Farbe angezeigt)"
+      "background_image_optional": "Optional: eigenes Bild hochladen (wird über der Farbe angezeigt)",
+      "search_placeholder": "Karten oder Listen suchen…",
+      "no_search_results": "Keine passenden Karten oder Listen gefunden"
     },
     "custom_fields": {
       "title": "Benutzerdefinierte Felder",

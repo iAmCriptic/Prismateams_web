@@ -24,7 +24,7 @@
       "notifications": "Notificações",
       "notifications_short": "Alertas",
       "home": "Início",
-      "booking": "Reservas",
+      "booking": "Reserva de salas",
       "media_downloader": "Downloader de mídia",
       "surveys": "Inquéritos",
       "file_converter": "File Converter",
@@ -411,7 +411,7 @@
   },
   "booking": {
     "requests": {
-      "sidebar_brand": "Reservas",
+      "sidebar_brand": "Reserva de salas",
       "nav": {
         "overview": "Visão geral",
         "neu": "Novas",
@@ -448,6 +448,16 @@
         },
         "music_module": {
           "short": "Providers"
+        },
+        "booking_rooms": {
+          "title": "Gestão de salas",
+          "description": "Gerir salas, equipamentos e calendários",
+          "short": "Salas"
+        },
+        "booking_module": {
+          "title": "Reserva de salas",
+          "description": "Gerir salas, equipamentos, formulários e papéis",
+          "short": "Salas e formulários"
         }
       }
     }
@@ -1720,7 +1730,9 @@
       "background_upload": "Carregar imagem",
       "background_clear": "Remover imagem",
       "background_image_set": "Imagem de fundo definida",
-      "background_image_optional": "Opcional: carregue a sua própria imagem (mostrada sobre a cor)"
+      "background_image_optional": "Opcional: carregue a sua própria imagem (mostrada sobre a cor)",
+      "search_placeholder": "Pesquisar cartões ou listas…",
+      "no_search_results": "Nenhum cartão ou lista correspondente encontrado"
     },
     "export": {
       "title": "Exportar",
@@ -1754,6 +1766,10 @@
       "assign_member": "Atribuir pessoa",
       "change_assignee": "Alterar atribuição",
       "clear_assignee": "Remover atribuição"
+    },
+    "index": {
+      "search_placeholder": "Pesquisar quadros…",
+      "no_search_results": "Nenhum quadro correspondente encontrado"
     }
   },
   "protocols": {
@@ -1892,6 +1908,13 @@
   "calendar": {
     "flash": {
       "sync_started": "Sincronização iniciada em segundo plano. Atualize a página em alguns segundos."
+    },
+    "sidebar": {
+      "category_general": "Geral",
+      "category_teams": "Calendários de equipa",
+      "category_people": "Pessoas",
+      "search_calendars": "Pesquisar calendários…",
+      "no_results": "Nenhum calendário encontrado"
     }
   },
   "meetings": {

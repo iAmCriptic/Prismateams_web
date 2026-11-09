@@ -74,7 +74,7 @@
       <h2 id="hub-admin-modules" class="sp-hub-section-title">{{ _('settings.sidebar.sections.modules') }}</h2>
       <div class="sp-hub-grid">
         {% if is_module_enabled('module_booking') %}
-        {{ sp_hub_tile(url_for('settings.booking_forms'), 'bi-calendar-check', _('booking.admin.cards.booking_forms.title'), _('booking.admin.cards.booking_forms.short')) }}
+        {{ sp_hub_tile(url_for('settings.booking_rooms'), 'bi-door-open', _('layout.nav.booking'), _('booking.admin.cards.booking_module.short')) }}
         {% endif %}
         {% if is_module_enabled('module_music') %}
         {{ sp_hub_tile(url_for('settings.admin_music'), 'bi-music-note-beamed', _('booking.admin.cards.music_module.title'), _('booking.admin.cards.music_module.short')) }}

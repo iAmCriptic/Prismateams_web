@@ -1,6 +1,25 @@
 {% extends "base.html" %}
 {% block title %}{{ _('kanban.index.title') }}{% endblock %}
 
+{% block navbar_search %}
+<div class="mod-search" role="search">
+    <label class="mod-search-field" for="kanbanIndexSearchInput">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="text"
+               id="kanbanIndexSearchInput"
+               class="mod-search-input"
+               value="{{ search_query|default('') }}"
+               placeholder="{{ _('kanban.index.search_placeholder') }}"
+               autocomplete="off"
+               spellcheck="false"
+               enterkeyhint="search">
+    </label>
+    <button type="button" class="btn mod-search-clear{% if not search_query %} d-none{% endif %}" id="kanbanIndexSearchClear" aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </button>
+</div>
+{% endblock %}
+
 {% block content %}
 {% macro board_bg(b) -%}
 {%- for bg in backgrounds -%}
@@ -59,7 +78,7 @@
 {% set manage = b.id in manageable_ids %}
 {% set board_url = url_for('kanban.board', board_id=b.public_id or b.id) %}
 {% set unread_cnt = unread_counts_by_board.get(b.id, 0) if unread_counts_by_board else 0 %}
-<div class="col-12 col-md-6 col-lg-3" data-lazy-item data-board-wrapper="{{ b.id }}">
+<div class="col-12 col-md-6 col-lg-3" data-lazy-item data-board-wrapper="{{ b.id }}" data-board-search-name="{{ b.title|e }}" data-board-search-team="{{ (b.team.name if b.team else '')|e }}">
   <div class="card folder-item kanban-board-card h-100 position-relative"
        role="link"
        tabindex="0"
@@ -111,7 +130,7 @@
 {% macro board_list_row(b) %}
 {% set manage = b.id in manageable_ids %}
 {% set unread_cnt = unread_counts_by_board.get(b.id, 0) if unread_counts_by_board else 0 %}
-<tr class="mod-list-row" data-lazy-item data-board-wrapper="{{ b.id }}">
+<tr class="mod-list-row" data-lazy-item data-board-wrapper="{{ b.id }}" data-board-search-name="{{ b.title|e }}" data-board-search-team="{{ (b.team.name if b.team else '')|e }}">
   <td class="mod-list-name-cell">
     <a class="mod-list-name text-decoration-none mod-item-name d-inline-flex align-items-center gap-2" data-rename-target="board-{{ b.id }}" href="{{ url_for('kanban.board', board_id=b.public_id or b.id) }}">
       <span class="kanban-list-swatch" data-board-swatch="{{ b.id }}" style="background: {{ board_bg(b) }};" aria-hidden="true"></span>
@@ -192,6 +211,22 @@
 
     <div class="page-toolbar-row mod-toolbar kanban-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
       <h1 class="h4 mb-0 d-none d-lg-block">{{ _('kanban.index.title') }}</h1>
+      <div class="mod-search d-lg-none flex-grow-1" role="search">
+        <label class="mod-search-field" for="kanbanIndexSearchInputMobile">
+          <i class="bi bi-search" aria-hidden="true"></i>
+          <input type="text"
+                 id="kanbanIndexSearchInputMobile"
+                 class="mod-search-input"
+                 value="{{ search_query|default('') }}"
+                 placeholder="{{ _('kanban.index.search_placeholder') }}"
+                 autocomplete="off"
+                 spellcheck="false"
+                 enterkeyhint="search">
+        </label>
+        <button type="button" class="btn mod-search-clear{% if not search_query %} d-none{% endif %}" id="kanbanIndexSearchClearMobile" aria-label="{{ _('common.cancel') }}">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
       <div class="mod-toolbar-actions kanban-toolbar-actions ms-auto">
         <div class="mod-view-toggle" data-view="grid" role="group" aria-label="{{ _('kanban.index.list_view') }} / {{ _('kanban.index.grid_view') }}">
           <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
@@ -244,6 +279,10 @@
         {{ section(_('kanban.index.public'), public_boards, 'public', has_more=public_has_more|default(false), lazy_url=url_for('kanban.index', section='public'), list_page=1) }}
       {% endif %}
     {% endif %}
+    <div id="kanbanBoardSearchEmpty" class="text-muted py-5 text-center d-none">
+      <i class="bi bi-search fs-2 mb-2 d-block"></i>
+      <span>{{ _('kanban.index.no_search_results') }}</span>
+    </div>
   </div>
 </div>
 

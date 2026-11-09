@@ -27,7 +27,7 @@
       "notifications": "Уведомления",
       "notifications_short": "Инфо",
       "home": "Главная",
-      "booking": "Бронирования",
+      "booking": "Бронирование помещений",
       "kanban": "Kanban",
       "events": "События",
       "shortlinks": "Короткие ссылки",
@@ -1526,7 +1526,7 @@
         "module_manuals": "Инструкции",
         "module_inventory": "Инвентарь",
         "module_wiki": "Wiki",
-        "module_booking": "Бронирования",
+        "module_booking": "Бронирование помещений",
         "module_music": "Музыка",
         "module_media_downloader": "Media Downloader",
         "module_assessment": "Оценка",
@@ -3985,6 +3985,39 @@
     }
   },
   "calendar": {
+    "sidebar": {
+      "brand": "Календарь",
+      "new_event": "Новое мероприятие",
+      "new_calendar": "Новый календарь",
+      "more_options": "Дополнительные параметры",
+      "reset": "Reset (сброс - уст 0)",
+      "my_calendar": "Мой календарь",
+      "public": "Публичный",
+      "events": "События",
+      "group_personal": "Мои календари",
+      "group_team": "Команды",
+      "group_public": "Публичные",
+      "group_events": "События",
+      "search": "Поиск людей…",
+      "others": "Другие календари",
+      "edit": "Настройки",
+      "hide": "Скрыть календарь",
+      "show": "Показать календарь",
+      "hidden": "Скрыт от других",
+      "delete": "Удалить",
+      "delete_import": "Удалить",
+      "delete_confirm": "Удалить импортированный календарь и все события?",
+      "delete_calendar_confirm": "Удалить этот календарь? События будут перенесены в календарь по умолчанию.",
+      "pick_calendars": "Календари",
+      "menu": "Открыть меню календаря",
+      "form": {
+        "name": "ФИО",
+        "type": "Тип",
+        "team": "Команда",
+        "color": "Цвет",
+        "create": "Создать"
+      }
+    },
     "index": {
       "page_title": "Календарь — Портал команды",
       "heading": "Календарь",
@@ -4258,39 +4291,6 @@
     "notifications": {
       "invite_title": "Получено приглашение на событие",
       "invite_body": "Вас пригласили на «{title}»."
-    },
-    "sidebar": {
-      "brand": "Календарь",
-      "new_event": "Новое мероприятие",
-      "new_calendar": "Новый календарь",
-      "more_options": "Дополнительные параметры",
-      "reset": "Reset (сброс - уст 0)",
-      "my_calendar": "Мой календарь",
-      "public": "Публичный",
-      "events": "События",
-      "group_personal": "Мои календари",
-      "group_team": "Команды",
-      "group_public": "Публичные",
-      "group_events": "События",
-      "search": "Поиск людей…",
-      "others": "Другие календари",
-      "edit": "Настройки",
-      "hide": "Скрыть календарь",
-      "show": "Показать календарь",
-      "hidden": "Скрыт от других",
-      "delete": "Удалить",
-      "delete_import": "Удалить",
-      "delete_confirm": "Удалить импортированный календарь и все события?",
-      "delete_calendar_confirm": "Удалить этот календарь? События будут перенесены в календарь по умолчанию.",
-      "pick_calendars": "Календари",
-      "menu": "Открыть меню календаря",
-      "form": {
-        "name": "ФИО",
-        "type": "Тип",
-        "team": "Команда",
-        "color": "Цвет",
-        "create": "Создать"
-      }
     },
     "feed": {
       "page_title": "Подключить к вашему календарю",
@@ -6248,7 +6248,7 @@
         "archived": "В архиве"
       },
       "empty": "Нет доступных запросов на бронирование",
-      "sidebar_brand": "Бронирования",
+      "sidebar_brand": "Бронирование помещений",
       "nav": {
         "overview": "Обзор",
         "neu": "Новые",
@@ -6404,6 +6404,16 @@
           "title": "Музыкальный модуль",
           "description": "Подключение и настройка Spotify и YouTube Music",
           "short": "Провайдеры"
+        },
+        "booking_rooms": {
+          "title": "Управление помещениями",
+          "description": "Управление помещениями, оборудованием и календарями",
+          "short": "Помещения"
+        },
+        "booking_module": {
+          "title": "Бронирование помещений",
+          "description": "Управление помещениями, оборудованием, формами и ролями",
+          "short": "Помещения и формы"
         }
       }
     },
@@ -6886,7 +6896,9 @@
       "grid_view": "Сетка",
       "vis_private": "Личная",
       "vis_team": "Команда",
-      "vis_public": "Публичная"
+      "vis_public": "Публичная",
+      "search_placeholder": "Поиск досок…",
+      "no_search_results": "Подходящие доски не найдены"
     },
     "board": {
       "add_list": "Добавить список",
@@ -6903,7 +6915,9 @@
       "background_upload": "Загрузить изображение",
       "background_clear": "Удалить изображение",
       "background_image_set": "Фоновое изображение установлено",
-      "background_image_optional": "Необязательно: загрузите своё изображение (отображается поверх цвета)"
+      "background_image_optional": "Необязательно: загрузите своё изображение (отображается поверх цвета)",
+      "search_placeholder": "Поиск карточек или колонок…",
+      "no_search_results": "Подходящие карточки или колонки не найдены"
     },
     "custom_fields": {
       "title": "Пользовательские поля",

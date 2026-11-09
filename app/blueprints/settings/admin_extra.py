@@ -301,7 +301,7 @@ def admin_roles_default():
         ('module_manuals', 'Anleitungen'),
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
-        ('module_booking', 'Buchungen'),
+        ('module_booking', 'Raumbuchung'),
         ('module_music', 'Musik'),
         ('module_media_downloader', 'Media Downloader'),
         ('module_file_converter', 'Dateikonverter'),

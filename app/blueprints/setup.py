@@ -29,7 +29,7 @@ MODULE_META = [
     {'key': 'module_manuals', 'icon': 'bi-book', 'label': 'Anleitungen', 'settings_endpoint': None},
     {'key': 'module_inventory', 'icon': 'bi-box-seam', 'label': 'Lagerverwaltung', 'settings_endpoint': 'settings.admin_inventory_settings'},
     {'key': 'module_wiki', 'icon': 'bi-journal-text', 'label': 'Wiki', 'settings_endpoint': None},
-    {'key': 'module_booking', 'icon': 'bi-calendar-check', 'label': 'Buchungen', 'settings_endpoint': 'settings.booking_forms'},
+    {'key': 'module_booking', 'icon': 'bi-calendar-check', 'label': 'Raumbuchung', 'settings_endpoint': 'settings.booking_forms'},
     {'key': 'module_music', 'icon': 'bi-music-note-beamed', 'label': 'Musik', 'settings_endpoint': 'settings.admin_music'},
     {'key': 'module_media_downloader', 'icon': 'bi-download', 'label': 'Media Downloader', 'settings_endpoint': None},
     {'key': 'module_file_converter', 'icon': 'bi-arrow-left-right', 'label': 'Dateikonverter', 'settings_endpoint': None},

@@ -5,6 +5,24 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/comments.css') }}">
 {% endblock %}
 
+{% block navbar_search %}
+<div class="mod-search" role="search">
+    <label class="mod-search-field" for="kanbanBoardSearchInput">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="text"
+               id="kanbanBoardSearchInput"
+               class="mod-search-input"
+               placeholder="{{ _('kanban.board.search_placeholder') }}"
+               autocomplete="off"
+               spellcheck="false"
+               enterkeyhint="search">
+    </label>
+    <button type="button" class="btn mod-search-clear d-none" id="kanbanBoardSearchClear" aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </button>
+</div>
+{% endblock %}
+
 {% block content %}
 <div class="kanban-board-page{% if background_image_url %} has-bg-image{% endif %}" id="kanbanBoardApp"
      data-board-id="{{ board.id }}"
@@ -48,6 +66,10 @@
           {% endif %}
         </div>
       </div>
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon d-lg-none" id="kanbanMobileSearchBtn"
+              title="{{ _('kanban.board.search_placeholder') }}" aria-label="{{ _('kanban.board.search_placeholder') }}">
+        <i class="bi bi-search" aria-hidden="true"></i>
+      </button>
       <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanFilterBtn"
               title="{{ _('kanban.board.filter') }}">
         <i class="bi bi-funnel" aria-hidden="true"></i>
@@ -122,7 +144,29 @@
     </div>
   </header>
 
+  <div class="kanban-mobile-search-bar px-3 py-2 d-none d-lg-none" id="kanbanMobileSearchWrap">
+    <div class="mod-search" role="search">
+      <label class="mod-search-field" for="kanbanBoardSearchInputMobile">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="text"
+               id="kanbanBoardSearchInputMobile"
+               class="mod-search-input"
+               placeholder="{{ _('kanban.board.search_placeholder') }}"
+               autocomplete="off"
+               spellcheck="false"
+               enterkeyhint="search">
+      </label>
+      <button type="button" class="btn mod-search-clear d-none" id="kanbanBoardSearchClearMobile" aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+  </div>
+
   <div class="kanban-lists-scroll" id="kanbanLists"></div>
+  <div id="kanbanBoardSearchEmpty" class="kanban-search-empty text-center py-5 d-none text-white-50 w-100 position-absolute start-50 top-50 translate-middle" style="z-index: 5; pointer-events: none;">
+    <i class="bi bi-search fs-2 mb-2 d-block"></i>
+    <span>{{ _('kanban.board.no_search_results') }}</span>
+  </div>
 </div>
 
 {# Card detail modal #}
@@ -718,7 +762,8 @@
     typeCheckbox: {{ _('kanban.custom_fields.type_checkbox') | tojson }},
     background: {{ _('kanban.board.background') | tojson }},
     backgroundUpload: {{ _('kanban.board.background_upload') | tojson }},
-    backgroundClear: {{ _('kanban.board.background_clear') | tojson }}
+    backgroundClear: {{ _('kanban.board.background_clear') | tojson }},
+    noSearchResults: {{ _('kanban.board.no_search_results') | tojson }}
   };
   window.KANBAN_BACKGROUNDS = {{ backgrounds | tojson }};
 
