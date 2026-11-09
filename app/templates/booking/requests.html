@@ -169,6 +169,7 @@
                     <thead>
                         <tr>
                             <th>{{ _('booking.requests.table.event') }}</th>
+                            <th class="d-none d-md-table-cell">Raum</th>
                             <th class="d-none d-md-table-cell">{{ _('booking.requests.table.email') }}</th>
                             <th>{{ _('booking.requests.table.date') }}</th>
                             <th class="d-none d-sm-table-cell">{{ _('booking.requests.table.status') }}</th>
@@ -182,13 +183,34 @@
                         {% set pdf_url = url_for('booking.request_pdf', request_id=req.id) %}
                         <tr class="mod-list-row" data-context-zone data-context-menu="dropdown">
                             <td>
-                                <a class="mod-list-name text-decoration-none" href="{{ detail_url }}">
-                                    <i class="bi bi-calendar-event me-1"></i>{{ req.event_name }}
-                                </a>
-                                {% if (unread_by_request or {}).get(req.id) %}
-                                <span class="booking-msg-badge ms-1">Neue Nachricht</span>
-                                {% endif %}
+                                <div class="d-flex align-items-center gap-1 flex-wrap">
+                                    <a class="mod-list-name text-decoration-none" href="{{ detail_url }}">
+                                        <i class="bi bi-calendar-event me-1"></i>{{ req.event_name }}
+                                    </a>
+                                    {% if req.has_conflict %}
+                                    <span class="badge bg-danger rounded-pill" title="Kollision"><i class="bi bi-exclamation-triangle-fill"></i></span>
+                                    {% endif %}
+                                    {% if req.issue_reported %}
+                                    <span class="badge bg-warning text-dark rounded-pill" title="Problem gemeldet"><i class="bi bi-flag-fill"></i></span>
+                                    {% endif %}
+                                    {% if req.booking_type == 'internal' %}
+                                    <span class="badge bg-primary-subtle text-primary border rounded-pill">Intern</span>
+                                    {% endif %}
+                                    {% if (unread_by_request or {}).get(req.id) %}
+                                    <span class="booking-msg-badge ms-1">Neue Nachricht</span>
+                                    {% endif %}
+                                </div>
                                 <div class="small text-muted text-truncate d-md-none" style="max-width: 14rem;">{{ req.email }}</div>
+                            </td>
+                            <td class="d-none d-md-table-cell">
+                                {% if req.room %}
+                                <a href="{{ url_for('booking.room_detail', room_id=req.room.id) }}" class="badge rounded-pill text-decoration-none border" style="background: color-mix(in srgb, {{ req.room.color }} 15%, transparent); color: var(--bs-body-color);">
+                                    <span class="calendar-color-dot me-1" style="display:inline-block; width:6px; height:6px; background:{{ req.room.color }}; border-radius:50%;"></span>
+                                    {{ req.room.name }}
+                                </a>
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
                             </td>
                             <td class="d-none d-md-table-cell text-truncate" style="max-width: 220px;">
                                 <span class="text-muted" title="{{ req.email }}">{{ req.email }}</span>

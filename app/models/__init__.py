@@ -1,3 +1,16 @@
+from .booking import (
+    BookingRoom,
+    BookingForm,
+    BookingFormField,
+    BookingFormImage,
+    BookingRequest,
+    BookingRequestMessage,
+    BookingRequestField,
+    BookingRequestFile,
+    BookingFormRole,
+    BookingFormRoleUser,
+    BookingRequestApproval,
+)
 from .user import User
 from .user_session import UserSession
 from .chat import Chat, ChatMessage, ChatMember, ChatPin
@@ -171,6 +184,7 @@ __all__ = [
     'DutyPersonConfig', 'DutyExternalPerson', 'DutyRosterPlanner', 'DutyTimeEntry',
     'BookingPersonalEvent', 'BookingPersonalField', 'BookingPersonalEntry',
     'BookingPersonalFile', 'BookingPersonalTemplate',
+    'BookingRoom', 'BookingForm', 'BookingFormField', 'BookingFormImage', 'BookingRequest', 'BookingRequestMessage', 'BookingRequestField', 'BookingRequestFile', 'BookingFormRole', 'BookingFormRoleUser', 'BookingRequestApproval',
 ]
 
 

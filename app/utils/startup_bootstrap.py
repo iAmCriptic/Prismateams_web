@@ -854,6 +854,8 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
 
                 try:
                     from app.models.settings import SystemSettings as _Sys
+                    if not _Sys.query.filter_by(key='calendar_public_enabled').first():
+                        db.session.add(_Sys(key='calendar_public_enabled', value='True', description='Public-Kalender aktiv'))
                     if not _Sys.query.filter_by(key='calendar_personal_enabled').first():
                         multi = _Sys.query.filter_by(key='calendar_multi_enabled').first()
                         val = 'True' if multi and str(multi.value).lower() == 'true' else 'False'

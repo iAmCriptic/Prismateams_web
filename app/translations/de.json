@@ -133,7 +133,11 @@
       "load_more": "Weitere laden",
       "load_more_loading": "Laden…",
       "load_error": "Weitere Einträge konnten nicht geladen werden"
-    }
+    },
+    "grid_view": "Kachelansicht",
+    "list_view": "Listenansicht",
+    "menu": "Menü",
+    "toggle": "Umschalten"
   },
   "context_menu": {
     "copy_info": "Infos kopieren",
@@ -4664,7 +4668,8 @@
         "team": "Team",
         "color": "Farbe",
         "create": "Anlegen"
-      }
+      },
+      "rooms": "Räume"
     },
     "feed": {
       "page_title": "In eigenen Kalender integrieren",
@@ -6452,6 +6457,64 @@
           "short": "Provider"
         }
       }
+    },
+    "room": {
+      "active": "Aktiv",
+      "inactive": "Inaktiv"
+    },
+    "sidebar": {
+      "rooms_heading": "Räume & Kalender",
+      "all_rooms": "Alle Räume",
+      "requests_heading": "Buchungsanfragen",
+      "internal_bookings": "Interne Belegungen",
+      "conflicts": "Kollisionen",
+      "manage_rooms": "Räume verwalten",
+      "manage_forms": "Formulare verwalten",
+      "book_internally": "Raum intern belegen"
+    },
+    "rooms": {
+      "page_title": "Räume & Belegungen",
+      "heading": "Räume & Kalender",
+      "search_placeholder": "Räume durchsuchen…",
+      "filter_placeholder": "Nach Standort oder Eigenschaft filtern…",
+      "admin_new_room": "Neuer Raum",
+      "no_rooms_title": "Keine Räume angelegt",
+      "no_rooms_text": "Es wurden noch keine Räume eingerichtet. Als Administrator können Sie neue Räume hinzufügen.",
+      "capacity_label": "Kapazität",
+      "calendar_plan": "Belegungsplan",
+      "book_now": "Jetzt belegen",
+      "col_name": "Raum",
+      "col_location": "Standort / Ort",
+      "col_capacity": "Kapazität",
+      "col_status": "Status",
+      "col_date": "Datum & Uhrzeit",
+      "col_event": "Veranstaltung / Grund",
+      "col_applicant": "Gebucht durch",
+      "col_type": "Typ",
+      "linked_events": "Verknüpfte Veranstaltungen",
+      "no_linked_events": "Keine Veranstaltungen mit diesem Raum verknüpft.",
+      "upcoming_bookings": "Nächste Belegungen",
+      "add_booking": "Belegung eintragen",
+      "no_upcoming_bookings": "Keine anstehenden Belegungen.",
+      "calendar_assigned": "Eigener Kalender zugewiesen",
+      "open_in_calendar": "Im Kalender öffnen"
+    },
+    "internal_create": {
+      "page_title": "Raum intern belegen",
+      "heading": "Raum intern belegen",
+      "subtitle": "Tragen Sie eine direkte Belegung für einen Raum ein. Rolleninhaber werden informiert und können Notizen oder Einwände hinterlegen.",
+      "room_label": "Raum auswählen",
+      "select_room": "– Raum wählen –",
+      "event_name_label": "Titel / Anlass der Belegung",
+      "event_name_placeholder": "z. B. Teamsitzung, Workshop, Vorbereitung...",
+      "date_label": "Datum",
+      "start_time_label": "Beginn",
+      "end_time_label": "Ende",
+      "collision_note": "Achtung: Kollidierende Belegungen werden mit einem dauerhaften Warnhinweis markiert, blockieren den Eintrag jedoch nicht.",
+      "link_event_label": "Mit bestehender Veranstaltung verknüpfen (optional)",
+      "no_linked_event": "– Keine Verknüpfung –",
+      "create_in_events_module": "Tipp: Sie können Räume auch direkt beim Anlegen einer Veranstaltung im Veranstaltungsmodul auswählen.",
+      "submit_button": "Belegung verbindlich eintragen"
     }
   },
   "setup": {

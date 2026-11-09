@@ -279,7 +279,9 @@ def create_event():
         name = request.form.get('name', '').strip()
         if not name:
             flash('Name ist erforderlich.', 'danger')
-            return render_template('events/create.html', users=users, contacts=contacts)
+            from app.models.booking import BookingRoom
+            active_rooms = BookingRoom.query.filter_by(is_active=True).order_by(BookingRoom.name).all() if is_module_enabled('module_booking') else []
+            return render_template('events/create.html', users=users, contacts=contacts, rooms=active_rooms)
 
         mode = request.form.get('event_mode', 'single')
         is_multiday = (mode == 'multi')
@@ -472,12 +474,36 @@ def create_event():
         )
         db.session.add(prep_todo_list)
 
+        room_id_raw = request.form.get('room_id')
+        room_id = int(room_id_raw) if room_id_raw and room_id_raw.isdigit() else None
+        if room_id:
+            event_obj.room_id = room_id
+            try:
+                from app.utils.booking_rooms import create_or_update_room_booking
+                b_date = event_obj.start_date or datetime.utcnow().date()
+                _, has_conflict, _ = create_or_update_room_booking(
+                    room_id=room_id,
+                    event_name=event_obj.name,
+                    event_date=b_date,
+                    start_time=start_t,
+                    end_time=end_t,
+                    user=current_user,
+                    event_id=event_obj.id,
+                    booking_type='internal',
+                )
+                if has_conflict:
+                    flash('Achtung: Für den gewählten Raum liegt eine Terminkollision vor (Kollisionsmarkierung aktiv).', 'warning')
+            except Exception as e:
+                current_app.logger.warning(f"Raumbuchung für Event fehlgeschlagen: {e}")
+
         EventService.sync_calendar_for_event(event_obj, current_user.id)
         db.session.commit()
         flash('Veranstaltung erfolgreich erstellt.', 'success')
         return redirect(url_for('events.view_event', event_id=event_obj.id))
 
-    return render_template('events/create.html', users=users, contacts=contacts)
+    from app.models.booking import BookingRoom
+    active_rooms = BookingRoom.query.filter_by(is_active=True).order_by(BookingRoom.name).all() if is_module_enabled('module_booking') else []
+    return render_template('events/create.html', users=users, contacts=contacts, rooms=active_rooms)
 
 
 def _store_form_data(event_obj, req):
@@ -1444,6 +1470,36 @@ def edit_event(event_id):
         event_obj.name = request.form.get('name', '').strip()
         event_obj.description = request.form.get('description', '').strip() or None
         event_obj.default_location = request.form.get('default_location', '').strip() or None
+        room_id_raw = request.form.get('room_id')
+        new_room_id = int(room_id_raw) if room_id_raw and room_id_raw.isdigit() else None
+        event_obj.room_id = new_room_id
+        if new_room_id:
+            try:
+                from app.utils.booking_rooms import create_or_update_room_booking
+                from app.models.booking import BookingRequest
+                existing_req = BookingRequest.query.filter_by(event_id=event_obj.id).first()
+                req_id = existing_req.id if existing_req else None
+                b_date = event_obj.start_date or datetime.utcnow().date()
+                st_time = time(10, 0)
+                et_time = time(18, 0)
+                if event_obj.days:
+                    st_time = event_obj.days[0].start_time or st_time
+                    et_time = event_obj.days[0].end_time or et_time
+                _, has_conflict, _ = create_or_update_room_booking(
+                    room_id=new_room_id,
+                    event_name=event_obj.name,
+                    event_date=b_date,
+                    start_time=st_time,
+                    end_time=et_time,
+                    user=current_user,
+                    event_id=event_obj.id,
+                    booking_type='internal',
+                    booking_request_id=req_id,
+                )
+                if has_conflict:
+                    flash('Achtung: Für den gewählten Raum liegt eine Terminkollision vor (Kollisionsmarkierung aktiv).', 'warning')
+            except Exception as e:
+                current_app.logger.warning(f"Raumbuchung-Sync fehlgeschlagen: {e}")
         event_obj.folder_id = request.form.get('folder_id') or None
         _store_form_data(event_obj, request)
         EventService.sync_calendar_for_event(event_obj, current_user.id)
@@ -1451,7 +1507,9 @@ def edit_event(event_id):
         flash('Veranstaltung aktualisiert.', 'success')
         return redirect(url_for('events.view_event', event_id=event_obj.id))
 
-    return render_template('events/edit.html', event=event_obj, users=users, contacts=contacts, folders=folders, products=products)
+    from app.models.booking import BookingRoom
+    active_rooms = BookingRoom.query.filter_by(is_active=True).order_by(BookingRoom.name).all() if is_module_enabled('module_booking') else []
+    return render_template('events/edit.html', rooms=active_rooms, event=event_obj, users=users, contacts=contacts, folders=folders, products=products)
 
 
 @events_bp.route('/<int:event_id>/pdf')

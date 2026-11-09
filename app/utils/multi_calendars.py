@@ -23,19 +23,34 @@ PERSONAL_COLORS = (
 )
 
 
+def is_calendar_public_enabled():
+    from app.utils.module_visibility_settings import is_global_public_enabled
+    if not is_global_public_enabled():
+        return False
+    if _setting_exists('calendar_public_enabled'):
+        return _setting_bool('calendar_public_enabled', True)
+    return True
+
+
 def is_calendar_personal_enabled():
+    from app.utils.module_visibility_settings import is_global_private_enabled
+    if not is_global_private_enabled():
+        return False
     if _setting_exists('calendar_personal_enabled'):
         return _setting_bool('calendar_personal_enabled', False)
     return _setting_bool('calendar_multi_enabled', False)
 
 
 def is_calendar_team_enabled():
+    from app.utils.module_visibility_settings import is_global_team_enabled
+    if not is_global_team_enabled():
+        return False
     return _setting_bool('calendar_team_enabled', False)
 
 
 def is_calendar_multi_enabled():
     """Sidebar / multi-calendar UI: personal, team, or extra public calendars."""
-    if is_calendar_personal_enabled() or is_calendar_team_enabled():
+    if is_calendar_personal_enabled() or is_calendar_team_enabled() or is_calendar_public_enabled():
         return True
     try:
         return Calendar.query.filter_by(calendar_type='public').count() > 1
@@ -287,19 +302,23 @@ def can_view_calendar(user, calendar):
     )
 
     ctype = calendar.calendar_type
-    if ctype in ('public', 'events'):
-        if ctype == 'public' and user and not user_bypasses_content_restrictions(user):
+    if ctype in ('public', 'events', 'room'):
+        if not is_calendar_public_enabled():
+            return False
+        if ctype in ('public', 'room') and user and not user_bypasses_content_restrictions(user):
             if not user_may_access_public(user):
                 return False
         return True
     if ctype == 'imported':
         return getattr(user, 'is_admin', False) or calendar.owner_id == getattr(user, 'id', None)
     if ctype == 'personal':
+        if not is_calendar_personal_enabled():
+            return False
         if user and not user_bypasses_content_restrictions(user) and not user_may_access_private(user):
             return False
         if calendar.owner_id == getattr(user, 'id', None):
             return True
-        if not is_calendar_personal_enabled():
+        if calendar.owner and not calendar.owner.is_active:
             return False
         return not bool(calendar.hidden_from_others)
     if ctype == 'team':
@@ -325,6 +344,8 @@ def can_create_in_calendar(user, calendar):
         user_may_access_team,
     )
     if calendar.calendar_type == 'public':
+        if not is_calendar_public_enabled():
+            return False
         if not user_bypasses_content_restrictions(user) and not user_may_access_public(user):
             return False
         return True
@@ -568,29 +589,34 @@ def default_calendar_for_user(user):
         user_may_access_team,
     )
 
-    if user and user_may_access_public(user):
-        return get_public_calendar()
-    if is_calendar_team_enabled() and user and user_may_access_team(user):
-        teams = list_team_calendars_for_user(user)
-        if teams:
-            return teams[0]
     if is_calendar_personal_enabled() and user and user_may_access_private(user):
         return get_or_create_personal_calendar(user)
     if is_calendar_team_enabled() and user and user_may_access_team(user):
         teams = list_team_calendars_for_user(user)
         if teams:
             return teams[0]
+    if is_calendar_public_enabled() and (not user or user_may_access_public(user)):
+        return get_public_calendar()
+    if is_calendar_personal_enabled() and user:
+        return get_or_create_personal_calendar(user)
+    if is_calendar_team_enabled() and user:
+        teams = list_team_calendars_for_user(user)
+        if teams:
+            return teams[0]
+    if is_calendar_public_enabled():
+        return get_public_calendar()
     return get_public_calendar()
 
 
 def list_writable_calendars(user):
-    from app.utils.user_content_access import user_may_access_team
+    from app.utils.user_content_access import user_may_access_team, user_may_access_public
     cals = []
     if is_calendar_personal_enabled() and user:
         cals.extend(list_personal_calendars(user))
     if is_calendar_team_enabled() and user and user_may_access_team(user):
         cals.extend(list_team_calendars_for_user(user))
-    cals.extend(list_public_calendars())
+    if is_calendar_public_enabled() and (not user or user_may_access_public(user)):
+        cals.extend(list_public_calendars())
     return [c for c in cals if can_create_in_calendar(user, c)]
 
 
@@ -607,18 +633,23 @@ def list_sidebar_calendars(user):
     if is_calendar_personal_enabled() and user and user_may_access_private(user):
         personals = list_personal_calendars(user)
         personal = get_or_create_personal_calendar(user)
+        for u in User.query.filter_by(is_active=True).all():
+            if u.id != user.id:
+                get_or_create_personal_calendar(u)
 
-    allow_public = not user or user_may_access_public(user)
+    allow_public = is_calendar_public_enabled() and (not user or user_may_access_public(user))
     publics = list_public_calendars() if allow_public else []
     public = get_public_calendar() if allow_public else None
     events_cal = get_or_create_events_calendar() if is_calendar_multi_enabled() and allow_public else None
     teams = list_team_calendars_for_user(user) if (is_calendar_team_enabled() and (not user or user_may_access_team(user))) else []
+    rooms = Calendar.query.filter_by(calendar_type='room').order_by(Calendar.name.asc()).all() if allow_public else []
 
     reserved_ids = {c.id for c in personals}
     reserved_ids.update(c.id for c in publics)
     reserved_ids.update(c.id for c in teams)
     if events_cal:
         reserved_ids.add(events_cal.id)
+    reserved_ids.update(c.id for c in rooms)
 
     others_q = Calendar.query.filter(Calendar.id.notin_(list(reserved_ids) or [0]))
     others = others_q.order_by(Calendar.calendar_type.asc(), Calendar.name.asc()).all()
@@ -626,14 +657,16 @@ def list_sidebar_calendars(user):
     imported = []
     for cal in others:
         if cal.calendar_type == 'personal':
-            if not can_view_calendar(user, cal):
+            if not is_calendar_personal_enabled() or not can_view_calendar(user, cal):
+                continue
+            if cal.owner and not cal.owner.is_active:
                 continue
             personal_others.append(cal)
         elif cal.calendar_type == 'imported':
             imported.append(cal)
         elif cal.calendar_type == 'team':
             continue
-    personal_others.sort(key=lambda c: (c.name or '').lower())
+    personal_others.sort(key=lambda c: (calendar_display_name(c, user) or c.name or '').lower())
     imported.sort(key=lambda c: (c.name or '').lower())
     return {
         'personal': personal,
@@ -642,6 +675,7 @@ def list_sidebar_calendars(user):
         'publics': publics,
         'events': events_cal,
         'teams': teams,
+        'rooms': rooms,
         'others': personal_others + imported,
     }
 
@@ -701,8 +735,8 @@ def display_color_for_event(event, user=None):
     cal = event.calendar
     if not cal:
         return event_color
-    if cal.calendar_type in ('public', 'events', 'team'):
-        return event_color
+    if cal.calendar_type in ('public', 'events', 'team', 'room'):
+        return cal.color or event_color
     if cal.calendar_type == 'personal':
         if user and cal.owner_id == getattr(user, 'id', None):
             return event_color
@@ -807,9 +841,10 @@ def delete_extra_calendar(user, calendar):
 
 def backfill_space_calendars():
     """Create default public / personal / team / events calendars as needed."""
-    get_public_calendar()
-    if is_calendar_personal_enabled() or is_calendar_team_enabled():
-        get_or_create_events_calendar()
+    if is_calendar_public_enabled():
+        get_public_calendar()
+        if is_calendar_personal_enabled() or is_calendar_team_enabled():
+            get_or_create_events_calendar()
     if is_calendar_personal_enabled():
         for u in User.query.filter_by(is_active=True).all():
             get_or_create_personal_calendar(u)

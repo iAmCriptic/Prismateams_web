@@ -3,6 +3,33 @@ from app import db
 import json
 
 
+class BookingRoom(db.Model):
+    """Raum im Raumbuchungssystem."""
+    __tablename__ = 'booking_rooms'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    location = db.Column(db.String(255), nullable=True)
+    capacity = db.Column(db.Integer, nullable=True)
+    color = db.Column(db.String(7), default='#4f46e5', nullable=False)
+    image_path = db.Column(db.String(500), nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    calendar_id = db.Column(db.Integer, db.ForeignKey('calendars.id', ondelete='SET NULL'), nullable=True)
+    default_form_id = db.Column(db.Integer, db.ForeignKey('booking_forms.id', ondelete='SET NULL'), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    # Relationships
+    calendar = db.relationship('Calendar', foreign_keys=[calendar_id])
+    default_form = db.relationship('BookingForm', foreign_keys=[default_form_id], post_update=True)
+    forms = db.relationship('BookingForm', back_populates='room', foreign_keys='BookingForm.room_id')
+    requests = db.relationship('BookingRequest', back_populates='room', foreign_keys='BookingRequest.room_id')
+
+    def __repr__(self):
+        return f'<BookingRoom {self.name}>'
+
+
 class BookingForm(db.Model):
     __tablename__ = 'booking_forms'
     
@@ -14,6 +41,11 @@ class BookingForm(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
+    # Raum-Zuordnung
+    room_id = db.Column(db.Integer, db.ForeignKey('booking_rooms.id', ondelete='SET NULL'), nullable=True)
+    allow_room_selection = db.Column(db.Boolean, default=False, nullable=False)
+    allowed_room_ids = db.Column(db.Text, nullable=True)  # JSON-Array von Raum-IDs
+
     # Archivierung
     archive_days = db.Column(db.Integer, default=30, nullable=False)  # Wie lange vergangene Events archiviert werden
     
@@ -29,12 +61,39 @@ class BookingForm(db.Model):
     pdf_footer_text = db.Column(db.Text, nullable=True)  # Optionaler Text am Ende des PDFs
     
     # Relationships
+    room = db.relationship('BookingRoom', back_populates='forms', foreign_keys=[room_id])
     creator = db.relationship('User', backref='created_booking_forms')
     fields = db.relationship('BookingFormField', back_populates='form', cascade='all, delete-orphan', order_by='BookingFormField.field_order')
     images = db.relationship('BookingFormImage', back_populates='form', cascade='all, delete-orphan', order_by='BookingFormImage.display_order')
-    requests = db.relationship('BookingRequest', back_populates='form', cascade='all, delete-orphan')
+    requests = db.relationship('BookingRequest', back_populates='form', cascade='all, delete-orphan', foreign_keys='BookingRequest.form_id')
     roles = db.relationship('BookingFormRole', back_populates='form', cascade='all, delete-orphan', order_by='BookingFormRole.role_order')
-    
+
+    def get_allowed_rooms(self):
+        """Gibt die erlaubten Raum-Objekte für dieses Formular zurück."""
+        if not self.allow_room_selection:
+            return [self.room] if (self.room and self.room.is_active) else []
+        if self.allowed_room_ids:
+            try:
+                ids = json.loads(self.allowed_room_ids)
+                if ids and isinstance(ids, list):
+                    return BookingRoom.query.filter(BookingRoom.id.in_(ids), BookingRoom.is_active.is_(True)).order_by(BookingRoom.name).all()
+            except Exception:
+                pass
+        return BookingRoom.query.filter_by(is_active=True).order_by(BookingRoom.name).all()
+
+    def set_allowed_rooms(self, ids):
+        """Setzt erlaubte Raum-IDs als JSON-Liste."""
+        if ids:
+            cleaned = []
+            for item in ids:
+                try:
+                    cleaned.append(int(item))
+                except (ValueError, TypeError):
+                    pass
+            self.allowed_room_ids = json.dumps(cleaned) if cleaned else None
+        else:
+            self.allowed_room_ids = None
+
     def __repr__(self):
         return f'<BookingForm {self.title}>'
 
@@ -96,7 +155,12 @@ class BookingRequest(db.Model):
     __tablename__ = 'booking_requests'
     
     id = db.Column(db.Integer, primary_key=True)
-    form_id = db.Column(db.Integer, db.ForeignKey('booking_forms.id'), nullable=False)
+    form_id = db.Column(db.Integer, db.ForeignKey('booking_forms.id'), nullable=True)
+    room_id = db.Column(db.Integer, db.ForeignKey('booking_rooms.id', ondelete='SET NULL'), nullable=True, index=True)
+    booking_type = db.Column(db.String(20), default='external', nullable=False)  # 'external' | 'internal'
+    booked_by_user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.id', ondelete='SET NULL'), nullable=True, index=True)
+
     event_name = db.Column(db.String(200), nullable=False)  # Pflicht
     applicant_name = db.Column(db.String(200), nullable=True)  # Name des Antragstellers
     email = db.Column(db.String(120), nullable=False)  # Pflicht
@@ -113,6 +177,16 @@ class BookingRequest(db.Model):
     calendar_event_id = db.Column(db.Integer, db.ForeignKey('calendar_events.id'), nullable=True)
     folder_id = db.Column(db.Integer, db.ForeignKey('folders.id'), nullable=True)
     
+    # Kollisionsprüfung
+    has_conflict = db.Column(db.Boolean, default=False, nullable=False)
+    conflict_notes = db.Column(db.Text, nullable=True)
+
+    # Problem-Meldung für interne Buchungen
+    issue_reported = db.Column(db.Boolean, default=False, nullable=False)
+    issue_comment = db.Column(db.Text, nullable=True)
+    issue_reported_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    issue_reported_at = db.Column(db.DateTime, nullable=True)
+
     # Ablehnung
     rejection_reason = db.Column(db.Text, nullable=True)
     rejected_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
@@ -126,7 +200,12 @@ class BookingRequest(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     # Relationships
-    form = db.relationship('BookingForm', back_populates='requests')
+    form = db.relationship('BookingForm', back_populates='requests', foreign_keys=[form_id])
+    room = db.relationship('BookingRoom', back_populates='requests', foreign_keys=[room_id])
+    booked_by = db.relationship('User', foreign_keys=[booked_by_user_id], backref='internal_bookings')
+    event = db.relationship('Event', foreign_keys=[event_id], backref='room_bookings')
+    issue_reporter = db.relationship('User', foreign_keys=[issue_reported_by])
+
     # CalendarEvent relationship - nur eine Richtung, um zirkuläre Beziehung zu vermeiden
     calendar_event = db.relationship('CalendarEvent', foreign_keys=[calendar_event_id], primaryjoin='BookingRequest.calendar_event_id == CalendarEvent.id', viewonly=True)
     folder = db.relationship('Folder', backref='booking_requests')
@@ -247,17 +326,19 @@ class BookingFormRoleUser(db.Model):
 
 
 class BookingRequestApproval(db.Model):
-    """Zustimmungen/Ablehnungen für Buchungsanfragen."""
+    """Zustimmungen/Ablehnungen/Kenntnisnahmen für Buchungsanfragen."""
     __tablename__ = 'booking_request_approvals'
     
     id = db.Column(db.Integer, primary_key=True)
     request_id = db.Column(db.Integer, db.ForeignKey('booking_requests.id'), nullable=False)
     role_id = db.Column(db.Integer, db.ForeignKey('booking_form_roles.id'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Wer hat zugestimmt/abgelehnt
-    status = db.Column(db.String(20), default='pending', nullable=False)  # pending, approved, rejected
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)  # Wer hat zugestimmt/abgelehnt/Kenntnis genommen
+    status = db.Column(db.String(20), default='pending', nullable=False)  # pending, approved, rejected, acknowledged, issue_reported
     comment = db.Column(db.Text, nullable=True)  # Optionaler Grund/Kommentar
     approved_at = db.Column(db.DateTime, nullable=True)
     rejected_at = db.Column(db.DateTime, nullable=True)
+    acknowledged_at = db.Column(db.DateTime, nullable=True)
+    reported_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -272,4 +353,3 @@ class BookingRequestApproval(db.Model):
     
     def __repr__(self):
         return f'<BookingRequestApproval request={self.request_id} role={self.role_id} status={self.status}>'
-

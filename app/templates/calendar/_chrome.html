@@ -120,7 +120,9 @@
                         {% if calendar_personal_enabled|default(false) %}
                         <option value="personal">{{ _('calendar.sidebar.group_personal') }}</option>
                         {% endif %}
+                        {% if calendar_public_enabled|default(true) %}
                         <option value="public">{{ _('calendar.sidebar.group_public') }}</option>
+                        {% endif %}
                     </select>
                 </div>
                 <div class="mb-0">
@@ -182,7 +184,7 @@
 {% set sc = sidebar_calendars|default(none) %}
 {% set ns = namespace(new_cal_id=none, has_others=false) %}
 {% if sc %}
-    {% set ns.new_cal_id = sc.personal.id if sc.personal else (sc.public.id if sc.public else none) %}
+    {% set ns.new_cal_id = sc.personal.id if sc.personal else (sc.public.id if sc.public else (sc.teams[0].id if sc.teams else none)) %}
     {% set ns.has_others = sc.others and sc.others|length > 0 %}
 {% endif %}
 {% if minimal %}
@@ -308,6 +310,25 @@
         {% endif %}
         {% if sc.events %}
         {{ cal_nav_item(sc.events) }}
+        {% endif %}
+        {% if sc.rooms %}
+        <div class="calendar-sidebar-folder-wrap mt-2 mb-1">
+            <button type="button" class="btn calendar-sidebar-folder-btn w-100 d-flex align-items-center justify-content-between text-start p-1"
+                    data-bs-toggle="collapse" data-bs-target="#calendarRoomsCollapse" aria-expanded="true">
+                <span class="d-flex align-items-center gap-2">
+                    <i class="bi bi-door-open" aria-hidden="true"></i>
+                    <span class="fw-semibold small text-uppercase">{{ _('calendar.sidebar.rooms') }}</span>
+                </span>
+                <i class="bi bi-chevron-down calendar-folder-chevron small" aria-hidden="true"></i>
+            </button>
+            <div class="collapse show" id="calendarRoomsCollapse">
+                <div class="calendar-sidebar-folder-body d-flex flex-column gap-1 pt-1">
+                    {% for cal in sc.rooms %}
+                    {{ cal_nav_item(cal) }}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
         {% endif %}
         {% if sc.others %}
         <hr class="my-2">

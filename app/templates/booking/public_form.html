@@ -61,6 +61,35 @@
 
             <form method="POST" enctype="multipart/form-data">
                 <h3 class="h5 mb-3 fw-semibold">Buchungsdetails</h3>
+
+                {% if form.allow_room_selection and allowed_rooms %}
+                <div class="mb-3">
+                    <label for="room_id" class="form-label fw-semibold">
+                        Gewünschter Raum <span class="text-danger">*</span>
+                    </label>
+                    <select class="form-select" id="room_id" name="room_id" required>
+                        <option value="">-- Raum auswählen --</option>
+                        {% for r in allowed_rooms %}
+                        <option value="{{ r.id }}">
+                            {{ r.name }}{% if r.location %} ({{ r.location }}){% endif %}{% if r.capacity %} · max. {{ r.capacity }} Pers.{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% elif form.room %}
+                <div class="mb-3 p-3 rounded-3 border d-flex align-items-center gap-3" style="background: var(--bs-tertiary-bg);">
+                    <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0" style="width: 2.75rem; height: 2.75rem; background: color-mix(in srgb, {{ form.room.color }} 20%, transparent); color: {{ form.room.color }};">
+                        <i class="bi bi-door-open fs-5"></i>
+                    </div>
+                    <div>
+                        <div class="fw-semibold">Raum: {{ form.room.name }}</div>
+                        <div class="text-muted small">
+                            {% if form.room.location %}{{ form.room.location }}{% endif %}
+                            {% if form.room.capacity %} · Kapazität: max. {{ form.room.capacity }} Personen{% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
                 <div class="booking-public-fields booking-public-fields--2">
                     <div class="booking-public-field booking-public-field--span-2">
                         <label for="applicant_name" class="form-label">

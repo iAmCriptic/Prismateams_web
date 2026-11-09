@@ -1,52 +1,109 @@
-{% macro booking_nav_url(form_id, view_name) -%}
-{{ url_for('booking.requests', form_id=form_id, view=view_name) }}
-{%- endmacro %}
-
 {% macro booking_sidebar_nav(dismiss_offcanvas=false) %}
+{% set rooms = booking_rooms|default([]) %}
 {% set forms = booking_forms|default([]) %}
 {% set active_form_id = current_form_id|default(none) %}
+{% set active_room_id = current_room_id|default(none) %}
 {% set active_view = current_view|default('overview') %}
 {% set counts = pending_counts|default({}) %}
+{% set conf_count = conflict_count|default(0) %}
+{% set int_count = internal_count|default(0) %}
+
 <div class="mod-sidebar-nav">
-    {% if forms %}
-        {% for bf in forms %}
-        <div class="mod-sidebar-section">
-            <div class="mod-sidebar-heading" title="{{ bf.title }}">
-                {% if not bf.is_active %}<i class="bi bi-pause-circle me-1" aria-hidden="true"></i>{% endif %}
-                {{ bf.title }}
-            </div>
+    <!-- Sektion 1: Räume & Kalender (Open/Close Ordnersystem) -->
+    <div class="mod-sidebar-section">
+        <div class="d-flex align-items-center justify-content-between mb-1">
+            <a class="mod-sidebar-heading d-flex align-items-center gap-1 text-decoration-none" href="{{ url_for('booking.rooms') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
+                <i class="bi bi-door-open" aria-hidden="true"></i>
+                <span>{{ _('booking.sidebar.rooms_heading') }}</span>
+            </a>
+            <button type="button" class="btn btn-sm btn-link text-muted p-0" data-bs-toggle="collapse" data-bs-target="#bookingRoomsNavList" aria-expanded="true" aria-label="{{ _('common.toggle') }}">
+                <i class="bi bi-chevron-down" style="font-size: 0.75rem;"></i>
+            </button>
+        </div>
+        <div class="collapse show" id="bookingRoomsNavList">
             <nav class="nav flex-column gap-1">
-                <a class="nav-link mod-nav-link {% if active_form_id == bf.id and active_view == 'overview' %}active{% endif %}"
-                   href="{{ booking_nav_url(bf.id, 'overview') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
-                    <i class="bi bi-grid me-2" aria-hidden="true"></i>{{ _('booking.requests.nav.overview') }}
+                <a class="nav-link mod-nav-link {% if active_view == 'rooms' and not active_room_id %}active{% endif %}"
+                   href="{{ url_for('booking.rooms') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
+                    <i class="bi bi-grid-3x3-gap me-2" aria-hidden="true"></i>{{ _('booking.sidebar.all_rooms') }}
+                    <span class="booking-nav-badge ms-auto">{{ rooms|length }}</span>
                 </a>
-                <a class="nav-link mod-nav-link {% if active_form_id == bf.id and active_view == 'neu' %}active{% endif %}"
-                   href="{{ booking_nav_url(bf.id, 'neu') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
-                    <i class="bi bi-inbox me-2" aria-hidden="true"></i>{{ _('booking.requests.nav.neu') }}
-                    {% set pcount = counts.get(bf.id, 0) %}
-                    {% if pcount %}
-                    <span class="booking-nav-badge ms-auto">{{ pcount }}</span>
-                    {% endif %}
+                {% for r in rooms %}
+                <a class="nav-link mod-nav-link d-flex align-items-center {% if active_room_id == r.id %}active{% endif %}"
+                   href="{{ url_for('booking.room_detail', room_id=r.id) }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}
+                   title="{{ r.name }}">
+                    <span class="calendar-color-dot me-2 flex-shrink-0" style="background: {{ r.color }}; width: 9px; height: 9px; border-radius: 50%;"></span>
+                    <span class="text-truncate flex-grow-1">{{ r.name }}</span>
+                    {% if not r.is_active %}<i class="bi bi-pause-circle ms-1 text-muted small" title="{{ _('booking.room.inactive') }}"></i>{% endif %}
                 </a>
-                <a class="nav-link mod-nav-link {% if active_form_id == bf.id and active_view == 'accepted' %}active{% endif %}"
-                   href="{{ booking_nav_url(bf.id, 'accepted') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
-                    <i class="bi bi-check-circle me-2" aria-hidden="true"></i>{{ _('booking.requests.nav.accepted') }}
-                </a>
-                <a class="nav-link mod-nav-link {% if active_form_id == bf.id and active_view == 'rejected' %}active{% endif %}"
-                   href="{{ booking_nav_url(bf.id, 'rejected') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
-                    <i class="bi bi-x-circle me-2" aria-hidden="true"></i>{{ _('booking.requests.nav.rejected') }}
-                </a>
-                <a class="nav-link mod-nav-link {% if active_form_id == bf.id and active_view == 'archived' %}active{% endif %}"
-                   href="{{ booking_nav_url(bf.id, 'archived') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
-                    <i class="bi bi-archive me-2" aria-hidden="true"></i>{{ _('booking.requests.nav.archived') }}
-                </a>
+                {% endfor %}
             </nav>
         </div>
-        {% endfor %}
-    {% else %}
-        <div class="mod-sidebar-section">
-            <div class="text-muted small px-2">{{ _('booking.requests.nav.no_forms') }}</div>
+    </div>
+
+    <!-- Sektion 2: Buchungsübersicht & Status -->
+    <div class="mod-sidebar-section">
+        <div class="mod-sidebar-heading">
+            <i class="bi bi-inboxes me-1" aria-hidden="true"></i>
+            {{ _('booking.sidebar.requests_heading') }}
         </div>
+        <nav class="nav flex-column gap-1">
+            <a class="nav-link mod-nav-link {% if active_view == 'overview' and not active_form_id and not active_room_id %}active{% endif %}"
+               href="{{ url_for('booking.requests', view='overview') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
+                <i class="bi bi-speedometer2 me-2" aria-hidden="true"></i>{{ _('booking.requests.nav.overview') }}
+            </a>
+            <a class="nav-link mod-nav-link {% if active_view == 'neu' %}active{% endif %}"
+               href="{{ url_for('booking.requests', view='neu') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
+                <i class="bi bi-inbox me-2" aria-hidden="true"></i>{{ _('booking.requests.nav.neu') }}
+                {% set total_pending = counts.values()|sum %}
+                {% if total_pending %}
+                <span class="booking-nav-badge ms-auto">{{ total_pending }}</span>
+                {% endif %}
+            </a>
+            <a class="nav-link mod-nav-link {% if active_view == 'internal' %}active{% endif %}"
+               href="{{ url_for('booking.requests', view='internal') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
+                <i class="bi bi-person-badge me-2" aria-hidden="true"></i>{{ _('booking.sidebar.internal_bookings') }}
+                {% if int_count %}
+                <span class="booking-nav-badge ms-auto">{{ int_count }}</span>
+                {% endif %}
+            </a>
+            <a class="nav-link mod-nav-link {% if active_view == 'conflicts' %}active{% endif %}"
+               href="{{ url_for('booking.requests', view='conflicts') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
+                <i class="bi bi-exclamation-triangle me-2 text-warning" aria-hidden="true"></i>{{ _('booking.sidebar.conflicts') }}
+                {% if conf_count %}
+                <span class="booking-nav-badge booking-nav-badge--danger ms-auto">{{ conf_count }}</span>
+                {% endif %}
+            </a>
+            <a class="nav-link mod-nav-link {% if active_view == 'accepted' %}active{% endif %}"
+               href="{{ url_for('booking.requests', view='accepted') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
+                <i class="bi bi-check-circle me-2" aria-hidden="true"></i>{{ _('booking.requests.nav.accepted') }}
+            </a>
+            <a class="nav-link mod-nav-link {% if active_view == 'rejected' %}active{% endif %}"
+               href="{{ url_for('booking.requests', view='rejected') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
+                <i class="bi bi-x-circle me-2" aria-hidden="true"></i>{{ _('booking.requests.nav.rejected') }}
+            </a>
+            <a class="nav-link mod-nav-link {% if active_view == 'archived' %}active{% endif %}"
+               href="{{ url_for('booking.requests', view='archived') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
+                <i class="bi bi-archive me-2" aria-hidden="true"></i>{{ _('booking.requests.nav.archived') }}
+            </a>
+        </nav>
+    </div>
+
+    <!-- Sektion 3: Administration (nur für Admins) -->
+    {% if current_user.is_admin %}
+    <div class="mod-sidebar-section">
+        <div class="mod-sidebar-heading">
+            <i class="bi bi-gear me-1" aria-hidden="true"></i>
+            {{ _('settings.admin.heading') }}
+        </div>
+        <nav class="nav flex-column gap-1">
+            <a class="nav-link mod-nav-link" href="{{ url_for('settings.booking_rooms') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
+                <i class="bi bi-sliders me-2" aria-hidden="true"></i>{{ _('booking.sidebar.manage_rooms') }}
+            </a>
+            <a class="nav-link mod-nav-link" href="{{ url_for('settings.booking_forms') }}"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
+                <i class="bi bi-ui-checks me-2" aria-hidden="true"></i>{{ _('booking.sidebar.manage_forms') }}
+            </a>
+        </nav>
+    </div>
     {% endif %}
 </div>
 {% endmacro %}
@@ -54,8 +111,11 @@
 {% macro booking_sidebar_chrome(id_suffix='', dismiss_offcanvas=false, include_new=true) %}
 {% set public_url = url_for('booking.public_booking', _external=True) %}
 {% if include_new %}
-<div class="mod-sidebar-new-wrap w-100">
-    <a href="{{ public_url }}" class="btn mod-sidebar-new w-100 text-start" target="_blank" rel="noopener"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
+<div class="mod-sidebar-new-wrap w-100 d-flex flex-column gap-2 mb-3">
+    <a href="{{ url_for('booking.internal_create') }}" class="btn mod-sidebar-new w-100 text-start"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-plus-lg me-2" aria-hidden="true"></i>{{ _('booking.sidebar.book_internally') }}
+    </a>
+    <a href="{{ public_url }}" class="btn mod-pill-btn mod-pill-btn--outline w-100 text-start" target="_blank" rel="noopener"{% if dismiss_offcanvas %} data-booking-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-globe2 me-2" aria-hidden="true"></i>{{ _('booking.requests.nav.public_link') }}
     </a>
 </div>

@@ -7,7 +7,10 @@ from flask import Blueprint, Response, stream_with_context, current_app, request
 from flask_login import current_user, login_required
 import json
 import time
-import redis
+try:
+    import redis
+except ImportError:
+    redis = None
 import threading
 import os
 from queue import Queue, Empty
@@ -44,6 +47,8 @@ SSE_HEARTBEAT_SECONDS = sse_stream_limits()[1]
 def get_redis_client():
     """Lazy-load Redis client."""
     global _redis_client, _redis_url
+    if redis is None:
+        return None
     if has_app_context() and not current_app.config.get('REDIS_ENABLED', False):
         return None
 

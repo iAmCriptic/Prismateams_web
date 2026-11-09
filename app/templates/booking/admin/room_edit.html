@@ -1,0 +1,136 @@
+{% extends "settings/base_settings.html" %}
+
+{% block title %}{% if is_new %}Neuer Raum{% else %}{{ room.name }} bearbeiten{% endif %} — Administration{% endblock %}
+{% block settings_mobile_title %}{% if is_new %}Neuer Raum{% else %}Raum bearbeiten{% endif %}{% endblock %}
+
+{% block settings_content %}
+<div class="sp-page sp-page--fluid settings-admin-booking">
+  <header class="sp-page-header settings-admin-booking-header">
+    <div class="settings-admin-booking-header-text">
+      <h1 class="sp-page-title">
+        <i class="bi bi-door-open" aria-hidden="true"></i>
+        <span>{% if is_new %}Neuen Raum anlegen{% else %}{{ room.name }} bearbeiten{% endif %}</span>
+      </h1>
+      <p class="sp-page-lead">Stammdaten, Ausstattung, Kalenderfarbe und Bild für diesen Raum konfigurieren.</p>
+    </div>
+    <div class="settings-admin-booking-header-actions">
+      <a href="{{ url_for('settings.booking_rooms') }}" class="btn mod-pill-btn mod-pill-btn--outline">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        Zurück zur Übersicht
+      </a>
+    </div>
+  </header>
+
+  <form method="POST" enctype="multipart/form-data" class="sp-form">
+    <section class="sp-group" id="room-basics" aria-labelledby="room-basics-title">
+      <div class="sp-group-head">
+        <h2 id="room-basics-title" class="sp-group-title"><i class="bi bi-card-heading" aria-hidden="true"></i>Stammdaten</h2>
+      </div>
+      <div class="sp-group-body">
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">Raumname <span class="text-danger">*</span></span>
+          </div>
+          <div class="sp-row-control">
+            <input class="form-control" id="name" name="name" required value="{{ room.name if room else '' }}" placeholder="z. B. Aula, Großer Festsaal, Seminarraum 1">
+          </div>
+        </div>
+
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">Standort / Gebäude</span>
+          </div>
+          <div class="sp-row-control">
+            <input class="form-control" id="location" name="location" value="{{ room.location if room else '' }}" placeholder="z. B. Hauptgebäude, 1. Stock">
+          </div>
+        </div>
+
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">Kapazität (Personen)</span>
+          </div>
+          <div class="sp-row-control">
+            <input type="number" class="form-control" id="capacity" name="capacity" value="{{ room.capacity if room and room.capacity else '' }}" placeholder="z. B. 120" min="1">
+          </div>
+        </div>
+
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">Kalenderfarbe</span>
+            <small class="text-muted d-block">Farbe für Belegungseinträge im Raumkalender.</small>
+          </div>
+          <div class="sp-row-control d-flex align-items-center gap-2">
+            <input type="color" class="form-control form-control-color" id="color" name="color" value="{{ room.color if room else '#4f46e5' }}">
+            <span class="text-muted small">Wird auch für Badges und Übersichten genutzt</span>
+          </div>
+        </div>
+
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">Beschreibung / Ausstattung</span>
+            <small class="text-muted d-block">Ausstattung (Beamer, Bestuhlung, Beschallung etc.) oder Nutzungshinweise.</small>
+          </div>
+          <div class="sp-row-control" style="width:100%">
+            <textarea class="form-control" id="description" name="description" rows="4" placeholder="z. B. Beamer mit HDMI, 80 Stühle, Mischpult vorhanden...">{{ room.description if room else '' }}</textarea>
+          </div>
+        </div>
+
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">Raumbild / Foto</span>
+            <small class="text-muted d-block">Vorschau für Kachelansicht und Buchungsseiten.</small>
+          </div>
+          <div class="sp-row-control d-flex flex-column gap-2" style="width:100%">
+            {% if room and room.image_path %}
+            <div class="d-flex align-items-center gap-3">
+              <img src="{{ url_for('static', filename=room.image_path) }}" alt="{{ room.name }}" class="rounded-3 border object-fit-cover" style="width: 80px; height: 60px;">
+              <span class="text-muted small">Aktuelles Bild vorhanden</span>
+            </div>
+            {% endif %}
+            <input type="file" class="form-control" id="image" name="image" accept="image/*">
+          </div>
+        </div>
+
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">Standard-Buchungsformular</span>
+            <small class="text-muted d-block">Wird verknüpft, wenn extern oder intern gebucht wird.</small>
+          </div>
+          <div class="sp-row-control">
+            <select class="form-select" id="default_form_id" name="default_form_id">
+              <option value="">-- Kein Standardformular --</option>
+              {% for f in all_forms|default([]) %}
+              <option value="{{ f.id }}" {% if room and room.default_form_id == f.id %}selected{% endif %}>
+                {{ f.title }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">Aktiv-Status</span>
+            <small class="text-muted d-block">Inaktive Räume stehen für neue Buchungen nicht zur Auswahl.</small>
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if is_new or (room and room.is_active) %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="sp-form-actions d-flex align-items-center gap-2 mt-4 pt-3 border-top">
+      <button type="submit" class="btn btn-accent rounded-pill mod-pill-btn">
+        <i class="bi bi-check2"></i>
+        <span>{% if is_new %}Raum erstellen{% else %}Änderungen speichern{% endif %}</span>
+      </button>
+      <a href="{{ url_for('settings.booking_rooms') }}" class="btn btn-outline-secondary rounded-pill mod-pill-btn">
+        Abbrechen
+      </a>
+    </div>
+  </form>
+</div>
+{% endblock %}

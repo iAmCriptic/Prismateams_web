@@ -44,7 +44,17 @@
         </div>
         <div class="events-form-field">
             <label class="form-label" for="event_location">Standard-Ort</label>
-            <input class="form-control" id="event_location" name="default_location" value="{{ event.default_location if event else '' }}">
+            {% if rooms %}
+            <div class="mb-2">
+                <select class="form-select mod-pill-input" name="room_id" id="event_room_id">
+                    <option value="">-- Freitext / Manueller Ort --</option>
+                    {% for r in rooms %}
+                    <option value="{{ r.id }}" data-room-name="{{ r.name }}" data-room-loc="{{ r.location or '' }}" {% if event and event.room_id == r.id %}selected{% endif %}>{{ r.name }}{% if r.location %} ({{ r.location }}){% endif %}{% if r.capacity %} · max. {{ r.capacity }} Pers.{% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <input class="form-control" id="event_location" name="default_location" value="{{ event.default_location if event else '' }}" placeholder="z. B. Hauptbühne, Vereinsheim, Stadtpark...">
         </div>
         <div class="events-form-field events-form-field--span-2">
             <label class="form-label" for="event_description">Beschreibung</label>

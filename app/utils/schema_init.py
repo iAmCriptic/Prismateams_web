@@ -474,6 +474,87 @@ def ensure_critical_columns(db) -> None:
                     logger.info("[OK] booking_personal_fields.category ergänzt")
                 except Exception as bpf_err:
                     logger.warning("Konnte booking_personal_fields.category nicht ergänzen: %s", bpf_err)
+
+        # Raumbuchungssystem: booking_forms, booking_requests, approvals, events
+        if "booking_forms" in table_names:
+            bf_cols = {col["name"] for col in inspector.get_columns("booking_forms")}
+            form_col_defs = [
+                ("room_id", "INTEGER NULL"),
+                ("allow_room_selection", bool_false),
+                ("allowed_room_ids", "TEXT NULL"),
+            ]
+            for col_name, ddl in form_col_defs:
+                if col_name not in bf_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE booking_forms ADD COLUMN {col_name} {ddl}"))
+                        logger.info("[OK] booking_forms.%s ergänzt", col_name)
+                    except Exception as err:
+                        logger.warning("Konnte booking_forms.%s nicht ergänzen: %s", col_name, err)
+
+        if "booking_requests" in table_names:
+            br_cols = {col["name"] for col in inspector.get_columns("booking_requests")}
+            req_col_defs = [
+                ("room_id", "INTEGER NULL"),
+                ("booking_type", "VARCHAR(20) NOT NULL DEFAULT 'external'"),
+                ("booked_by_user_id", "INTEGER NULL"),
+                ("event_id", "INTEGER NULL"),
+                ("has_conflict", bool_false),
+                ("conflict_notes", "TEXT NULL"),
+                ("issue_reported", bool_false),
+                ("issue_comment", "TEXT NULL"),
+                ("issue_reported_by", "INTEGER NULL"),
+                ("issue_reported_at", "TIMESTAMP NULL" if is_pg else "DATETIME NULL"),
+            ]
+            for col_name, ddl in req_col_defs:
+                if col_name not in br_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE booking_requests ADD COLUMN {col_name} {ddl}"))
+                        logger.info("[OK] booking_requests.%s ergänzt", col_name)
+                    except Exception as err:
+                        logger.warning("Konnte booking_requests.%s nicht ergänzen: %s", col_name, err)
+
+        if "booking_request_approvals" in table_names:
+            bra_cols = {col["name"] for col in inspector.get_columns("booking_request_approvals")}
+            appr_col_defs = [
+                ("acknowledged_at", "TIMESTAMP NULL" if is_pg else "DATETIME NULL"),
+                ("reported_at", "TIMESTAMP NULL" if is_pg else "DATETIME NULL"),
+            ]
+            for col_name, ddl in appr_col_defs:
+                if col_name not in bra_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE booking_request_approvals ADD COLUMN {col_name} {ddl}"))
+                        logger.info("[OK] booking_request_approvals.%s ergänzt", col_name)
+                    except Exception as err:
+                        logger.warning("Konnte booking_request_approvals.%s nicht ergänzen: %s", col_name, err)
+
+        if "events" in table_names:
+            ev_cols = {col["name"] for col in inspector.get_columns("events")}
+            if "room_id" not in ev_cols:
+                try:
+                    with db.engine.begin() as conn:
+                        conn.execute(text("ALTER TABLE events ADD COLUMN room_id INTEGER NULL"))
+                    logger.info("[OK] events.room_id ergänzt")
+                except Exception as err:
+                    logger.warning("Konnte events.room_id nicht ergänzen: %s", err)
+
+        if "event_appointments" in table_names:
+            ea_cols = {col["name"] for col in inspector.get_columns("event_appointments")}
+            ea_col_defs = [
+                ("room_id", "INTEGER NULL"),
+                ("booking_request_id", "INTEGER NULL"),
+            ]
+            for col_name, ddl in ea_col_defs:
+                if col_name not in ea_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE event_appointments ADD COLUMN {col_name} {ddl}"))
+                        logger.info("[OK] event_appointments.%s ergänzt", col_name)
+                    except Exception as err:
+                        logger.warning("Konnte event_appointments.%s nicht ergänzen: %s", col_name, err)
+
     except Exception as exc:
         logger.warning("ensure_critical_columns fehlgeschlagen: %s", exc)
 

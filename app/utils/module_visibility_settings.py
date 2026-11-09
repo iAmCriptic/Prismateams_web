@@ -52,9 +52,16 @@ def sync_legacy_visibility_keys(allow_private: bool, allow_team: bool, allow_pub
     upsert_setting(KANBAN_TEAM, str(allow_team).lower(), 'Kanban: Team Boards')
     upsert_setting(KANBAN_PUBLIC, str(allow_public).lower(), 'Kanban: Public Boards')
 
+    upsert_setting('calendar_public_enabled', str(allow_public).lower(), 'Kalender: Public-Kalender')
     upsert_setting('calendar_personal_enabled', str(allow_private).lower(), 'Kalender: Persönliche Kalender')
     upsert_setting('calendar_team_enabled', str(allow_team).lower(), 'Kalender: Team-Kalender')
-    upsert_setting('calendar_multi_enabled', str(allow_private or allow_team).lower(), 'Kalender: Multi-Kalender')
+    upsert_setting('calendar_multi_enabled', str(allow_private or allow_team or allow_public).lower(), 'Kalender: Multi-Kalender')
+
+    try:
+        from app.utils.multi_calendars import backfill_space_calendars
+        backfill_space_calendars()
+    except Exception:
+        pass
 
     upsert_setting('files_private_folders_enabled', str(allow_private).lower(), 'Dateien: Private Ordner')
     upsert_setting('files_team_folders_enabled', str(allow_team).lower(), 'Dateien: Team-Ordner')

@@ -4,6 +4,16 @@ os.environ['PRISMATEAMS_SKIP_SCHEMA_INIT'] = '1'
 os.environ['PRISMATEAMS_RUNNING_MIGRATIONS'] = '1'
 os.environ['FLASK_ENV'] = 'testing'
 
+import sys
+from unittest.mock import MagicMock
+
+for mod_name in ['redis', 'icalendar', 'webauthn']:
+    if mod_name not in sys.modules:
+        try:
+            __import__(mod_name)
+        except ImportError:
+            sys.modules[mod_name] = MagicMock()
+
 import pytest
 from app import create_app, db, limiter
 

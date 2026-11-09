@@ -31,6 +31,7 @@ from app.utils.multi_calendars import (
     is_calendar_multi_enabled,
     is_calendar_personal_enabled,
     is_calendar_team_enabled,
+    is_calendar_public_enabled,
     list_sidebar_calendars,
     list_writable_calendars,
     parse_calendar_ids_param,
@@ -85,15 +86,27 @@ def sanitize_event_color(raw_color):
 
 
 def _selected_calendar_ids_from_request(user):
-    """Parse ?calendars= from query; default = personal (or public) when multi on."""
+    """Parse ?calendars= from query; default = personal + public when multi on."""
     multi = is_calendar_multi_enabled()
     if not multi:
         return []
-    default = default_calendar_for_user(user)
     raw = request.args.get('calendars')
-    ids = parse_calendar_ids_param(raw, default_ids=[default.id] if default else [])
-    if not ids and default:
-        ids = [default.id]
+    defaults = []
+    if is_calendar_personal_enabled() and user:
+        p = get_or_create_personal_calendar(user)
+        if p:
+            defaults.append(p.id)
+    if is_calendar_public_enabled():
+        pub = get_public_calendar()
+        if pub and pub.id not in defaults:
+            defaults.append(pub.id)
+    if not defaults:
+        d = default_calendar_for_user(user)
+        if d:
+            defaults.append(d.id)
+    ids = parse_calendar_ids_param(raw, default_ids=defaults)
+    if not ids and defaults:
+        ids = list(defaults)
     return ids
 
 
@@ -104,6 +117,7 @@ def _sidebar_context(user, selected_ids=None):
             'calendar_multi_enabled': False,
             'calendar_personal_enabled': is_calendar_personal_enabled(),
             'calendar_team_enabled': is_calendar_team_enabled(),
+            'calendar_public_enabled': is_calendar_public_enabled(),
             'calendar_export_enabled': is_calendar_export_enabled(),
             'calendar_import_enabled': is_calendar_import_enabled(),
             'sidebar_calendars': None,
@@ -115,7 +129,12 @@ def _sidebar_context(user, selected_ids=None):
     sidebar = list_sidebar_calendars(user)
     if selected_ids is None:
         selected_ids = _selected_calendar_ids_from_request(user)
-    default = sidebar.get('personal') or sidebar.get('public')
+    default = (
+        sidebar.get('personal')
+        or sidebar.get('public')
+        or (sidebar.get('teams')[0] if sidebar.get('teams') else None)
+        or (sidebar.get('others')[0] if sidebar.get('others') else None)
+    )
     focus_raw = request.args.get('focus', type=int)
     focus_id = focus_raw or (selected_ids[0] if selected_ids else (default.id if default else None))
     focus_cal = Calendar.query.get(focus_id) if focus_id else default
@@ -126,6 +145,7 @@ def _sidebar_context(user, selected_ids=None):
         'calendar_multi_enabled': True,
         'calendar_personal_enabled': is_calendar_personal_enabled(),
         'calendar_team_enabled': is_calendar_team_enabled(),
+        'calendar_public_enabled': is_calendar_public_enabled(),
         'calendar_export_enabled': is_calendar_export_enabled(),
         'calendar_import_enabled': is_calendar_import_enabled(),
         'sidebar_calendars': {
@@ -135,6 +155,7 @@ def _sidebar_context(user, selected_ids=None):
             'publics': [calendar_to_dict(c, user) for c in sidebar.get('publics') or []],
             'events': calendar_to_dict(sidebar['events'], user) if sidebar.get('events') else None,
             'teams': [calendar_to_dict(c, user) for c in sidebar.get('teams') or []],
+            'rooms': [calendar_to_dict(c, user) for c in sidebar.get('rooms') or []],
             'others': [calendar_to_dict(c, user) for c in sidebar.get('others') or []],
         },
         'selected_calendar_ids': selected_ids,

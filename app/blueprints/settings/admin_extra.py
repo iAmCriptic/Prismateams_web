@@ -428,9 +428,12 @@ def booking_form_edit(form_id):
         if not title:
             flash(translate('settings.admin.booking_forms.flash_title_required'), 'danger')
             fields = BookingFormField.query.filter_by(form_id=form_id).order_by(BookingFormField.field_order).all()
+            from app.models.booking import BookingRoom
+            all_rooms = BookingRoom.query.order_by(BookingRoom.name).all()
             return render_template(
                 'booking/admin/form_edit.html',
                 form=form,
+                all_rooms=all_rooms,
                 fields=fields,
                 all_users=User.query.filter_by(is_active=True).all(),
                 is_new=is_new,
@@ -444,15 +447,23 @@ def booking_form_edit(form_id):
         form.enable_mailbox = enable_mailbox
         form.enable_shared_folder = enable_shared_folder
         form.is_active = is_active
+        room_id_raw = request.form.get('room_id')
+        form.room_id = int(room_id_raw) if room_id_raw and room_id_raw.isdigit() else None
+        form.allow_room_selection = request.form.get('allow_room_selection') == 'on'
+        allowed_rooms = request.form.getlist('allowed_room_ids[]')
+        form.set_allowed_rooms(allowed_rooms)
 
         db.session.commit()
         flash(translate('settings.admin.booking_forms.flash_form_updated', title=title), 'success')
         return _settings_redirect('settings.booking_forms')
 
     fields = BookingFormField.query.filter_by(form_id=form_id).order_by(BookingFormField.field_order).all()
+    from app.models.booking import BookingRoom
+    all_rooms = BookingRoom.query.order_by(BookingRoom.name).all()
     return render_template(
         'booking/admin/form_edit.html',
         form=form,
+        all_rooms=all_rooms,
         fields=fields,
         all_users=User.query.filter_by(is_active=True).all(),
         is_new=is_new,
@@ -997,3 +1008,171 @@ def admin_events_settings():
 
     fields = EventCustomField.query.order_by(EventCustomField.position, EventCustomField.id).all()
     return render_template('settings/admin_events_settings.html', fields=fields)
+
+
+@settings_bp.route('/admin/booking-rooms')
+@login_required
+def booking_rooms():
+    """Room management (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.booking import BookingRoom
+    rooms = BookingRoom.query.order_by(BookingRoom.name.asc()).all()
+    return render_template('booking/admin/rooms.html', rooms=rooms)
+
+
+@settings_bp.route('/admin/booking-rooms/create', methods=['GET', 'POST'])
+@login_required
+def booking_room_create():
+    """Create a new room (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.booking import BookingRoom, BookingForm
+    from app.utils.booking_rooms import ensure_room_calendar
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip() or None
+        location = request.form.get('location', '').strip() or None
+        capacity_raw = request.form.get('capacity', '').strip()
+        capacity = int(capacity_raw) if capacity_raw and capacity_raw.isdigit() else None
+        color = request.form.get('color', '').strip() or '#4f46e5'
+        default_form_id_raw = request.form.get('default_form_id', '').strip()
+        default_form_id = int(default_form_id_raw) if default_form_id_raw and default_form_id_raw.isdigit() else None
+        is_active = request.form.get('is_active') == 'on'
+
+        if not name:
+            flash('Bitte geben Sie einen Raumnamen ein.', 'danger')
+            all_forms = BookingForm.query.order_by(BookingForm.title).all()
+            return render_template('booking/admin/room_edit.html', room=None, all_forms=all_forms, is_new=True)
+
+        room = BookingRoom(
+            name=name,
+            description=description,
+            location=location,
+            capacity=capacity,
+            color=color,
+            default_form_id=default_form_id,
+            is_active=is_active,
+        )
+        db.session.add(room)
+        db.session.flush()
+
+        # Image Upload
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and file.filename:
+                allowed_exts = {'png', 'jpg', 'jpeg', 'webp', 'svg'}
+                if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_exts:
+                    fname = secure_filename(file.filename)
+                    ts = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                    filename = f"room_{room.id}_{ts}_{fname}"
+                    project_root = os.path.dirname(current_app.root_path)
+                    upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'booking_rooms', str(room.id))
+                    os.makedirs(upload_dir, exist_ok=True)
+                    filepath = os.path.join(upload_dir, filename)
+                    file.save(filepath)
+                    room.image_path = os.path.join('booking_rooms', str(room.id), filename).replace('\\', '/')
+
+        ensure_room_calendar(room)
+        db.session.commit()
+        flash(f'Raum "{room.name}" wurde erfolgreich angelegt.', 'success')
+        return _settings_redirect('settings.booking_rooms')
+
+    all_forms = BookingForm.query.order_by(BookingForm.title).all()
+    return render_template('booking/admin/room_edit.html', room=None, all_forms=all_forms, is_new=True)
+
+
+@settings_bp.route('/admin/booking-rooms/<int:room_id>/edit', methods=['GET', 'POST'])
+@login_required
+def booking_room_edit(room_id):
+    """Edit an existing room (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.booking import BookingRoom, BookingForm
+    from app.utils.booking_rooms import ensure_room_calendar
+
+    room = BookingRoom.query.get_or_404(room_id)
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip() or None
+        location = request.form.get('location', '').strip() or None
+        capacity_raw = request.form.get('capacity', '').strip()
+        capacity = int(capacity_raw) if capacity_raw and capacity_raw.isdigit() else None
+        color = request.form.get('color', '').strip() or '#4f46e5'
+        default_form_id_raw = request.form.get('default_form_id', '').strip()
+        default_form_id = int(default_form_id_raw) if default_form_id_raw and default_form_id_raw.isdigit() else None
+        is_active = request.form.get('is_active') == 'on'
+
+        if not name:
+            flash('Bitte geben Sie einen Raumnamen ein.', 'danger')
+            all_forms = BookingForm.query.order_by(BookingForm.title).all()
+            return render_template('booking/admin/room_edit.html', room=room, all_forms=all_forms, is_new=False)
+
+        room.name = name
+        room.description = description
+        room.location = location
+        room.capacity = capacity
+        room.color = color
+        room.default_form_id = default_form_id
+        room.is_active = is_active
+
+        # Image Upload
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and file.filename:
+                allowed_exts = {'png', 'jpg', 'jpeg', 'webp', 'svg'}
+                if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_exts:
+                    fname = secure_filename(file.filename)
+                    ts = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                    filename = f"room_{room.id}_{ts}_{fname}"
+                    project_root = os.path.dirname(current_app.root_path)
+                    upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'booking_rooms', str(room.id))
+                    os.makedirs(upload_dir, exist_ok=True)
+                    filepath = os.path.join(upload_dir, filename)
+                    file.save(filepath)
+                    room.image_path = os.path.join('booking_rooms', str(room.id), filename).replace('\\', '/')
+
+        ensure_room_calendar(room)
+        db.session.commit()
+        flash(f'Raum "{room.name}" wurde aktualisiert.', 'success')
+        return _settings_redirect('settings.booking_rooms')
+
+    all_forms = BookingForm.query.order_by(BookingForm.title).all()
+    return render_template('booking/admin/room_edit.html', room=room, all_forms=all_forms, is_new=False)
+
+
+@settings_bp.route('/admin/booking-rooms/<int:room_id>/delete', methods=['POST'])
+@login_required
+def booking_room_delete(room_id):
+    """Delete room (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.booking import BookingRoom
+    room = BookingRoom.query.get_or_404(room_id)
+    name = room.name
+    # Soft delete / deactive or delete
+    if room.requests:
+        room.is_active = False
+        db.session.commit()
+        flash(f'Raum "{name}" besitzt bestehende Buchungen und wurde daher deaktiviert.', 'info')
+    else:
+        if room.calendar_id:
+            from app.models.calendar import Calendar
+            cal = Calendar.query.get(room.calendar_id)
+            if cal:
+                db.session.delete(cal)
+        db.session.delete(room)
+        db.session.commit()
+        flash(f'Raum "{name}" wurde gelöscht.', 'success')
+
+    return _settings_redirect('settings.booking_rooms')

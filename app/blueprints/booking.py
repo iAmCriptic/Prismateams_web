@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from app import db
 from app.models.booking import (
+    BookingRoom,
     BookingForm, BookingFormField, BookingFormImage,
     BookingRequest, BookingRequestField, BookingRequestFile,
     BookingFormRole, BookingFormRoleUser, BookingRequestApproval,
@@ -24,12 +25,14 @@ import json
 
 booking_bp = Blueprint('booking', __name__)
 
-BOOKING_VIEWS = ('overview', 'neu', 'accepted', 'rejected', 'archived')
+BOOKING_VIEWS = ('overview', 'rooms', 'neu', 'accepted', 'rejected', 'archived', 'conflicts', 'internal')
 VIEW_TO_STATUS = {
     'neu': 'pending',
     'accepted': 'accepted',
     'rejected': 'rejected',
     'archived': 'archived',
+    'conflicts': 'conflicts',
+    'internal': 'internal',
 }
 STATUS_TO_VIEW = {
     'pending': 'neu',
@@ -39,11 +42,15 @@ STATUS_TO_VIEW = {
 }
 
 
-def _booking_sidebar_context(form_id=None, view='overview'):
+def _booking_sidebar_context(form_id=None, room_id=None, view='overview'):
     """Gemeinsamer Sidebar-Kontext für Team-Buchungsseiten."""
     forms = BookingForm.query.order_by(
         BookingForm.is_active.desc(),
         BookingForm.created_at.desc()
+    ).all()
+    rooms = BookingRoom.query.order_by(
+        BookingRoom.is_active.desc(),
+        BookingRoom.name.asc()
     ).all()
 
     view = view if view in BOOKING_VIEWS else 'overview'
@@ -71,12 +78,24 @@ def _booking_sidebar_context(form_id=None, view='overview'):
         )
         pending_counts = {fid: count for fid, count in rows}
 
+    conflict_count = BookingRequest.query.filter_by(has_conflict=True).count()
+    internal_count = BookingRequest.query.filter_by(booking_type='internal').count()
+
+    current_room = None
+    if room_id:
+        current_room = next((r for r in rooms if r.id == room_id), None)
+
     return {
         'booking_forms': forms,
+        'booking_rooms': rooms,
         'current_form_id': form_id,
         'current_form': current_form,
+        'current_room_id': room_id,
+        'current_room': current_room,
         'current_view': view,
         'pending_counts': pending_counts,
+        'conflict_count': conflict_count,
+        'internal_count': internal_count,
     }
 
 
@@ -197,7 +216,7 @@ def public_form(form_id):
         return redirect(url_for('booking.public_booking'))
     
     # GET: Formular-Kontext
-    # Sortiere Felder nach field_order
+    allowed_rooms = form.get_allowed_rooms()
     fields = sorted(form.fields, key=lambda f: f.field_order)
 
     # Lade Portalslogo
@@ -216,6 +235,7 @@ def public_form(form_id):
                 'booking/public_form.html',
                 form=form,
                 fields=fields,
+                allowed_rooms=allowed_rooms,
                 portal_logo_filename=portal_logo_filename,
             )
 
@@ -270,18 +290,41 @@ def public_form(form_id):
             except ValueError:
                 pass
         
+        # Raum ermitteln
+        chosen_room_id = None
+        if form.allow_room_selection:
+            raw_r = request.form.get('room_id')
+            if raw_r and raw_r.isdigit():
+                chosen_room_id = int(raw_r)
+        if not chosen_room_id:
+            chosen_room_id = form.room_id
+
+        has_conflict = False
+        conflict_notes = None
+        if chosen_room_id and event_date:
+            from app.utils.booking_rooms import check_room_availability
+            is_avail, conflicts = check_room_availability(chosen_room_id, event_date, event_start_time, event_end_time)
+            if not is_avail:
+                has_conflict = True
+                c_lines = [f"{x['title']} ({x['start'].strftime('%H:%M')}-{x['end'].strftime('%H:%M')})" for x in conflicts]
+                conflict_notes = "Kollision mit: " + ", ".join(c_lines)
+
         # Erstelle Buchungsanfrage
         token = generate_booking_token()
         booking_request = BookingRequest(
             form_id=form.id,
+            room_id=chosen_room_id,
             event_name=event_name,
             applicant_name=applicant_name,
             email=email,
             token=token,
             status='pending',
+            booking_type='external',
             event_date=event_date,
             event_start_time=event_start_time,
-            event_end_time=event_end_time
+            event_end_time=event_end_time,
+            has_conflict=has_conflict,
+            conflict_notes=conflict_notes,
         )
         db.session.add(booking_request)
         db.session.flush()
@@ -548,11 +591,22 @@ def requests():
         if view == 'overview':
             stats = _form_dashboard_stats(current_form.id)
         else:
-            status = VIEW_TO_STATUS.get(view)
-            query = BookingRequest.query.filter_by(form_id=current_form.id)
-            if status:
-                query = query.filter_by(status=status)
-            requests_list = query.order_by(BookingRequest.created_at.desc()).all()
+            if view == 'conflicts':
+                query = BookingRequest.query.filter_by(has_conflict=True)
+                if current_form:
+                    query = query.filter_by(form_id=current_form.id)
+                requests_list = query.order_by(BookingRequest.created_at.desc()).all()
+            elif view == 'internal':
+                query = BookingRequest.query.filter_by(booking_type='internal')
+                if current_form:
+                    query = query.filter_by(form_id=current_form.id)
+                requests_list = query.order_by(BookingRequest.created_at.desc()).all()
+            else:
+                status = VIEW_TO_STATUS.get(view)
+                query = BookingRequest.query.filter_by(form_id=current_form.id)
+                if status:
+                    query = query.filter_by(status=status)
+                requests_list = query.order_by(BookingRequest.created_at.desc()).all()
             if requests_list:
                 try:
                     ids = [r.id for r in requests_list]
@@ -589,13 +643,13 @@ def requests():
 def request_detail(request_id):
     """Details einer Buchung anzeigen."""
     booking_request = BookingRequest.query.get_or_404(request_id)
-    form = booking_request.form
+    form = booking_request.form or (booking_request.room.default_form if booking_request.room else None)
 
     field_values = {}
     for field_value in booking_request.field_values:
         field_values[field_value.field_id] = field_value
 
-    roles = list(form.roles)
+    roles = list(form.roles) if form else []
     role_ids = [role.id for role in roles]
     approvals = {role.id: None for role in roles}
     user_role_assignments = {role.id: False for role in roles}
@@ -617,7 +671,7 @@ def request_detail(request_id):
                 user_role_assignments[role_id] = True
 
     detail_view = STATUS_TO_VIEW.get(booking_request.status, 'overview')
-    ctx = _booking_sidebar_context(form_id=form.id, view=detail_view)
+    ctx = _booking_sidebar_context(form_id=form.id if form else None, room_id=booking_request.room_id, view=detail_view)
 
     try:
         from app.utils.booking_messages import mark_messages_read
@@ -686,19 +740,44 @@ def request_accept(request_id):
         # Default: 1 Stunde später
         end_datetime = start_datetime + timedelta(hours=1)
     
-    # Multi an → Veranstaltungen; Multi aus → Public
+    # Raumkalender verwenden, wenn vorhanden; sonst Fallback auf Modul-Veranstaltungskalender
     calendar_id = None
-    try:
-        from app.utils.multi_calendars import target_calendar_id_for_module_events
-        calendar_id = target_calendar_id_for_module_events()
-    except Exception as e:
-        current_app.logger.error(f"Modul-Kalender-Lookup fehlgeschlagen: {e}")
+    event_color = '#4f46e5'
+    loc_str = None
+    if booking_request.room:
+        from app.utils.booking_rooms import ensure_room_calendar, check_room_availability
+        room_cal = ensure_room_calendar(booking_request.room)
+        calendar_id = room_cal.id if room_cal else None
+        event_color = booking_request.room.color or '#4f46e5'
+        loc_str = f"{booking_request.room.name} ({booking_request.room.location})" if booking_request.room.location else booking_request.room.name
+
+        # Kollision prüfen
+        is_avail, conflicts = check_room_availability(
+            booking_request.room_id,
+            booking_request.event_date,
+            booking_request.event_start_time,
+            booking_request.event_end_time,
+            exclude_request_id=booking_request.id,
+        )
+        if not is_avail:
+            booking_request.has_conflict = True
+            c_lines = [f"{x['title']} ({x['start'].strftime('%H:%M')}-{x['end'].strftime('%H:%M')})" for x in conflicts]
+            booking_request.conflict_notes = "Kollision mit: " + ", ".join(c_lines)
+
+    if not calendar_id:
+        try:
+            from app.utils.multi_calendars import target_calendar_id_for_module_events
+            calendar_id = target_calendar_id_for_module_events()
+        except Exception as e:
+            current_app.logger.error(f"Modul-Kalender-Lookup fehlgeschlagen: {e}")
 
     calendar_event = CalendarEvent(
         title=booking_request.event_name,
         description=f"Buchungsanfrage von {booking_request.email}\n\nLink zur Buchung: {url_for('booking.request_detail', request_id=booking_request.id, _external=True)}",
         start_time=start_datetime,
         end_time=end_datetime,
+        location=loc_str,
+        event_color=event_color,
         created_by=current_user.id,
         booking_request_id=booking_request.id,
         calendar_id=calendar_id,
@@ -987,3 +1066,261 @@ def request_pdf(request_id):
         download_name=filename
     )
 
+
+@booking_bp.route('/rooms')
+@login_required
+@check_module_access('module_booking')
+def rooms():
+    """Übersicht aller Räume (Kacheln / Tabelle)."""
+    ctx = _booking_sidebar_context(view='rooms')
+    all_rooms = ctx['booking_rooms']
+    return render_template('booking/rooms.html', rooms=all_rooms, **ctx)
+
+
+@booking_bp.route('/room/<int:room_id>')
+@login_required
+@check_module_access('module_booking')
+def room_detail(room_id):
+    """Detailseite eines Raums mit Raumkalender / Belegungsplan und anstehenden Events."""
+    room = BookingRoom.query.get_or_404(room_id)
+    ctx = _booking_sidebar_context(room_id=room.id, view='rooms')
+
+    today = date.today()
+    upcoming_bookings = (
+        BookingRequest.query.filter_by(room_id=room.id)
+        .filter(BookingRequest.status.in_(['accepted', 'pending']))
+        .filter(BookingRequest.event_date >= today)
+        .order_by(BookingRequest.event_date.asc(), BookingRequest.event_start_time.asc())
+        .limit(25)
+        .all()
+    )
+
+    events_list = []
+    if is_module_enabled('module_events'):
+        from app.models.event import Event
+        events_list = (
+            Event.query.filter_by(room_id=room.id, is_archived=False)
+            .order_by(Event.start_date.desc())
+            .limit(10)
+            .all()
+        )
+
+    return render_template(
+        'booking/room_detail.html',
+        room=room,
+        upcoming_bookings=upcoming_bookings,
+        events_list=events_list,
+        **ctx,
+    )
+
+
+@booking_bp.route('/internal/create', methods=['GET', 'POST'])
+@login_required
+@check_module_access('module_booking')
+def internal_create():
+    """Interne Raumbuchung anlegen."""
+    from app.utils.booking_rooms import create_or_update_room_booking
+
+    rooms_list = BookingRoom.query.filter_by(is_active=True).order_by(BookingRoom.name.asc()).all()
+    events_list = []
+    if is_module_enabled('module_events'):
+        from app.models.event import Event
+        events_list = Event.query.filter_by(is_archived=False).order_by(Event.start_date.desc()).all()
+
+    if request.method == 'POST':
+        room_id_raw = request.form.get('room_id')
+        if not room_id_raw or not room_id_raw.isdigit():
+            flash('Bitte wählen Sie einen Raum aus.', 'danger')
+            return redirect(url_for('booking.internal_create'))
+
+        room_id = int(room_id_raw)
+        event_name = request.form.get('event_name', '').strip()
+        if not event_name:
+            flash('Bitte geben Sie einen Anlass / Namen an.', 'danger')
+            return redirect(url_for('booking.internal_create', room_id=room_id))
+
+        event_date_raw = request.form.get('event_date', '').strip()
+        try:
+            event_date = datetime.strptime(event_date_raw, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            flash('Bitte geben Sie ein gültiges Datum an.', 'danger')
+            return redirect(url_for('booking.internal_create', room_id=room_id))
+
+        start_time_raw = request.form.get('event_start_time', '').strip() or '10:00'
+        end_time_raw = request.form.get('event_end_time', '').strip() or '12:00'
+        try:
+            st_time = datetime.strptime(start_time_raw, '%H:%M').time()
+        except ValueError:
+            st_time = time(10, 0)
+        try:
+            et_time = datetime.strptime(end_time_raw, '%H:%M').time()
+        except ValueError:
+            et_time = time(12, 0)
+
+        event_id_raw = request.form.get('event_id')
+        event_id = int(event_id_raw) if event_id_raw and event_id_raw.isdigit() else None
+
+        # Option: Neues Event im Veranstaltungsmodul erzeugen
+        create_event = request.form.get('create_event') == 'on'
+        if create_event and not event_id and is_module_enabled('module_events'):
+            try:
+                from app.models.event import Event, EventDay, EventAppointment
+                new_ev = Event(
+                    name=event_name,
+                    description=f"Intern gebuchter Raum {room_id}",
+                    default_location=None,
+                    start_date=event_date,
+                    end_date=event_date,
+                    owner_id=current_user.id,
+                    created_by=current_user.id,
+                    room_id=room_id,
+                )
+                db.session.add(new_ev)
+                db.session.flush()
+
+                ev_day = EventDay(
+                    event_id=new_ev.id,
+                    day_number=1,
+                    date=event_date,
+                    start_time=st_time,
+                    end_time=et_time,
+                    label="Haupttermin",
+                )
+                db.session.add(ev_day)
+                db.session.flush()
+
+                appt = EventAppointment(
+                    event=new_ev,
+                    day=ev_day,
+                    label=event_name,
+                    start_time=datetime.combine(event_date, st_time),
+                    end_time=datetime.combine(event_date, et_time),
+                    room_id=room_id,
+                )
+                db.session.add(appt)
+                db.session.flush()
+                event_id = new_ev.id
+            except Exception as ev_err:
+                current_app.logger.warning(f"Event-Erstellung bei interner Buchung fehlgeschlagen: {ev_err}")
+
+        # Raumbuchung & Kalender synchronisieren
+        req, has_conflict, _ = create_or_update_room_booking(
+            room_id=room_id,
+            event_name=event_name,
+            event_date=event_date,
+            start_time=st_time,
+            end_time=et_time,
+            user=current_user,
+            event_id=event_id,
+            booking_type='internal',
+        )
+
+        if has_conflict:
+            flash('Achtung: Kollision mit bestehender Belegung. Der Raum wurde belegt, aber dauerhaft als Kollision markiert.', 'warning')
+        else:
+            flash(f'Raum wurde erfolgreich für "{event_name}" belegt.', 'success')
+
+        return redirect(url_for('booking.request_detail', request_id=req.id))
+
+    preselect_room_id = request.args.get('room_id', type=int)
+    preselect_event_id = request.args.get('event_id', type=int)
+    ctx = _booking_sidebar_context(room_id=preselect_room_id, view='internal')
+
+    return render_template(
+        'booking/internal_create.html',
+        rooms=rooms_list,
+        events=events_list,
+        preselect_room_id=preselect_room_id,
+        preselect_event_id=preselect_event_id,
+        **ctx,
+    )
+
+
+@booking_bp.route('/request/<int:request_id>/acknowledge/<int:role_id>', methods=['POST'])
+@login_required
+@check_module_access('module_booking')
+def request_acknowledge(request_id, role_id):
+    """Interne Raumbuchung als Rolle zur Kenntnis nehmen."""
+    booking_request = BookingRequest.query.get_or_404(request_id)
+    role = BookingFormRole.query.get_or_404(role_id)
+
+    role_user = BookingFormRoleUser.query.filter_by(role_id=role_id, user_id=current_user.id).first()
+    if not role_user and not current_user.is_admin:
+        flash(translate('booking.flash.not_assigned_to_role'), 'danger')
+        return redirect(url_for('booking.request_detail', request_id=request_id))
+
+    approval = BookingRequestApproval.query.filter_by(request_id=request_id, role_id=role_id).first()
+    if not approval:
+        approval = BookingRequestApproval(
+            request_id=request_id,
+            role_id=role_id,
+            status='pending',
+        )
+        db.session.add(approval)
+
+    approval.status = 'acknowledged'
+    approval.user_id = current_user.id
+    approval.acknowledged_at = datetime.utcnow()
+    db.session.commit()
+
+    flash(f'Buchung für Rolle "{role.role_name}" zur Kenntnis genommen.', 'success')
+    return redirect(url_for('booking.request_detail', request_id=request_id))
+
+
+@booking_bp.route('/request/<int:request_id>/report-issue/<int:role_id>', methods=['POST'])
+@login_required
+@check_module_access('module_booking')
+def request_report_issue(request_id, role_id):
+    """Problem zu einer internen Raumbuchung melden."""
+    booking_request = BookingRequest.query.get_or_404(request_id)
+    role = BookingFormRole.query.get_or_404(role_id)
+
+    role_user = BookingFormRoleUser.query.filter_by(role_id=role_id, user_id=current_user.id).first()
+    if not role_user and not current_user.is_admin:
+        flash(translate('booking.flash.not_assigned_to_role'), 'danger')
+        return redirect(url_for('booking.request_detail', request_id=request_id))
+
+    issue_comment = request.form.get('issue_comment', '').strip()
+    if not issue_comment:
+        flash('Bitte geben Sie eine Problembeschreibung an.', 'danger')
+        return redirect(url_for('booking.request_detail', request_id=request_id))
+
+    approval = BookingRequestApproval.query.filter_by(request_id=request_id, role_id=role_id).first()
+    if not approval:
+        approval = BookingRequestApproval(
+            request_id=request_id,
+            role_id=role_id,
+            status='pending',
+        )
+        db.session.add(approval)
+
+    approval.status = 'issue_reported'
+    approval.user_id = current_user.id
+    approval.reported_at = datetime.utcnow()
+    approval.comment = issue_comment
+
+    booking_request.issue_reported = True
+    booking_request.issue_comment = f"[{role.role_name}] {issue_comment}"
+    booking_request.issue_reported_by = current_user.id
+    booking_request.issue_reported_at = datetime.utcnow()
+
+    db.session.commit()
+
+    # In-App / Push Notification an den Buchenden
+    if booking_request.booked_by_user_id:
+        try:
+            from app.models.notification import NotificationLog
+            notif = NotificationLog(
+                user_id=booking_request.booked_by_user_id,
+                notification_type='booking_issue',
+                title=f'Problem gemeldet: {booking_request.event_name}',
+                message=f'{current_user.full_name} ({role.role_name}) hat ein Problem gemeldet: {issue_comment}',
+                source_id=booking_request.id,
+            )
+            db.session.add(notif)
+            db.session.commit()
+        except Exception as e:
+            current_app.logger.warning(f"Problem-Benachrichtigung fehlgeschlagen: {e}")
+
+    flash(f'Problem für Rolle "{role.role_name}" gemeldet. Der Buchende wurde benachrichtigt.', 'warning')
+    return redirect(url_for('booking.request_detail', request_id=request_id))

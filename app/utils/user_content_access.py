@@ -99,11 +99,11 @@ def user_has_any_content_scope(user, module_key: str) -> bool:
 
     if mod_short == 'calendar':
         from app.utils.multi_calendars import (
-            is_calendar_multi_enabled,
+            is_calendar_public_enabled,
             is_calendar_team_enabled,
             is_calendar_personal_enabled,
         )
-        pub_ok = is_calendar_multi_enabled() and user_may_access_public(user)
+        pub_ok = is_calendar_public_enabled() and user_may_access_public(user)
         team_ok = is_calendar_team_enabled() and user_may_access_team(user) and _user_has_teams()
         priv_ok = is_calendar_personal_enabled() and user_may_access_private(user)
         return pub_ok or team_ok or priv_ok

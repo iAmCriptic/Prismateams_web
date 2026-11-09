@@ -133,7 +133,11 @@
       "load_more": "Load more",
       "load_more_loading": "Loading…",
       "load_error": "Could not load more items"
-    }
+    },
+    "grid_view": "Grid view",
+    "list_view": "List view",
+    "menu": "Menu",
+    "toggle": "Toggle"
   },
   "context_menu": {
     "copy_info": "Copy info",
@@ -4319,7 +4323,8 @@
         "team": "Team",
         "color": "Color",
         "create": "Create"
-      }
+      },
+      "rooms": "Rooms"
     },
     "feed": {
       "page_title": "Integrate into your calendar",
@@ -6452,6 +6457,64 @@
       "rejection_saved": "Rejection for {role_name} has been saved.",
       "mailbox_not_available": "Mailbox is not available for this booking.",
       "mailbox_not_created": "Mailbox has not been created yet."
+    },
+    "room": {
+      "active": "Active",
+      "inactive": "Inactive"
+    },
+    "sidebar": {
+      "rooms_heading": "Rooms & Calendars",
+      "all_rooms": "All Rooms",
+      "requests_heading": "Booking Requests",
+      "internal_bookings": "Internal Bookings",
+      "conflicts": "Collisions",
+      "manage_rooms": "Manage Rooms",
+      "manage_forms": "Manage Forms",
+      "book_internally": "Book Room Internally"
+    },
+    "rooms": {
+      "page_title": "Rooms & Bookings",
+      "heading": "Rooms & Calendars",
+      "search_placeholder": "Search rooms…",
+      "filter_placeholder": "Filter by location or attribute…",
+      "admin_new_room": "New Room",
+      "no_rooms_title": "No rooms created",
+      "no_rooms_text": "No rooms have been set up yet. As an administrator, you can add new rooms.",
+      "capacity_label": "Capacity",
+      "calendar_plan": "Occupancy Schedule",
+      "book_now": "Book Now",
+      "col_name": "Room",
+      "col_location": "Location",
+      "col_capacity": "Capacity",
+      "col_status": "Status",
+      "col_date": "Date & Time",
+      "col_event": "Event / Reason",
+      "col_applicant": "Booked by",
+      "col_type": "Type",
+      "linked_events": "Linked Events",
+      "no_linked_events": "No events linked to this room.",
+      "upcoming_bookings": "Upcoming Bookings",
+      "add_booking": "Add Booking",
+      "no_upcoming_bookings": "No upcoming bookings.",
+      "calendar_assigned": "Dedicated calendar assigned",
+      "open_in_calendar": "Open in Calendar"
+    },
+    "internal_create": {
+      "page_title": "Book Room Internally",
+      "heading": "Book Room Internally",
+      "subtitle": "Register an internal room reservation. Role holders will be informed and can acknowledge or report issues.",
+      "room_label": "Select Room",
+      "select_room": "– Select Room –",
+      "event_name_label": "Title / Purpose of booking",
+      "event_name_placeholder": "e.g. Team meeting, workshop, prep...",
+      "date_label": "Date",
+      "start_time_label": "Start Time",
+      "end_time_label": "End Time",
+      "collision_note": "Note: Conflicting bookings will be permanently flagged with a collision warning, but not blocked.",
+      "link_event_label": "Link with existing event (optional)",
+      "no_linked_event": "– No link –",
+      "create_in_events_module": "Tip: You can also pick rooms directly when creating an event in the events module.",
+      "submit_button": "Confirm Internal Booking"
     }
   },
   "setup": {

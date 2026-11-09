@@ -2219,3 +2219,19 @@ body:not(.embed-scope):not(.assessment-scope-solo) .calendar-shell.mod-shell--na
     border: 2px solid rgba(255, 255, 255, 0.85);
     pointer-events: none;
 }
+
+/* Collapsible room folder in calendar sidebar */
+.calendar-sidebar-folder-btn {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    color: var(--bs-body-color);
+    transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.calendar-sidebar-folder-btn:hover,
+.calendar-sidebar-folder-btn:focus-visible {
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent) !important;
+}
+
+.calendar-sidebar-folder-btn[aria-expanded="false"] .calendar-sidebar-folder-chevron {
+    transform: rotate(-90deg);
+}

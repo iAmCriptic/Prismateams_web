@@ -12,6 +12,7 @@ class Event(db.Model):
     is_multiday = db.Column(db.Boolean, default=False, nullable=False)
     start_date = db.Column(db.Date, nullable=True, index=True)
     end_date = db.Column(db.Date, nullable=True, index=True)
+    room_id = db.Column(db.Integer, db.ForeignKey('booking_rooms.id', ondelete='SET NULL'), nullable=True, index=True)
     folder_id = db.Column(db.Integer, db.ForeignKey('folders.id'), nullable=True, index=True)
     kanban_board_id = db.Column(db.Integer, db.ForeignKey('kanban_boards.id', ondelete='SET NULL'), nullable=True, index=True)
     kanban_card_id = db.Column(db.Integer, db.ForeignKey('kanban_cards.id', ondelete='SET NULL'), nullable=True, index=True)
@@ -36,6 +37,7 @@ class Event(db.Model):
     booking_personal_links = db.relationship('EventBookingPersonalLink', back_populates='event', cascade='all, delete-orphan')
     custom_values = db.relationship('EventCustomFieldValue', back_populates='event', cascade='all, delete-orphan')
     links = db.relationship('EventLink', back_populates='event', cascade='all, delete-orphan')
+    room = db.relationship('BookingRoom', foreign_keys=[room_id])
 
     @property
     def custom_values_dict(self):
@@ -83,12 +85,16 @@ class EventAppointment(db.Model):
     end_time = db.Column(db.DateTime, nullable=False, index=True)
     location = db.Column(db.String(255), nullable=True)
     calendar_event_id = db.Column(db.Integer, db.ForeignKey('calendar_events.id'), nullable=True, index=True)
+    room_id = db.Column(db.Integer, db.ForeignKey('booking_rooms.id', ondelete='SET NULL'), nullable=True, index=True)
+    booking_request_id = db.Column(db.Integer, db.ForeignKey('booking_requests.id', ondelete='SET NULL'), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     event = db.relationship('Event', back_populates='appointments')
     day = db.relationship('EventDay', back_populates='appointments')
     calendar_event = db.relationship('CalendarEvent')
+    room = db.relationship('BookingRoom', foreign_keys=[room_id])
+    booking_request = db.relationship('BookingRequest', foreign_keys=[booking_request_id])
     inventory_needs = db.relationship('EventInventoryNeed', back_populates='appointment', cascade='all, delete-orphan')
 
     def __repr__(self):

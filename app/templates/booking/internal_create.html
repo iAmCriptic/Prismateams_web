@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('booking.internal_create.page_title') }}{% endblock %}
+
+{% block content %}
+{% from 'booking/_sidebar.html' import booking_sidebar_chrome with context %}
+
+<div class="booking-page">
+<div class="booking-shell mod-shell--nav">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-door-open" aria-hidden="true"></i>
+        <span>{{ _('booking.requests.sidebar_brand') }}</span>
+    </div>
+    {{ booking_sidebar_chrome('') }}
+</aside>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="bookingMobileNav" aria-labelledby="bookingMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="bookingMobileNavLabel">
+            <i class="bi bi-door-open" aria-hidden="true"></i>
+            <span>{{ _('booking.requests.sidebar_brand') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {{ booking_sidebar_chrome('-mobile', true, false) }}
+    </div>
+</div>
+
+<div class="mod-main flex-grow-1 min-width-0">
+    <div class="mod-back-row mb-3">
+        <a href="{{ url_for('booking.rooms') }}" class="mod-back-link">
+            <i class="bi bi-arrow-left"></i>
+            <span>{{ _('layout.nav.back') }}</span>
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="card rounded-4 p-4 border shadow-sm" style="max-width: 800px; background: var(--bs-body-bg);">
+        <h2 class="h4 fw-semibold mb-3 d-flex align-items-center gap-2">
+            <i class="bi bi-calendar-plus" aria-hidden="true"></i>
+            <span>{{ _('booking.internal_create.heading') }}</span>
+        </h2>
+        <p class="text-muted small mb-4">
+            {{ _('booking.internal_create.subtitle') }}
+        </p>
+
+        <form method="POST" id="internalBookingForm">
+            <div class="row g-3">
+                <!-- Raumauswahl -->
+                <div class="col-12">
+                    <label class="form-label fw-semibold" for="room_id">{{ _('booking.internal_create.room_label') }} <span class="text-danger">*</span></label>
+                    <select class="form-select mod-pill-input" id="room_id" name="room_id" required>
+                        <option value="">{{ _('booking.internal_create.select_room') }}</option>
+                        {% for r in rooms %}
+                        <option value="{{ r.id }}" {% if preselect_room_id == r.id %}selected{% endif %}>
+                            {{ r.name }}{% if r.location %} ({{ r.location }}){% endif %}{% if r.capacity %} · max. {{ r.capacity }} Pers.{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Anlass / Titel -->
+                <div class="col-12">
+                    <label class="form-label fw-semibold" for="event_name">{{ _('booking.internal_create.event_name_label') }} <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control mod-pill-input" id="event_name" name="event_name" placeholder="{{ _('booking.internal_create.event_name_placeholder') }}" required>
+                </div>
+
+                <!-- Datum & Uhrzeiten -->
+                <div class="col-12 col-md-4">
+                    <label class="form-label fw-semibold" for="event_date">{{ _('booking.internal_create.date_label') }} <span class="text-danger">*</span></label>
+                    <input type="date" class="form-control mod-pill-input" id="event_date" name="event_date" required>
+                </div>
+                <div class="col-6 col-md-4">
+                    <label class="form-label fw-semibold" for="event_start_time">{{ _('booking.internal_create.start_time_label') }}</label>
+                    <input type="time" class="form-control mod-pill-input" id="event_start_time" name="event_start_time" value="10:00">
+                </div>
+                <div class="col-6 col-md-4">
+                    <label class="form-label fw-semibold" for="event_end_time">{{ _('booking.internal_create.end_time_label') }}</label>
+                    <input type="time" class="form-control mod-pill-input" id="event_end_time" name="event_end_time" value="12:00">
+                </div>
+
+                <!-- Warnhinweis für Kollisionen -->
+                <div class="col-12">
+                    <div class="alert alert-warning d-flex align-items-center gap-2 mb-0 py-2 rounded-3" role="alert">
+                        <i class="bi bi-info-circle flex-shrink-0"></i>
+                        <span class="small">{{ _('booking.internal_create.collision_note') }}</span>
+                    </div>
+                </div>
+
+                <!-- Verknüpfung mit Veranstaltung -->
+                {% if events %}
+                <div class="col-12 pt-2 border-top">
+                    <label class="form-label fw-semibold" for="event_id">{{ _('booking.internal_create.link_event_label') }}</label>
+                    <select class="form-select mod-pill-input" id="event_id" name="event_id">
+                        <option value="">{{ _('booking.internal_create.no_linked_event') }}</option>
+                        {% for ev in events %}
+                        <option value="{{ ev.id }}" {% if preselect_event_id == ev.id %}selected{% endif %}>
+                            {{ ev.name }}{% if ev.start_date %} ({{ ev.start_date.strftime('%d.%m.%Y') }}){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                <div class="col-12">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="create_event" name="create_event">
+                        <label class="form-check-label small" for="create_event">
+                            {{ _('booking.internal_create.create_in_events_module') }}
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Absenden & Abbrechen -->
+                <div class="col-12 pt-3 border-top d-flex align-items-center gap-2">
+                    <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent">
+                        <i class="bi bi-check2"></i>
+                        <span>{{ _('booking.internal_create.submit_button') }}</span>
+                    </button>
+                    <a href="{{ url_for('booking.rooms') }}" class="btn mod-pill-btn mod-pill-btn--outline-muted">
+                        <i class="bi bi-arrow-left"></i>
+                        <span>{{ _('layout.nav.back') }}</span>
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+</div>
+{% endblock %}

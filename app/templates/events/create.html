@@ -43,7 +43,18 @@
                 </div>
 
                 <div class="col-12">
-                    <label class="form-label fw-semibold" for="event_location">Standard-Ort / Location</label>
+                    <label class="form-label fw-semibold" for="event_location">Ort / Location</label>
+                    {% if rooms %}
+                    <div class="mb-2">
+                        <select class="form-select mod-pill-input" name="room_id" id="event_room_id">
+                            <option value="">-- Freitext / Manueller Ort --</option>
+                            {% for r in rooms %}
+                            <option value="{{ r.id }}" data-room-name="{{ r.name }}" data-room-loc="{{ r.location or '' }}">{{ r.name }}{% if r.location %} ({{ r.location }}){% endif %}{% if r.capacity %} · max. {{ r.capacity }} Pers.{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="form-text text-muted">Bei Auswahl eines Raumes wird automatisch eine Raumbuchung im Raumbuchungssystem angelegt.</small>
+                    </div>
+                    {% endif %}
                     <input class="form-control mod-pill-input" id="event_location" name="default_location" placeholder="z. B. Hauptbühne, Vereinsheim, Stadtpark...">
                 </div>
 

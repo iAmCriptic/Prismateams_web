@@ -135,6 +135,10 @@
     border-radius: 0 !important;
 }
 
+.booking-nav-badge--danger {
+    color: var(--bs-danger, #dc3545) !important;
+}
+
 .booking-main {
     flex: 1 1 auto;
     min-width: 0;

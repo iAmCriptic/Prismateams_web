@@ -37,7 +37,7 @@
         <div class="d-flex align-items-center gap-1 flex-shrink-0">
             {{ calendar_more_options(align_end=true, show_new_calendar=true) }}
             {% if sc %}
-            {% set new_cal_id = sc.personal.id if sc.personal else (sc.public.id if sc.public else none) %}
+            {% set new_cal_id = sc.personal.id if sc.personal else (sc.public.id if sc.public else (sc.teams[0].id if sc.teams else none)) %}
             <a href="{{ url_for('calendar.create_event', calendar_id=new_cal_id) if new_cal_id else url_for('calendar.create_event') }}" class="btn mod-new-btn btn-sm">
                 <i class="bi bi-plus-lg"></i> {{ _('calendar.sidebar.new_event') }}
             </a>
@@ -212,7 +212,7 @@
 <script>
 const CAL_I18N = {{ i18n_ns('calendar', 'index')|tojson }};
 const CAL_MULTI = {{ calendar_multi_enabled|tojson }};
-const CAL_PERSONAL_ID = {{ (sc.personal.id if sc and sc.personal else (sc.public.id if sc and sc.public else none))|tojson }};
+const CAL_PERSONAL_ID = {{ (sc.personal.id if sc and sc.personal else (sc.public.id if sc and sc.public else (sc.teams[0].id if sc and sc.teams else none)))|tojson }};
 const CAL_SELECTED_IDS = {{ selected_calendar_ids|tojson }};
 const CAL_STORAGE_KEY = 'pt_calendar_selected_ids';
 const CURRENT_LANG = "{{ current_language }}";

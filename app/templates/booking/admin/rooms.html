@@ -1,0 +1,122 @@
+{% extends "settings/base_settings.html" %}
+
+{% block title %}Raumverwaltung — Administration{% endblock %}
+{% block settings_mobile_title %}Raumverwaltung{% endblock %}
+
+{% block settings_content %}
+<div class="sp-page sp-page--fluid settings-admin-booking">
+  <header class="sp-page-header settings-admin-booking-header">
+    <div class="settings-admin-booking-header-text">
+      <h1 class="sp-page-title">
+        <i class="bi bi-door-open" aria-hidden="true"></i>
+        <span>Raumverwaltung</span>
+      </h1>
+      <p class="sp-page-lead">Verwalten Sie Räume, Ausstattung, Kapazitäten und Raumkalender für das Raumbuchungssystem.</p>
+    </div>
+    <div class="settings-admin-booking-header-actions d-flex gap-2">
+      <a href="{{ url_for('booking.rooms') }}" class="btn mod-pill-btn mod-pill-btn--outline">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        Zurück zur Raumbuchung
+      </a>
+      <a href="{{ url_for('settings.booking_room_create') }}" class="btn btn-accent rounded-pill mod-pill-btn">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+        Neuen Raum anlegen
+      </a>
+    </div>
+  </header>
+
+  <section class="sp-group" id="booking-rooms-list" aria-labelledby="booking-rooms-list-title">
+    <div class="sp-group-head">
+      <h2 id="booking-rooms-list-title" class="sp-group-title">
+        <i class="bi bi-door-open" aria-hidden="true"></i>
+        Räume
+        {% if rooms %}<span class="badge rounded-pill text-bg-secondary">{{ rooms|length }}</span>{% endif %}
+      </h2>
+    </div>
+    <div class="sp-group-body p-0">
+      {% if rooms %}
+      <div class="mod-list-table-wrap">
+        <table class="table mod-list-table align-middle mb-0">
+          <thead>
+            <tr>
+              <th scope="col">Raum</th>
+              <th scope="col" class="d-none d-md-table-cell">Standort</th>
+              <th scope="col" class="d-none d-sm-table-cell">Kapazität</th>
+              <th scope="col" class="d-none d-lg-table-cell">Kalender</th>
+              <th scope="col" class="d-none d-md-table-cell">Status</th>
+              <th scope="col" class="text-end">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for room in rooms %}
+            <tr class="mod-list-row">
+              <td>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="calendar-color-dot flex-shrink-0" style="background: {{ room.color }}; width: 12px; height: 12px; border-radius: 50%;"></span>
+                  <div>
+                    <a href="{{ url_for('settings.booking_room_edit', room_id=room.id) }}" class="fw-semibold text-decoration-none text-body">
+                      {{ room.name }}
+                    </a>
+                    {% if room.description %}
+                    <div class="text-muted small text-truncate" style="max-width: 250px;">{{ room.description }}</div>
+                    {% endif %}
+                  </div>
+                </div>
+              </td>
+              <td class="d-none d-md-table-cell text-muted">
+                {{ room.location or '—' }}
+              </td>
+              <td class="d-none d-sm-table-cell text-muted">
+                {% if room.capacity %}{{ room.capacity }} Personen{% else %}—{% endif %}
+              </td>
+              <td class="d-none d-lg-table-cell">
+                {% if room.calendar_id %}
+                <span class="badge rounded-pill border" style="background: color-mix(in srgb, {{ room.color }} 15%, transparent); color: var(--bs-body-color);">
+                  <i class="bi bi-calendar-event me-1" style="color: {{ room.color }};"></i>Aktiv
+                </span>
+                {% else %}
+                <span class="text-muted small">Wird erstellt</span>
+                {% endif %}
+              </td>
+              <td class="d-none d-md-table-cell">
+                {% if room.is_active %}
+                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">Aktiv</span>
+                {% else %}
+                <span class="badge bg-secondary-subtle text-secondary border rounded-pill">Inaktiv</span>
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <div class="settings-admin-booking-row-actions">
+                  <a href="{{ url_for('booking.room_detail', room_id=room.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill" title="Im Raumbuchungsmodul öffnen">
+                    <i class="bi bi-eye" aria-hidden="true"></i>
+                  </a>
+                  <a href="{{ url_for('settings.booking_room_edit', room_id=room.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill" title="Bearbeiten">
+                    <i class="bi bi-pencil" aria-hidden="true"></i>
+                  </a>
+                  <form method="POST" action="{{ url_for('settings.booking_room_delete', room_id=room.id) }}" class="d-inline-block" data-sp-no-autosave>
+                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill" onclick="return confirm('Möchten Sie diesen Raum wirklich löschen / deaktivieren?');" title="Löschen">
+                      <i class="bi bi-trash" aria-hidden="true"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="p-5 text-center text-muted">
+        <i class="bi bi-door-closed display-4 mb-3 opacity-50"></i>
+        <h5>Noch keine Räume angelegt</h5>
+        <p class="mb-3">Legen Sie Räume an, damit diese intern belegt oder online gebucht werden können.</p>
+        <a href="{{ url_for('settings.booking_room_create') }}" class="btn btn-accent rounded-pill mod-pill-btn">
+          <i class="bi bi-plus-lg" aria-hidden="true"></i>
+          Neuen Raum anlegen
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </section>
+</div>
+{% endblock %}

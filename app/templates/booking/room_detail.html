@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}{{ room.name }} — {{ _('booking.rooms.page_title') }}{% endblock %}
+
+{% block content %}
+{% from 'booking/_sidebar.html' import booking_sidebar_chrome with context %}
+
+<div class="booking-page">
+<div class="booking-shell mod-shell--nav">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-door-open" aria-hidden="true"></i>
+        <span>{{ _('booking.requests.sidebar_brand') }}</span>
+    </div>
+    {{ booking_sidebar_chrome('') }}
+</aside>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="bookingMobileNav" aria-labelledby="bookingMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="bookingMobileNavLabel">
+            <i class="bi bi-door-open" aria-hidden="true"></i>
+            <span>{{ _('booking.requests.sidebar_brand') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {{ booking_sidebar_chrome('-mobile', true, true) }}
+    </div>
+</div>
+
+<div class="mod-main flex-grow-1 min-width-0">
+    <div class="mod-back-row mb-3">
+        <a href="{{ url_for('booking.rooms') }}" class="mod-back-link">
+            <i class="bi bi-arrow-left"></i>
+            <span>{{ _('layout.nav.back') }}</span>
+        </a>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Raum Header Card -->
+    <div class="card rounded-4 p-4 border shadow-sm mb-4" style="background: var(--bs-body-bg);">
+        <div class="d-flex align-items-start justify-content-between flex-wrap gap-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="rounded-3 d-flex align-items-center justify-content-center overflow-hidden flex-shrink-0"
+                     style="width: 4.5rem; height: 4.5rem; background: color-mix(in srgb, {{ room.color }} 16%, var(--bs-tertiary-bg));">
+                    {% if room.image_path %}
+                    <img src="{{ url_for('static', filename=room.image_path) }}" alt="{{ room.name }}" class="w-100 h-100 object-fit-cover">
+                    {% else %}
+                    <i class="bi bi-door-open display-6" style="color: {{ room.color }};"></i>
+                    {% endif %}
+                </div>
+                <div>
+                    <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                        <h1 class="h3 fw-semibold mb-0">{{ room.name }}</h1>
+                        <span class="badge rounded-pill px-2 py-1" style="background: {{ room.color }}; color: #fff; font-size: 0.72rem;">
+                            {{ _('booking.rooms.calendar_assigned') }}
+                        </span>
+                        {% if not room.is_active %}
+                        <span class="badge bg-secondary-subtle text-secondary border rounded-pill">{{ _('booking.room.inactive') }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex align-items-center gap-3 text-muted small flex-wrap">
+                        {% if room.location %}
+                        <span><i class="bi bi-geo-alt me-1"></i>{{ room.location }}</span>
+                        {% endif %}
+                        {% if room.capacity %}
+                        <span><i class="bi bi-people me-1"></i>{{ _('booking.rooms.capacity_label', count=room.capacity) }}</span>
+                        {% endif %}
+                        {% if room.calendar_id %}
+                        <a href="{{ url_for('calendar.index', calendar_id=room.calendar_id) }}" class="text-decoration-none text-muted">
+                            <i class="bi bi-calendar-event me-1"></i>{{ _('booking.rooms.open_in_calendar') }}
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex align-items-center gap-2 ms-auto">
+                <a href="{{ url_for('booking.internal_create', room_id=room.id) }}" class="btn mod-pill-btn mod-pill-btn--accent">
+                    <i class="bi bi-plus-lg"></i>
+                    <span>{{ _('booking.rooms.book_now') }}</span>
+                </a>
+                {% if current_user.is_admin %}
+                <a href="{{ url_for('settings.booking_room_edit', room_id=room.id) }}" class="btn mod-pill-btn mod-pill-btn--outline" title="{{ _('common.edit') }}">
+                    <i class="bi bi-pencil"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if room.description %}
+        <div class="pt-3 mt-3 border-top text-muted small">
+            {{ room.description }}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Belegungsplan & Buchungen -->
+    <div class="row g-4">
+        <div class="col-12 col-xl-8">
+            <div class="card rounded-4 p-4 border shadow-sm mb-4" style="background: var(--bs-body-bg);">
+                <div class="d-flex align-items-center justify-content-between mb-3">
+                    <h3 class="h5 fw-semibold mb-0">
+                        <i class="bi bi-calendar-check me-2" style="color: {{ room.color }};"></i>
+                        {{ _('booking.rooms.upcoming_bookings') }}
+                    </h3>
+                    <a href="{{ url_for('booking.internal_create', room_id=room.id) }}" class="btn mod-pill-btn mod-pill-btn--outline mod-pill-btn--sm">
+                        <i class="bi bi-plus-lg"></i> {{ _('booking.rooms.add_booking') }}
+                    </a>
+                </div>
+
+                {% if not upcoming_bookings %}
+                <div class="text-center py-5 text-muted">
+                    <i class="bi bi-calendar-x display-6 d-block mb-2 opacity-50"></i>
+                    <p class="mb-0">{{ _('booking.rooms.no_upcoming_bookings') }}</p>
+                </div>
+                {% else %}
+                <div class="mod-list-table-wrap">
+                    <table class="table mod-list-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">{{ _('booking.rooms.col_date') }}</th>
+                                <th scope="col">{{ _('booking.rooms.col_event') }}</th>
+                                <th scope="col" class="d-none d-md-table-cell">{{ _('booking.rooms.col_applicant') }}</th>
+                                <th scope="col" class="d-none d-sm-table-cell">{{ _('booking.rooms.col_type') }}</th>
+                                <th scope="col" class="text-end">{{ _('common.actions') }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for b in upcoming_bookings %}
+                            <tr>
+                                <td class="text-nowrap">
+                                    <div class="fw-semibold">{{ b.event_date.strftime('%d.%m.%Y') }}</div>
+                                    <div class="text-muted small">
+                                        {{ b.event_start_time.strftime('%H:%M') if b.event_start_time else '--:--' }} -
+                                        {{ b.event_end_time.strftime('%H:%M') if b.event_end_time else '--:--' }}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <a href="{{ url_for('booking.request_detail', request_id=b.id) }}" class="fw-semibold text-decoration-none text-body">
+                                            {{ b.event_name }}
+                                        </a>
+                                        {% if b.has_conflict %}
+                                        <span class="badge bg-danger rounded-pill" title="{{ b.conflict_notes or 'Kollision' }}">
+                                            <i class="bi bi-exclamation-triangle-fill me-1"></i>Kollision
+                                        </span>
+                                        {% endif %}
+                                        {% if b.issue_reported %}
+                                        <span class="badge bg-warning text-dark rounded-pill" title="{{ b.issue_comment }}">
+                                            <i class="bi bi-flag-fill me-1"></i>Problem
+                                        </span>
+                                        {% endif %}
+                                    </div>
+                                    {% if b.conflict_notes %}
+                                    <div class="text-danger small mt-1"><i class="bi bi-info-circle me-1"></i>{{ b.conflict_notes }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="d-none d-md-table-cell text-muted">
+                                    {{ b.applicant_name or b.email }}
+                                </td>
+                                <td class="d-none d-sm-table-cell">
+                                    {% if b.booking_type == 'internal' %}
+                                    <span class="badge bg-primary-subtle text-primary border rounded-pill">Intern</span>
+                                    {% else %}
+                                    <span class="badge bg-info-subtle text-info border rounded-pill">Extern</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end text-nowrap">
+                                    <a href="{{ url_for('booking.request_detail', request_id=b.id) }}" class="btn mod-pill-btn mod-pill-btn--outline mod-pill-btn--sm">
+                                        <i class="bi bi-arrow-right"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-12 col-xl-4">
+            <!-- Gekoppelte Veranstaltungen -->
+            <div class="card rounded-4 p-4 border shadow-sm mb-4" style="background: var(--bs-body-bg);">
+                <h3 class="h5 fw-semibold mb-3">
+                    <i class="bi bi-calendar-event me-2"></i>
+                    {{ _('booking.rooms.linked_events') }}
+                </h3>
+
+                {% if not events_list %}
+                <p class="text-muted small mb-0">{{ _('booking.rooms.no_linked_events') }}</p>
+                {% else %}
+                <div class="d-flex flex-column gap-2">
+                    {% for ev in events_list %}
+                    <a href="{{ url_for('events.view_event', event_id=ev.id) }}" class="p-2 rounded-3 text-decoration-none text-body border d-flex align-items-center justify-content-between" style="background: var(--bs-tertiary-bg);">
+                        <div class="min-width-0 pe-2">
+                            <div class="fw-semibold text-truncate">{{ ev.name }}</div>
+                            <div class="text-muted small">
+                                {{ ev.start_date.strftime('%d.%m.%Y') if ev.start_date else '-' }}
+                            </div>
+                        </div>
+                        <i class="bi bi-chevron-right text-muted"></i>
+                    </a>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+</div>
+{% endblock %}

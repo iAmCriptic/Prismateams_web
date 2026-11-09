@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('booking.rooms.page_title') }}{% endblock %}
+
+{% block navbar_search %}
+<div class="mod-search" role="search">
+    <label class="mod-search-field" for="modSearchInput">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="text"
+               id="modSearchInput"
+               class="mod-search-input"
+               placeholder="{{ _('booking.rooms.search_placeholder') }}"
+               autocomplete="off"
+               spellcheck="false"
+               enterkeyhint="search">
+    </label>
+    <button type="button" class="btn mod-search-clear d-none" id="modSearchClear" aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+{% from 'booking/_sidebar.html' import booking_sidebar_chrome with context %}
+
+<div class="booking-page">
+<div class="booking-shell mod-shell--nav">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-door-open" aria-hidden="true"></i>
+        <span>{{ _('booking.requests.sidebar_brand') }}</span>
+    </div>
+    {{ booking_sidebar_chrome('') }}
+</aside>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="bookingMobileNav" aria-labelledby="bookingMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="bookingMobileNavLabel">
+            <i class="bi bi-door-open" aria-hidden="true"></i>
+            <span>{{ _('booking.requests.sidebar_brand') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {{ booking_sidebar_chrome('-mobile', true, true) }}
+    </div>
+</div>
+
+<div class="mod-main flex-grow-1 min-width-0">
+    <div class="mod-mobile-topbar d-lg-none mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#bookingMobileNav" aria-controls="bookingMobileNav" aria-label="{{ _('common.menu') }}">
+                    <i class="bi bi-list"></i>
+                </button>
+                <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                    <i class="bi bi-door-open" aria-hidden="true"></i>
+                    <span>{{ _('booking.rooms.heading') }}</span>
+                </h1>
+            </div>
+            <a href="{{ url_for('booking.internal_create') }}" class="btn mod-new-btn btn-sm flex-shrink-0">
+                <i class="bi bi-plus-lg"></i> {{ _('booking.sidebar.book_internally') }}
+            </a>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <h2 class="mod-view-heading mb-0">
+            <i class="bi bi-door-open" aria-hidden="true"></i>
+            <span>{{ _('booking.rooms.heading') }}</span>
+        </h2>
+        <div class="d-flex align-items-center gap-2">
+            <a href="{{ url_for('booking.internal_create') }}" class="btn mod-pill-btn mod-pill-btn--accent">
+                <i class="bi bi-plus-lg"></i>
+                <span>{{ _('booking.sidebar.book_internally') }}</span>
+            </a>
+            {% if current_user.is_admin %}
+            <a href="{{ url_for('settings.booking_room_create') }}" class="btn mod-pill-btn mod-pill-btn--outline">
+                <i class="bi bi-gear"></i>
+                <span>{{ _('booking.rooms.admin_new_room') }}</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Toolbar mit View-Toggle -->
+    <div class="mod-toolbar mb-3">
+        <div class="mod-search flex-grow-1" style="max-width: 320px;" role="search">
+            <label class="mod-search-field" for="roomFilterInput">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input type="text" id="roomFilterInput" class="mod-search-input" placeholder="{{ _('booking.rooms.filter_placeholder') }}" autocomplete="off">
+            </label>
+        </div>
+        <div class="mod-toolbar-actions ms-auto">
+            <div class="mod-view-toggle" id="roomViewToggle" data-view="grid" role="group" aria-label="{{ _('common.list_view') }} / {{ _('common.grid_view') }}">
+                <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
+                <button type="button" class="mod-view-toggle__btn" id="listViewBtn" title="{{ _('common.list_view') }}">
+                    <i class="bi bi-list"></i>
+                </button>
+                <button type="button" class="mod-view-toggle__btn active is-active" id="gridViewBtn" title="{{ _('common.grid_view') }}">
+                    <i class="bi bi-grid-3x3-gap"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {% if not rooms %}
+    <div class="card p-5 text-center text-muted rounded-4 bg-body-tertiary border-0">
+        <i class="bi bi-door-closed display-4 mb-3 opacity-50"></i>
+        <h5>{{ _('booking.rooms.no_rooms_title') }}</h5>
+        <p class="mb-3">{{ _('booking.rooms.no_rooms_text') }}</p>
+        {% if current_user.is_admin %}
+        <div>
+            <a href="{{ url_for('settings.booking_room_create') }}" class="btn mod-pill-btn mod-pill-btn--accent">
+                <i class="bi bi-plus-lg"></i> {{ _('booking.rooms.admin_new_room') }}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+
+    <!-- Kachelansicht (Grid) -->
+    <div id="gridView" class="row g-3">
+        {% for r in rooms %}
+        <div class="col-12 col-sm-6 col-xl-4 room-item" data-room-name="{{ r.name|lower }}" data-room-location="{{ (r.location or '')|lower }}">
+            <div class="card h-100 rounded-4 border p-3 shadow-sm position-relative d-flex flex-column" style="background: var(--bs-body-bg);">
+                <div class="mod-grid-preview rounded-3 mb-2 d-flex align-items-center justify-content-center position-relative overflow-hidden"
+                     style="height: 7.5rem; background: color-mix(in srgb, {{ r.color }} 14%, var(--bs-tertiary-bg));">
+                    {% if r.image_path %}
+                    <img src="{{ url_for('static', filename=r.image_path) }}" alt="{{ r.name }}" class="w-100 h-100 object-fit-cover">
+                    {% else %}
+                    <i class="bi bi-door-open display-5" style="color: {{ r.color }};"></i>
+                    {% endif %}
+                    <span class="position-absolute top-0 start-0 m-2 badge rounded-pill px-2 py-1" style="background: {{ r.color }}; color: #ffffff; font-size: 0.72rem;">
+                        <span class="calendar-color-dot me-1" style="display:inline-block; width:6px; height:6px; background:#fff; border-radius:50%;"></span>
+                        {{ r.name }}
+                    </span>
+                    {% if not r.is_active %}
+                    <span class="position-absolute top-0 end-0 m-2 badge bg-secondary rounded-pill">
+                        {{ _('booking.room.inactive') }}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <div class="flex-grow-1 min-width-0">
+                    <h3 class="h5 fw-semibold mb-1 text-truncate">
+                        <a href="{{ url_for('booking.room_detail', room_id=r.id) }}" class="text-decoration-none text-body">
+                            {{ r.name }}
+                        </a>
+                    </h3>
+                    <div class="d-flex align-items-center gap-2 text-muted small mb-2 flex-wrap">
+                        {% if r.location %}
+                        <span><i class="bi bi-geo-alt me-1"></i>{{ r.location }}</span>
+                        {% endif %}
+                        {% if r.capacity %}
+                        <span><i class="bi bi-people me-1"></i>{{ _('booking.rooms.capacity_label', count=r.capacity) }}</span>
+                        {% endif %}
+                    </div>
+                    {% if r.description %}
+                    <p class="text-muted small mb-3 text-truncate-2" style="display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">
+                        {{ r.description }}
+                    </p>
+                    {% endif %}
+                </div>
+
+                <div class="d-flex align-items-center justify-content-between pt-2 border-top gap-2 mt-auto">
+                    <a href="{{ url_for('booking.room_detail', room_id=r.id) }}" class="btn mod-pill-btn mod-pill-btn--outline mod-pill-btn--sm flex-grow-1">
+                        <i class="bi bi-calendar3"></i> {{ _('booking.rooms.calendar_plan') }}
+                    </a>
+                    <a href="{{ url_for('booking.internal_create', room_id=r.id) }}" class="btn mod-pill-btn mod-pill-btn--accent mod-pill-btn--sm flex-grow-1">
+                        <i class="bi bi-plus-lg"></i> {{ _('booking.rooms.book_now') }}
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Tabellenansicht (List) -->
+    <div id="listView" class="mod-list-table-wrap d-none mt-2">
+        <table class="table mod-list-table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th scope="col">{{ _('booking.rooms.col_name') }}</th>
+                    <th scope="col" class="d-none d-md-table-cell">{{ _('booking.rooms.col_location') }}</th>
+                    <th scope="col" class="d-none d-sm-table-cell">{{ _('booking.rooms.col_capacity') }}</th>
+                    <th scope="col" class="d-none d-lg-table-cell">{{ _('booking.rooms.col_status') }}</th>
+                    <th scope="col" class="text-end">{{ _('common.actions') }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rooms %}
+                <tr class="room-item" data-room-name="{{ r.name|lower }}" data-room-location="{{ (r.location or '')|lower }}">
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="calendar-color-dot flex-shrink-0" style="background: {{ r.color }}; width: 12px; height: 12px; border-radius: 50%;"></span>
+                            <div class="min-width-0">
+                                <a href="{{ url_for('booking.room_detail', room_id=r.id) }}" class="fw-semibold text-decoration-none text-body d-block text-truncate">
+                                    {{ r.name }}
+                                </a>
+                                {% if r.description %}
+                                <div class="text-muted small text-truncate">{{ r.description }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+                    <td class="d-none d-md-table-cell text-muted">
+                        {{ r.location or '-' }}
+                    </td>
+                    <td class="d-none d-sm-table-cell text-muted">
+                        {{ r.capacity or '-' }}
+                    </td>
+                    <td class="d-none d-lg-table-cell">
+                        {% if r.is_active %}
+                        <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">{{ _('booking.room.active') }}</span>
+                        {% else %}
+                        <span class="badge bg-secondary-subtle text-secondary border rounded-pill">{{ _('booking.room.inactive') }}</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end text-nowrap">
+                        <a href="{{ url_for('booking.room_detail', room_id=r.id) }}" class="btn mod-pill-btn mod-pill-btn--outline mod-pill-btn--sm me-1" title="{{ _('booking.rooms.calendar_plan') }}">
+                            <i class="bi bi-calendar3"></i>
+                        </a>
+                        <a href="{{ url_for('booking.internal_create', room_id=r.id) }}" class="btn mod-pill-btn mod-pill-btn--accent mod-pill-btn--sm" title="{{ _('booking.rooms.book_now') }}">
+                            <i class="bi bi-plus-lg"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% endif %}
+</div>
+</div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // View Toggle Logik
+    const gridViewBtn = document.getElementById('gridViewBtn');
+    const listViewBtn = document.getElementById('listViewBtn');
+    const gridView = document.getElementById('gridView');
+    const listView = document.getElementById('listView');
+    const roomViewToggle = document.getElementById('roomViewToggle');
+
+    function setView(view) {
+        if (view === 'list') {
+            gridView.classList.add('d-none');
+            listView.classList.remove('d-none');
+            listViewBtn.classList.add('active', 'is-active');
+            gridViewBtn.classList.remove('active', 'is-active');
+            if (roomViewToggle) roomViewToggle.setAttribute('data-view', 'list');
+        } else {
+            listView.classList.add('d-none');
+            gridView.classList.remove('d-none');
+            gridViewBtn.classList.add('active', 'is-active');
+            listViewBtn.classList.remove('active', 'is-active');
+            if (roomViewToggle) roomViewToggle.setAttribute('data-view', 'grid');
+        }
+    }
+
+    if (gridViewBtn && listViewBtn) {
+        gridViewBtn.addEventListener('click', () => setView('grid'));
+        listViewBtn.addEventListener('click', () => setView('list'));
+    }
+
+    // Filter-Eingabe
+    const filterInput = document.getElementById('roomFilterInput');
+    const navSearchInput = document.getElementById('modSearchInput');
+    const clearBtn = document.getElementById('modSearchClear');
+
+    function applyFilter(query) {
+        const q = (query || '').trim().toLowerCase();
+        document.querySelectorAll('.room-item').forEach(item => {
+            const name = item.getAttribute('data-room-name') || '';
+            const loc = item.getAttribute('data-room-location') || '';
+            if (!q || name.includes(q) || loc.includes(q)) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        if (clearBtn) {
+            clearBtn.classList.toggle('d-none', !q);
+        }
+    }
+
+    if (filterInput) {
+        filterInput.addEventListener('input', (e) => applyFilter(e.target.value));
+    }
+    if (navSearchInput) {
+        navSearchInput.addEventListener('input', (e) => applyFilter(e.target.value));
+    }
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            if (navSearchInput) navSearchInput.value = '';
+            if (filterInput) filterInput.value = '';
+            applyFilter('');
+        });
+    }
+});
+</script>
+{% endblock %}
