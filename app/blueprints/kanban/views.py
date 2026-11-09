@@ -170,6 +170,7 @@ def index():
             team_ids_with_boards = [
                 row[0] for row in vis_query(VISIBILITY_TEAM)
                 .filter(KanbanBoard.team_id.isnot(None))
+                .order_by(None)
                 .with_entities(KanbanBoard.team_id)
                 .distinct()
                 .all()
