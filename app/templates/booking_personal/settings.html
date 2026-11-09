@@ -22,56 +22,28 @@
 {% endblock %}
 
 {% block content %}
+{% from 'booking_personal/_sidebar.html' import booking_personal_sidebar, booking_personal_mobile_offcanvas %}
 <div class="mod-shell--nav booking-personal-shell">
-    <!-- Linke Seitenleiste -->
-    <aside class="mod-sidebar d-flex flex-column">
-        <div class="mod-sidebar-brand">
-            <i class="bi bi-person-badge text-primary" aria-hidden="true"></i>
-            <span>Booking</span>
-        </div>
-
-        <!-- Neuer Event Button -->
-        <div class="mod-sidebar-new-wrap w-100">
-            <button class="btn mod-sidebar-new rounded-pill w-100 text-start" type="button" data-bs-toggle="modal"
-                data-bs-target="#bpNewEventModal">
-                <i class="bi bi-plus-lg me-2 text-primary"></i> NEU
-            </button>
-        </div>
-
-        <div class="text-uppercase small fw-bold text-muted px-2 mb-2"
-            style="font-size: 0.75rem; letter-spacing: 0.04em;">
-            Veranstaltungen
-        </div>
-
-        <!-- Liste aller aktiven Veranstaltungen -->
-        <nav class="mod-sidebar-nav nav flex-column gap-1 flex-grow-1 overflow-y-auto">
-            {% for ev in events %}
-            <a class="nav-link mod-nav-link rounded-pill d-flex align-items-center justify-content-between {% if current_event and current_event.id == ev.id %}active{% endif %}"
-                href="{{ url_for('booking_personal.index', event_id=ev.id) }}">
-                <span class="d-flex align-items-center text-truncate">
-                    <i class="bi bi-calendar2-event me-2 flex-shrink-0 text-primary"></i>
-                    <span class="text-truncate">{{ ev.name }}</span>
-                </span>
-                {% if ev.entries %}
-                <span class="badge rounded-pill bg-light text-body border ms-1 flex-shrink-0">{{ ev.entries|length }}</span>
-                {% endif %}
-            </a>
-            {% endfor %}
-        </nav>
-
-        <!-- Sidebar Footer mit Vorlagenverwaltung -->
-        <div class="mod-sidebar-footer files-sidebar-bottom mt-auto pt-3 border-top">
-            <a href="{{ url_for('booking_personal.templates_view') }}" class="btn files-webdav-connect-btn w-100 text-start text-decoration-none">
-                <i class="bi bi-layout-three-columns text-primary" aria-hidden="true"></i>
-                <span>Vorlagen verwalten</span>
-            </a>
-        </div>
-    </aside>
+        {{ booking_personal_sidebar(events, current_event, "settings") }}
 
     <!-- Hauptbereich: Dedizierte Einstellungsseite -->
     <main class="mod-main flex-grow-1 min-width-0 overflow-y-auto p-4" id="bpSettingsContainer">
+        <!-- Mobile Topbar (< 992px) mit einklappbarer Navbar / Offcanvas-Sidebar -->
+        <div class="mod-mobile-topbar d-lg-none mb-3">
+            <div class="d-flex justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center min-width-0 gap-2">
+                    <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#bpMobileNav" aria-controls="bpMobileNav" aria-label="Menü">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <a href="{{ url_for('booking_personal.index', event_id=current_event.id) }}" class="btn btn-outline-secondary btn-sm rounded-pill" title="Zurück">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <strong class="text-truncate mod-mobile-title">Einstellungen: {{ current_event.name }}</strong>
+                </div>
+            </div>
+        </div>
         <!-- Mod-Back-Row: Portalstandard Zurück-Link -->
-        <div class="mod-back-row mb-3">
+        <div class="mod-back-row mb-3 d-none d-lg-block">
             <a href="{{ url_for('booking_personal.index', event_id=current_event.id) }}" class="mod-back-link">
                 <i class="bi bi-arrow-left" aria-hidden="true"></i>
                 <span>Zurück</span>
@@ -652,6 +624,8 @@
         </div>
     </main>
 </div>
+
+{{ booking_personal_mobile_offcanvas(events, current_event, "settings") }}
 
 <!-- Modal: Spalte Hinzufügen / Bearbeiten (Pill Style, ohne Breite) -->
 <div class="modal fade" id="bpColumnModal" tabindex="-1" aria-hidden="true">

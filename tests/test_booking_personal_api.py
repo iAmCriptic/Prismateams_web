@@ -570,3 +570,50 @@ def test_booking_personal_pdf_export_and_table_hover_actions(client, app):
 
     # Spalte 01 MAIL FÜR ZUSAGE wurde aus thead/tbody eliminiert
     assert '01 MAIL FÜR ZUSAGE' not in html
+
+def test_booking_personal_mobile_navigation(client, app):
+    """Prüft die mobile Ansicht mit einklappbarer Navbar / Offcanvas-Sidebar auf allen Ansichten."""
+    with app.app_context():
+        _login_test_user(client)
+        event = BookingPersonalEvent(name='Mobile Navigation Event')
+        db.session.add(event)
+        db.session.flush()
+        apply_template_to_event(event, FESTIVAL_STANDARD_FIELDS, db.session)
+        entry = BookingPersonalEntry(event_id=event.id, name='Mobile Band')
+        db.session.add(entry)
+        db.session.commit()
+        event_id = event.id
+        entry_id = entry.id
+
+    # 1. Hauptübersicht
+    resp = client.get(f'/booking-personal/event/{event_id}')
+    assert resp.status_code == 200
+    html = resp.data.decode('utf-8')
+    assert 'mod-mobile-topbar' in html
+    assert 'mod-menu-btn' in html
+    assert 'data-bs-target="#bpMobileNav"' in html
+    assert 'id="bpMobileNav"' in html
+    assert 'mod-offcanvas' in html
+    assert 'bp-mobile-offcanvas' in html
+
+    # 2. Artist Detailansicht
+    resp_detail = client.get(f'/booking-personal/event/{event_id}/act/{entry_id}')
+    assert resp_detail.status_code == 200
+    html_detail = resp_detail.data.decode('utf-8')
+    assert 'mod-mobile-topbar' in html_detail
+    assert 'id="bpMobileNav"' in html_detail
+
+    # 3. Vorlagenverwaltung
+    resp_tmpl = client.get('/booking-personal/templates')
+    assert resp_tmpl.status_code == 200
+    html_tmpl = resp_tmpl.data.decode('utf-8')
+    assert 'mod-mobile-topbar' in html_tmpl
+    assert 'id="bpMobileNav"' in html_tmpl
+
+    # 4. Einstellungen
+    resp_settings = client.get(f'/booking-personal/event/{event_id}/settings')
+    assert resp_settings.status_code == 200
+    html_settings = resp_settings.data.decode('utf-8')
+    assert 'mod-mobile-topbar' in html_settings
+    assert 'id="bpMobileNav"' in html_settings
+

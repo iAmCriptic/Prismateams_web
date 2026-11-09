@@ -2,89 +2,189 @@
    Booking Module Stylesheet
    ========================================================================== */
 
-/* Viewport lock & nahtlose Portal-Hintergrundfarbe identisch zu Dateien */
-body:has(.booking-personal-shell) {
-    overflow: hidden;
-    height: 100vh;
-    height: 100dvh;
-}
-
-.main-content:has(.booking-personal-shell) {
-    height: 100vh;
-    height: 100dvh;
-    max-height: 100vh;
-    max-height: 100dvh;
-    min-height: 0 !important;
-    overflow: hidden !important;
-    display: flex;
-    flex-direction: column;
-    box-sizing: border-box;
-    background-color: var(--portal-bg, #f0f2f5) !important;
-}
-
-.main-content:has(.booking-personal-shell) > .container-fluid {
-    flex: 1 1 auto;
-    height: 100%;
-    max-height: 100%;
-    min-height: 0;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    padding-top: 1rem;
-    padding-bottom: 1rem;
-}
-
+/* Shell base styles */
 .booking-personal-shell {
-    flex: 1 1 auto;
-    min-height: 0;
-    height: 100%;
-    max-height: 100%;
     width: 100%;
-    overflow: hidden;
-    display: flex;
-    align-items: stretch;
-    gap: var(--mod-gap, 1.25rem);
     position: relative;
     background: transparent !important;
     background-color: transparent !important;
 }
 
-/* Sidebar Specifics (exakt abgestimmt auf Dateien) */
-.booking-personal-shell .mod-sidebar {
-    width: var(--mod-sidebar-width, 240px);
-    background: transparent !important;
-    border-right: none !important;
-    padding-right: 0 !important;
-    position: relative;
-    top: auto;
-    align-self: stretch;
-    height: 100%;
-    max-height: 100%;
-    min-height: 0;
-    overflow: visible;
-    display: flex;
-    flex-direction: column;
-}
-
 .booking-personal-shell .mod-main {
     flex: 1 1 auto;
     min-width: 0;
-    min-height: 0;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    overflow-x: hidden;
-    overflow-y: auto;
     position: relative;
     z-index: 1;
 }
 
-.booking-personal-shell #bpSettingsContainer,
-.booking-personal-shell #bpActDetailContainer,
-.booking-personal-shell #bpTemplatesContainer {
-    overflow-y: auto !important;
-    height: 100% !important;
-    max-height: 100% !important;
+/* Desktop Viewport-Lock & Layout (>= 992px) */
+@media (min-width: 992px) {
+    body:has(.booking-personal-shell) {
+        overflow: hidden;
+        height: 100vh;
+        height: 100dvh;
+    }
+
+    .main-content:has(.booking-personal-shell) {
+        height: 100vh;
+        height: 100dvh;
+        max-height: 100vh;
+        max-height: 100dvh;
+        min-height: 0 !important;
+        overflow: hidden !important;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        padding-bottom: 0.75rem !important;
+        background-color: var(--portal-bg, #f0f2f5) !important;
+    }
+
+    .main-content:has(.booking-personal-shell) > .container-fluid {
+        flex: 1 1 auto;
+        height: 100%;
+        max-height: 100%;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    .booking-personal-shell {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+        max-height: 100%;
+        overflow: hidden;
+        display: flex;
+        align-items: stretch;
+        gap: var(--mod-gap, 1.25rem);
+    }
+
+    /* Sidebar Specifics (exakt abgestimmt auf Dateien) */
+    .booking-personal-shell .mod-sidebar {
+        width: var(--mod-sidebar-width, 240px);
+        background: transparent !important;
+        border-right: none !important;
+        padding-right: 0 !important;
+        position: relative;
+        top: auto;
+        align-self: stretch;
+        height: 100%;
+        max-height: 100%;
+        min-height: 0;
+        overflow: visible;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .booking-personal-shell .mod-main {
+        min-height: 0;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .booking-personal-shell #bpSettingsContainer,
+    .booking-personal-shell #bpActDetailContainer,
+    .booking-personal-shell #bpTemplatesContainer {
+        overflow-y: auto !important;
+        height: 100% !important;
+        max-height: 100% !important;
+    }
+}
+
+/* Mobile & Tablet Layout (< 992px) */
+@media (max-width: 991.98px) {
+    .main-content:has(.booking-personal-shell) {
+        padding-bottom: var(--portal-mobile-nav-clearance) !important;
+        min-height: calc(100vh - var(--top-navbar-height, 64px));
+        background-color: var(--portal-bg, #f0f2f5) !important;
+    }
+
+    .main-content:has(.booking-personal-shell) > .container-fluid {
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .booking-personal-shell {
+        display: block;
+        height: auto;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .booking-personal-shell .mod-sidebar {
+        display: none !important;
+    }
+
+    .booking-personal-shell .mod-main {
+        display: block;
+        height: auto;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .booking-personal-shell #bpSettingsContainer,
+    .booking-personal-shell #bpActDetailContainer,
+    .booking-personal-shell #bpTemplatesContainer {
+        padding: 0.75rem !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    .bp-top-toolbar {
+        padding-bottom: 0.5rem !important;
+    }
+
+    .bp-table-wrapper {
+        border-radius: var(--mod-radius-card, 0.75rem);
+        border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.18));
+        background: var(--bs-body-bg) !important;
+        max-height: calc(100vh - 210px);
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .bp-table th {
+        font-size: 0.75rem;
+        padding: 0.5rem 0.65rem;
+    }
+
+    .bp-table td {
+        font-size: 0.8125rem;
+        padding: 0.55rem 0.65rem;
+    }
+
+    .bp-table .mod-list-hover-actions {
+        display: none !important;
+    }
+
+    .bp-table .mod-list-row .mod-list-actions > .dropdown,
+    .bp-table .mod-list-row:hover .mod-list-actions > .dropdown,
+    .bp-table .mod-list-row:focus-within .mod-list-actions > .dropdown {
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        display: inline-block !important;
+    }
+
+    .bp-table th:last-child,
+    .bp-table td:last-child {
+        width: 3.5rem !important;
+        min-width: 3.5rem !important;
+        padding-right: 0.5rem;
+    }
+
+    .bp-mobile-offcanvas {
+        max-width: 300px;
+    }
 }
 
 .booking-personal-shell .mod-sidebar-brand {

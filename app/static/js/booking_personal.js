@@ -6,7 +6,7 @@
     'use strict';
 
     const tableEl = document.getElementById('bpTable');
-    if (!tableEl && !document.getElementById('bpPublicForm') && !document.getElementById('bpPublicOverview') && !document.getElementById('bpActDetailContainer') && !document.getElementById('bpSettingsContainer')) {
+    if (!tableEl && !document.getElementById('bpPublicForm') && !document.getElementById('bpPublicOverview') && !document.getElementById('bpActDetailContainer') && !document.getElementById('bpSettingsContainer') && !document.getElementById('bpTemplatesContainer')) {
         return;
     }
 
@@ -1459,6 +1459,18 @@
         }
     }
     initPillSelects();
+
+    // Mobile Offcanvas: Links schliessen das Menue sauber
+    document.querySelectorAll('#bpMobileNav a[data-bp-dismiss-offcanvas]').forEach(function (link) {
+        link.addEventListener('click', function () {
+            setTimeout(function () {
+                var el = document.getElementById('bpMobileNav');
+                if (!el || !window.bootstrap || !bootstrap.Offcanvas) return;
+                var oc = bootstrap.Offcanvas.getInstance(el);
+                if (oc) oc.hide();
+            }, 50);
+        });
+    });
     document.addEventListener('shown.bs.modal', function (e) {
         initPillSelects(e.target);
     });

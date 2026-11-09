@@ -22,53 +22,88 @@
 {% endblock %}
 
 {% block content %}
+{% from 'booking_personal/_sidebar.html' import booking_personal_sidebar, booking_personal_mobile_offcanvas %}
 <div class="mod-shell--nav booking-personal-shell">
-    <!-- Linke Seitenleiste -->
-    <aside class="mod-sidebar d-flex flex-column">
-        <div class="mod-sidebar-brand">
-            <i class="bi bi-person-badge text-primary" aria-hidden="true"></i>
-            <span>Booking</span>
-        </div>
-
-        <!-- Neuer Event Button -->
-        <div class="mod-sidebar-new-wrap w-100">
-            <button class="btn mod-sidebar-new rounded-pill w-100 text-start" type="button" data-bs-toggle="modal" data-bs-target="#bpNewEventModal">
-                <i class="bi bi-plus-lg me-2"></i> NEU
-            </button>
-        </div>
-
-        <div class="text-uppercase small fw-bold text-muted px-2 mb-2" style="font-size: 0.75rem; letter-spacing: 0.04em;">
-            Veranstaltungen
-        </div>
-
-        <!-- Liste der aktiven Veranstaltungen -->
-        <nav class="mod-sidebar-nav nav flex-column gap-1 flex-grow-1 overflow-y-auto">
-            {% for ev in events %}
-            <a class="nav-link mod-nav-link rounded-pill d-flex align-items-center justify-content-between {% if current_event and current_event.id == ev.id %}active{% endif %}"
-               href="{{ url_for('booking_personal.index', event_id=ev.id) }}">
-                <span class="d-flex align-items-center text-truncate">
-                    <i class="bi bi-calendar2-event me-2 flex-shrink-0"></i>
-                    <span class="text-truncate">{{ ev.name }}</span>
-                </span>
-                {% if ev.entries %}
-                <span class="badge rounded-pill bg-light text-dark border ms-1 flex-shrink-0">{{ ev.entries|length }}</span>
-                {% endif %}
-            </a>
-            {% endfor %}
-        </nav>
-
-        <div class="mod-sidebar-footer files-sidebar-bottom mt-auto pt-3 border-top">
-            <a href="{{ url_for('booking_personal.templates_view') }}" class="btn files-webdav-connect-btn w-100 text-start text-decoration-none">
-                <i class="bi bi-layout-three-columns" aria-hidden="true"></i>
-                <span>Vorlagen verwalten</span>
-            </a>
-        </div>
-    </aside>
+        {{ booking_personal_sidebar(events, current_event, "act_detail") }}
 
     <!-- Hauptbereich: Artist-Dossier -->
     <main class="mod-main flex-grow-1 min-width-0 overflow-y-auto p-4" id="bpActDetailContainer">
+        <!-- Mobile Topbar (< 992px) mit einklappbarer Navbar / Offcanvas-Sidebar -->
+        <div class="mod-mobile-topbar d-lg-none mb-3">
+            <div class="d-flex justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center min-width-0 gap-2">
+                    <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#bpMobileNav" aria-controls="bpMobileNav" aria-label="Menü">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <a href="{{ url_for('booking_personal.index', event_id=current_event.id) }}" class="btn btn-outline-secondary btn-sm rounded-pill" title="Zurück">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <strong class="text-truncate mod-mobile-title">{{ entry.name or custom_data.get('project_name', 'Act') }}</strong>
+                </div>
+                <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                    <div class="dropdown d-inline-block">
+                        <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" data-bs-toggle="dropdown" aria-expanded="false" title="Aktionen">
+                            <i class="bi bi-three-dots"></i>
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu shadow-lg border p-1" style="min-width: 210px;">
+                            <li><h6 class="dropdown-header small text-uppercase text-muted py-1" style="font-size: 0.7rem;">E-Mail senden</h6></li>
+                            <li>
+                                <button type="button" class="dropdown-item" onclick="openMailPreview({{ entry.id }}, 'accept')">
+                                    <i class="bi bi-envelope-check text-success me-2"></i>Mail &rarr; Zusage
+                                </button>
+                            </li>
+                            <li>
+                                <button type="button" class="dropdown-item" onclick="openMailPreview({{ entry.id }}, 'reject')">
+                                    <i class="bi bi-envelope-x text-danger me-2"></i>Mail &rarr; Absage
+                                </button>
+                            </li>
+                            <li>
+                                <button type="button" class="dropdown-item" onclick="openMailPreview({{ entry.id }}, 'invite')">
+                                    <i class="bi bi-send text-primary me-2"></i>Fragebogen senden
+                                </button>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><h6 class="dropdown-header small text-uppercase text-muted py-1" style="font-size: 0.7rem;">Links</h6></li>
+                            <li>
+                                {% set form_url = url_for('booking_personal.public_form', token=entry.form_token, _external=True) %}
+                                <button type="button" class="dropdown-item" onclick="copyToClipboard('{{ form_url }}')">
+                                    <i class="bi bi-clipboard text-primary me-2"></i>Formular-Link kopieren
+                                </button>
+                            </li>
+                            <li>
+                                {% set overview_url = url_for('booking_personal.public_overview', token=entry.overview_token, _external=True) %}
+                                <a href="{{ overview_url }}" target="_blank" class="dropdown-item">
+                                    <i class="bi bi-box-arrow-up-right text-muted me-2"></i>Zusage-Übersicht
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <button type="button" class="dropdown-item text-danger" onclick="deleteEntryFromDetail({{ entry.id }})">
+                                    <i class="bi bi-trash me-2"></i>Act löschen
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--accent" onclick="openEntryDetail({{ entry.id }})" title="Angaben bearbeiten">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- Mobile Status & Info Row (< 992px) -->
+        <div class="d-flex d-lg-none align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <div class="d-flex align-items-center gap-2 small text-muted text-truncate">
+                <span class="text-truncate">{{ current_event.name }}</span>
+                <span>&bull;</span>
+                <span class="text-body fw-semibold text-truncate">{{ entry.name or custom_data.get('project_name', 'Act') }}</span>
+            </div>
+            {% set status_val = entry.status or custom_data.get('status_booking', 'Angefragt') %}
+            <span class="badge rounded-pill bg-body-secondary text-primary border px-2.5 py-0.5 small fw-semibold flex-shrink-0">
+                {{ status_val }}
+            </span>
+        </div>
         <!-- Portalstandard Toolbar: Zurück + Veranstaltung / Künstler links, alle Aktionen rechts -->
-        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <div class="d-none d-lg-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
             <div class="d-flex align-items-center flex-wrap gap-2">
                 <a href="{{ url_for('booking_personal.index', event_id=current_event.id) }}" class="mod-back-link bp-back-link text-decoration-none">
                     <i class="bi bi-arrow-left me-1"></i>Zurück
@@ -291,6 +326,8 @@
         </div>
     </main>
 </div>
+
+{{ booking_personal_mobile_offcanvas(events, current_event, "act_detail") }}
 
 <!-- =========================================================================
      MODALS FÜR DIESE SEITE
