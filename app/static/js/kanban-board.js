@@ -719,7 +719,7 @@
   function cardHtml(card) {
     const labels = (card.labels || []).map((lb) => labelChipHtml(lb)).join('');
     const cover = card.cover && card.cover.is_image
-      ? `<div class="kanban-card__cover"><img src="${esc(card.cover.preview_url || card.cover.url)}" alt=""></div>`
+      ? `<div class="kanban-card__cover"><img src="${esc(card.cover.preview_url || card.cover.url)}" alt="" loading="lazy" decoding="async"></div>`
       : '';
     const cl = card.checklist || {};
     const meta = [];
@@ -1110,6 +1110,14 @@
     ignoreSSE = false;
   }
 
+  // Delegated error handling for failed cover images (hides empty cover)
+  app.addEventListener('error', (e) => {
+    if (e.target && e.target.tagName === 'IMG' && e.target.closest('.kanban-card__cover')) {
+      const cover = e.target.closest('.kanban-card__cover');
+      if (cover) cover.style.display = 'none';
+    }
+  }, true);
+
   // Delegated clicks / submits on the board
   app.addEventListener('click', async (e) => {
     const collapseBtn = e.target.closest('[data-list-collapse]');
@@ -1317,7 +1325,7 @@
       });
     }
     coverEl.innerHTML = card.cover && card.cover.is_image
-      ? `<img src="${esc(card.cover.preview_url || card.cover.url)}" alt="">`
+      ? `<img src="${esc(card.cover.preview_url || card.cover.url)}" alt="" loading="lazy" decoding="async">`
       : '';
     updateCompleteBtn(!!card.completed);
     renderPollSection(card);
