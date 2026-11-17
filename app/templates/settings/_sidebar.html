@@ -54,9 +54,10 @@
     'settings.delete_team',
     'settings.team_image',
     'settings.team_mailboxes',
+    'settings.team_mailbox_new',
+    'settings.team_mailbox_edit',
     'settings.team_settings'
 ] %}
-{% set team_settings_active = ep == 'settings.team_settings' %}
 {% set my_mailboxes_active = ep == 'settings.my_mailboxes' %}
 {% set mailboxes_admin_active = ep in [
     'settings.admin_mailboxes',
@@ -89,6 +90,7 @@
 {% set inventory_active = ep == 'settings.admin_inventory_settings' %}
 {% set calendar_active = ep == 'settings.admin_calendar_settings' %}
 {% set files_active = ep == 'settings.admin_file_settings' %}
+{% set events_active = ep == 'settings.admin_events_settings' %}
 {% set cloud_import_active = ep.startswith('settings.cloud_import') %}
 {% set show_cloud_import = is_module_enabled('module_files') %}
 {% set show_kanban_import = is_module_enabled('module_kanban') and (kanban_import_targets is defined and kanban_import_targets) %}
@@ -143,11 +145,8 @@
     {% if show_teams_nav and not current_user.is_admin %}
     <hr class="settings-nav-divider">
     <div class="settings-nav-admin-heading">{{ _('settings.sidebar.team_lead_heading') }}</div>
-    <a href="{{ url_for('settings.admin_teams') }}" class="nav-link mod-nav-link{% if teams_active and not team_settings_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+    <a href="{{ url_for('settings.admin_teams') }}" class="nav-link mod-nav-link{% if teams_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-diagram-3 me-2"></i>{{ _('settings.admin.cards.teams.title') }}
-    </a>
-    <a href="{{ url_for('settings.team_settings') }}" class="nav-link mod-nav-link{% if team_settings_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-sliders me-2"></i>{{ _('settings.team_settings.title') }}
     </a>
     {% endif %}
 
@@ -194,8 +193,8 @@
         <div class="settings-nav-section-title">{{ _('settings.sidebar.sections.modules') }}</div>
     </div>
     {% if is_module_enabled('module_booking') %}
-    <a href="{{ url_for('settings.booking_forms') }}" class="nav-link mod-nav-link{% if booking_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-calendar-check me-2"></i>{{ _('booking.admin.cards.booking_forms.title') }}
+    <a href="{{ url_for('settings.booking_rooms') }}" class="nav-link mod-nav-link{% if ep.startswith('settings.booking_') %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-door-open me-2"></i>{{ _('layout.nav.booking') }}
     </a>
     {% endif %}
     {% if is_module_enabled('module_music') %}
@@ -216,6 +215,11 @@
     {% if is_module_enabled('module_calendar') %}
     <a href="{{ url_for('settings.admin_calendar_settings') }}" class="nav-link mod-nav-link{% if calendar_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-calendar-event me-2"></i>{{ _('settings.admin.cards.calendar_settings.title') }}
+    </a>
+    {% endif %}
+    {% if is_module_enabled('module_events') %}
+    <a href="{{ url_for('settings.admin_events_settings') }}" class="nav-link mod-nav-link{% if events_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-calendar2-week me-2"></i>Veranstaltungen
     </a>
     {% endif %}
     <a href="{{ url_for('settings.admin_file_settings') }}" class="nav-link mod-nav-link{% if files_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>

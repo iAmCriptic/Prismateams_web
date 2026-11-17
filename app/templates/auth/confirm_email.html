@@ -27,6 +27,7 @@
                 </div>
 
                 <form method="POST" id="confirmEmailForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label for="confirmation_code" class="form-label">{{ _('auth.confirm_email.code') }}</label>
                         <input type="text"
@@ -89,7 +90,14 @@
         this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
         if (this.value.length === 6) {
             setTimeout(function () {
-                input.form.submit();
+                if (typeof input.form.requestSubmit === 'function') {
+                    input.form.requestSubmit();
+                } else {
+                    if (window.PrismateamsCsrf && window.PrismateamsCsrf.ensureFormToken) {
+                        window.PrismateamsCsrf.ensureFormToken(input.form);
+                    }
+                    input.form.submit();
+                }
             }, 350);
         }
     });

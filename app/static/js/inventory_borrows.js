@@ -6,6 +6,9 @@ class BorrowsManager {
     constructor() {
         this.borrows = [];
         this.filteredBorrows = [];
+        this.pollIntervalMs = 60000;
+        this.pollTimer = null;
+        this._visibilityBound = false;
     }
 
     getFilterEls(key) {
@@ -41,7 +44,37 @@ class BorrowsManager {
         }
         await this.loadBorrows();
         this.renderBorrows();
-        setInterval(() => this.loadBorrows(), 30000);
+        this.bindVisibility();
+        this.startPolling();
+    }
+
+    startPolling() {
+        if (this.pollTimer || document.hidden) return;
+        this.pollTimer = setInterval(() => {
+            if (document.hidden) return;
+            this.loadBorrows();
+        }, this.pollIntervalMs);
+    }
+
+    stopPolling() {
+        if (!this.pollTimer) return;
+        clearInterval(this.pollTimer);
+        this.pollTimer = null;
+    }
+
+    bindVisibility() {
+        if (this._visibilityBound) return;
+        this._visibilityBound = true;
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Hintergrund-Tab: kein API-Polling (Ressourcen).
+                // Hinweis auf neue Inhalte: Web-Push / In-App-Glocke; Liste beim Zurückkehren refresh.
+                this.stopPolling();
+                return;
+            }
+            this.loadBorrows();
+            this.startPolling();
+        });
     }
 
     setupFilterListeners() {

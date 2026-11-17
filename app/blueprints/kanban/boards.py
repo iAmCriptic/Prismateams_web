@@ -47,6 +47,7 @@ from app.models.kanban import (
     KanbanCustomFieldCategory,
     KanbanLabel,
     KanbanList,
+    _generate_board_public_id,
 )
 from app.models.team import Team, TeamMember
 from app.models.user import User
@@ -134,6 +135,7 @@ def api_create_board():
         team_id=team_id,
         created_by=current_user.id,
         background=background,
+        public_id=_generate_board_public_id(),
     )
     db.session.add(board)
     db.session.flush()
@@ -358,12 +360,13 @@ def board_background(board_id):
 @login_required
 @check_module_access('module_kanban')
 def api_board_background(board_id):
-    board = KanbanBoard.query.get_or_404(board_id)
-    if not can_manage_board(current_user, board):
-        return jsonify({'error': 'Forbidden'}), 403
+    board, err = _require_board_manage(board_id)
+    if err:
+        return err
 
     if request.method == 'DELETE':
         _delete_board_cover_file(board)
+        _log_activity(board.id, 'background_removed')
         db.session.commit()
         payload = _serialize_board(board, full=True)
         _emit_board(board.id, 'board_updated', payload)
@@ -419,14 +422,19 @@ def api_list(list_id):
 
     if request.method == 'DELETE':
         board_id = board.id
+        lst_title = lst.title
         db.session.delete(lst)
+        _log_activity(board_id, 'list_deleted', detail=lst_title)
         db.session.commit()
         _emit_board(board_id, 'list_deleted', {'id': list_id})
         return jsonify({'success': True})
 
     data = request.get_json(silent=True) or {}
     if 'title' in data:
-        lst.title = (data['title'] or lst.title).strip() or lst.title
+        new_title = (data['title'] or lst.title).strip() or lst.title
+        if new_title != lst.title:
+            _log_activity(board.id, 'list_updated', detail=f'{lst.title} → {new_title}')
+            lst.title = new_title
     if 'archived' in data:
         lst.archived_at = portal_now_naive() if data['archived'] else None
     if 'position' in data:

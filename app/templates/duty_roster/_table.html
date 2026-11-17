@@ -1,0 +1,109 @@
+{# Excel-ähnliche Monatstabelle: volle KW Mo–So, Stunden mittig unter Person #}
+<div class="duty-roster-table-wrap {% if view_mode in ('day', 'week') %}duty-roster-table-wrap--compact{% endif %}">
+    <table class="duty-roster-table mb-0" data-roster-id="{{ roster.id }}" {% if editable %}data-editable="1"{% endif %}>
+        <thead>
+            <tr>
+                <th class="duty-col-weekday">{{ _('duty_roster.table.weekday') }}</th>
+                <th class="duty-col-date">{{ _('duty_roster.table.date') }}</th>
+                <th class="duty-col-whats">{{ _('duty_roster.table.whats_happening') }}</th>
+                {% for col in columns %}
+                <th class="duty-col-person" data-column-id="{{ col.id }}">
+                    <div class="duty-person-name">{{ col.display_name }}</div>
+                    <div class="duty-person-pills">
+                        {% set st = person_stats.get(col.id) %}
+                        {% if st and st.overtime_ytd is not none %}
+                        {% set ot = st.overtime_ytd %}
+                        <span class="duty-mini-pill {% if ot > 0 %}duty-mini-pill--ok{% elif ot < 0 %}duty-mini-pill--warn{% endif %}"
+                              title="{{ _('duty_roster.table.overtime') }}">
+                            {%- if ot == 0 -%}+-0h
+                            {%- elif ot > 0 -%}+{{ '%.1f'|format(ot) }}h
+                            {%- else -%}{{ '%.1f'|format(ot) }}h
+                            {%- endif -%}
+                        </span>
+                        {% else %}
+                        <span class="duty-mini-pill" title="{{ _('duty_roster.table.overtime') }}">+-0h</span>
+                        {% endif %}
+                        {% if st %}
+                        {% if st.weekly_hours_soll is not none %}
+                        <span class="duty-mini-pill" title="{{ _('duty_roster.table.soll') }}">Soll {{ st.weekly_hours_soll }}</span>
+                        {% endif %}
+                        {% if st.vacation_days_remaining is not none %}
+                        <span class="duty-mini-pill duty-vacation-pill"
+                              data-vacation-col="{{ col.id }}"
+                              title="{{ _('duty_roster.table.vacation_remaining') }}">{{ st.vacation_days_remaining }}U</span>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in rows %}
+            {% if row.kind == 'kw' %}
+            <tr class="duty-kw-row" style="background:{{ row.color }};">
+                <td colspan="3" class="duty-kw-label-cell">
+                    <span class="duty-kw-label">{{ _('duty_roster.table.kw', week=row.week) }}</span>
+                </td>
+                {% for col in columns %}
+                <td class="duty-kw-hours-cell"
+                    data-kw-hours-col="{{ col.id }}"
+                    data-week="{{ row.week }}">
+                    <span class="duty-kw-hours-val">{{ week_column_hours.get(row.week, {}).get(col.id, 0) }}</span>h
+                </td>
+                {% endfor %}
+            </tr>
+            {% else %}
+            {% set day = row.day %}
+            <tr class="duty-day-row {% if row.out_of_month %}duty-day-out{% endif %}"
+                style="background:{{ row.color }};"
+                data-day-id="{{ day.id }}"
+                data-week="{{ row.week }}">
+                <td class="duty-col-weekday">{{ day.weekday_label }}</td>
+                <td class="duty-col-date">{{ day.date.strftime('%d.%m.%Y') }}</td>
+                <td class="duty-col-whats">
+                    {% if editable %}
+                    <input type="text"
+                           class="duty-whats-input"
+                           value="{{ day.whats_happening or '' }}"
+                           data-day-id="{{ day.id }}"
+                           placeholder=""
+                           maxlength="500"
+                           aria-label="{{ _('duty_roster.table.whats_happening') }}">
+                    {% else %}
+                    {{ day.whats_happening or '' }}
+                    {% endif %}
+                </td>
+                {% for col in columns %}
+                {% set entry = entries.get((day.id, col.id)) %}
+                {% set txt = entry.display_text() if entry else '' %}
+                {% set etype = entry.entry_type if entry else '' %}
+                {% set active = cell_active.get((day.id, col.id), True) if cell_active is defined else True %}
+                <td class="duty-cell {% if editable and active %}duty-cell-editable{% endif %} {% if not active %}duty-cell-inactive{% endif %}"
+                    data-day-id="{{ day.id }}"
+                    data-column-id="{{ col.id }}"
+                    {% if editable and active %}tabindex="0"{% endif %}>
+                    {% if not active %}
+                    <span class="duty-cell-inactive-mark" title="{{ _('duty_roster.table.outside_validity') }}">—</span>
+                    {% elif editable %}
+                    <input type="text"
+                           class="duty-cell-input"
+                           value="{{ txt }}"
+                           placeholder=""
+                           title="{{ _('duty_roster.table.cell_hint') }}"
+                           aria-label="{{ col.display_name }}">
+                    {% elif txt %}
+                    <span class="duty-cell-value duty-cell-value--{{ etype or 'note' }}">{{ txt }}</span>
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endif %}
+            {% else %}
+            <tr>
+                <td colspan="{{ 3 + (columns|length) }}" class="text-center py-4" style="background:#fff;color:#666;">—</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

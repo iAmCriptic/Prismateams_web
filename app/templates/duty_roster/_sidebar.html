@@ -1,0 +1,33 @@
+{% macro duty_roster_sidebar(id_suffix='', dismiss_offcanvas=false) %}
+{% set dismiss_attr = 'data-bs-dismiss="offcanvas"' if dismiss_offcanvas else '' %}
+<nav class="mod-nav flex-grow-1" aria-label="{{ _('duty_roster.nav.title') }}">
+    {% if 'private' in allowed_sections %}
+    <a class="nav-link mod-nav-link {% if active_section == 'private' %}active{% endif %}"
+       href="{{ url_for('duty_roster.private_index') }}" {{ dismiss_attr|safe }}>
+        <i class="bi bi-lock me-2"></i>{{ _('duty_roster.nav.private') }}
+    </a>
+    {% endif %}
+    {% if 'team' in allowed_sections %}
+    <div class="mod-nav-section-label px-3 pt-2 pb-1 small text-muted">{{ _('duty_roster.nav.team') }}</div>
+    {% for t in nav_teams %}
+    <a class="nav-link mod-nav-link {% if active_section == 'team' and active_team_id == t.id %}active{% endif %}"
+       href="{{ url_for('duty_roster.team_index', team_id=t.id) }}" {{ dismiss_attr|safe }}>
+        {% if t.color %}
+        <span class="d-inline-block rounded-circle me-2 flex-shrink-0" style="width:.65rem;height:.65rem;background:{{ t.color }};" aria-hidden="true"></span>
+        {% else %}
+        <i class="bi bi-people me-2" aria-hidden="true"></i>
+        {% endif %}
+        <span class="text-truncate">{{ t.name }}</span>
+    </a>
+    {% else %}
+    <span class="nav-link mod-nav-link disabled text-muted small">{{ _('duty_roster.flash.no_team') }}</span>
+    {% endfor %}
+    {% endif %}
+    {% if 'public' in allowed_sections %}
+    <a class="nav-link mod-nav-link {% if active_section == 'public' %}active{% endif %}"
+       href="{{ url_for('duty_roster.public_index') }}" {{ dismiss_attr|safe }}>
+        <i class="bi bi-globe2 me-2"></i>{{ _('duty_roster.nav.public') }}
+    </a>
+    {% endif %}
+</nav>
+{% endmacro %}

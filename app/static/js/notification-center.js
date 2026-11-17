@@ -1,6 +1,29 @@
 /**
  * In-App-Benachrichtigungszentrum (Overlay)
+ *
+ * QA G04: Seiten mit eigenem SSE (Kanban/Chat/…) registrieren sich über
+ * window.ptPageSse — dann pausiert das Dashboard-SSE und die Glocke pollt,
+ * damit nicht 2 Gunicorn-Threads pro Tab belegt werden.
  */
+window.ptPageSse = window.ptPageSse || {
+    _count: 0,
+    acquire() {
+        this._count += 1;
+        window.dispatchEvent(new CustomEvent('pt:page-sse', {
+            detail: { active: true, count: this._count },
+        }));
+    },
+    release() {
+        this._count = Math.max(0, this._count - 1);
+        window.dispatchEvent(new CustomEvent('pt:page-sse', {
+            detail: { active: this._count > 0, count: this._count },
+        }));
+    },
+    get active() {
+        return this._count > 0;
+    },
+};
+
 class NotificationCenter {
     constructor() {
         this.panel = document.getElementById('notificationCenterPanel');
@@ -18,12 +41,17 @@ class NotificationCenter {
 
         this.bindEvents();
         this.bindVisibility();
+        this.bindPageSseCoordinator();
         this.refreshBadge();
         this.connectSSE();
     }
 
     dashboardSseUrl() {
         return String(window.PT_DASHBOARD_SSE_URL || '').trim();
+    }
+
+    pageSseActive() {
+        return Boolean(window.ptPageSse && window.ptPageSse.active);
     }
 
     startPolling() {
@@ -40,39 +68,117 @@ class NotificationCenter {
         this.pollTimer = null;
     }
 
+    closeDashboardSse() {
+        try {
+            if (window.ptDashboardSSE) {
+                window.ptDashboardSSE.close();
+                window.ptDashboardSSE = null;
+            }
+        } catch (_) { /* ignore */ }
+        this.sseLive = false;
+    }
+
+    /**
+     * QA G08: Ein Dashboard-SSE pro Tab; Events als window CustomEvents
+     * (pt:dashboard:*) — Seiten (Dashboard/E-Mail) öffnen keinen zweiten Stream.
+     */
+    _bindDashboardFanout(es) {
+        if (!es || es._ptNcBound) return;
+        es._ptNcBound = true;
+
+        const fanoutTypes = [
+            'dashboard:notification_update',
+            'dashboard:email_update',
+            'dashboard:chat_update',
+            'dashboard:calendar_update',
+            'dashboard:files_update',
+        ];
+        fanoutTypes.forEach((type) => {
+            es.addEventListener(type, (e) => {
+                let data = {};
+                try {
+                    data = JSON.parse(e.data || '{}');
+                } catch (_) {
+                    data = {};
+                }
+                window.dispatchEvent(new CustomEvent(`pt:${type}`, { detail: data }));
+            });
+        });
+
+        es.addEventListener('connected', () => {
+            if (this.pageSseActive()) {
+                this.closeDashboardSse();
+                this.startPolling();
+                return;
+            }
+            this.sseLive = true;
+            this.stopPolling();
+        });
+
+        es.addEventListener('dashboard:notification_update', (e) => {
+            let unread = 0;
+            try {
+                const data = JSON.parse(e.data || '{}');
+                unread = data.unread_count || 0;
+            } catch (_) {
+                return;
+            }
+            this.updateBadge(unread);
+            if (this.isOpen) this.loadList();
+        });
+
+        es.onerror = () => {
+            if (es.readyState === EventSource.CLOSED) {
+                this.sseLive = false;
+                if (window.ptDashboardSSE === es) window.ptDashboardSSE = null;
+                this.startPolling();
+            }
+        };
+    }
+
     connectSSE() {
+        if (document.hidden || this.pageSseActive()) {
+            this.closeDashboardSse();
+            this.startPolling();
+            return;
+        }
         const url = this.dashboardSseUrl();
         if (!url || !window.EventSource) {
             this.startPolling();
             return;
         }
         try {
-            const es = window.ptDashboardSSE || new EventSource(url);
-            window.ptDashboardSSE = es;
-            es.addEventListener('connected', () => {
+            let es = window.ptDashboardSSE;
+            if (es && es.readyState === EventSource.CLOSED) {
+                window.ptDashboardSSE = null;
+                es = null;
+            }
+            if (!es) {
+                es = new EventSource(url);
+                window.ptDashboardSSE = es;
+            }
+            this._bindDashboardFanout(es);
+            if (es.readyState === EventSource.OPEN) {
                 this.sseLive = true;
                 this.stopPolling();
-            });
-            es.addEventListener('dashboard:notification_update', (e) => {
-                let unread = 0;
-                try {
-                    const data = JSON.parse(e.data || '{}');
-                    unread = data.unread_count || 0;
-                } catch (_) {
-                    return;
-                }
-                this.updateBadge(unread);
-                if (this.isOpen) this.loadList();
-            });
-            es.onerror = () => {
-                if (es.readyState === EventSource.CLOSED) {
-                    this.sseLive = false;
-                    this.startPolling();
-                }
-            };
+            }
         } catch (e) {
             this.startPolling();
         }
+    }
+
+    bindPageSseCoordinator() {
+        window.addEventListener('pt:page-sse', () => {
+            if (document.hidden) return;
+            if (this.pageSseActive()) {
+                this.closeDashboardSse();
+                this.startPolling();
+                this.refreshBadge();
+                return;
+            }
+            this.connectSSE();
+            if (!this.sseLive) this.startPolling();
+        });
     }
 
     bindVisibility() {
@@ -80,13 +186,7 @@ class NotificationCenter {
             if (document.hidden) {
                 this.stopPolling();
                 // Freigabe von Gunicorn-Threads: Hintergrund-Tabs brauchen kein Live-SSE.
-                try {
-                    if (window.ptDashboardSSE) {
-                        window.ptDashboardSSE.close();
-                        window.ptDashboardSSE = null;
-                    }
-                } catch (_) { /* ignore */ }
-                this.sseLive = false;
+                this.closeDashboardSse();
                 return;
             }
             this.refreshBadge();

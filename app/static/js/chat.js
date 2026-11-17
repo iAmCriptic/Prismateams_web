@@ -27,6 +27,19 @@
     const sseUrl = cfg.sseUrl || "";
     let sseLive = false;
     let chatEventSource = null;
+    let pageSseHeld = false;
+
+    function holdPageSse() {
+        if (pageSseHeld || !window.ptPageSse) return;
+        window.ptPageSse.acquire();
+        pageSseHeld = true;
+    }
+
+    function releasePageSse() {
+        if (!pageSseHeld || !window.ptPageSse) return;
+        window.ptPageSse.release();
+        pageSseHeld = false;
+    }
 
     const MESSAGE_POLL_MS = 5000;
     const STRUCTURED_POLL_MS = 10000;
@@ -619,15 +632,31 @@
         applyStructuredUpdates();
     }
 
+    function disconnectChatSSE() {
+        clearPollTimers();
+        if (chatEventSource) {
+            try { chatEventSource.close(); } catch (_) { /* ignore */ }
+            chatEventSource = null;
+        }
+        sseLive = false;
+        releasePageSse();
+    }
+
     function connectChatSSE() {
+        if (document.hidden) return;
         if (!sseUrl || !window.EventSource) {
             pollMessages();
             syncStructuredMessageUpdates();
             return;
         }
+        if (chatEventSource && chatEventSource.readyState !== EventSource.CLOSED) {
+            return;
+        }
         try {
-            chatEventSource = new EventSource(sseUrl);
-            chatEventSource.addEventListener("connected", () => {
+            const es = new EventSource(sseUrl);
+            chatEventSource = es;
+            holdPageSse();
+            es.addEventListener("connected", () => {
                 sseLive = true;
                 if (pollTimer) {
                     clearTimeout(pollTimer);
@@ -640,19 +669,23 @@
                 fetchNewMessages();
                 applyStructuredUpdates();
             });
-            chatEventSource.onerror = () => {
-                if (chatEventSource && chatEventSource.readyState === EventSource.CLOSED) {
+            es.onerror = () => {
+                if (es.readyState === EventSource.CLOSED) {
+                    if (chatEventSource === es) chatEventSource = null;
                     sseLive = false;
+                    releasePageSse();
                     if (isPolling && !document.hidden) {
                         pollMessages();
                         syncStructuredMessageUpdates();
                     }
                 }
             };
-            chatEventSource.addEventListener("chat:message", onChatLiveEvent);
-            chatEventSource.addEventListener("chat:updated", onChatLiveEvent);
+            es.addEventListener("chat:message", onChatLiveEvent);
+            es.addEventListener("chat:updated", onChatLiveEvent);
             fetchNewMessages();
         } catch (e) {
+            chatEventSource = null;
+            releasePageSse();
             pollMessages();
             syncStructuredMessageUpdates();
         }
@@ -1143,13 +1176,15 @@
         updateLoadOlderVisibility(hasOlderMessages);
         document.addEventListener("visibilitychange", function () {
             if (document.hidden) {
-                clearPollTimers();
+                // Freigabe von Gunicorn-Threads: Hintergrund-Tabs brauchen kein Live-SSE.
+                disconnectChatSSE();
                 return;
             }
             if (!isPolling) return;
             clearPollTimers();
             fetchNewMessages();
             applyStructuredUpdates();
+            connectChatSSE();
             if (!sseLive) {
                 scheduleMessagePoll();
                 scheduleStructuredPoll();

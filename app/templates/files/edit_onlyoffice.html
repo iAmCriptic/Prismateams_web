@@ -328,12 +328,29 @@ function startOoPresence() {
     });
 }
 
-function showEuroOfficeApiError(title) {
-    console.error(title, "{{ onlyoffice_api_url }}");
+const OO_I18N = {
+    apiLoadFailed: {{ _('files.onlyoffice.api_load_failed')|tojson }},
+    apiLoadFailedHint: {{ _('files.onlyoffice.api_load_failed_hint')|tojson }},
+    editorError: {{ _('files.onlyoffice.editor_error')|tojson }},
+    editorInitError: {{ _('files.onlyoffice.editor_init_error')|tojson }},
+    backLabel: {{ _('files.view.close')|tojson }}
+};
+
+function showEuroOfficeApiError(title, detail) {
+    console.error(title, "{{ onlyoffice_api_url }}", detail || '');
     const editorDiv = document.getElementById('eurooffice-editor');
-    if (editorDiv) {
-        editorDiv.innerHTML = '<div style="padding: 2rem; text-align: center; color: #dc3545;"><h3>' + title + '</h3><p>Bitte prüfen Sie, dass der Document Server unter /eurooffice erreichbar ist.</p><p style="margin-top: 1rem;">API-URL: {{ onlyoffice_api_url }}</p></div>';
-    }
+    if (!editorDiv) return;
+    const heading = title || OO_I18N.apiLoadFailed;
+    const hint = OO_I18N.apiLoadFailedHint;
+    const detailText = detail ? String(detail) : '';
+    editorDiv.innerHTML =
+        '<div class="onlyoffice-error-panel" role="alert" style="padding:2rem;text-align:center;max-width:36rem;margin:2rem auto;">' +
+        '<h3 style="color:#dc3545;margin-bottom:0.75rem;">' + heading + '</h3>' +
+        '<p style="margin-bottom:0.75rem;">' + hint + '</p>' +
+        (detailText ? '<p class="text-muted small" style="margin-bottom:0.75rem;">' + detailText + '</p>' : '') +
+        '<p class="small text-muted" style="margin-bottom:1.25rem;">API: {{ onlyoffice_api_url }}</p>' +
+        '<button type="button" class="btn btn-outline-secondary mod-pill-btn" onclick="goBack()">' +
+        OO_I18N.backLabel + '</button></div>';
 }
 
 function waitForOnlyOfficeAPI(callback) {
@@ -343,13 +360,13 @@ function waitForOnlyOfficeAPI(callback) {
     }
 
     if (window.__eoApiLoadFailed) {
-        showEuroOfficeApiError('Euro-Office konnte nicht geladen werden');
+        showEuroOfficeApiError(OO_I18N.apiLoadFailed);
         return;
     }
     
     apiLoadAttempts++;
     if (apiLoadAttempts >= MAX_API_LOAD_ATTEMPTS) {
-        showEuroOfficeApiError('Euro-Office API konnte nicht geladen werden');
+        showEuroOfficeApiError(OO_I18N.apiLoadFailed);
         return;
     }
     
@@ -408,6 +425,15 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             onError: function(error) {
                 console.error('ONLYOFFICE Error:', error);
+                var detail = '';
+                try {
+                    if (error && typeof error === 'object') {
+                        detail = error.data != null ? String(error.data) : JSON.stringify(error);
+                    } else if (error != null) {
+                        detail = String(error);
+                    }
+                } catch (_) {}
+                showEuroOfficeApiError(OO_I18N.editorError, detail);
             },
             onWarning: function(warning) {
                 console.warn('OnlyOffice warning:', warning);
@@ -434,9 +460,11 @@ document.addEventListener('DOMContentLoaded', function() {
             docEditor = new DocsAPI.DocEditor("eurooffice-editor", config);
             if (!docEditor) {
                 console.error('OnlyOffice editor object is null');
+                showEuroOfficeApiError(OO_I18N.editorInitError);
             }
         } catch (error) {
             console.error('Error initializing ONLYOFFICE editor:', error);
+            showEuroOfficeApiError(OO_I18N.editorInitError, error && error.message ? error.message : '');
         }
     });
 });

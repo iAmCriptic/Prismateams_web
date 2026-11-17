@@ -2,7 +2,11 @@
 iCal Import/Export Utility Functions
 """
 
-from icalendar import Calendar, Event as ICalEvent
+try:
+    from icalendar import Calendar, Event as ICalEvent
+except ImportError:
+    Calendar = None
+    ICalEvent = None
 from datetime import datetime, timedelta
 from app.models.calendar import CalendarEvent
 import logging

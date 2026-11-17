@@ -81,7 +81,17 @@ Gesendet von <user> (<email>)
         get_max_private_mailboxes,
         is_email_html_design_default,
     )
-    
+    from app.services.company_mail_auth import (
+        is_company_email_auth_enabled,
+        is_company_email_register_only,
+        is_user_offline_login_allowed,
+        get_company_mail_server_config,
+        _setting_str,
+        _setting_bool,
+    )
+    ar_vars = _auto_reply_template_vars(None)
+    company_server_cfg = get_company_mail_server_config()
+
     now = now_in_portal_timezone()
     return render_template(
         'settings/admin_email_module.html',
@@ -93,6 +103,38 @@ Gesendet von <user> (<email>)
         email_multi_enabled=is_email_multi_enabled(),
         email_max_private_mailboxes=get_max_private_mailboxes(),
         email_compose_html_design_default=is_email_html_design_default(),
+        main_auto_reply=ar_vars['auto_reply'],
+        main_auto_reply_start_at=ar_vars['auto_reply_start_at'],
+        main_auto_reply_end_at=ar_vars['auto_reply_end_at'],
+        company_email_auth_enabled=is_company_email_auth_enabled(),
+        company_email_register_only=is_company_email_register_only(),
+        company_email_domains=_setting_str('company_email_domains', ''),
+        company_email_allow_user_offline_login=is_user_offline_login_allowed(),
+        company_mail_imap_server=_setting_str('company_mail_imap_server', ''),
+        company_mail_imap_port=_setting_str('company_mail_imap_port', ''),
+        company_mail_imap_ssl=_setting_bool('company_mail_imap_ssl', True),
+        company_mail_smtp_server=_setting_str('company_mail_smtp_server', ''),
+        company_mail_smtp_port=_setting_str('company_mail_smtp_port', ''),
+        company_mail_smtp_tls=_setting_bool('company_mail_smtp_tls', True),
+        company_mail_resolved_cfg=company_server_cfg,
+    )
+
+
+@settings_bp.route('/admin/email-auto-reply', methods=['POST'])
+@login_required
+def admin_email_auto_reply():
+    """Auto-Antwort für das Hauptpostfach (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    _maybe_save_auto_reply(current_user, None, request.form)
+    db.session.commit()
+    redirect_ep = 'settings.admin_email_module' if request.form.get('return_to') == 'module' else 'settings.admin_email_module'
+    return _settings_save_response(
+        True,
+        translate('settings.mailboxes.auto_reply.flash_saved'),
+        redirect_ep,
     )
 
 
@@ -114,12 +156,14 @@ def admin_email_settings():
         except ValueError:
             storage_days = 0
         
-        # Synchronisationsintervall in Minuten
+        # Synchronisationsintervall in Minuten (Default 30; Admin kann 15–60 wählen)
         sync_interval = request.form.get('sync_interval', '').strip()
         try:
             sync_interval = int(sync_interval) if sync_interval else 30
             if sync_interval < 15:
                 sync_interval = 15
+            elif sync_interval > 60:
+                sync_interval = 60
         except ValueError:
             sync_interval = 30
         
@@ -170,6 +214,26 @@ def admin_email_settings():
                 'True' if html_design_default else 'False',
                 'Standard: HTML-Design beim Verfassen',
             )
+
+        # Unternehmens-E-Mail & Postfach-Kopplung
+        if 'company_email_settings' in request.form or request.form.get('save_company_auth') == '1' or request.form.get('save_multi') == '1':
+            def _upsert_comp_setting(key, value, description):
+                row = SystemSettings.query.filter_by(key=key).first()
+                if row:
+                    row.value = str(value)
+                else:
+                    db.session.add(SystemSettings(key=key, value=str(value), description=description))
+
+            _upsert_comp_setting('company_email_auth_enabled', 'True' if request.form.get('company_email_auth_enabled') == 'on' else 'False', 'Live-Login-Prüfung gegen Firmen-Mailserver')
+            _upsert_comp_setting('company_email_register_only', 'True' if request.form.get('company_email_register_only') == 'on' else 'False', 'Registrierung nur mit Firmen-E-Mails')
+            _upsert_comp_setting('company_email_domains', request.form.get('company_email_domains', '').strip(), 'Erlaubte Unternehmens-Domains für Registrierung')
+            _upsert_comp_setting('company_email_allow_user_offline_login', 'True' if request.form.get('company_email_allow_user_offline_login') == 'on' else 'False', 'Offline-Login regulärer Benutzer bei Serverausfall gestatten')
+            _upsert_comp_setting('company_mail_imap_server', request.form.get('company_mail_imap_server', '').strip(), 'IMAP-Server für Mitarbeiterpostfächer')
+            _upsert_comp_setting('company_mail_imap_port', request.form.get('company_mail_imap_port', '').strip(), 'IMAP-Port für Mitarbeiterpostfächer')
+            _upsert_comp_setting('company_mail_imap_ssl', 'True' if request.form.get('company_mail_imap_ssl') == 'on' else 'False', 'IMAP SSL für Mitarbeiterpostfächer')
+            _upsert_comp_setting('company_mail_smtp_server', request.form.get('company_mail_smtp_server', '').strip(), 'SMTP-Server für Mitarbeiterpostfächer')
+            _upsert_comp_setting('company_mail_smtp_port', request.form.get('company_mail_smtp_port', '').strip(), 'SMTP-Port für Mitarbeiterpostfächer')
+            _upsert_comp_setting('company_mail_smtp_tls', 'True' if request.form.get('company_mail_smtp_tls') == 'on' else 'False', 'SMTP TLS für Mitarbeiterpostfächer')
         
         db.session.commit()
         redirect_ep = 'settings.admin_email_module' if request.form.get('return_to') == 'module' else 'settings.admin_email_settings'
@@ -292,6 +356,47 @@ def admin_email_test_imap():
             'success': False,
             'message': translate('settings.admin.email_module.test.imap_fail', error=str(e)),
         })
+
+
+@settings_bp.route('/admin/email-module/test-company-mail', methods=['POST'])
+@login_required
+def admin_email_test_company_mail():
+    """Prüft die IMAP-Verbindung zum Unternehmens-Mailserver."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
+
+    from app.services.company_mail_auth import get_company_mail_server_config
+    import ssl
+    import imaplib
+
+    cfg = get_company_mail_server_config()
+    server = cfg.get('imap_server')
+    port = cfg.get('imap_port', 993)
+    use_ssl = cfg.get('imap_use_ssl', True)
+
+    if not server:
+        return jsonify({'success': False, 'message': 'Kein Unternehmens-IMAP-Server konfiguriert.'}), 400
+
+    conn = None
+    try:
+        if use_ssl:
+            ctx = ssl.create_default_context()
+            conn = imaplib.IMAP4_SSL(server, port, ssl_context=ctx, timeout=10)
+        else:
+            conn = imaplib.IMAP4(server, port, timeout=10)
+        welcome_banner = getattr(conn, 'welcome', b'').decode('latin1', 'ignore').strip()
+        return jsonify({
+            'success': True,
+            'message': f"Erfolgreich mit Unternehmens-Mailserver {server}:{port} verbunden ({welcome_banner or 'Bereit'}).",
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': f"Verbindungsfehler zu {server}:{port}: {e}"}), 500
+    finally:
+        if conn:
+            try:
+                conn.logout()
+            except Exception:
+                pass
 
 
 def _require_email_multi_or_redirect():
@@ -516,11 +621,48 @@ def _mailbox_wizard_context(**extra):
         'oauth_result': peek_oauth_result(),
         'show_logo': False,
         'show_owner': False,
+        'show_auto_reply': False,
+        'auto_reply': None,
+        'auto_reply_start_at': '',
+        'auto_reply_end_at': '',
         'team_id': None,
         'users': None,
     }
     ctx.update(extra)
     return ctx
+
+
+def _auto_reply_template_vars(mailbox=None):
+    """Template-Variablen für Auto-Reply-Felder (ohne Rechteprüfung)."""
+    from app.blueprints.email.auto_reply import (
+        datetime_for_input,
+        get_auto_reply_config,
+        DEFAULT_SUBJECT,
+    )
+    cfg = get_auto_reply_config(mailbox)
+    return {
+        'auto_reply': cfg,
+        'auto_reply_start_at': datetime_for_input(cfg.start_at) if cfg else '',
+        'auto_reply_end_at': datetime_for_input(cfg.end_at) if cfg else '',
+        'auto_reply_default_subject': DEFAULT_SUBJECT,
+    }
+
+
+def _maybe_save_auto_reply(user, mailbox, form) -> bool:
+    """Speichert Auto-Reply nur wenn berechtigt. True wenn gespeichert/aktualisiert."""
+    from app.utils.multi_mailboxes import can_configure_mailbox_auto_reply
+    from app.blueprints.email.auto_reply import (
+        apply_auto_reply_from_form,
+        get_or_create_auto_reply_config,
+    )
+    if not can_configure_mailbox_auto_reply(user, mailbox):
+        return False
+    # Felder nur anwenden wenn Formular-Abschnitt mitgeschickt wurde
+    if 'auto_reply_body' not in form and 'auto_reply_enabled' not in form and 'auto_reply_subject' not in form:
+        return False
+    cfg = get_or_create_auto_reply_config(mailbox)
+    apply_auto_reply_from_form(cfg, form)
+    return True
 
 
 @settings_bp.route('/mailboxes/oauth/<provider>/start')
@@ -832,7 +974,11 @@ def my_mailbox_new():
 @login_required
 def my_mailbox_edit(mailbox_id):
     from app.models.email import Mailbox
-    from app.utils.multi_mailboxes import is_email_multi_enabled, apply_mailbox_credentials
+    from app.utils.multi_mailboxes import (
+        is_email_multi_enabled,
+        apply_mailbox_credentials,
+        can_configure_mailbox_auto_reply,
+    )
     from app.utils.mailbox_oauth import pop_oauth_result, apply_oauth_tokens_to_mailbox
 
     if not is_email_multi_enabled():
@@ -849,16 +995,20 @@ def my_mailbox_edit(mailbox_id):
         if oauth and (request.form.get('auth_type') == 'oauth' or request.form.get('provider') in ('google', 'microsoft')):
             apply_oauth_tokens_to_mailbox(mb, oauth)
         mb.is_active = request.form.get('is_active') == 'on'
+        _maybe_save_auto_reply(current_user, mb, request.form)
         db.session.commit()
         flash(translate('settings.mailboxes.flash_saved'), 'success')
         return redirect(url_for('settings.my_mailboxes'))
 
+    ar = _auto_reply_template_vars(mb) if can_configure_mailbox_auto_reply(current_user, mb) else {}
     return render_template(
         'settings/mailbox_wizard.html',
         **_mailbox_wizard_context(
             mailbox=mb,
             mailbox_type='private',
             cancel_url=url_for('settings.my_mailboxes'),
+            show_auto_reply=bool(ar),
+            **ar,
         ),
     )
 
@@ -886,7 +1036,7 @@ def team_mailboxes(team_id):
     from app.utils.team_module_settings import is_team_section_enabled
     if not is_team_section_enabled(team.id, 'email'):
         flash(translate('settings.team_settings.flash_email_disabled'), 'warning')
-        return redirect(url_for('settings.team_settings', team_id=team.id))
+        return redirect(url_for('settings.admin_team_detail', team_id=team.id))
     if not is_email_multi_enabled():
         flash(translate('settings.mailboxes.flash_multi_disabled'), 'warning')
         return redirect(url_for('settings.admin_team_detail', team_id=team.id))
@@ -973,6 +1123,7 @@ def team_mailbox_edit(team_id, mailbox_id):
     from app.models.email import Mailbox
     from app.utils.multi_mailboxes import (
         can_manage_team,
+        can_configure_mailbox_auto_reply,
         is_email_multi_enabled,
         apply_mailbox_credentials,
     )
@@ -987,11 +1138,15 @@ def team_mailbox_edit(team_id, mailbox_id):
         return redirect(url_for('settings.admin_team_detail', team_id=team.id))
 
     mb = Mailbox.query.filter_by(id=mailbox_id, team_id=team.id, mailbox_type='team').first_or_404()
+    show_ar = can_configure_mailbox_auto_reply(current_user, mb)
+    ar = _auto_reply_template_vars(mb) if show_ar else {}
     wizard_kw = dict(
         mailbox_type='team',
         team_id=team.id,
         cancel_url=url_for('settings.team_mailboxes', team_id=team.id),
         show_logo=True,
+        show_auto_reply=show_ar,
+        **ar,
     )
 
     if request.method == 'POST':
@@ -1007,6 +1162,7 @@ def team_mailbox_edit(team_id, mailbox_id):
                 'settings/mailbox_wizard.html',
                 **_mailbox_wizard_context(mailbox=mb, **wizard_kw),
             )
+        _maybe_save_auto_reply(current_user, mb, request.form)
         db.session.commit()
         flash(translate('settings.mailboxes.flash_saved'), 'success')
         return redirect(url_for('settings.team_mailboxes', team_id=team.id))

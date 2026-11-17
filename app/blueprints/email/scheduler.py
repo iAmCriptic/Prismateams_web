@@ -52,23 +52,46 @@ from app.blueprints.email._bp import EMAIL_LIST_PER_PAGE, email_bp, logger
 
 from app.blueprints.email.sync import sync_all_configured_mailboxes
 
+DEFAULT_EMAIL_SYNC_INTERVAL_MINUTES = 30
+MIN_EMAIL_SYNC_INTERVAL_MINUTES = 15
+MAX_EMAIL_SYNC_INTERVAL_MINUTES = 60
+
 sync_thread = None
 _sync_started = False
 _sync_lock = threading.Lock()
 _email_sync_leader = None
 _leader_heartbeat_stop = threading.Event()
 
+
+def _email_sync_interval_seconds():
+    """Admin-Einstellung email_sync_interval_minutes (Default 30, Clamp 15–60)."""
+    try:
+        sync_setting = SystemSettings.query.filter_by(key='email_sync_interval_minutes').first()
+        if sync_setting and sync_setting.value:
+            minutes = int(sync_setting.value)
+            minutes = max(
+                MIN_EMAIL_SYNC_INTERVAL_MINUTES,
+                min(MAX_EMAIL_SYNC_INTERVAL_MINUTES, minutes),
+            )
+            return minutes * 60
+    except Exception as exc:
+        logger.warning("Fehler beim Lesen des Synchronisationsintervalls: %s", exc)
+    return DEFAULT_EMAIL_SYNC_INTERVAL_MINUTES * 60
+
+
 def email_sync_scheduler(app):
-    """Background thread for automatic email synchronization every 15 minutes."""
+    """Background thread: IMAP-Sync im Admin-Intervall (Default 30 Min)."""
     logger.info("E-Mail-Sync-Scheduler Thread gestartet, warte 30 Sekunden vor erster Synchronisation...")
-    # Warte 30 Sekunden nach App-Start, bevor die erste Synchronisation startet
     time.sleep(30)
-    
+
     while True:
         lock_acquired = False
+        wait_seconds = DEFAULT_EMAIL_SYNC_INTERVAL_MINUTES * 60
         try:
             with app.app_context():
                 from app.utils.common import is_module_enabled
+
+                wait_seconds = _email_sync_interval_seconds()
 
                 # PERF-01: Admin hat Modul abgeschaltet → keine IMAP-Arbeit
                 if not is_module_enabled('module_email'):
@@ -92,17 +115,12 @@ def email_sync_scheduler(app):
             logger.error(f"E-Mail-Sync-Scheduler Fehler: {e}", exc_info=True)
         finally:
             if lock_acquired:
-                logger.debug("E-Mail-Synchronisation abgeschlossen, warte 15 Minuten bis zur nächsten...")
-        
-        # Nach jeder Synchronisation 15 Minuten warten
-        time.sleep(900)
+                logger.debug(
+                    "E-Mail-Synchronisation abgeschlossen, warte %s Minuten bis zur nächsten...",
+                    max(1, int(wait_seconds // 60)),
+                )
 
-
-sync_thread = None
-_sync_started = False
-_sync_lock = threading.Lock()
-_email_sync_leader = None
-_leader_heartbeat_stop = threading.Event()
+        time.sleep(wait_seconds)
 
 
 def _leader_heartbeat_loop():
@@ -171,4 +189,6 @@ def start_email_sync(app):
         _sync_started = True
         sync_thread = threading.Thread(target=email_sync_scheduler, args=(app,), daemon=True, name="email-sync-scheduler")
         sync_thread.start()
-        logger.info("E-Mail Auto-Sync gestartet (Leader, alle 15 Minuten)")
+        with app.app_context():
+            interval_min = max(1, int(_email_sync_interval_seconds() // 60))
+        logger.info("E-Mail Auto-Sync gestartet (Leader, Intervall %s Minuten)", interval_min)

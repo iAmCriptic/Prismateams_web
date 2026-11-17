@@ -847,25 +847,28 @@ def hash_2fa_recovery_code(code: str) -> str:
 
 
 def send_2fa_recovery_email(user):
-    """Sendet einen einmaligen 2FA-Wiederherstellungscode (5 Minuten gültig)."""
+    """Sendet einen einmaligen 2FA-Wiederherstellungscode (5 Minuten gültig).
+
+    Reihenfolge: Mail-Config prüfen → Code erzeugen → E-Mail senden → erst bei
+    Erfolg Hash speichern. So funktioniert Recovery nur, wenn die Mail wirklich rausgeht.
+    """
     if not is_2fa_email_recovery_enabled():
         logging.warning('2FA email recovery disabled; skip send for user_id=%s', getattr(user, 'id', None))
         return False
+    if not _mail_configured():
+        logging.warning(
+            'E-Mail-Konfiguration unvollständig. 2FA-Recovery-E-Mail an %s nicht gesendet.',
+            mask_email(getattr(user, 'email', None)),
+        )
+        return False
+    if not (getattr(user, 'email', None) or '').strip():
+        logging.warning('2FA recovery: user_id=%s hat keine E-Mail-Adresse', getattr(user, 'id', None))
+        return False
+
     try:
-        recovery_code = generate_2fa_recovery_code()
-        expires_at = portal_now_naive() + TWO_FACTOR_RECOVERY_TTL
-        user.totp_recovery_code = hash_2fa_recovery_code(recovery_code)
-        user.totp_recovery_code_expires = expires_at
         from app import db
-        db.session.commit()
 
-        if not _mail_configured():
-            logging.warning(
-                'E-Mail-Konfiguration unvollständig. 2FA-Recovery-E-Mail an %s nicht gesendet.',
-                user.email,
-            )
-            return False
-
+        recovery_code = generate_2fa_recovery_code()
         portal_name = _portal_name()
         plain_text = (
             f'2FA-Wiederherstellungscode: {recovery_code}\n\n'
@@ -884,10 +887,19 @@ def send_2fa_recovery_email(user):
         if not ok:
             logging.error('2FA recovery email send returned False for %s', mask_email(user.email))
             return False
+
+        user.totp_recovery_code = hash_2fa_recovery_code(recovery_code)
+        user.totp_recovery_code_expires = portal_now_naive() + TWO_FACTOR_RECOVERY_TTL
+        db.session.commit()
         logging.info('2FA recovery email sent to %s', mask_email(user.email))
         return True
     except Exception as e:
         logging.error('Failed to send 2FA recovery email to %s: %s', mask_email(user.email), e)
+        try:
+            from app import db
+            db.session.rollback()
+        except Exception:
+            pass
         return False
 
 

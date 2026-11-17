@@ -53,8 +53,14 @@ def get_color_gradient():
 def _google_register_template_kwargs(**extra):
     """Auth-Template-Kontext inkl. optionalem Google-Registrierungs-Prefill."""
     from app.utils.google_login import get_google_register_prefill
+    from app.services.company_mail_auth import (
+        is_company_email_register_only,
+        get_configured_company_domains,
+    )
     kwargs = _auth_template_kwargs(**extra)
     kwargs['google_prefill'] = get_google_register_prefill()
+    kwargs['company_email_register_only'] = is_company_email_register_only()
+    kwargs['company_email_domains'] = get_configured_company_domains()
     return kwargs
 
 
@@ -67,8 +73,12 @@ def _flash_existing_registration(existing_user):
     return render_template('auth/register.html', **_google_register_template_kwargs())
 
 
-def _finish_registration(new_user, email_sent, is_whitelisted, *, google_verified=False):
+def _finish_registration(new_user, email_sent, is_whitelisted, *, google_verified=False, mailbox_verified=False):
     """Erfolgsmeldung + Redirect nach erfolgreicher Registrierung."""
+    if mailbox_verified:
+        flash(translate('auth.flash.register_success_company_mailbox'), 'success')
+        return _finalize_portal_login(new_user, remember=False)
+
     if is_whitelisted:
         if google_verified:
             flash(translate('auth.flash.register_success_google_whitelisted'), 'success')
@@ -240,7 +250,7 @@ def index():
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
-@limiter.limit("10 per 15 minutes")
+@limiter.limit("10 per 15 minutes", methods=["POST"])
 def register():
     """User registration."""
     # Prüfe ob Setup nötig ist
@@ -325,8 +335,38 @@ def register():
                 flash(translate('auth.google.already_registered'), 'info')
                 return redirect(url_for('auth.login'))
         
+        # Check company email restriction & mailbox validation
+        from app.services.company_mail_auth import (
+            is_company_email,
+            is_company_email_register_only,
+            get_configured_company_domains,
+            verify_mailbox_credentials,
+            provision_user_company_mailbox,
+        )
+
+        is_comp_mail = is_company_email(email)
+        if is_company_email_register_only() and not is_comp_mail:
+            domains_str = ", ".join(get_configured_company_domains())
+            flash(translate('auth.flash.only_company_email_allowed', domains=domains_str), 'danger')
+            return render_template('auth/register.html', **_google_register_template_kwargs())
+
+        mailbox_verified = False
+        if is_comp_mail:
+            mail_ok, err_code, _ = verify_mailbox_credentials(email, password)
+            if not mail_ok:
+                if err_code == 'AUTH_FAILED':
+                    flash(translate('auth.flash.mailbox_login_failed'), 'danger')
+                elif err_code == 'CONNECTION_ERROR':
+                    flash(translate('auth.flash.mailbox_server_unreachable'), 'danger')
+                elif err_code == 'CONFIG_MISSING':
+                    flash(translate('auth.flash.mailbox_config_missing'), 'danger')
+                else:
+                    flash(translate('auth.flash.mailbox_verification_failed'), 'danger')
+                return render_template('auth/register.html', **_google_register_template_kwargs())
+            mailbox_verified = True
+
         # Check if email is whitelisted
-        is_whitelisted = WhitelistEntry.is_email_whitelisted(email)
+        is_whitelisted = WhitelistEntry.is_email_whitelisted(email) or mailbox_verified
         google_verified = bool(google_sub)
         
         # Get default accent color from system settings
@@ -334,17 +374,17 @@ def register():
         default_accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
         default_accent_color = default_accent_color_setting.value if default_accent_color_setting else '#0d6efd'
         
-        # Create new user (active if whitelisted, inactive otherwise)
+        # Create new user (active if whitelisted/mailbox_verified, inactive otherwise)
         new_user = User(
             email=email,
             first_name=first_name,
             last_name=last_name,
             phone=phone,
-            is_active=is_whitelisted,
+            is_active=is_whitelisted or mailbox_verified,
             is_admin=False,
             dark_mode=dark_mode,
             accent_color=default_accent_color,
-            is_email_confirmed=google_verified,
+            is_email_confirmed=google_verified or mailbox_verified,
         )
         if google_verified:
             new_user.google_sub = google_sub
@@ -372,6 +412,10 @@ def register():
                 can_send=True
             )
             db.session.add(email_perm)
+
+            if mailbox_verified:
+                provision_user_company_mailbox(new_user, password)
+
             db.session.commit()
         except IntegrityError:
             # Doppel-Submit / Race: User wurde parallel angelegt
@@ -392,8 +436,8 @@ def register():
         try:
             # Bestätigungscode erst nach Freischaltung:
             # Whitelist = sofort aktiv → Code jetzt; sonst erst bei Admin-Freischaltung.
-            # Google-verifiziert: kein Bestätigungscode.
-            if is_whitelisted and not google_verified:
+            # Google- oder Postfach-verifiziert: kein Bestätigungscode erforderlich.
+            if is_whitelisted and not google_verified and not mailbox_verified:
                 from app.utils.email_sender import send_confirmation_email
                 email_sent = send_confirmation_email(new_user)
 
@@ -418,16 +462,220 @@ def register():
             logging.exception('Post-create steps failed during registration for %s: %s', mask_email(email), e)
         
         return _finish_registration(
-            new_user, email_sent, is_whitelisted, google_verified=google_verified
+            new_user, email_sent, is_whitelisted, google_verified=google_verified, mailbox_verified=mailbox_verified
         )
     
     return render_template('auth/register.html', **_google_register_template_kwargs())
 
 
+def _resolve_invite_code(raw_code):
+    """Return (invite, team, error_key) for a registration invite code."""
+    from app.models.team import TeamInviteCode, Team
+
+    code = (raw_code or '').strip()
+    if not code:
+        return None, None, 'auth.coderegister.flash_code_required'
+    invite = TeamInviteCode.query.filter_by(code=code).first()
+    if not invite or not invite.is_valid():
+        return None, None, 'auth.coderegister.flash_code_invalid'
+    team = Team.query.get(invite.team_id)
+    if not team:
+        return None, None, 'auth.coderegister.flash_code_invalid'
+    return invite, team, None
+
+
+@auth_bp.route('/coderegister', methods=['GET', 'POST'])
+@auth_bp.route('/coderegister/<code>', methods=['GET', 'POST'])
+@limiter.limit("10 per 15 minutes", methods=["POST"])
+def coderegister(code=None):
+    """Team invite registration — not linked from login/register; optionally indexed."""
+    from app.blueprints.setup import is_setup_needed
+    from app.models.team import TeamMember
+
+    if is_setup_needed():
+        return redirect(url_for('setup.setup'))
+
+    if current_user.is_authenticated:
+        return redirect(url_for('dashboard.index'))
+
+    prefill_code = code or request.args.get('code') or ''
+    invite_preview = None
+    team_preview = None
+    if prefill_code:
+        invite_preview, team_preview, _ = _resolve_invite_code(prefill_code)
+
+    def _tpl(**extra):
+        ctx = _auth_template_kwargs(
+            invite_code=prefill_code,
+            invite_team=team_preview,
+            invite_valid=bool(invite_preview and team_preview),
+            invite_is_portal=bool(invite_preview and invite_preview.is_portal_user),
+        )
+        ctx.update(extra)
+        return ctx
+
+    if request.method == 'POST':
+        bot_ok, _ = validate_bot_protection(request, 'register')
+        if not bot_ok:
+            flash(translate('auth.flash.bot_protection_failed'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl())
+
+        form_code = request.form.get('invite_code', '').strip() or prefill_code
+        invite, team, err = _resolve_invite_code(form_code)
+        if err:
+            flash(translate(err), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code))
+
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+        password_confirm = request.form.get('password_confirm', '')
+        first_name = request.form.get('first_name', '').strip()
+        last_name = request.form.get('last_name', '').strip()
+        phone = request.form.get('phone', '').strip()
+        dark_mode = request.form.get('dark_mode') == 'on'
+        from app.utils.profile_pictures import (
+            get_uploaded_profile_picture,
+            save_uploaded_profile_picture,
+            validate_profile_picture_file,
+        )
+        profile_file = get_uploaded_profile_picture(request.files)
+
+        if not all([email, password, first_name, last_name]):
+            flash(translate('auth.flash.fill_all_fields'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code, invite_team=team, invite_valid=True))
+
+        if password != password_confirm:
+            flash(translate('auth.flash.passwords_dont_match'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code, invite_team=team, invite_valid=True))
+
+        is_valid, _ = validate_password(password)
+        if not is_valid:
+            flash(translate('auth.flash.password_requirements'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code, invite_team=team, invite_valid=True))
+
+        picture_error = validate_profile_picture_file(profile_file)
+        if picture_error == 'type':
+            flash(translate('auth.flash.picture_invalid_type'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code, invite_team=team, invite_valid=True))
+        if picture_error == 'size':
+            flash(translate('auth.flash.picture_too_large'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code, invite_team=team, invite_valid=True))
+
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            return _flash_existing_registration(existing_user)
+
+        default_accent_color_setting = SystemSettings.query.filter_by(key='default_accent_color').first()
+        default_accent_color = default_accent_color_setting.value if default_accent_color_setting else '#0d6efd'
+
+        is_portal_user = bool(invite and invite.is_portal_user)
+        new_user = User(
+            email=email,
+            first_name=first_name,
+            last_name=last_name,
+            phone=phone,
+            is_active=True,
+            is_admin=False,
+            dark_mode=dark_mode,
+            accent_color=default_accent_color,
+            is_email_confirmed=False,
+            can_access_public=is_portal_user,
+            can_access_private=is_portal_user,
+            can_access_team=True,
+        )
+        new_user.set_password(password)
+
+        email_sent = False
+        try:
+            db.session.add(new_user)
+            db.session.flush()
+
+            if profile_file:
+                save_uploaded_profile_picture(new_user, profile_file)
+
+            from app.utils.access_control import apply_default_roles_to_user
+            apply_default_roles_to_user(new_user)
+
+            if not is_portal_user:
+                new_user.can_access_public = False
+                new_user.can_access_private = False
+                new_user.can_access_team = True
+
+            db.session.add(EmailPermission(user_id=new_user.id, can_read=True, can_send=True))
+            db.session.add(TeamMember(team_id=team.id, user_id=new_user.id))
+
+            invite.uses_count = (invite.uses_count or 0) + 1
+            if invite.max_uses is not None and invite.uses_count >= invite.max_uses:
+                invite.is_active = False
+
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            existing_user = User.query.filter_by(email=email).first()
+            if existing_user:
+                return _flash_existing_registration(existing_user)
+            flash(translate('auth.flash.email_already_registered'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code, invite_team=team, invite_valid=True))
+        except Exception as e:
+            db.session.rollback()
+            logging.exception('User create failed during code registration for %s: %s', mask_email(email), e)
+            flash(translate('auth.flash.fill_all_fields'), 'danger')
+            return render_template('auth/coderegister.html', **_tpl(invite_code=form_code, invite_team=team, invite_valid=True))
+
+        try:
+            from app.utils.email_sender import send_confirmation_email
+            email_sent = send_confirmation_email(new_user)
+
+            if new_user.is_active and not new_user.is_guest:
+                main_chat = Chat.query.filter_by(is_main_chat=True).first()
+                if main_chat:
+                    existing_member = ChatMember.query.filter_by(
+                        chat_id=main_chat.id,
+                        user_id=new_user.id
+                    ).first()
+                    if not existing_member:
+                        db.session.add(ChatMember(chat_id=main_chat.id, user_id=new_user.id))
+                        db.session.commit()
+            from app.utils.team_chat import ensure_team_chat
+            ensure_team_chat(team, created_by=new_user.id)
+            db.session.commit()
+        except Exception as e:
+            logging.exception('Post-create steps failed during code registration for %s: %s', mask_email(email), e)
+
+        return _finish_registration(
+            new_user, email_sent, True, google_verified=False
+        )
+
+    return render_template('auth/coderegister.html', **_tpl())
+
+
+@auth_bp.route('/desktop-login', methods=['GET'])
+@auth_bp.route('/auth/desktop-login', methods=['GET'])
+def desktop_login():
+    """Desktop app SSO entry: consumes an API token and logs the web session in."""
+    raw_token = request.args.get('token', '').strip()
+    next_page = _sanitize_next_page(request.args.get('next')) or url_for('dashboard.index')
+
+    if not raw_token:
+        return redirect(url_for('auth.login'))
+
+    from app.models.api_token import ApiToken
+    token_row = ApiToken.find_by_raw_token(raw_token)
+    if not token_row or token_row.is_expired():
+        return redirect(url_for('auth.login'))
+
+    user = token_row.user
+    if not user or not user.is_active:
+        return redirect(url_for('auth.login'))
+
+    token_row.mark_as_used()
+    return _finalize_portal_login(user, remember=True, next_page=next_page)
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
-@limiter.limit("5 per 15 minutes")
+@limiter.limit("5 per 15 minutes", methods=["POST"])
 def login():
-    """User login mit Rate Limiting."""
+    """User login mit Rate Limiting (nur POST — GET-/Redirect-Views zählen nicht)."""
     # Prüfe ob Setup nötig ist (ohne bestehenden Admin → Setup; mit Admin → Login erlauben)
     from app.blueprints.setup import is_setup_needed
     from app.models.user import User
@@ -521,16 +769,63 @@ def login():
             return render_template('auth/login.html', **_auth_template_kwargs())
         
         # Prüfe Credentials
-        if not user or not user.check_password(password):
-            # Erhöhe fehlgeschlagene Versuche
-            if user:
-                user.failed_login_attempts += 1
-                if user.failed_login_attempts >= 5:
-                    user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
-                    user.failed_login_attempts = 0
-                db.session.commit()
-            flash(translate('auth.flash.invalid_credentials'), 'danger')
-            return render_template('auth/login.html', **_auth_template_kwargs())
+        from app.services.company_mail_auth import (
+            is_company_email,
+            is_company_email_auth_enabled,
+            is_user_offline_login_allowed,
+            verify_mailbox_credentials,
+            sync_credentials_if_needed,
+        )
+
+        is_comp = is_company_email_auth_enabled() and is_company_email(email)
+
+        if is_comp:
+            mail_ok, err_code, _ = verify_mailbox_credentials(email, password)
+            if mail_ok:
+                if not user:
+                    flash(translate('auth.flash.invalid_credentials'), 'danger')
+                    return render_template('auth/login.html', **_auth_template_kwargs())
+                # Synchronisiere Kennwortänderungen (Hash und verschlüsseltes Mailbox-Passwort)
+                sync_credentials_if_needed(user, password)
+            else:
+                if err_code == 'CONNECTION_ERROR':
+                    # Mailserver nicht erreichbar: Admin darf immer rein, normale User je nach Toggle
+                    allow_offline = user and (user.is_admin or is_user_offline_login_allowed())
+                    if allow_offline and user and user.check_password(password):
+                        if user.is_admin:
+                            flash(translate('auth.flash.admin_mailserver_down_login_notice'), 'warning')
+                        else:
+                            flash(translate('auth.flash.user_mailserver_down_login_notice'), 'warning')
+                    else:
+                        if user:
+                            user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+                            if user.failed_login_attempts >= 5:
+                                user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
+                                user.failed_login_attempts = 0
+                            db.session.commit()
+                        flash(translate('auth.flash.mailserver_unreachable_login_blocked'), 'danger')
+                        return render_template('auth/login.html', **_auth_template_kwargs())
+                else:
+                    # AUTH_FAILED / Mailbox gesperrt / Kennwort ungültig
+                    if user:
+                        user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+                        if user.failed_login_attempts >= 5:
+                            user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
+                            user.failed_login_attempts = 0
+                        db.session.commit()
+                    flash(translate('auth.flash.company_mailbox_blocked_or_invalid'), 'danger')
+                    return render_template('auth/login.html', **_auth_template_kwargs())
+        else:
+            if not user or not user.check_password(password):
+                # Erhöhe fehlgeschlagene Versuche
+                if user:
+                    user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+                    if user.failed_login_attempts >= 5:
+                        user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
+                        user.failed_login_attempts = 0
+                    db.session.commit()
+                flash(translate('auth.flash.invalid_credentials'), 'danger')
+                return render_template('auth/login.html', **_auth_template_kwargs())
         
         # Reset fehlgeschlagene Versuche bei erfolgreichem Passwort-Check
         user.failed_login_attempts = 0
@@ -842,7 +1137,7 @@ def _google_callback_auth(code, state, err):
 
 
 @auth_bp.route('/login/2fa', methods=['GET', 'POST'])
-@limiter.limit("10 per 15 minutes")
+@limiter.limit("10 per 15 minutes", methods=["POST"])
 def login_2fa():
     """Zweiter Login-Schritt für 2FA."""
     if current_user.is_authenticated:
@@ -882,7 +1177,10 @@ def login_2fa():
                 **_login_2fa_template_context(user, has_passkeys),
             )
 
-        verified = verify_totp(user.totp_secret, totp_code)
+        # TOTP nur bei 6 Ziffern; sonst E-Mail-Recovery-Code (10 Zeichen)
+        verified = False
+        if totp_code.isdigit() and len(totp_code) == 6:
+            verified = verify_totp(user.totp_secret, totp_code)
         if not verified:
             from app.utils.email_sender import (
                 is_2fa_email_recovery_enabled,
@@ -1259,7 +1557,7 @@ def change_password():
 
 
 @auth_bp.route('/forgot-password', methods=['GET', 'POST'])
-@limiter.limit("5 per 15 minutes")
+@limiter.limit("5 per 15 minutes", methods=["POST"])
 def forgot_password():
     """Passwort vergessen - E-Mail eingeben."""
     # Prüfe ob Setup nötig ist
@@ -1290,7 +1588,7 @@ def forgot_password():
 
 
 @auth_bp.route('/reset-password', methods=['GET', 'POST'])
-@limiter.limit("10 per 15 minutes")
+@limiter.limit("10 per 15 minutes", methods=["POST"])
 def reset_password():
     """Passwort zurücksetzen mit Token."""
     # Prüfe ob Setup nötig ist

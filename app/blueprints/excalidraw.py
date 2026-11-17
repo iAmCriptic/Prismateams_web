@@ -763,7 +763,7 @@ def rename(drawing_id):
 def delete(drawing_id):
     drawing = ExcalidrawDrawing.query.get_or_404(drawing_id)
     is_owner = drawing.created_by == current_user.id
-    if not (is_owner or getattr(current_user, 'is_admin', False) or getattr(current_user, 'has_full_access', False)):
+    if not (is_owner or getattr(current_user, 'is_admin', False)):
         return _denied()
 
     name = drawing.name

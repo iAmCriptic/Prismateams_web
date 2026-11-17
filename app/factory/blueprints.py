@@ -35,6 +35,8 @@ def register_blueprints(app):
     from app.blueprints.surveys import surveys_bp
     from app.blueprints.protocols import protocols_bp
     from app.blueprints.meetings import meetings_bp
+    from app.blueprints.duty_roster import duty_roster_bp
+    from app.blueprints.booking_personal import booking_personal_bp
     
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -50,7 +52,10 @@ def register_blueprints(app):
     app.register_blueprint(api_bp, url_prefix='/api')
     if app.config.get('ENABLE_ERROR_TEST_ROUTES'):
         app.register_blueprint(errors_bp, url_prefix='/test')
-        app.logger.info('Error-Testrouten aktiv unter /test/… (ENABLE_ERROR_TEST_ROUTES)')
+        app.logger.info(
+            'Error-Testrouten aktiv: /test/400|/403|/404|/429|/500|/exception '
+            '(ENABLE_ERROR_TEST_ROUTES)'
+        )
     app.register_blueprint(inventory_bp, url_prefix='/inventory')
     app.register_blueprint(inventory_vnext_bp)
     app.register_blueprint(wiki_bp)
@@ -68,6 +73,8 @@ def register_blueprints(app):
     app.register_blueprint(surveys_bp)
     app.register_blueprint(protocols_bp)
     app.register_blueprint(meetings_bp)
+    app.register_blueprint(duty_roster_bp)
+    app.register_blueprint(booking_personal_bp, url_prefix='/booking-personal')
 
     # Server-to-server callbacks ohne Browser-CSRF-Token.
     # Euro-Office: CSRF-Exempt nötig; kompensierendes Control ist JWT
@@ -82,6 +89,8 @@ def register_blueprints(app):
         'inventory.api_mobile_borrow',
         'inventory.api_mobile_return',
         'inventory.api_mobile_scan',
+        # Booking öffentliches Künstler-Formular (Token-basiert)
+        'booking_personal.public_form_submit',
     ):
         view = app.view_functions.get(endpoint)
         if view is not None:

@@ -31,8 +31,10 @@ def current_release_marker(app):
 
 def should_run_migrations_after_update(app):
     """
-    Auto-Migration nur nach Update:
-    Läuft, wenn der gespeicherte Release-Marker vom aktuellen Marker abweicht.
+    True nach Release-/Build-Wechsel (oder wenn noch kein Marker gesetzt ist).
+
+    Steuert schwerere Startup-Nacharbeiten (z. B. Assessment-Seeds).
+    Pending migrate_*.py laufen unabhängig davon immer über auto_migrate.
     """
     try:
         from app.models.settings import SystemSettings
@@ -64,6 +66,7 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
                 from app.models.notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog
                 from app.models.inventory import Product, BorrowTransaction, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem, ProductLot, StockMovement, ProductStatusHistory, InventoryItemLock, Checkout, CheckoutItem
                 from app.models.api_token import ApiToken
+                from app.models.app_password import AppPassword
                 from app.models.passkey import UserPasskey
                 from app.models.wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
                 from app.models.comment import Comment, CommentMention
@@ -107,11 +110,12 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
                     log_startup(f"[WARNUNG] Schema unvollständig, fehlend: {', '.join(missing_tables)}")
 
                 auto_migrate_after_update, release_marker = should_run_migrations_after_update(app)
+                # Assessment-/Seed-Nacharbeiten nur nach Release-Wechsel oder explizit per Env.
                 should_run_startup_migrations = run_startup_migrations or auto_migrate_after_update
 
-                # Migrationen laufen automatisch nach Update (Release-Marker-Wechsel)
-                # oder explizit via PRISMATEAMS_STARTUP_MIGRATIONS=true.
-                if should_run_startup_migrations and not os.getenv("PRISMATEAMS_RUNNING_MIGRATIONS"):
+                # Pending migrate_*.py immer anwenden (schema_migrations verhindert Doppel-Läufe).
+                # Früher nur bei Release-Marker-Wechsel → neue Skripte ohne Version-Bump wurden übersprungen.
+                if not os.getenv("PRISMATEAMS_RUNNING_MIGRATIONS"):
                     try:
                         from app.utils.auto_migrate import run_pending_migrations
                         run_pending_migrations(db)
@@ -122,8 +126,6 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
                         ensure_all_tables(db)
                     except Exception as schema_again_err:
                         log_startup(f"[WARNUNG] Schema-Nachprüfung fehlgeschlagen: {schema_again_err}")
-                else:
-                    log_startup("[INFO] Startup-Migrationen übersprungen (kein Update erkannt)")
                 
                 try:
                     from sqlalchemy import inspect
@@ -166,6 +168,26 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
                                 ))
                             log_startup("[OK] resource_acl.grantee_team_id hinzugefügt")
 
+                    if 'kanban_boards' in inspector.get_table_names():
+                        board_cols = {col['name'] for col in inspector.get_columns('kanban_boards')}
+                        if 'public_id' not in board_cols:
+                            log_startup("[INFO] Ergänze kanban_boards.public_id ...")
+                            with db.engine.begin() as connection:
+                                connection.execute(text("ALTER TABLE kanban_boards ADD COLUMN public_id VARCHAR(36) NULL"))
+                            log_startup("[OK] kanban_boards.public_id hinzugefügt")
+                        try:
+                            from app.models.kanban import KanbanBoard
+                            import secrets
+                            unseeded = KanbanBoard.query.filter(
+                                db.or_(KanbanBoard.public_id.is_(None), KanbanBoard.public_id == '')
+                            ).all()
+                            if unseeded:
+                                for b in unseeded:
+                                    b.public_id = secrets.token_hex(8)
+                                db.session.commit()
+                        except Exception:
+                            pass
+
                     if 'kanban_cards' in inspector.get_table_names():
                         kanban_cols = {col['name'] for col in inspector.get_columns('kanban_cards')}
                         if 'poll_text' not in kanban_cols:
@@ -204,6 +226,15 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
                             pass
 
                     table_names = inspector.get_table_names()
+                    if 'kanban_activity_reads' not in table_names:
+                        try:
+                            from app.models.kanban import KanbanActivityRead
+                            log_startup("[INFO] Erstelle kanban_activity_reads ...")
+                            KanbanActivityRead.__table__.create(db.engine, checkfirst=True)
+                            log_startup("[OK] kanban_activity_reads erstellt")
+                        except Exception as e:
+                            log_startup(f"[WARN] kanban_activity_reads konnte nicht erstellt werden: {e}")
+
                     if 'credential_folders' not in table_names:
                         log_startup("[INFO] Erstelle credential_folders ...")
                         CredentialFolder.__table__.create(db.engine, checkfirst=True)
@@ -315,6 +346,13 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
                             log_startup("[OK] Security-Spalten ergänzt")
                         if 'user_sessions' not in inspector.get_table_names():
                             log_startup("[INFO] user_sessions fehlt – wird von Auto-Migration (2.4.3) angelegt")
+
+                        # Content Space Access & Berechtigungs-Spalten (can_access_team etc.)
+                        try:
+                            from app.utils.schema_init import ensure_critical_columns
+                            ensure_critical_columns(db)
+                        except Exception as crit_err:
+                            log_startup(f"[WARNUNG] ensure_critical_columns fehlgeschlagen: {crit_err}")
 
                     # Kalender-Events: event_color ergänzen
                     if 'calendar_events' in inspector.get_table_names():
@@ -816,6 +854,8 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
 
                 try:
                     from app.models.settings import SystemSettings as _Sys
+                    if not _Sys.query.filter_by(key='calendar_public_enabled').first():
+                        db.session.add(_Sys(key='calendar_public_enabled', value='True', description='Public-Kalender aktiv'))
                     if not _Sys.query.filter_by(key='calendar_personal_enabled').first():
                         multi = _Sys.query.filter_by(key='calendar_multi_enabled').first()
                         val = 'True' if multi and str(multi.value).lower() == 'true' else 'False'

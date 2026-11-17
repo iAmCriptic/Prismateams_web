@@ -1,5 +1,7 @@
 {% extends "base.html" %}
 
+{% block extra_css %}{{ super() }}{% endblock %}
+
 {% block navbar_search %}
 {% if not (request.args.get('embed') or request.form.get('embed')) %}
 {% from 'settings/_sidebar.html' import settings_search with context %}
@@ -112,6 +114,8 @@ document.querySelectorAll('form').forEach(function (form) {
 </script>
 {% endif %}
 
+{% block settings_modals %}{% endblock %}
+
 <script>
 window.SETTINGS_UI_I18N = {
   saving: {{ _('settings.autosave.saving')|tojson }},
@@ -126,5 +130,6 @@ window.SETTINGS_SEARCH_CATALOG = {{ settings_search_catalog_json | safe }};
 window.SETTINGS_SEARCH_CATALOG = [];
 {% endif %}
 </script>
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/settings-ui.js') }}"></script>
 {% endblock %}

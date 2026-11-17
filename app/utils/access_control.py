@@ -63,7 +63,12 @@ def load_default_module_roles():
 
     setting = SystemSettings.query.filter_by(key='default_module_roles').first()
     if not setting or not setting.value:
-        return {'full_access': True}
+        return {
+            'full_access': True,
+            'can_access_public': True,
+            'can_access_team': True,
+            'can_access_private': True,
+        }
 
     try:
         data = json.loads(setting.value)
@@ -71,11 +76,27 @@ def load_default_module_roles():
         if isinstance(data, str):
             data = json.loads(data)
         if not isinstance(data, dict):
-            return {'full_access': True}
+            return {
+                'full_access': True,
+                'can_access_public': True,
+                'can_access_team': True,
+                'can_access_private': True,
+            }
+        if 'can_access_public' not in data:
+            data['can_access_public'] = True
+        if 'can_access_team' not in data:
+            data['can_access_team'] = True
+        if 'can_access_private' not in data:
+            data['can_access_private'] = True
         return data
     except (TypeError, ValueError, json.JSONDecodeError) as exc:
         logger.warning('default_module_roles ungültig, Fallback Vollzugriff: %s', exc)
-        return {'full_access': True}
+        return {
+            'full_access': True,
+            'can_access_public': True,
+            'can_access_team': True,
+            'can_access_private': True,
+        }
 
 
 def apply_default_roles_to_user(user):
@@ -87,6 +108,10 @@ def apply_default_roles_to_user(user):
         return
 
     roles = load_default_module_roles()
+
+    user.can_access_public = _roles_flag_enabled(roles.get('can_access_public', True))
+    user.can_access_team = _roles_flag_enabled(roles.get('can_access_team', True))
+    user.can_access_private = _roles_flag_enabled(roles.get('can_access_private', True))
 
     if _roles_flag_enabled(roles.get('full_access', True)):
         user.has_full_access = True
@@ -134,6 +159,10 @@ def has_module_access(user, module_key):
         
     Returns:
         True wenn Zugriff vorhanden, False sonst
+
+    Hinweis: Ein global deaktiviertes Modul ist für alle gesperrt — auch für
+    Admins/Superadmins. Deep-Links verhalten sich dann wie die Navigation.
+    Admins können das Modul unter Einstellungen wieder einschalten.
     """
     # Gast-Accounts haben keinen Zugriff auf E-Mail und Credentials
     if hasattr(user, 'is_guest') and user.is_guest:
@@ -144,23 +173,29 @@ def has_module_access(user, module_key):
     if user.__class__.__name__ == 'AssessmentUser':
         return module_key == 'module_assessment'
 
+    # Global aus = für niemanden (auch nicht Admin) — vor Admin-Bypass
+    if not is_module_enabled(module_key):
+        return False
+
     if module_key == 'module_meetings':
         from app.utils.mirotalk import mirotalk_configured
         if not mirotalk_configured():
             return False
 
-    # Hauptadministrator und Administrator haben immer Zugriff
+    # Admin/Superadmin: Vollzugriff auf aktivierte Module
     if getattr(user, 'is_super_admin', False) or getattr(user, 'is_admin', False):
         return True
-    
-    # Prüfe ob Modul überhaupt aktiviert ist
-    if not is_module_enabled(module_key):
+
+    # Wenn der Benutzer in keinem Bereich (Public, Team, Private) dieses Moduls Zugriff hat,
+    # wird das Modul komplett ausgeblendet / verwehrt.
+    from app.utils.user_content_access import user_has_any_content_scope
+    if not user_has_any_content_scope(user, module_key):
         return False
     
     # Prüfe ob has_full_access Spalte existiert (für Rückwärtskompatibilität)
     try:
         has_full_access = getattr(user, 'has_full_access', False)
-    except:
+    except Exception:
         # Falls Spalte noch nicht existiert, Standard: Vollzugriff (Rückwärtskompatibilität)
         has_full_access = True
     
@@ -194,7 +229,20 @@ def check_module_access(module_key):
                 return redirect(url_for('auth.login'))
             
             if not has_module_access(current_user, module_key):
-                flash('Sie haben keinen Zugriff auf dieses Modul.', 'warning')
+                from app.utils.i18n import translate
+                if not is_module_enabled(module_key):
+                    if module_key == 'module_meetings':
+                        from app.utils.mirotalk import mirotalk_configured
+                        if not mirotalk_configured():
+                            flash(translate('meetings.flash.not_configured'), 'warning')
+                        else:
+                            flash(translate('meetings.flash.no_module'), 'warning')
+                    else:
+                        flash(translate('common.flash.module_disabled'), 'warning')
+                elif module_key == 'module_meetings':
+                    flash(translate('meetings.flash.no_module'), 'warning')
+                else:
+                    flash(translate('common.flash.module_access_denied'), 'warning')
                 return redirect(url_for('dashboard.index'))
             
             return f(*args, **kwargs)

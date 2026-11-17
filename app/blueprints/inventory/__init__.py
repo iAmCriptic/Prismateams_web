@@ -18,6 +18,7 @@ from app.blueprints.inventory import api_products as _api_products  # noqa: F401
 from app.blueprints.inventory import sets as _sets  # noqa: F401
 from app.blueprints.inventory import extra as _extra  # noqa: F401
 from app.blueprints.inventory import mobile as _mobile  # noqa: F401
+from app.blueprints.inventory import dguv_exam as _dguv_exam  # noqa: F401
 
 # inventory_vnext aliases: from app.blueprints import inventory as legacy_inventory
 from app.blueprints.inventory.api_products import (

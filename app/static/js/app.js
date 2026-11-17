@@ -220,6 +220,15 @@ window.ptConfirm = function ptConfirm(message, options) {
     return openConfirm();
 };
 
+// Prevent browser accessibility warning: "Blocked aria-hidden on an element because its descendant retained focus"
+document.addEventListener('hide.bs.modal', function (e) {
+    if (e.target && e.target.contains(document.activeElement)) {
+        try {
+            document.activeElement.blur();
+        } catch (_) {}
+    }
+});
+
 /**
  * App-styled prompt dialog (Promise). Prefer over window.prompt().
  * @param {string} message
@@ -1816,6 +1825,16 @@ document.addEventListener('DOMContentLoaded', function() {
             const bsAlert = new bootstrap.Alert(alert);
             bsAlert.close();
         }, 5000);
+    });
+
+    // Global fix for Bootstrap modals rendered inside containers with a stacking context (mod-shell--nav, mod-main, settings-shell)
+    document.addEventListener('show.bs.modal', function (e) {
+        var modal = e.target;
+        if (modal && modal.parentElement && modal.parentElement !== document.body) {
+            if (modal.closest('.mod-shell--nav') || modal.closest('.mod-main') || modal.closest('.settings-shell')) {
+                document.body.appendChild(modal);
+            }
+        }
     });
 
     // Confirmation dialogs for delete actions (custom modal, not native confirm)

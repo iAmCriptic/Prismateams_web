@@ -31,6 +31,18 @@
     true
   );
 
+  if (typeof HTMLFormElement !== 'undefined' && HTMLFormElement.prototype) {
+    var originalSubmit = HTMLFormElement.prototype.submit;
+    HTMLFormElement.prototype.submit = function () {
+      try {
+        ensureFormToken(this);
+      } catch (err) {
+        /* ignore */
+      }
+      return originalSubmit.apply(this, arguments);
+    };
+  }
+
   var mutating = { POST: 1, PUT: 1, PATCH: 1, DELETE: 1 };
 
   if (typeof window.fetch === 'function') {

@@ -291,6 +291,9 @@ def erase_user_account(user) -> None:
     from app.models.api_token import ApiToken
     ApiToken.query.filter_by(user_id=user_id).delete(synchronize_session=False)
 
+    from app.models.app_password import AppPassword
+    AppPassword.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+
     from app.models.user_session import UserSession
     UserSession.query.filter_by(user_id=user_id).delete(synchronize_session=False)
 

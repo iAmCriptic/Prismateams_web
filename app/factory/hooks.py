@@ -34,8 +34,7 @@ def register_request_hooks(app):
     @app.before_request
     def redirect_loopback_ip_to_localhost():
         """Passkeys/WebAuthn: Browser lehnen 127.0.0.1 ab — lokal auf localhost umleiten."""
-        if not app.debug:
-            return
+        return
         from flask import redirect
         host = (request.host or '').split(':')[0].lower()
         if host != '127.0.0.1':
@@ -66,6 +65,9 @@ def register_request_hooks(app):
         CSRF mitigation without breaking existing forms/AJAX:
         enforce same-origin on state-changing requests.
         """
+        if app.config.get('TESTING'):
+            return
+
         if request.method in {'GET', 'HEAD', 'OPTIONS', 'TRACE'}:
             return
 
@@ -92,6 +94,12 @@ def register_request_hooks(app):
         if auth.startswith('Bearer ') and (
             endpoint.startswith('inventory.api_mobile_')
             or endpoint.startswith('api.')
+        ):
+            return
+
+        # Native Desktop Client / Windows App
+        if request.headers.get('X-Requested-With') == 'com.prismateams.desktop' or (
+            request.user_agent and 'Prismateams-NativeClient' in str(request.user_agent)
         ):
             return
 
@@ -132,6 +140,9 @@ def register_request_hooks(app):
             return jsonify({'error': 'CSRF validation failed', 'detail': error.description}), 400
         flash('Sicherheitsprüfung fehlgeschlagen. Bitte laden Sie die Seite neu und versuchen Sie es erneut.', 'danger')
         target = request.referrer if request.referrer and _is_same_origin(request.referrer, request.host) else None
+        from flask_login import current_user
+        if not target and current_user.is_authenticated and not getattr(current_user, 'is_email_confirmed', True):
+            target = flask_url_for('auth.confirm_email')
         return redirect(target or flask_url_for('dashboard.index'))
 
     @app.before_request
@@ -155,12 +166,21 @@ def register_request_hooks(app):
         # Öffentliche Musikwunschliste-Route ausschließen (keine Authentifizierung erforderlich)
         if request.path.startswith('/music/wishlist'):
             return
+
+        # Statische Assets, Core-CSS und Service-Worker nie blockieren
+        if (
+            request.path.startswith('/assets/')
+            or request.path.startswith('/static/')
+            or request.path in {'/sw.js', '/favicon.ico', '/robots.txt', '/sitemap.xml', '/manifest.json', '/offline'}
+        ):
+            return
         
         if (request.endpoint and 
             (request.endpoint.startswith('auth.') or 
              request.endpoint.startswith('setup.') or
              request.endpoint.startswith('static') or
              request.endpoint.startswith('api.') or
+             request.endpoint in {'manifest', 'core_css', 'service_worker', 'robots_txt', 'sitemap_xml', 'offline'} or
              request.endpoint.startswith('files.onlyoffice') or
              request.endpoint.startswith('files.share_onlyoffice') or
              request.endpoint.startswith('booking.public') or
@@ -168,7 +188,6 @@ def register_request_hooks(app):
              request.endpoint == 'booking.public_booking' or
              request.endpoint == 'booking.public_form' or
              request.endpoint == 'booking.public_view' or
-             request.endpoint == 'manifest' or
              request.endpoint == 'settings.portal_logo' or
              request.endpoint == 'settings.auth_brand_image' or
              request.endpoint == 'music.public_wishlist' or
@@ -186,7 +205,10 @@ def register_request_hooks(app):
         if not current_user.is_email_confirmed:
             if request.endpoint == 'auth.confirm_email':
                 return
-            flash('Bitte bestätigen Sie Ihre E-Mail-Adresse, um fortzufahren.', 'info')
+            msg = 'Bitte bestätigen Sie Ihre E-Mail-Adresse, um fortzufahren.'
+            flashes = session.get('_flashes', [])
+            if not any(f[1] == msg for f in flashes):
+                flash(msg, 'info')
             return redirect(url_for('auth.confirm_email'))
 
     @app.before_request
@@ -293,14 +315,17 @@ def register_request_hooks(app):
                 logout_user()
                 session.clear()
                 if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
-                    err = (
-                        'Session expired due to inactivity'
-                        if reason == 'inactivity'
-                        else 'Session invalidated'
-                    )
+                    if reason == 'inactivity':
+                        err = 'Session expired due to inactivity'
+                    elif reason == 'absolute':
+                        err = 'Session expired'
+                    else:
+                        err = 'Session invalidated'
                     return jsonify({'error': err}), 401
                 if reason == 'inactivity':
                     flash(translate('settings.admin.system.flash_inactivity_logout'), 'info')
+                elif reason == 'absolute':
+                    flash(translate('settings.admin.system.flash_absolute_logout'), 'info')
                 return redirect(url_for('auth.login'))
         except Exception as exc:
             app.logger.warning("Session-Tracking konnte nicht aktualisiert werden: %s", exc)
@@ -344,9 +369,30 @@ def register_request_hooks(app):
                 'max-age=31536000; includeSubDomains',
             )
 
-        # CSP: schrittweise — blockiert object/base, erlaubt bestehende Inline-/CDN-Nutzung.
-        # MiroTalk-Join läuft oft als http://HOST:3010 (anderes Origin) → frame-src ergänzen.
+        # CSP: kein globales unsafe-eval; Scripts nur self + bekannte CDNs.
+        # unsafe-inline bleibt bis Nonce-Migration (viele Template-Inline-Scripts).
+        # MiroTalk-Join oft http://HOST:3010 → frame-src ergänzen.
+        # Euro-Office / Excalidraw / Media-Downloader brauchen lokal noch unsafe-eval.
         frame_src = ["'self'", 'https:', 'blob:'] + _csp_frame_src_extra(app)
+        script_cdn = (
+            "https://cdn.jsdelivr.net "
+            "https://cdn.quilljs.com "
+            "https://cdn.socket.io "
+            "https://www.google.com "
+            "https://www.gstatic.com "
+            "https://challenges.cloudflare.com"
+        )
+        path = request.path or ''
+        needs_eval = (
+            path.startswith('/eurooffice')
+            or 'onlyoffice' in path
+            or path.startswith('/excalidraw')
+            or path.startswith('/media-downloader')
+            or path.startswith('/files/media-downloader')
+        )
+        script_src = f"script-src 'self' 'unsafe-inline' blob: {script_cdn}"
+        if needs_eval:
+            script_src += " 'unsafe-eval'"
         response.headers.setdefault(
             'Content-Security-Policy',
             "; ".join([
@@ -354,10 +400,10 @@ def register_request_hooks(app):
                 "base-uri 'self'",
                 "object-src 'none'",
                 "frame-ancestors 'self'",
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:",
-                "style-src 'self' 'unsafe-inline' https:",
+                script_src,
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://fonts.googleapis.com",
                 "img-src 'self' data: blob: https:",
-                "font-src 'self' data: https:",
+                "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
                 "connect-src 'self' https: wss: ws: blob:",
                 "frame-src " + " ".join(frame_src),
                 "media-src 'self' https: blob:",

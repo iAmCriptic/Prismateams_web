@@ -6,38 +6,101 @@ import logging
 from app import limiter, socketio
 from app.factory._util import resolve_socketio_cors_origins as _resolve_socketio_cors_origins
 
+
+def _probe_redis(redis_url, *, timeout=2):
+    """Ping Redis. Returns (ok: bool, error: str|None)."""
+    try:
+        import redis
+    except ImportError:
+        return False, 'redis package missing'
+    try:
+        client = redis.Redis.from_url(
+            redis_url,
+            socket_connect_timeout=timeout,
+            socket_timeout=timeout,
+        )
+        if client.ping():
+            return True, None
+        return False, 'ping failed'
+    except Exception as exc:
+        return False, str(exc)
+
+
+def _resolve_redis(app, config_name, logger):
+    """
+    Resolve Redis for SocketIO / Limiter / Sessions.
+
+    Modes:
+    - REDIS_ENABLED=True: require Redis (status connected|unavailable)
+    - REDIS_AUTO_DETECT=True and REDIS_ENABLED=False: optional probe
+    - else: intentional single-worker (no probe, no scary warnings in Dev)
+    """
+    want_enabled = bool(app.config.get('REDIS_ENABLED', False))
+    auto_detect = bool(app.config.get('REDIS_AUTO_DETECT', False))
+    redis_url = app.config.get('REDIS_URL', 'redis://localhost:6379/0')
+    production_like = config_name in ('production', 'staging')
+
+    status = 'disabled'
+    detail = None
+    enabled = False
+
+    if want_enabled:
+        ok, err = _probe_redis(redis_url, timeout=2)
+        if ok:
+            enabled = True
+            status = 'connected'
+            logger.info('Redis aktiviert: %s', redis_url)
+        else:
+            status = 'unavailable'
+            detail = err
+            logger.error(
+                'REDIS_ENABLED=True, aber Redis nicht erreichbar (%s): %s',
+                redis_url,
+                err,
+            )
+            if production_like:
+                logger.error(
+                    'Multi-Worker / SocketIO-Queue / shared Rate-Limit brauchen ein laufendes Redis.'
+                )
+    elif auto_detect:
+        ok, err = _probe_redis(redis_url, timeout=1)
+        if ok:
+            enabled = True
+            status = 'connected'
+            logger.info('Redis per AUTO_DETECT aktiviert: %s', redis_url)
+        else:
+            status = 'disabled'
+            detail = err
+            logger.info(
+                'Redis AUTO_DETECT: nicht erreichbar (%s) — Single-Worker ohne Message Queue',
+                err,
+            )
+    else:
+        status = 'disabled'
+        if production_like:
+            logger.warning(
+                'Redis absichtlich aus (REDIS_ENABLED=False). '
+                'Multi-Worker-Setups brauchen REDIS_ENABLED=True und ein laufendes Redis.'
+            )
+        else:
+            logger.info(
+                'Redis aus (REDIS_ENABLED=False) — Single-Worker-Modus. '
+                'Für Multi-Worker: Redis starten und REDIS_ENABLED=True setzen.'
+            )
+
+    app.config['REDIS_ENABLED'] = enabled
+    app.config['REDIS_RUNTIME_STATUS'] = status
+    app.config['REDIS_RUNTIME_DETAIL'] = detail
+    app.config['REDIS_RUNTIME_URL'] = redis_url
+    return enabled, redis_url, status
+
+
 def init_realtime(app, config_name):
     """Redis, rate limiter, Socket.IO, server sessions."""
-    # Konfiguriere SocketIO mit optionaler Redis Message Queue
-    redis_enabled = app.config.get('REDIS_ENABLED', False)
-    redis_url = app.config.get('REDIS_URL', 'redis://localhost:6379/0')
-    
-    import logging
     logger = logging.getLogger(__name__)
-    
-    # Automatische Redis-Aktivierung wenn Redis verfügbar ist
-    # (außer wenn explizit REDIS_ENABLED=False gesetzt wurde)
-    if not redis_enabled:
-        try:
-            import redis
-            r = redis.Redis.from_url(redis_url, socket_connect_timeout=2, socket_timeout=2)
-            if r.ping():
-                redis_enabled = True
-                logger.info(f"Redis automatisch aktiviert (verfügbar): {redis_url}")
-            else:
-                logger.warning(f"Redis-Ping fehlgeschlagen: {redis_url}")
-        except ImportError:
-            logger.warning("Redis-Python-Package nicht verfügbar. Installiere mit: pip install redis")
-        except Exception as e:
-            logger.warning(f"Redis-Verbindung fehlgeschlagen: {e} - SocketIO läuft ohne Message Queue")
-    
-    # Logge Redis-Status
-    if redis_enabled:
-        logger.info(f"Redis aktiviert: {redis_url}")
-    else:
-        logger.warning(f"Redis NICHT aktiviert - Multi-Worker-Setups funktionieren nicht korrekt!")
-        logger.warning(f"Setze REDIS_ENABLED=True in der .env oder stelle sicher, dass Redis läuft")
-    
+
+    redis_enabled, redis_url, _redis_status = _resolve_redis(app, config_name, logger)
+
     # Flask-Limiter für Rate Limiting initialisieren
     # Flask-Limiter 4+: storage_uri nur ueber app.config['RATELIMIT_STORAGE_URI']
     # (init_app(app) akzeptiert keinen storage_uri-Kwarg mehr).
@@ -49,11 +112,11 @@ def init_realtime(app, config_name):
         app.config['RATELIMIT_STORAGE_URI'] = rate_limit_uri
         try:
             limiter.init_app(app)
-            logger.info(f"Flask-Limiter Storage: {rate_limit_uri}")
+            logger.info('Flask-Limiter Storage: %s', rate_limit_uri)
         except Exception as e:
             if production_like and not allow_memory:
                 logger.error(
-                    "Flask-Limiter Redis-Storage fehlgeschlagen in %s: %s",
+                    'Flask-Limiter Redis-Storage fehlgeschlagen in %s: %s',
                     config_name,
                     e,
                 )
@@ -62,14 +125,14 @@ def init_realtime(app, config_name):
                     '(REDIS_ENABLED=True / RATELIMIT_STORAGE_URI). '
                     'Notfall: RATELIMIT_ALLOW_MEMORY=true'
                 ) from e
-            logger.warning(f"Fehler beim Konfigurieren von Flask-Limiter mit Redis: {e}")
-            logger.warning("Verwende Memory-Storage als Fallback (nicht für Production empfohlen)")
+            logger.warning('Fehler beim Konfigurieren von Flask-Limiter mit Redis: %s', e)
+            logger.warning('Verwende Memory-Storage als Fallback (nicht für Production empfohlen)')
             app.config['RATELIMIT_STORAGE_URI'] = 'memory://'
             limiter.init_app(app)
     else:
         if production_like and not allow_memory:
             logger.error(
-                "Flask-Limiter: kein Redis/RATELIMIT_STORAGE_URI in %s — Fail-closed",
+                'Flask-Limiter: kein Redis/RATELIMIT_STORAGE_URI in %s — Fail-closed',
                 config_name,
             )
             raise RuntimeError(
@@ -78,9 +141,9 @@ def init_realtime(app, config_name):
                 'Notfall: RATELIMIT_ALLOW_MEMORY=true'
             )
         if production_like:
-            logger.warning("⚠️  Flask-Limiter Memory-Storage in Production (RATELIMIT_ALLOW_MEMORY=true)")
+            logger.warning('Flask-Limiter Memory-Storage in Production (RATELIMIT_ALLOW_MEMORY=true)')
         else:
-            logger.info("Flask-Limiter: Memory-Storage (Dev). Für Multi-Worker: REDIS_ENABLED=True")
+            logger.info('Flask-Limiter: Memory-Storage (Dev). Für Multi-Worker: REDIS_ENABLED=True')
         app.config['RATELIMIT_STORAGE_URI'] = 'memory://'
         limiter.init_app(app)
 
@@ -88,111 +151,95 @@ def init_realtime(app, config_name):
     if socketio_cors == '*':
         logger.warning("Socket.IO CORS: '*' (SOCKETIO_CORS_ORIGINS=*) — nur bewusst einsetzen")
     elif socketio_cors is None:
-        logger.info("Socket.IO CORS: same-origin (Host/X-Forwarded-*)")
+        logger.info('Socket.IO CORS: same-origin (Host/X-Forwarded-*)')
     else:
-        logger.info("Socket.IO CORS Origins: %s", ", ".join(socketio_cors))
-    
+        logger.info('Socket.IO CORS Origins: %s', ', '.join(socketio_cors))
+
+    socketio_base = {
+        'cors_allowed_origins': socketio_cors,
+        'logger': False,
+        'engineio_logger': False,
+        'ping_timeout': 60,
+        'ping_interval': 25,
+        'cookie': False,
+        'allow_upgrades': True,
+        'transports': ['websocket', 'polling'],
+        'max_http_buffer_size': 1e6,
+        'manage_session': False,
+    }
+
     if redis_enabled:
         try:
-            # Verwende Redis als Message Queue für Multi-Worker-Setups
-            # Threading wird verwendet (kein eventlet), da eventlet Monkey Patching benötigt
-            # Threading funktioniert zuverlässig mit Redis und Gunicorn
-            async_mode = 'threading'
-            
-            # Socket.IO mit Redis Message Queue initialisieren
-            # WICHTIG: WebSocket-First-Strategie für Multi-Worker-Setups
-            # - WebSocket hat KEINE Session-Probleme (persistente Verbindung)
-            # - Fallback auf Polling nur wenn WebSocket nicht verfügbar
-            init_kwargs = {
+            init_kwargs = dict(socketio_base)
+            init_kwargs.update({
                 'message_queue': redis_url,
-                'async_mode': async_mode,
-                'cors_allowed_origins': socketio_cors,
-                'logger': False,
-                'engineio_logger': False,
-                'ping_timeout': 60,
-                'ping_interval': 25,
-                'cookie': False,  # KEINE Cookies
-                'allow_upgrades': True,  # WebSocket-Upgrades erlauben
-                'transports': ['websocket', 'polling'],  # WebSocket bevorzugt, Polling als Fallback
-                'max_http_buffer_size': 1e6,
-                'manage_session': False
-            }
-            
+                'async_mode': 'threading',
+            })
             socketio.init_app(app, **init_kwargs)
-            # WICHTIG: Logge auf INFO-Level, damit es in systemd-Logs sichtbar ist
-            logger.info(f"SocketIO mit Redis Message Queue konfiguriert: {redis_url} (async_mode={async_mode})")
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Redis-Fehler, verwende SocketIO ohne Message Queue: {e}", exc_info=True)
-            logger.warning("Hinweis: Multi-Worker-Setups funktionieren nur mit Redis!")
-            # Fallback: SocketIO ohne Message Queue (nur für Single-Worker)
-            socketio.init_app(
-                app,
-                cors_allowed_origins=socketio_cors,
-                logger=False,
-                engineio_logger=False,
-                ping_timeout=60,
-                ping_interval=25,
-                cookie=False,
-                allow_upgrades=True,
-                transports=['websocket', 'polling'],
-                max_http_buffer_size=1e6,
-                manage_session=False
+            logger.info(
+                'SocketIO mit Redis Message Queue konfiguriert: %s (async_mode=threading)',
+                redis_url,
             )
+        except Exception as e:
+            logger.error('Redis-Fehler, verwende SocketIO ohne Message Queue: %s', e, exc_info=True)
+            app.config['REDIS_ENABLED'] = False
+            app.config['REDIS_RUNTIME_STATUS'] = 'unavailable'
+            app.config['REDIS_RUNTIME_DETAIL'] = str(e)
+            socketio.init_app(app, **socketio_base)
     else:
-        # Kein Redis konfiguriert - nur für Single-Worker oder Development
-        socketio.init_app(
-            app,
-            cors_allowed_origins=socketio_cors,
-            logger=False,
-            engineio_logger=False,
-            ping_timeout=60,
-            ping_interval=25,
-            cookie=False,
-            allow_upgrades=True,
-            transports=['websocket', 'polling'],
-            max_http_buffer_size=1e6,
-            manage_session=False
-        )
-        if config_name == 'production':
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning("Redis nicht aktiviert! Multi-Worker-Setups funktionieren nicht korrekt.")
-            logger.warning("Setze REDIS_ENABLED=True in der .env für Production mit mehreren Workern.")
+        socketio.init_app(app, **socketio_base)
 
     # P18: Server-seitige Sessions (Cookie = nur Session-ID)
     try:
         from app.utils.server_session import configure_server_sessions
-        configure_server_sessions(app)
+        backend = configure_server_sessions(app)
+        app.config['SESSION_BACKEND'] = backend
     except Exception as sess_exc:
         logging.getLogger(__name__).warning('Server-Sessions Setup fehlgeschlagen: %s', sess_exc)
-    # Socket.IO Authentifizierungs-Handler
-    # Erlaubt sowohl authentifizierte als auch nicht-authentifizierte Verbindungen
-    # (für öffentliche Routen wie Musikwunschliste)
+
+    # Default-Namespace: nur eingeloggte Nutzer; Dashboard-Room an Session binden.
+    # Öffentliche Live-Updates (Musik-Wishlist) laufen über SSE (/sse/events/music).
+    # Namespace /public für explizit anonyme Realtime-Clients (keine geschützten Rooms).
+    from flask_login import current_user
+    from flask_socketio import join_room, leave_room
+
     @socketio.on('connect')
-    def handle_connect(auth):
-        """Handle Socket.IO-Verbindungen. Erlaubt sowohl authentifizierte als auch nicht-authentifizierte Clients.
-        
-        WICHTIG: Diese Funktion muss IMMER True zurückgeben, sonst bekommt der Client 400 Bad Request.
-        Mit manage_session=False akzeptiert Socket.IO alle Sessions, auch wenn der Worker sie nicht kennt.
-        Dies ist wichtig für Multi-Worker-Setups mit Redis, wo Sessions zwischen Workern geteilt werden.
-        """
+    def handle_connect(auth=None):
+        """Default-Namespace: Login erforderlich; Room dashboard_user_<id>."""
         try:
-        # Verbindung IMMER akzeptieren - keine Prüfung, keine Exception, kein Logging
-        # Dies verhindert 400 Bad Request Fehler bei Session-Konflikten zwischen Workern
-            # Mit manage_session=False werden Sessions nicht validiert, was für Multi-Worker wichtig ist
+            if not getattr(current_user, 'is_authenticated', False):
+                logger.debug('Socket.IO connect abgelehnt: nicht authentifiziert')
+                return False
+            if not getattr(current_user, 'is_active', True):
+                return False
+            uid = getattr(current_user, 'id', None)
+            if not uid:
+                return False
+            join_room(f'dashboard_user_{uid}')
             return True
         except Exception as e:
-            # Bei Fehlern trotzdem akzeptieren, um 400-Fehler zu vermeiden
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.warning(f"Socket.IO connect handler Fehler (trotzdem akzeptiert): {e}")
-        return True
-    
+            logger.warning('Socket.IO connect Fehler (abgelehnt): %s', e)
+            return False
+
     @socketio.on('disconnect')
     def handle_disconnect():
-        """Handle Socket.IO-Trennung."""
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.debug("Socket.IO: Client getrennt")
+        try:
+            uid = (
+                getattr(current_user, 'id', None)
+                if getattr(current_user, 'is_authenticated', False)
+                else None
+            )
+            if uid:
+                leave_room(f'dashboard_user_{uid}')
+        except Exception:
+            pass
+        logger.debug('Socket.IO: Client getrennt')
+
+    @socketio.on('connect', namespace='/public')
+    def handle_public_connect(auth=None):
+        """Öffentlicher Namespace — kein Portal-Login, keine geschützten Rooms."""
+        return True
+
+    @socketio.on('disconnect', namespace='/public')
+    def handle_public_disconnect():
+        logger.debug('Socket.IO /public: Client getrennt')

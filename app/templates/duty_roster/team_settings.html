@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}{{ _('duty_roster.nav.settings') }} – {{ team.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mod-buttons.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/duty_roster.css') }}">
+{% endblock %}
+
+{% block content %}
+{% set heading = _('duty_roster.nav.settings') %}
+{% include 'duty_roster/_layout_start.html' %}
+
+        <div class="duty-toolbar">
+            <div class="duty-toolbar__title">
+                <h1>{{ _('duty_roster.settings.heading') }} – {{ team.name }}</h1>
+            </div>
+            <div class="duty-toolbar__actions">
+                <a href="{{ url_for('duty_roster.team_index', team_id=team.id) }}" class="btn mod-pill-btn mod-pill-btn--ghost mod-pill-btn--icon">
+                    <i class="bi bi-arrow-left"></i>
+                </a>
+            </div>
+        </div>
+
+        {# ——— Personen (Team + Extern mit Zeitraum) ——— #}
+        <div class="duty-panel mb-4">
+            <h2>{{ _('duty_roster.settings.people') }}</h2>
+            <p class="small text-muted mb-3">{{ _('duty_roster.settings.people_help') }}</p>
+
+            <form method="post" id="dutyPeopleForm">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="save_configs">
+
+                <div class="table-responsive mb-3">
+                    <table class="table table-sm align-middle duty-settings-table">
+                        <thead>
+                            <tr>
+                                <th>{{ _('duty_roster.settings.person') }}</th>
+                                <th>{{ _('duty_roster.settings.weekly_soll') }}</th>
+                                <th>{{ _('duty_roster.settings.valid_from') }}</th>
+                                <th>{{ _('duty_roster.settings.valid_until') }}</th>
+                                <th>{{ _('duty_roster.settings.vac_total') }}</th>
+                                <th>{{ _('duty_roster.settings.vac_used') }}</th>
+                                <th>{{ _('duty_roster.table.overtime') }}</th>
+                                <th>{{ _('duty_roster.settings.available') }}</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for m in members %}
+                            {% set cfg = configs.get(m.user_id) %}
+                            {% set st = stats.get(m.user_id, {}) %}
+                            <tr>
+                                <td>
+                                    {{ m.user.full_name if m.user else m.user_id }}
+                                    {% if team.leader_id == m.user_id %}
+                                    <span class="duty-badge duty-badge--published">{{ _('duty_roster.settings.leader') }}</span>
+                                    {% endif %}
+                                    <div class="small text-muted">{{ _('duty_roster.table.team_member') }}</div>
+                                </td>
+                                <td>
+                                    <input type="number" step="0.5" min="0" class="form-control form-control-sm duty-pill-input"
+                                           name="user_{{ m.user_id }}_soll"
+                                           value="{{ cfg.weekly_hours_soll if cfg and cfg.weekly_hours_soll is not none else '' }}">
+                                </td>
+                                <td>
+                                    <input type="date" class="form-control form-control-sm duty-pill-input"
+                                           name="user_{{ m.user_id }}_from"
+                                           value="{{ cfg.valid_from.isoformat() if cfg and cfg.valid_from else '' }}">
+                                </td>
+                                <td>
+                                    <input type="date" class="form-control form-control-sm duty-pill-input"
+                                           name="user_{{ m.user_id }}_until"
+                                           value="{{ cfg.valid_until.isoformat() if cfg and cfg.valid_until else '' }}"
+                                           placeholder="{{ _('duty_roster.settings.indefinite') }}">
+                                </td>
+                                <td>
+                                    <input type="number" step="0.5" min="0" class="form-control form-control-sm duty-pill-input"
+                                           name="user_{{ m.user_id }}_vac_total"
+                                           value="{{ cfg.vacation_days_total if cfg and cfg.vacation_days_total is not none else '' }}">
+                                </td>
+                                <td>
+                                    <input type="number" step="0.5" min="0" class="form-control form-control-sm duty-pill-input"
+                                           name="user_{{ m.user_id }}_vac_used"
+                                           value="{{ cfg.vacation_days_used if cfg else 0 }}">
+                                </td>
+                                <td class="{% if st.overtime_ytd is not none and st.overtime_ytd < 0 %}text-danger{% elif st.overtime_ytd is not none and st.overtime_ytd > 0 %}text-success{% endif %}">
+                                    {% if st.overtime_ytd is not none %}{{ '%+.1f'|format(st.overtime_ytd) }}h{% else %}—{% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" name="user_{{ m.user_id }}_available"
+                                           {% if not cfg or cfg.available_for_roster %}checked{% endif %}>
+                                </td>
+                                <td></td>
+                            </tr>
+                            {% endfor %}
+
+                            {% for ext in externals %}
+                            <tr class="duty-ext-row">
+                                <td>
+                                    <input type="text" class="form-control form-control-sm duty-pill-input"
+                                           name="ext_{{ ext.id }}_name" value="{{ ext.name }}" maxlength="120">
+                                    <div class="small text-muted">{{ _('duty_roster.table.external_name') }}</div>
+                                </td>
+                                <td class="text-muted small">—</td>
+                                <td>
+                                    <input type="date" class="form-control form-control-sm duty-pill-input"
+                                           name="ext_{{ ext.id }}_from"
+                                           value="{{ ext.valid_from.isoformat() if ext.valid_from else '' }}">
+                                </td>
+                                <td>
+                                    <input type="date" class="form-control form-control-sm duty-pill-input"
+                                           name="ext_{{ ext.id }}_until"
+                                           value="{{ ext.valid_until.isoformat() if ext.valid_until else '' }}">
+                                </td>
+                                <td colspan="3" class="text-muted small">—</td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input" name="ext_{{ ext.id }}_active"
+                                           {% if ext.is_active %}checked{% endif %}>
+                                </td>
+                                <td>
+                                    <label class="duty-delete-check small text-danger mb-0">
+                                        <input type="checkbox" name="ext_{{ ext.id }}_delete">
+                                        {{ _('duty_roster.settings.remove') }}
+                                    </label>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent">{{ _('duty_roster.settings.save') }}</button>
+            </form>
+
+            <hr class="my-3">
+            <h3 class="h6">{{ _('duty_roster.settings.add_external') }}</h3>
+            <form method="post" class="row g-2 align-items-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="add_external">
+                <div class="col-md-3">
+                    <label class="form-label small mb-0">{{ _('duty_roster.table.external_name') }}</label>
+                    <input type="text" name="external_name" class="form-control form-control-sm duty-pill-input" maxlength="120" required placeholder="…">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-0">{{ _('duty_roster.settings.valid_from') }}</label>
+                    <input type="date" name="external_from" class="form-control form-control-sm duty-pill-input">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-0">{{ _('duty_roster.settings.valid_until') }}</label>
+                    <input type="date" name="external_until" class="form-control form-control-sm duty-pill-input">
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent">
+                        <i class="bi bi-plus-lg"></i> {{ _('duty_roster.settings.add_external') }}
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <div class="duty-panel">
+            <h2>{{ _('duty_roster.settings.planners') }}</h2>
+            <p class="small text-muted">{{ _('duty_roster.settings.planners_help') }}</p>
+            <ul class="list-unstyled">
+                {% for p in planners %}
+                <li class="d-flex align-items-center gap-2 mb-2">
+                    <span>{{ p.user.full_name if p.user else p.user_id }}</span>
+                    <form method="post" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="remove_planner">
+                        <input type="hidden" name="planner_user_id" value="{{ p.user_id }}">
+                        <button type="submit" class="btn mod-pill-btn mod-pill-btn--ghost btn-sm text-danger">{{ _('duty_roster.settings.remove') }}</button>
+                    </form>
+                </li>
+                {% else %}
+                <li class="text-muted small">—</li>
+                {% endfor %}
+            </ul>
+            <form method="post" class="row g-2 align-items-end">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="add_planner">
+                <div class="col-md-6">
+                    <select name="planner_user_id" class="form-select form-select-sm duty-pill-input" required>
+                        <option value="">—</option>
+                        {% for m in members %}
+                        {% if m.user_id not in planner_ids and m.user_id != team.leader_id %}
+                        <option value="{{ m.user_id }}">{{ m.user.full_name if m.user else m.user_id }}</option>
+                        {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-auto">
+                    <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent">{{ _('duty_roster.settings.add_planner') }}</button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

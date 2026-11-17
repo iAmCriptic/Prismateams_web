@@ -29,6 +29,23 @@ MAX_FILE_VERSIONS = 3
 SLASH_REPLACEMENT = '\u2044'  # fraction slash — safe as a single path segment
 
 
+def _user_bypasses_edit_acl(user) -> bool:
+    """Match web UI: admins may edit regardless of ACL owner checks."""
+    return bool(user and getattr(user, 'is_admin', False))
+
+
+def _may_edit_folder(folder, user) -> bool:
+    if _user_bypasses_edit_acl(user):
+        return True
+    return can_edit_folder(folder, user)
+
+
+def _may_edit_file(file_obj, user) -> bool:
+    if _user_bypasses_edit_acl(user):
+        return True
+    return can_edit_file(file_obj, user)
+
+
 def path_segment_for_name(name: str) -> str:
     return (name or '').replace('/', SLASH_REPLACEMENT).replace('\\', SLASH_REPLACEMENT)
 
@@ -89,7 +106,7 @@ def find_child_file(parent_id, name_segment: str, space_filter=None, team_id=Non
 
 
 def create_folder_record(name: str, parent_folder, user, view: str, team_id=None):
-    if parent_folder is not None and not can_edit_folder(parent_folder, user):
+    if parent_folder is not None and not _may_edit_folder(parent_folder, user):
         raise PermissionError('No edit permission for parent folder')
 
     folder_name = name_from_path_segment(name).strip()
@@ -143,7 +160,7 @@ def create_or_version_file(
     if not display_name:
         raise ValueError('Empty file name')
 
-    if parent_folder is not None and not can_edit_folder(parent_folder, user):
+    if parent_folder is not None and not _may_edit_folder(parent_folder, user):
         raise PermissionError('No edit permission for parent folder')
 
     if not os.path.isfile(temp_path):
@@ -166,7 +183,7 @@ def create_or_version_file(
     )
 
     if existing:
-        if not can_edit_file(existing, user):
+        if not _may_edit_file(existing, user):
             raise PermissionError('No edit permission for file')
         _create_version_from_temp(existing, temp_path, user.id)
         db.session.commit()
@@ -226,7 +243,7 @@ def _create_version_from_temp(existing_file: File, temp_path: str, user_id: int)
 
 
 def delete_file_record(file_obj: File, user):
-    if not can_edit_file(file_obj, user):
+    if not _may_edit_file(file_obj, user):
         raise PermissionError('No edit permission for file')
     if is_files_spaces_enabled():
         soft_delete_file(file_obj, user.id)
@@ -238,7 +255,7 @@ def delete_file_record(file_obj: File, user):
 def delete_folder_record(folder: Folder, user):
     if getattr(folder, 'is_personal_root', False) or getattr(folder, 'is_team_root', False):
         raise PermissionError('Cannot delete root folder')
-    if not can_edit_folder(folder, user):
+    if not _may_edit_folder(folder, user):
         raise PermissionError('No edit permission for folder')
     if is_files_spaces_enabled():
         soft_delete_folder(folder, user.id)
@@ -248,7 +265,7 @@ def delete_folder_record(folder: Folder, user):
 
 
 def rename_file_record(file_obj: File, new_name: str, user):
-    if not can_edit_file(file_obj, user):
+    if not _may_edit_file(file_obj, user):
         raise PermissionError('No edit permission for file')
     display = name_from_path_segment(new_name).strip()
     if not display:
@@ -268,7 +285,7 @@ def rename_file_record(file_obj: File, new_name: str, user):
 def rename_folder_record(folder: Folder, new_name: str, user):
     if getattr(folder, 'is_personal_root', False) or getattr(folder, 'is_team_root', False):
         raise PermissionError('Cannot rename root folder')
-    if not can_edit_folder(folder, user):
+    if not _may_edit_folder(folder, user):
         raise PermissionError('No edit permission for folder')
     display = name_from_path_segment(new_name).strip()
     if not display:
@@ -278,11 +295,11 @@ def rename_folder_record(folder: Folder, new_name: str, user):
 
 
 def move_file_record(file_obj: File, target_folder, user, view: str, team_id=None):
-    if not can_edit_file(file_obj, user):
+    if not _may_edit_file(file_obj, user):
         raise PermissionError('No edit permission for file')
-    if target_folder is not None and not can_edit_folder(target_folder, user):
+    if target_folder is not None and not _may_edit_folder(target_folder, user):
         raise PermissionError('No edit permission for target')
-    if target_folder is not None and not can_view_folder(target_folder, user):
+    if target_folder is not None and not can_view_folder(target_folder, user) and not _user_bypasses_edit_acl(user):
         raise PermissionError('No view permission for target')
 
     target_id = target_folder.id if target_folder else None
@@ -305,9 +322,9 @@ def move_file_record(file_obj: File, target_folder, user, view: str, team_id=Non
 def move_folder_record(folder: Folder, target_folder, user, view: str, team_id=None):
     if getattr(folder, 'is_personal_root', False) or getattr(folder, 'is_team_root', False):
         raise PermissionError('Cannot move root folder')
-    if not can_edit_folder(folder, user):
+    if not _may_edit_folder(folder, user):
         raise PermissionError('No edit permission for folder')
-    if target_folder is not None and not can_edit_folder(target_folder, user):
+    if target_folder is not None and not _may_edit_folder(target_folder, user):
         raise PermissionError('No edit permission for target')
 
     # Prevent cycles

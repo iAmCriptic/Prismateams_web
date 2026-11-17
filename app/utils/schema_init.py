@@ -40,6 +40,8 @@ CRITICAL_TABLES = (
     "mailboxes",
     "mailbox_memberships",
     "mailbox_user_prefs",
+    "mailbox_auto_replies",
+    "mailbox_auto_reply_logs",
     "teams",
     "team_members",
     "credentials",
@@ -75,6 +77,14 @@ CRITICAL_TABLES = (
     "protocol_agenda_items",
     "meetings",
     "meeting_invites",
+    "duty_rosters",
+    "duty_roster_days",
+    "duty_roster_columns",
+    "duty_roster_entries",
+    "duty_person_configs",
+    "duty_external_persons",
+    "duty_roster_planners",
+    "duty_time_entries",
     "conversion_jobs",
     "schema_migrations",
 )
@@ -98,7 +108,7 @@ def import_all_models() -> None:
     )
     from app.models.calendar import Calendar  # noqa: F401
     from app.models.contact import Contact, ContactFavorite  # noqa: F401
-    from app.models.email import EmailFolder  # noqa: F401
+    from app.models.email import EmailFolder, MailboxAutoReply, MailboxAutoReplyLog  # noqa: F401
     from app.models.event import (  # noqa: F401
         Event,
         EventAppointment,
@@ -111,7 +121,7 @@ def import_all_models() -> None:
     from app.models.inventory import Checkout, CheckoutItem  # noqa: F401
     from app.models.manual import Manual, ManualFolder  # noqa: F401
     from app.models.public_share import PublicShare, ShareAccessLog  # noqa: F401
-    from app.models.team import Team, TeamMember, TeamModuleSetting  # noqa: F401
+    from app.models.team import Team, TeamMember, TeamModuleSetting, TeamInviteCode  # noqa: F401
     from app.models.wiki import WikiFavorite  # noqa: F401
     from app.models.survey import (  # noqa: F401
         Survey,
@@ -237,6 +247,68 @@ class _SchemaLock:
         return False
 
 
+def _is_mysql_orphan_error(exc: BaseException) -> bool:
+    """MySQL 1932 (Dictionary ohne Engine) / 1813 (orphan Tablespace)."""
+    msg = str(exc).lower()
+    return any(
+        needle in msg
+        for needle in (
+            "1932",
+            "doesn't exist in engine",
+            "1813",
+            "tablespace for table",
+            "please discard the tablespace",
+        )
+    )
+
+
+def _quote_ident(name: str) -> str:
+    return "`" + name.replace("`", "``") + "`"
+
+
+def _drop_mysql_table(db, table_name: str) -> bool:
+    """Droppt eine Tabelle mit deaktivierten FK-Checks (MySQL/MariaDB)."""
+    try:
+        with db.engine.begin() as conn:
+            conn.execute(text("SET FOREIGN_KEY_CHECKS=0"))
+            conn.execute(text(f"DROP TABLE IF EXISTS {_quote_ident(table_name)}"))
+            conn.execute(text("SET FOREIGN_KEY_CHECKS=1"))
+        return True
+    except Exception as exc:
+        logger.warning("Drop von '%s' fehlgeschlagen: %s", table_name, exc)
+        return False
+
+
+def _repair_unreadable_mysql_tables(db, *, table_names: Iterable[str] | None = None) -> list[str]:
+    """
+    Erkennt unlesbare MySQL-Tabellen (1932) und droppt sie, damit create_all sie neu anlegen kann.
+    Prüft nur die angegebenen Namen (kritische), sonst alle sichtbaren Tabellen.
+    """
+    if db.engine.dialect.name not in ("mysql", "mariadb"):
+        return []
+
+    inspector = inspect(db.engine)
+    existing = set(inspector.get_table_names())
+    if table_names is None:
+        candidates = sorted(existing)
+    else:
+        candidates = [n for n in table_names if n in existing]
+
+    repaired: list[str] = []
+    for name in candidates:
+        try:
+            with db.engine.connect() as conn:
+                conn.execute(text(f"SELECT 1 FROM {_quote_ident(name)} LIMIT 1"))
+        except Exception as exc:
+            if not _is_mysql_orphan_error(exc):
+                logger.warning("Tabelle '%s' unlesbar (kein Orphan): %s", name, exc)
+                continue
+            if _drop_mysql_table(db, name):
+                repaired.append(name)
+                logger.warning("Orphan-Tabelle '%s' gedroppt (MySQL 1932/1813) – wird neu angelegt", name)
+    return repaired
+
+
 def _create_missing_tables(db, table_names: Iterable[str]) -> list[str]:
     """Erstellt fehlende Tabellen einzeln; gibt weiterhin fehlende Namen zurück."""
     still_missing: list[str] = []
@@ -250,9 +322,241 @@ def _create_missing_tables(db, table_names: Iterable[str]) -> list[str]:
             table.create(db.engine, checkfirst=True)
             logger.info("Tabelle '%s' sichergestellt", name)
         except Exception as exc:
+            if _is_mysql_orphan_error(exc) and _drop_mysql_table(db, name):
+                try:
+                    table.create(db.engine, checkfirst=True)
+                    logger.info("Tabelle '%s' nach Orphan-Repair neu angelegt", name)
+                    continue
+                except Exception as retry_exc:
+                    logger.warning("Tabelle '%s' nach Repair weiterhin fehlgeschlagen: %s", name, retry_exc)
+                    still_missing.append(name)
+                    continue
             logger.warning("Tabelle '%s' konnte nicht erstellt werden: %s", name, exc)
             still_missing.append(name)
     return still_missing
+
+
+def ensure_critical_columns(db) -> None:
+    """
+    Stellt sicher, dass neu hinzugekommene Spalten an existierenden Kern-Tabellen
+    (wie users, team_invite_codes) vorhanden sind.
+
+    create_all() legt nur nicht-existente Tabellen an, fügt aber an bestehenden
+    Tabellen keine Spalten hinzu. Diese Funktion verhindert 1054-Fehler
+    ("Unknown column in 'field list'") auf bestehenden Installationen, selbst wenn
+    eine Migration übersprungen wurde oder fehlschlug.
+    """
+    try:
+        inspector = inspect(db.engine)
+        table_names = set(inspector.get_table_names())
+        dialect = db.engine.dialect.name
+        is_mysql = dialect in ("mysql", "mariadb")
+        is_pg = dialect == "postgresql"
+
+        bool_true = (
+            "TINYINT(1) NOT NULL DEFAULT 1"
+            if is_mysql
+            else ("BOOLEAN NOT NULL DEFAULT TRUE" if is_pg else "BOOLEAN NOT NULL DEFAULT 1")
+        )
+        bool_false = (
+            "TINYINT(1) NOT NULL DEFAULT 0"
+            if is_mysql
+            else ("BOOLEAN NOT NULL DEFAULT FALSE" if is_pg else "BOOLEAN NOT NULL DEFAULT 0")
+        )
+
+        users_table = "users" if "users" in table_names else ("ass_users" if "ass_users" in table_names else None)
+        if users_table:
+            user_cols = {c["name"] for c in inspector.get_columns(users_table)}
+            user_column_defs = [
+                ("can_access_team", bool_true),
+                ("can_access_public", bool_true),
+                ("can_access_private", bool_true),
+                ("has_full_access", bool_false),
+                ("dguv_signature_confirmed_until", "TIMESTAMP NULL" if is_pg else "DATETIME NULL"),
+            ]
+            for col_name, ddl in user_column_defs:
+                if col_name not in user_cols:
+                    try:
+                        logger.info("Ergänze fehlende Spalte %s.%s ...", users_table, col_name)
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE {users_table} ADD COLUMN {col_name} {ddl}"))
+                        logger.info("[OK] %s.%s ergänzt", users_table, col_name)
+                    except Exception as col_err:
+                        logger.warning("Konnte %s.%s nicht ergänzen: %s", users_table, col_name, col_err)
+
+        if "team_invite_codes" in table_names:
+            invite_cols = {c["name"] for c in inspector.get_columns("team_invite_codes")}
+            if "role" not in invite_cols:
+                try:
+                    logger.info("Ergänze team_invite_codes.role ...")
+                    with db.engine.begin() as conn:
+                        conn.execute(
+                            text("ALTER TABLE team_invite_codes ADD COLUMN role VARCHAR(32) NOT NULL DEFAULT 'team_only'")
+                        )
+                    logger.info("[OK] team_invite_codes.role ergänzt")
+                except Exception as role_err:
+                    logger.warning("Konnte team_invite_codes.role nicht ergänzen: %s", role_err)
+
+        if "booking_personal_events" in table_names:
+            bpe_cols = {c["name"] for c in inspector.get_columns("booking_personal_events")}
+            if "apply_token" not in bpe_cols:
+                try:
+                    logger.info("Ergänze booking_personal_events.apply_token ...")
+                    with db.engine.begin() as conn:
+                        conn.execute(
+                            text("ALTER TABLE booking_personal_events ADD COLUMN apply_token VARCHAR(64) NULL")
+                        )
+                        try:
+                            conn.execute(
+                                text("CREATE UNIQUE INDEX ix_booking_personal_events_apply_token ON booking_personal_events (apply_token)")
+                            )
+                        except Exception:
+                            pass
+                    logger.info("[OK] booking_personal_events.apply_token ergänzt")
+                except Exception as bpe_err:
+                    logger.warning("Konnte booking_personal_events.apply_token nicht ergänzen: %s", bpe_err)
+
+            if "apply_enabled" not in bpe_cols:
+                try:
+                    logger.info("Ergänze booking_personal_events.apply_enabled ...")
+                    with db.engine.begin() as conn:
+                        conn.execute(
+                            text(f"ALTER TABLE booking_personal_events ADD COLUMN apply_enabled {bool_true}")
+                        )
+                    logger.info("[OK] booking_personal_events.apply_enabled ergänzt")
+                except Exception as bpe_err:
+                    logger.warning("Konnte booking_personal_events.apply_enabled nicht ergänzen: %s", bpe_err)
+
+            event_text_cols = [
+                ("header_image_path", "VARCHAR(255) NULL"),
+                ("apply_intro_text", "TEXT NULL"),
+                ("apply_intro_text_en", "TEXT NULL"),
+                ("form_intro_text", "TEXT NULL"),
+                ("form_intro_text_en", "TEXT NULL"),
+                ("overview_intro_text", "TEXT NULL"),
+                ("overview_intro_text_en", "TEXT NULL"),
+            ]
+            for col_name, col_type in event_text_cols:
+                if col_name not in bpe_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE booking_personal_events ADD COLUMN {col_name} {col_type}"))
+                        logger.info("[OK] booking_personal_events.%s ergänzt", col_name)
+                    except Exception as col_err:
+                        logger.warning("Konnte booking_personal_events.%s nicht ergänzen: %s", col_name, col_err)
+
+            try:
+                import secrets
+                with db.engine.connect() as conn:
+                    rows = conn.execute(
+                        text("SELECT id FROM booking_personal_events WHERE apply_token IS NULL OR apply_token = ''")
+                    ).fetchall()
+                if rows:
+                    with db.engine.begin() as conn:
+                        for row in rows:
+                            conn.execute(
+                                text("UPDATE booking_personal_events SET apply_token = :token WHERE id = :id"),
+                                {"token": secrets.token_urlsafe(32), "id": row[0]},
+                            )
+                    logger.info("[OK] apply_token für %s bestehende booking_personal_events generiert", len(rows))
+            except Exception as tok_err:
+                logger.warning("Konnte apply_token für bestehende booking_personal_events nicht generieren: %s", tok_err)
+
+        if "booking_personal_fields" in table_names:
+            bpf_cols = {c["name"] for c in inspector.get_columns("booking_personal_fields")}
+            if "category" not in bpf_cols:
+                try:
+                    logger.info("Ergänze booking_personal_fields.category ...")
+                    with db.engine.begin() as conn:
+                        conn.execute(
+                            text("ALTER TABLE booking_personal_fields ADD COLUMN category VARCHAR(100) DEFAULT 'Allgemein'")
+                        )
+                    logger.info("[OK] booking_personal_fields.category ergänzt")
+                except Exception as bpf_err:
+                    logger.warning("Konnte booking_personal_fields.category nicht ergänzen: %s", bpf_err)
+
+        # Raumbuchungssystem: booking_forms, booking_requests, approvals, events
+        if "booking_forms" in table_names:
+            bf_cols = {col["name"] for col in inspector.get_columns("booking_forms")}
+            form_col_defs = [
+                ("room_id", "INTEGER NULL"),
+                ("allow_room_selection", bool_false),
+                ("allowed_room_ids", "TEXT NULL"),
+            ]
+            for col_name, ddl in form_col_defs:
+                if col_name not in bf_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE booking_forms ADD COLUMN {col_name} {ddl}"))
+                        logger.info("[OK] booking_forms.%s ergänzt", col_name)
+                    except Exception as err:
+                        logger.warning("Konnte booking_forms.%s nicht ergänzen: %s", col_name, err)
+
+        if "booking_requests" in table_names:
+            br_cols = {col["name"] for col in inspector.get_columns("booking_requests")}
+            req_col_defs = [
+                ("room_id", "INTEGER NULL"),
+                ("booking_type", "VARCHAR(20) NOT NULL DEFAULT 'external'"),
+                ("booked_by_user_id", "INTEGER NULL"),
+                ("event_id", "INTEGER NULL"),
+                ("has_conflict", bool_false),
+                ("conflict_notes", "TEXT NULL"),
+                ("issue_reported", bool_false),
+                ("issue_comment", "TEXT NULL"),
+                ("issue_reported_by", "INTEGER NULL"),
+                ("issue_reported_at", "TIMESTAMP NULL" if is_pg else "DATETIME NULL"),
+            ]
+            for col_name, ddl in req_col_defs:
+                if col_name not in br_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE booking_requests ADD COLUMN {col_name} {ddl}"))
+                        logger.info("[OK] booking_requests.%s ergänzt", col_name)
+                    except Exception as err:
+                        logger.warning("Konnte booking_requests.%s nicht ergänzen: %s", col_name, err)
+
+        if "booking_request_approvals" in table_names:
+            bra_cols = {col["name"] for col in inspector.get_columns("booking_request_approvals")}
+            appr_col_defs = [
+                ("acknowledged_at", "TIMESTAMP NULL" if is_pg else "DATETIME NULL"),
+                ("reported_at", "TIMESTAMP NULL" if is_pg else "DATETIME NULL"),
+            ]
+            for col_name, ddl in appr_col_defs:
+                if col_name not in bra_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE booking_request_approvals ADD COLUMN {col_name} {ddl}"))
+                        logger.info("[OK] booking_request_approvals.%s ergänzt", col_name)
+                    except Exception as err:
+                        logger.warning("Konnte booking_request_approvals.%s nicht ergänzen: %s", col_name, err)
+
+        if "events" in table_names:
+            ev_cols = {col["name"] for col in inspector.get_columns("events")}
+            if "room_id" not in ev_cols:
+                try:
+                    with db.engine.begin() as conn:
+                        conn.execute(text("ALTER TABLE events ADD COLUMN room_id INTEGER NULL"))
+                    logger.info("[OK] events.room_id ergänzt")
+                except Exception as err:
+                    logger.warning("Konnte events.room_id nicht ergänzen: %s", err)
+
+        if "event_appointments" in table_names:
+            ea_cols = {col["name"] for col in inspector.get_columns("event_appointments")}
+            ea_col_defs = [
+                ("room_id", "INTEGER NULL"),
+                ("booking_request_id", "INTEGER NULL"),
+            ]
+            for col_name, ddl in ea_col_defs:
+                if col_name not in ea_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE event_appointments ADD COLUMN {col_name} {ddl}"))
+                        logger.info("[OK] event_appointments.%s ergänzt", col_name)
+                    except Exception as err:
+                        logger.warning("Konnte event_appointments.%s nicht ergänzen: %s", col_name, err)
+
+    except Exception as exc:
+        logger.warning("ensure_critical_columns fehlgeschlagen: %s", exc)
 
 
 def ensure_all_tables(db=None, *, critical_tables: Iterable[str] | None = None) -> tuple[bool, list[str]]:
@@ -271,12 +575,36 @@ def ensure_all_tables(db=None, *, critical_tables: Iterable[str] | None = None) 
     import_all_models()
 
     with _SchemaLock(db):
+        # Vor create_all: unlesbare kritische Tabellen (MySQL 1932) droppen
+        try:
+            repaired = _repair_unreadable_mysql_tables(db, table_names=critical)
+            if repaired:
+                logger.warning("Orphan-Repair: %s Tabelle(n) neu anzulegen: %s", len(repaired), ", ".join(repaired))
+        except Exception as repair_err:
+            logger.warning("Orphan-Repair übersprungen: %s", repair_err)
+
         try:
             db.create_all()
             logger.info("db.create_all() ausgeführt")
         except Exception as create_error:
             logger.warning("db.create_all() fehlgeschlagen: %s", create_error)
-            logger.info("Versuche fehlende Tabellen einzeln zu erstellen...")
+            if _is_mysql_orphan_error(create_error):
+                # create_all bricht oft an der ersten kaputten Tabelle ab – breiter Repair
+                try:
+                    repaired = _repair_unreadable_mysql_tables(db)
+                    if repaired:
+                        logger.warning("Breiter Orphan-Repair: %s Tabelle(n)", len(repaired))
+                        try:
+                            db.create_all()
+                            logger.info("db.create_all() nach Orphan-Repair ausgeführt")
+                            create_error = None
+                        except Exception as retry_err:
+                            create_error = retry_err
+                            logger.warning("db.create_all() nach Repair weiterhin fehlgeschlagen: %s", retry_err)
+                except Exception as broad_err:
+                    logger.warning("Breiter Orphan-Repair fehlgeschlagen: %s", broad_err)
+            if create_error is not None:
+                logger.info("Versuche fehlende Tabellen einzeln zu erstellen...")
 
         inspector = inspect(db.engine)
         existing = set(inspector.get_table_names())
@@ -313,5 +641,23 @@ def ensure_all_tables(db=None, *, critical_tables: Iterable[str] | None = None) 
             logger.error("Nach Schema-Init fehlen noch: %s", ', '.join(still_missing))
             return False, still_missing
 
-        logger.info("Schema vollständig (%s Tabellen, kritische geprüft)", len(existing))
+        # Lesbarkeit kritischer Tabellen final prüfen
+        unreadables = _repair_unreadable_mysql_tables(db, table_names=critical)
+        if unreadables:
+            pending = _create_missing_tables(db, unreadables)
+            if pending:
+                logger.error("Nach Orphan-Repair weiterhin unlesbar/fehlend: %s", ", ".join(pending))
+                return False, pending
+            try:
+                db.create_all()
+            except Exception:
+                pass
+
+        # Kritische Spalten an existierenden Kern-Tabellen sicherstellen (verhindert 1054 Unknown Column)
+        try:
+            ensure_critical_columns(db)
+        except Exception as col_err:
+            logger.warning("ensure_critical_columns fehlgeschlagen: %s", col_err)
+
+        logger.info("Schema vollständig (%s Tabellen, kritische geprüft)", len(inspect(db.engine).get_table_names()))
         return True, []

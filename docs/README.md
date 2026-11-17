@@ -152,7 +152,7 @@ Aktueller Stand **3.4.12** – Aufbau auf der 3.x-Oberfläche mit Datenschutz-, 
 | Datenbank | MySQL / MariaDB oder SQLite |
 | Echtzeit | Socket.IO, optional Redis |
 | Auth | Sessions, Argon2, optional 2FA / reCAPTCHA / Turnstile |
-| Deploy | Gunicorn, Nginx/Apache, Ubuntu-Skript |
+| Deploy | Gunicorn, Nginx/Apache, Ubuntu-Skript oder Docker Compose |
 
 **Minimal:** Python 3.8+, 2 GB RAM, 10 GB Speicher  
 **Empfohlen:** Python 3.12–3.14 (Ubuntu 24.04 / 26.04), MySQL/MariaDB, 4 GB+ RAM, Redis bei Multi-Worker
@@ -163,13 +163,25 @@ Aktueller Stand **3.4.12** – Aufbau auf der 3.x-Oberfläche mit Datenschutz-, 
 
 ### Ubuntu (empfohlen)
 
-Modularer Installer – **einsatzbereit** für Produktion:
+Modularer Installer – **einsatzbereit** für Produktion (native: venv + systemd):
 
 ```bash
 sudo bash scripts/install_ubuntu.sh
 ```
 
-Details und Flags: [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md) · Alternative: [manuelle Installation](INSTALLATION.md)
+Details und Flags: [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md)
+
+### Docker (OS-unabhängig)
+
+Compose-Stack (App + MySQL + Redis, optional Euro-Office / Excalidraw / MiroTalk):
+
+```bash
+cp docs/env.docker.example .env
+docker compose up -d --build
+```
+
+Ubuntu reine Docker-Variante: `sudo bash scripts/install_ubuntu_docker.sh`  
+Doku: [INSTALLATION_DOCKER.md](INSTALLATION_DOCKER.md) · Alternative: [manuelle Installation](INSTALLATION.md)
 
 ### Entwicklung (Kurz)
 
@@ -184,11 +196,13 @@ python app.py
 
 Details:
 
-- [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md) – Ubuntu-Installer (empfohlen)
+- [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md) – Ubuntu-Installer native (empfohlen)
+- [INSTALLATION_DOCKER.md](INSTALLATION_DOCKER.md) – Docker Compose + Ubuntu-Docker-Installer
 - [INSTALLATION.md](INSTALLATION.md) – manuelle Installation
 - [WARTUNG.md](WARTUNG.md) – Updates, Migrationen, Backups
 - [ERROR_HANDLING.md](ERROR_HANDLING.md) – Fehlerbehebung
 - [env.example](env.example) – Konfigurationsbeispiel
+- [env.docker.example](env.docker.example) – Docker-`.env`-Vorlage
 
 ---
 
@@ -215,7 +229,10 @@ Prismateams_web/
 ├── docs/                    # Doku & Screenshots (diese README)
 │   └── Pictures/
 ├── migrations/              # DB-Migrationen
-├── scripts/                 # install_ubuntu.sh (+ install_ubuntu/), Key-Generatoren
+├── scripts/                 # install_ubuntu.sh, install_ubuntu_docker.sh, Key-Generatoren
+├── docker/                  # Entrypoint für App-Container
+├── Dockerfile
+├── docker-compose.yml
 ├── app.py                   # Dev-Einstieg
 ├── wsgi.py                  # Produktion
 ├── config.py
@@ -228,7 +245,8 @@ Prismateams_web/
 
 | Dokument | Inhalt |
 |----------|--------|
-| [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md) | Ubuntu-Installer (empfohlen, einsatzbereit) |
+| [INSTALLATION_SCRIPT.md](INSTALLATION_SCRIPT.md) | Ubuntu-Installer native (empfohlen, einsatzbereit) |
+| [INSTALLATION_DOCKER.md](INSTALLATION_DOCKER.md) | Docker Compose + Ubuntu reine Docker-Variante |
 | [INSTALLATION.md](INSTALLATION.md) | Manuelle Installation |
 | [WEBDAV.md](WEBDAV.md) | Windows-Explorer-Zugriff (WebDAV) |
 | [WARTUNG.md](WARTUNG.md) | Updates & Backups |

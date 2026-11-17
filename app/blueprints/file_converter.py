@@ -119,9 +119,20 @@ def _active_job_count(user_id):
     ).count()
 
 
+def _active_job_count_global():
+    return ConversionJob.query.filter(
+        ConversionJob.status.in_(ACTIVE_STATUSES),
+    ).count()
+
+
 def _get_max_concurrent(app):
     max_concurrent = app.config.get('FILE_CONVERTER_MAX_CONCURRENT', 2)
     return max(1, int(max_concurrent))
+
+
+def _get_max_global(app):
+    max_global = app.config.get('FILE_CONVERTER_MAX_GLOBAL', 2)
+    return max(1, int(max_global))
 
 
 def _purge_job(job):
@@ -202,6 +213,9 @@ def _process_conversion(app, user_id, job_id):
 
 
 def _start_conversion_thread(app, job_id):
+    """Enqueue conversion off the HTTP request thread (QA G06)."""
+    from app.utils.heavy_job_pool import submit_file_conversion
+
     with app.app_context():
         job = ConversionJob.query.get(job_id)
         if not job:
@@ -209,13 +223,13 @@ def _start_conversion_thread(app, job_id):
         user_id = job.user_id
         with _queue_lock:
             _user_active_jobs[user_id] += 1
-        thread = threading.Thread(
-            target=_process_conversion,
-            args=(app, user_id, job_id),
-            daemon=True,
-            name=f'file-convert-{job_id}',
+        submit_file_conversion(
+            _process_conversion,
+            app,
+            user_id,
+            job_id,
+            max_workers=_get_max_global(app),
         )
-        thread.start()
 
 
 def _save_upload(file_storage):
@@ -394,6 +408,13 @@ def convert():
     if _active_job_count(current_user.id) >= max_concurrent:
         return jsonify({
             'error': translate('file_converter.flash.too_many_jobs', max=max_concurrent),
+            'error_key': 'too_many_jobs',
+        }), 429
+
+    max_global = _get_max_global(current_app)
+    if _active_job_count_global() >= max_global:
+        return jsonify({
+            'error': translate('file_converter.flash.too_many_jobs', max=max_global),
             'error_key': 'too_many_jobs',
         }), 429
 

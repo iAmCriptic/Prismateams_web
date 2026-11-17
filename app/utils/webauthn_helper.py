@@ -8,20 +8,35 @@ import time
 from typing import Any
 
 from flask import current_app, request, session
-from webauthn import (
-    generate_authentication_options,
-    generate_registration_options,
-    verify_authentication_response,
-    verify_registration_response,
-)
-from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
-from webauthn.helpers.options_to_json import options_to_json
-from webauthn.helpers.structs import (
-    AuthenticatorSelectionCriteria,
-    PublicKeyCredentialDescriptor,
-    ResidentKeyRequirement,
-    UserVerificationRequirement,
-)
+try:
+    from webauthn import (
+        generate_authentication_options,
+        generate_registration_options,
+        verify_authentication_response,
+        verify_registration_response,
+    )
+    from webauthn.helpers import base64url_to_bytes, bytes_to_base64url
+    from webauthn.helpers.options_to_json import options_to_json
+    from webauthn.helpers.structs import (
+        AuthenticatorSelectionCriteria,
+        PublicKeyCredentialDescriptor,
+        ResidentKeyRequirement,
+        UserVerificationRequirement,
+    )
+    HAS_WEBAUTHN = True
+except ImportError:
+    HAS_WEBAUTHN = False
+    generate_authentication_options = None
+    generate_registration_options = None
+    verify_authentication_response = None
+    verify_registration_response = None
+    base64url_to_bytes = None
+    bytes_to_base64url = None
+    options_to_json = None
+    AuthenticatorSelectionCriteria = None
+    PublicKeyCredentialDescriptor = None
+    ResidentKeyRequirement = None
+    UserVerificationRequirement = None
 
 CHALLENGE_TTL_SECONDS = 300
 SESSION_CHALLENGE_KEY = 'webauthn_challenge'

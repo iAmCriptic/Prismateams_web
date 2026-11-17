@@ -11,6 +11,7 @@ from functools import wraps
 
 from flask import (
     Blueprint,
+    abort,
     current_app,
     flash,
     jsonify,
@@ -31,6 +32,7 @@ from app.models.comment import Comment
 from app.models.public_share import PublicShare
 from app.models.kanban import (
     KanbanActivity,
+    KanbanActivityRead,
     KanbanAttachment,
     KanbanBoard,
     KanbanBoardMember,
@@ -99,19 +101,24 @@ def index():
             filter_team_id = None
 
     teams = _user_kanban_teams(current_user)
-    if filter_team_id and not any(t.id == filter_team_id for t in teams):
-        filter_team_id = None
-        section = 'all'
-
-    allowed = set(get_allowed_visibilities())
+    allowed = set(get_allowed_visibilities(current_user))
+    q = (request.args.get('q') or '').strip()
     base = (
         accessible_boards_query(current_user, include_closed=False)
         .options(joinedload(KanbanBoard.team))
         .order_by(KanbanBoard.updated_at.desc())
     )
+    if q:
+        base = base.filter(KanbanBoard.title.ilike(f"%{q}%"))
 
     def vis_query(vis):
         return base.filter(KanbanBoard.visibility == vis)
+
+    if filter_team_id and not any(t.id == filter_team_id for t in teams):
+        has_shared_team_board = vis_query(VISIBILITY_TEAM).filter(KanbanBoard.team_id == filter_team_id).first() is not None
+        if not has_shared_team_board:
+            filter_team_id = None
+            section = 'all'
 
     recent_views = (
         KanbanBoardView.query.filter_by(user_id=current_user.id)
@@ -163,7 +170,22 @@ def index():
             list_has_more = pag.has_next
             list_page = pag.page
         else:
-            for team in teams:
+            team_ids_with_boards = [
+                row[0] for row in vis_query(VISIBILITY_TEAM)
+                .filter(KanbanBoard.team_id.isnot(None))
+                .order_by(None)
+                .with_entities(KanbanBoard.team_id)
+                .distinct()
+                .all()
+            ]
+            all_teams_map = {t.id: t for t in teams}
+            missing_team_ids = [tid for tid in team_ids_with_boards if tid not in all_teams_map]
+            if missing_team_ids:
+                for t in Team.query.filter(Team.id.in_(missing_team_ids)).order_by(Team.name).all():
+                    all_teams_map[t.id] = t
+            display_teams = sorted(all_teams_map.values(), key=lambda t: t.name.lower())
+
+            for team in display_teams:
                 q = vis_query(VISIBILITY_TEAM).filter(KanbanBoard.team_id == team.id)
                 items, pag = paginate_list(q, page=1)
                 if items:
@@ -199,6 +221,24 @@ def index():
         displayed.extend(group.get('boards') or [])
     manageable_ids = {b.id for b in displayed if can_manage_board(current_user, b)}
 
+    all_board_ids = {b.id for b in displayed if b}
+    unread_counts_by_board = {}
+    if all_board_ids and getattr(current_user, 'is_authenticated', False):
+        try:
+            from sqlalchemy import func, select
+            read_subq = select(KanbanActivityRead.activity_id).filter_by(user_id=current_user.id)
+            counts = (
+                db.session.query(KanbanActivity.board_id, func.count(KanbanActivity.id))
+                .filter(KanbanActivity.board_id.in_(all_board_ids))
+                .filter(KanbanActivity.user_id != current_user.id)
+                .filter(KanbanActivity.id.not_in(read_subq))
+                .group_by(KanbanActivity.board_id)
+                .all()
+            )
+            unread_counts_by_board = {board_id: cnt for board_id, cnt in counts if cnt > 0}
+        except Exception:
+            unread_counts_by_board = {}
+
     active_nav = f'team-{filter_team_id}' if section == 'team' and filter_team_id else section
 
     return render_template(
@@ -208,14 +248,16 @@ def index():
         team_boards=selected_team_boards,
         team_board_groups=team_board_groups,
         public_boards=public_boards,
-        allowed_visibilities=get_allowed_visibilities(),
+        allowed_visibilities=get_allowed_visibilities(current_user),
         teams=teams,
         templates=templates,
         backgrounds=BOARD_BACKGROUNDS,
         show_closed_link=True,
         manageable_ids=manageable_ids,
+        unread_counts_by_board=unread_counts_by_board,
         section_filter=section,
         filter_team_id=filter_team_id,
+        search_query=q,
         active_nav=active_nav,
         list_has_more=list_has_more,
         list_page=list_page,
@@ -239,25 +281,26 @@ def closed_boards():
     return render_template(
         'kanban/closed.html',
         boards=boards,
-        allowed_visibilities=get_allowed_visibilities(),
+        allowed_visibilities=get_allowed_visibilities(current_user),
         teams=_user_kanban_teams(current_user),
         active_nav='closed',
         create_modal=False,
     )
 
 
-@kanban_bp.route('/board/<int:board_id>')
+@kanban_bp.route('/board/<board_id>')
 @login_required
 @check_module_access('module_kanban')
 def board(board_id):
-    board_obj = KanbanBoard.query.get_or_404(board_id)
+    board_obj = find_board(board_id)
+    if not board_obj:
+        abort(404)
+    # Security: do not disclose existence of closed or restricted boards to unauthorized users
     if board_obj.closed_at:
         if not can_manage_board(current_user, board_obj):
-            flash(translate('kanban.flash.board_closed'), 'warning')
-            return redirect(url_for('kanban.index'))
+            abort(404)
     elif not can_view_board(current_user, board_obj):
-        flash(translate('kanban.flash.no_access'), 'danger')
-        return redirect(url_for('kanban.index'))
+        abort(404)
 
     _track_view(board_obj)
     db.session.commit()

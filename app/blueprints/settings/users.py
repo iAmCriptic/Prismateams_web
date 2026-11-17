@@ -75,7 +75,7 @@ def admin_users():
         ('module_manuals', 'Anleitungen'),
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
-        ('module_booking', 'Buchungen'),
+        ('module_booking', 'Raumbuchung'),
         ('module_music', 'Musik'),
         ('module_media_downloader', 'Media Downloader'),
         ('module_file_converter', 'Dateikonverter'),
@@ -86,6 +86,8 @@ def admin_users():
         ('module_surveys', 'Umfragen'),
         ('module_protocols', 'Protokollführung'),
         ('module_meetings', 'Meetings'),
+        ('module_duty_roster', 'Dienstplan'),
+        ('module_booking_personal', 'Booking'),
     ]
     
     # Get all users, excluding guest accounts (system accounts)
@@ -126,6 +128,9 @@ def admin_users():
         {
             'user': user,
             'has_full_access': user.has_full_access,
+            'can_access_public': bool(getattr(user, 'can_access_public', True)),
+            'can_access_team': bool(getattr(user, 'can_access_team', True)),
+            'can_access_private': bool(getattr(user, 'can_access_private', True)),
             'module_roles': role_map[user.id],
         }
         for user in active_users
@@ -523,6 +528,8 @@ def create_user():
                 'module_excalidraw',
                 'module_surveys',
                 'module_meetings',
+                'module_duty_roster',
+                'module_booking_personal',
             ]
             
             selected_modules = request.form.getlist('allowed_modules')
@@ -848,6 +855,8 @@ def edit_guest_user(user_id):
             'module_excalidraw',
             'module_surveys',
             'module_meetings',
+            'module_duty_roster',
+            'module_booking_personal',
         ]
 
         existing_roles = UserModuleRole.query.filter_by(user_id=user.id).all()

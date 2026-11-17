@@ -5,6 +5,24 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/comments.css') }}">
 {% endblock %}
 
+{% block navbar_search %}
+<div class="mod-search" role="search">
+    <label class="mod-search-field" for="kanbanBoardSearchInput">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="text"
+               id="kanbanBoardSearchInput"
+               class="mod-search-input"
+               placeholder="{{ _('kanban.board.search_placeholder') }}"
+               autocomplete="off"
+               spellcheck="false"
+               enterkeyhint="search">
+    </label>
+    <button type="button" class="btn mod-search-clear d-none" id="kanbanBoardSearchClear" aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </button>
+</div>
+{% endblock %}
+
 {% block content %}
 <div class="kanban-board-page{% if background_image_url %} has-bg-image{% endif %}" id="kanbanBoardApp"
      data-board-id="{{ board.id }}"
@@ -29,12 +47,66 @@
       {% endif %}
     </div>
     <div class="kanban-board-topbar__right">
-      <div class="kanban-board-members" id="kanbanBoardMembers" aria-label="{{ _('kanban.card.members') }}"></div>
+      <div class="dropdown d-inline-block">
+        <div class="kanban-board-members" id="kanbanBoardMembers" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Board-Mitglieder & Zugriff anzeigen" tabindex="0"></div>
+        <div class="dropdown-menu dropdown-menu-end kanban-board-members-dropdown p-3 shadow-lg" id="kanbanBoardMembersDropdown" style="min-width: 320px; max-width: 380px;">
+          <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom" style="border-color: var(--kanban-border) !important;">
+            <h6 class="mb-0 fw-bold"><i class="bi bi-people me-1"></i>Board-Mitglieder</h6>
+            <span class="badge rounded-pill bg-secondary" id="kanbanBoardMembersCount">0</span>
+          </div>
+          <div class="small mb-2 text-muted" id="kanbanBoardAccessNotice"></div>
+          <div class="kanban-board-members-list d-flex flex-column gap-1 mb-3" id="kanbanBoardMembersList" style="max-height: 280px; overflow-y: auto;">
+            <div class="text-muted small">Lade Mitglieder…</div>
+          </div>
+          {% if can_manage %}
+          <button type="button" class="btn btn-sm btn-accent w-100 mod-pill-btn" id="kanbanOpenShareFromMenuBtn"
+                  onclick="event.preventDefault(); event.stopPropagation(); window.kanbanOpenShareModal ? window.kanbanOpenShareModal('users') : document.getElementById('kanbanShareBtn')?.click(); return false;">
+            <i class="bi bi-person-plus me-1"></i>Freigabe & Mitglieder verwalten
+          </button>
+          {% endif %}
+        </div>
+      </div>
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon d-lg-none" id="kanbanMobileSearchBtn"
+              title="{{ _('kanban.board.search_placeholder') }}" aria-label="{{ _('kanban.board.search_placeholder') }}">
+        <i class="bi bi-search" aria-hidden="true"></i>
+      </button>
       <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanFilterBtn"
               title="{{ _('kanban.board.filter') }}">
         <i class="bi bi-funnel" aria-hidden="true"></i>
         <span class="kanban-filter-badge" id="kanbanFilterBadge" hidden>0</span>
       </button>
+      <div class="dropdown d-inline-block kanban-notifications-dropdown">
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--icon position-relative" id="kanbanNotificationsBtn"
+                data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+                title="Benachrichtigungen">
+          <i class="bi bi-bell" aria-hidden="true" id="kanbanNotificationsBellIcon"></i>
+          <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="kanbanNotificationsBadge" style="display:none; font-size: 0.65rem; padding: 0.2em 0.45em;">0</span>
+        </button>
+        <div class="dropdown-menu dropdown-menu-end kanban-notifications-panel shadow-lg p-0" id="kanbanNotificationsPanel" aria-labelledby="kanbanNotificationsBtn">
+          <div class="kanban-notifications-header d-flex align-items-center justify-content-between p-3 border-bottom">
+            <div class="d-flex align-items-center gap-2">
+              <h6 class="mb-0 fw-bold d-flex align-items-center gap-2" id="kanbanNotificationsLabel">
+                <i class="bi bi-bell text-primary"></i>
+                <span>Benachrichtigungen</span>
+              </h6>
+              <span class="badge bg-danger rounded-pill" id="kanbanNotificationsHeaderBadge" style="display:none; font-size: 0.72rem;"></span>
+            </div>
+            <button type="button" class="btn-close" id="kanbanNotificationsCloseBtn" aria-label="{{ _('common.close') }}"></button>
+          </div>
+          <div class="kanban-notifications-toolbar px-3 py-2 border-bottom d-flex align-items-center justify-content-between gap-2">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="kanbanNotificationsUnreadOnly" checked>
+              <label class="form-check-label small fw-medium" for="kanbanNotificationsUnreadOnly">Nur ungelesene</label>
+            </div>
+            <button type="button" class="btn btn-sm btn-link text-decoration-none p-0 small" id="kanbanNotificationsMarkAllRead" title="Alle als gelesen markieren">
+              <i class="bi bi-check2-all me-1"></i>Alle als gelesen
+            </button>
+          </div>
+          <div class="kanban-notifications-feed p-3" id="kanbanNotificationsFeed">
+            <div class="text-center text-muted py-4 small">Lade Benachrichtigungen…</div>
+          </div>
+        </div>
+      </div>
       <div class="dropdown">
         <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanExportBtn"
                 data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('kanban.export.title') }}">
@@ -60,7 +132,9 @@
       <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanCustomFieldsBtn" title="{{ _('kanban.custom_fields.title') }}">
         <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
       </button>
-      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanShareBtn" title="{{ _('kanban.board.share') }}">
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanShareBtn"
+              data-bs-toggle="modal" data-bs-target="#kanbanShareModal"
+              title="{{ _('kanban.board.share') }}">
         <i class="bi bi-person-plus" aria-hidden="true"></i>
       </button>
       <button type="button" class="btn mod-pill-btn mod-pill-btn--icon mod-pill-btn--ghost" id="kanbanSaveTemplateBtn" title="{{ _('kanban.board.save_template') }}">
@@ -70,7 +144,29 @@
     </div>
   </header>
 
+  <div class="kanban-mobile-search-bar px-3 py-2 d-none d-lg-none" id="kanbanMobileSearchWrap">
+    <div class="mod-search" role="search">
+      <label class="mod-search-field" for="kanbanBoardSearchInputMobile">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="text"
+               id="kanbanBoardSearchInputMobile"
+               class="mod-search-input"
+               placeholder="{{ _('kanban.board.search_placeholder') }}"
+               autocomplete="off"
+               spellcheck="false"
+               enterkeyhint="search">
+      </label>
+      <button type="button" class="btn mod-search-clear d-none" id="kanbanBoardSearchClearMobile" aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+  </div>
+
   <div class="kanban-lists-scroll" id="kanbanLists"></div>
+  <div id="kanbanBoardSearchEmpty" class="kanban-search-empty text-center py-5 d-none text-white-50 w-100 position-absolute start-50 top-50 translate-middle" style="z-index: 5; pointer-events: none;">
+    <i class="bi bi-search fs-2 mb-2 d-block"></i>
+    <span>{{ _('kanban.board.no_search_results') }}</span>
+  </div>
 </div>
 
 {# Card detail modal #}
@@ -189,7 +285,7 @@
             <form id="cardAttachLinkForm" class="kanban-link-form mb-2" hidden>
               <div class="d-flex flex-wrap gap-2">
                 <input type="url" class="form-control form-control-sm kanban-pill-input flex-grow-1" id="cardAttachLinkUrl" placeholder="https://…" required>
-                <input type="text" class="form-control form-control-sm kanban-pill-input" id="cardAttachLinkTitle" placeholder="{{ _('kanban.card.link_title') }}" style="max-width:10rem;">
+                <input type="text" class="form-control form-control-sm kanban-pill-input" id="cardAttachLinkTitle" placeholder="Titel (optional / automatisch)" style="min-width:13rem;">
                 <button type="submit" class="btn btn-sm btn-accent mod-pill-btn">{{ _('kanban.card.add') }}</button>
                 <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" id="cardAttachLinkCancel"><i class="bi bi-x-lg"></i></button>
               </div>
@@ -321,41 +417,100 @@
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content kanban-modal">
       <div class="modal-header">
-        <h5 class="modal-title">{{ _('kanban.board.share') }}</h5>
+        <h5 class="modal-title"><i class="bi bi-share me-2"></i>{{ _('kanban.board.share') }}</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
-        <form id="kanbanShareForm" class="kanban-share-create row g-2 align-items-end mb-3">
-          <div class="col-md-3">
-            <label class="form-label small mb-1" for="kanbanShareMode">{{ _('kanban.share.mode') }}</label>
-            <select class="form-select kanban-pill-input" id="kanbanShareMode" name="mode">
-              <option value="view">{{ _('kanban.share.mode_view') }}</option>
-              <option value="edit">{{ _('kanban.share.mode_edit') }}</option>
-            </select>
+        <ul class="nav nav-pills kanban-share-nav mb-3 gap-2 border-bottom pb-2" id="kanbanShareTabs" role="tablist" style="border-color: var(--kanban-border) !important;">
+          <li class="nav-item" role="presentation">
+            <button class="nav-link active mod-pill-btn" id="kanbanShareTabUsersBtn" data-bs-toggle="pill" data-bs-target="#kanbanSharePaneUsers" type="button" role="tab" aria-controls="kanbanSharePaneUsers" aria-selected="true">
+              <i class="bi bi-people me-1"></i>Portalsnutzer freigeben
+            </button>
+          </li>
+          <li class="nav-item" role="presentation">
+            <button class="nav-link mod-pill-btn" id="kanbanShareTabLinksBtn" data-bs-toggle="pill" data-bs-target="#kanbanSharePaneLinks" type="button" role="tab" aria-controls="kanbanSharePaneLinks" aria-selected="false">
+              <i class="bi bi-link-45deg me-1"></i>Öffentliche Freigabelinks
+            </button>
+          </li>
+        </ul>
+
+        <div class="tab-content" id="kanbanShareTabContent">
+          <!-- Pane: Portalsnutzer -->
+          <div class="tab-pane fade show active" id="kanbanSharePaneUsers" role="tabpanel" aria-labelledby="kanbanShareTabUsersBtn">
+            {% if can_manage %}
+            <form id="kanbanAddUserForm" class="kanban-share-create row g-2 align-items-end mb-3">
+              <div class="col-md-5">
+                <label class="form-label small mb-1" for="kanbanAddUserSelect">Portalsnutzer</label>
+                <select class="form-select kanban-pill-input" id="kanbanAddUserSelect" required>
+                  <option value="">Benutzer auswählen…</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label small mb-1" for="kanbanAddUserRole">Rolle / Zugriff</label>
+                <select class="form-select kanban-pill-input" id="kanbanAddUserRole">
+                  <option value="member">Mitglied (Karten bearbeiten)</option>
+                  <option value="admin">Administrator (Board verwalten)</option>
+                </select>
+              </div>
+              <div class="col-md-3">
+                <button type="submit" class="btn btn-accent mod-pill-btn w-100" id="kanbanAddUserSubmitBtn">
+                  <i class="bi bi-person-plus me-1"></i>Freigeben
+                </button>
+              </div>
+            </form>
+            {% endif %}
+            <div class="table-responsive kanban-share-table-wrap">
+              <table class="table table-sm align-middle mb-0 kanban-share-table">
+                <thead>
+                  <tr>
+                    <th>Portalsnutzer</th>
+                    <th>Rolle</th>
+                    <th>Berechtigung</th>
+                    <th class="text-end">Optionen</th>
+                  </tr>
+                </thead>
+                <tbody id="kanbanPortalUsersList">
+                  <tr><td colspan="4" class="text-muted small">Lade Portalsnutzer…</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div class="col-md-5">
-            <label class="form-label small mb-1" for="kanbanSharePassword">{{ _('kanban.share.password') }}</label>
-            <input class="form-control kanban-pill-input" id="kanbanSharePassword" name="password" type="text" placeholder="{{ _('kanban.share.password_optional') }}" autocomplete="new-password">
+
+          <!-- Pane: Öffentliche Links -->
+          <div class="tab-pane fade" id="kanbanSharePaneLinks" role="tabpanel" aria-labelledby="kanbanShareTabLinksBtn">
+            <form id="kanbanShareForm" class="kanban-share-create row g-2 align-items-end mb-3">
+              <div class="col-md-3">
+                <label class="form-label small mb-1" for="kanbanShareMode">{{ _('kanban.share.mode') }}</label>
+                <select class="form-select kanban-pill-input" id="kanbanShareMode" name="mode">
+                  <option value="view">{{ _('kanban.share.mode_view') }}</option>
+                  <option value="edit">{{ _('kanban.share.mode_edit') }}</option>
+                </select>
+              </div>
+              <div class="col-md-5">
+                <label class="form-label small mb-1" for="kanbanSharePassword">{{ _('kanban.share.password') }}</label>
+                <input class="form-control kanban-pill-input" id="kanbanSharePassword" name="password" type="text" placeholder="{{ _('kanban.share.password_optional') }}" autocomplete="new-password">
+              </div>
+              <div class="col-md-4">
+                <button type="submit" class="btn btn-accent mod-pill-btn w-100">{{ _('kanban.share.create') }}</button>
+              </div>
+            </form>
+            <div class="table-responsive kanban-share-table-wrap">
+              <table class="table table-sm align-middle mb-0 kanban-share-table">
+                <thead>
+                  <tr>
+                    <th>{{ _('kanban.share.col_created_by') }}</th>
+                    <th>{{ _('kanban.share.col_link') }}</th>
+                    <th>{{ _('kanban.share.col_password') }}</th>
+                    <th>{{ _('kanban.share.col_mode') }}</th>
+                    <th class="text-end">{{ _('kanban.share.col_actions') }}</th>
+                  </tr>
+                </thead>
+                <tbody id="kanbanShareList">
+                  <tr><td colspan="5" class="text-muted small">{{ _('kanban.share.empty') }}</td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div class="col-md-4">
-            <button type="submit" class="btn btn-accent mod-pill-btn w-100">{{ _('kanban.share.create') }}</button>
-          </div>
-        </form>
-        <div class="table-responsive kanban-share-table-wrap">
-          <table class="table table-sm align-middle mb-0 kanban-share-table">
-            <thead>
-              <tr>
-                <th>{{ _('kanban.share.col_created_by') }}</th>
-                <th>{{ _('kanban.share.col_link') }}</th>
-                <th>{{ _('kanban.share.col_password') }}</th>
-                <th>{{ _('kanban.share.col_mode') }}</th>
-                <th class="text-end">{{ _('kanban.share.col_actions') }}</th>
-              </tr>
-            </thead>
-            <tbody id="kanbanShareList">
-              <tr><td colspan="5" class="text-muted small">{{ _('kanban.share.empty') }}</td></tr>
-            </tbody>
-          </table>
         </div>
       </div>
     </div>
@@ -593,6 +748,13 @@
     files: {{ _('kanban.card.files') | tojson }},
     addedSuffix: {{ _('kanban.card.added_suffix') | tojson }},
     due: {{ _('kanban.card.due') | tojson }},
+    changeDue: {{ _('kanban.card.change_due') | tojson }},
+    addDue: {{ _('kanban.card.add_due') | tojson }},
+    clearDue: {{ _('kanban.card.clear_due') | tojson }},
+    assignMember: {{ _('kanban.card.assign_member') | tojson }},
+    changeAssignee: {{ _('kanban.card.change_assignee') | tojson }},
+    clearAssignee: {{ _('kanban.card.clear_assignee') | tojson }},
+    more: {{ _('common.more_actions') | tojson }},
     typeText: {{ _('kanban.custom_fields.type_text') | tojson }},
     typeSelect: {{ _('kanban.custom_fields.type_select') | tojson }},
     typeDate: {{ _('kanban.custom_fields.type_date') | tojson }},
@@ -600,11 +762,55 @@
     typeCheckbox: {{ _('kanban.custom_fields.type_checkbox') | tojson }},
     background: {{ _('kanban.board.background') | tojson }},
     backgroundUpload: {{ _('kanban.board.background_upload') | tojson }},
-    backgroundClear: {{ _('kanban.board.background_clear') | tojson }}
+    backgroundClear: {{ _('kanban.board.background_clear') | tojson }},
+    noSearchResults: {{ _('kanban.board.no_search_results') | tojson }}
   };
   window.KANBAN_BACKGROUNDS = {{ backgrounds | tojson }};
+
+  window.kanbanOpenShareModal = function(tab) {
+    tab = tab || 'users';
+    try {
+      var dropdownToggle = document.getElementById('kanbanBoardMembers');
+      if (dropdownToggle && window.bootstrap && bootstrap.Dropdown) {
+        var dd = bootstrap.Dropdown.getInstance(dropdownToggle);
+        if (dd) dd.hide();
+      }
+      var menu = document.getElementById('kanbanBoardMembersDropdown');
+      if (menu) menu.classList.remove('show');
+      if (dropdownToggle) {
+        dropdownToggle.classList.remove('show');
+        dropdownToggle.setAttribute('aria-expanded', 'false');
+      }
+    } catch (_) {}
+
+    setTimeout(function() {
+      var modalEl = document.getElementById('kanbanShareModal');
+      if (modalEl && window.bootstrap && bootstrap.Modal) {
+        try {
+          var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+          modal.show();
+        } catch (_) {}
+      }
+      var tabBtnId = (tab === 'links') ? 'kanbanShareTabLinksBtn' : 'kanbanShareTabUsersBtn';
+      var tabBtn = document.getElementById(tabBtnId);
+      if (tabBtn) {
+        try {
+          if (window.bootstrap && bootstrap.Tab) {
+            bootstrap.Tab.getOrCreateInstance(tabBtn).show();
+          } else {
+            tabBtn.click();
+          }
+        } catch (_) {
+          tabBtn.click();
+        }
+      }
+      if (typeof window.kanbanInternalOpenShare === 'function') {
+        window.kanbanInternalOpenShare(tab);
+      }
+    }, 50);
+  };
 </script>
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="{{ url_for('static', filename='js/kanban-board.js') }}"></script>
+<script src="{{ url_for('static', filename='js/kanban-board.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}&t=20261106_07"></script>
 {% endblock %}

@@ -61,7 +61,7 @@ def upload_file():
     folder_id = request.form.get("folder_id")
     folder_id = int(folder_id) if folder_id else None
     conflict_strategy = request.form.get("conflict_strategy", "").strip().lower()
-    files_view = normalize_view(request.form.get("view") or request.args.get("view"))
+    files_view = normalize_view(request.form.get("view") or request.args.get("view"), user=current_user)
     team_id = _request_team_id()
     folder_id, upload_parent = _resolve_create_parent(files_view, folder_id, team_id)
     if files_view == "team" and is_team_folders_enabled() and not upload_parent:

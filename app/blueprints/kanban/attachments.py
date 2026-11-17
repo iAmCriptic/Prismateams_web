@@ -11,6 +11,7 @@ from functools import wraps
 
 from flask import (
     Blueprint,
+    abort,
     current_app,
     flash,
     jsonify,
@@ -86,6 +87,72 @@ from app.blueprints.kanban.helpers import *  # noqa: F401,F403
 
 # ── Attachments ────────────────────────────────────────────────────────
 
+def _fetch_url_title(raw_url: str, timeout: float = 3.5) -> str | None:
+    """Fetches the HTML <title> tag of a webpage, or derives a readable name."""
+    import html
+    import re
+    from urllib.parse import urlparse, unquote
+
+    parsed = urlparse(raw_url)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+
+    try:
+        import requests
+        headers = {
+            'User-Agent': (
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+                '(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            ),
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
+        }
+        resp = requests.get(raw_url, headers=headers, timeout=timeout, stream=True, allow_redirects=True)
+        content_type = resp.headers.get('Content-Type', '').lower()
+        if 'html' in content_type or not content_type:
+            chunk = next(resp.iter_content(chunk_size=65536), b'')
+            encoding = resp.encoding or 'utf-8'
+            try:
+                html_text = chunk.decode(encoding, errors='replace')
+            except Exception:
+                html_text = chunk.decode('utf-8', errors='replace')
+
+            m = re.search(r'<title[^>]*>(.*?)</title>', html_text, re.IGNORECASE | re.DOTALL)
+            if m:
+                title = html.unescape(m.group(1)).strip()
+                title = re.sub(r'\s+', ' ', title).strip()
+                if title:
+                    return title[:250]
+    except Exception:
+        pass
+
+    try:
+        segments = [s for s in parsed.path.strip('/').split('/') if s]
+        if segments:
+            clean_seg = unquote(segments[-1]).replace('_', ' ').replace('-', ' ').strip()
+            if clean_seg:
+                return f"{clean_seg} ({parsed.netloc})"
+        return parsed.netloc
+    except Exception:
+        return None
+
+
+@kanban_bp.route('/api/fetch-url-title', methods=['GET', 'POST'])
+@login_or_share_required
+def api_fetch_url_title():
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        raw_url = (data.get('url') or '').strip()
+    else:
+        raw_url = (request.args.get('url') or '').strip()
+    if not raw_url:
+        return jsonify({'error': 'URL required'}), 400
+    if not raw_url.startswith(('http://', 'https://')):
+        raw_url = 'https://' + raw_url
+    title = _fetch_url_title(raw_url)
+    return jsonify({'title': title or ''})
+
+
 @kanban_bp.route('/api/cards/<int:card_id>/attachments', methods=['POST'])
 @login_or_share_required
 def api_upload_attachment(card_id):
@@ -102,7 +169,12 @@ def api_upload_attachment(card_id):
             return jsonify({'error': 'URL required'}), 400
         if not raw_url.startswith(('http://', 'https://')):
             raw_url = 'https://' + raw_url
-        title = (data.get('title') or data.get('name') or '').strip() or raw_url
+        user_title = (data.get('title') or data.get('name') or '').strip()
+        if not user_title or user_title == raw_url:
+            resolved_title = _fetch_url_title(raw_url)
+            title = resolved_title or raw_url
+        else:
+            title = user_title
         if len(title) > 255:
             title = title[:252] + '…'
         att = KanbanAttachment(
@@ -178,14 +250,14 @@ def api_upload_attachment(card_id):
 def download_attachment(attachment_id):
     att = KanbanAttachment.query.get_or_404(attachment_id)
     board = att.card.list.board
+    if board.closed_at and not can_manage_board(current_user, board):
+        abort(404)
     if not can_view_board(current_user, board):
-        flash(translate('kanban.flash.no_access'), 'danger')
-        return redirect(url_for('kanban.index'))
+        abort(404)
     if att.url and not att.storage_path:
         return redirect(att.url)
     if not att.storage_path or not os.path.isfile(att.storage_path):
-        flash(translate('kanban.flash.no_access'), 'danger')
-        return redirect(url_for('kanban.index'))
+        abort(404)
     return send_file(att.storage_path, as_attachment=True, download_name=att.original_filename or att.filename)
 
 
@@ -231,19 +303,20 @@ def edit_onlyoffice(attachment_id):
     att = KanbanAttachment.query.get_or_404(attachment_id)
     card = att.card
     board = card.list.board
+    if board.closed_at and not can_manage_board(current_user, board):
+        abort(404)
     if not can_view_board(current_user, board):
-        flash(translate('kanban.flash.no_access'), 'danger')
-        return redirect(url_for('kanban.index'))
+        abort(404)
     if att.url or not att.storage_path or not os.path.isfile(att.storage_path):
         flash('Datei nicht gefunden.', 'danger')
-        return redirect(url_for('kanban.board', board_id=board.id, card=card.id))
+        return redirect(url_for('kanban.board', board_id=board.public_id or board.id, card=card.id))
 
     can_edit = can_edit_board(current_user, board)
     name = att.original_filename or att.filename or 'Dokument'
     file_ext = os.path.splitext(name)[1].lower()
     if not is_onlyoffice_file_type(file_ext):
         flash('Dieser Dateityp wird von Euro-Office nicht unterstützt.', 'warning')
-        return redirect(url_for('kanban.board', board_id=board.id, card=card.id))
+        return redirect(url_for('kanban.board', board_id=board.public_id or board.id, card=card.id))
 
     document_type = get_onlyoffice_document_type(file_ext)
     file_type = get_onlyoffice_file_type(file_ext)
@@ -307,7 +380,7 @@ def edit_onlyoffice(attachment_id):
         editor_config["editorConfig"]["user"]["image"] = user_image
 
     token = generate_onlyoffice_token(editor_config)
-    return_url = url_for('kanban.board', board_id=board.id, card=card.id)
+    return_url = url_for('kanban.board', board_id=board.public_id or board.id, card=card.id)
     file_proxy = SimpleNamespace(
         id=att.id,
         name=name,
@@ -554,12 +627,14 @@ def api_delete_attachment(attachment_id):
         return jsonify({'error': 'Forbidden'}), 403
     if card.cover_attachment_id == att.id:
         card.cover_attachment_id = None
+    att_name = att.original_filename or att.filename or att.url or 'Anhang'
     try:
         if att.storage_path and os.path.isfile(att.storage_path):
             os.remove(att.storage_path)
     except OSError:
         pass
     db.session.delete(att)
+    _log_activity(board.id, 'attachment_deleted', detail=att_name, card_id=card.id)
     db.session.commit()
     payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)

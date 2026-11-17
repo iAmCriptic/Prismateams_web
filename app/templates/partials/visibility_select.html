@@ -1,16 +1,21 @@
 {# Visibility select for create/edit forms.
    Pass allowed/teams/selected explicitly — imported macros have no caller context.
-   Optional attrs= is appended inside the <select> tag (e.g. 'data-mod-pill-select'). #}
-{% macro visibility_select(field_id='visibility', extra_class='', allowed=None, teams=None, selected=None, show_label=true, select_class='form-select', attrs='') %}
+   Optional attrs= is appended inside the <select> tag (e.g. 'data-mod-pill-select').
+   warn_public=true (or visibility_module=credentials): Warnung bei Public. #}
+{% macro visibility_select(field_id='visibility', extra_class='', allowed=None, teams=None, selected=None, show_label=true, select_class='form-select', attrs='', warn_public=None) %}
 {% set vis_allowed = allowed if allowed is sequence else allowed_visibilities|default([]) %}
 {% set vis_teams = teams if teams is sequence else visibility_teams|default([]) %}
 {% set vis_selected = selected if selected else selected_visibility|default('') %}
+{% set mod = visibility_module|default('') %}
+{% if warn_public is none %}
+{% set warn_public = (mod == 'credentials') %}
+{% endif %}
 {% if vis_allowed %}
 {% if show_label %}
 <div class="{{ extra_class }}">
     <label class="form-label" for="{{ field_id }}">{{ _('visibility.form.label') }}</label>
 {% endif %}
-    <select class="{{ select_class }}" id="{{ field_id }}" name="visibility"{% if attrs %} {{ attrs|safe }}{% endif %}>
+    <select class="{{ select_class }}" id="{{ field_id }}" name="visibility"{% if attrs %} {{ attrs|safe }}{% endif %}{% if warn_public and 'public' in vis_allowed %} data-visibility-warn-public="1"{% endif %}>
         {% if 'private' in vis_allowed %}
         <option value="private" {% if vis_selected == 'private' %}selected{% endif %}>{{ _('visibility.form.private') }}</option>
         {% endif %}
@@ -20,9 +25,30 @@
         {% endfor %}
         {% endif %}
         {% if 'public' in vis_allowed %}
-        <option value="public" {% if vis_selected == 'public' %}selected{% endif %}>{{ _('visibility.form.public') }}</option>
+        <option value="public" {% if vis_selected == 'public' %}selected{% endif %}>{% if warn_public %}{{ _('visibility.form.public_credentials') }}{% else %}{{ _('visibility.form.public') }}{% endif %}</option>
         {% endif %}
     </select>
+    {% if warn_public and 'public' in vis_allowed %}
+    <div class="alert alert-warning py-2 px-3 mt-2 mb-0 small credentials-visibility-public-warn"
+         id="{{ field_id }}-public-warn"
+         role="status"
+         {% if vis_selected != 'public' %}hidden{% endif %}>
+        <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>
+        {{ _('visibility.form.credentials_public_warning') }}
+    </div>
+    <script>
+    (function () {
+        var sel = document.getElementById({{ field_id|tojson }});
+        var warn = document.getElementById({{ (field_id ~ '-public-warn')|tojson }});
+        if (!sel || !warn) return;
+        function sync() {
+            warn.hidden = sel.value !== 'public';
+        }
+        sel.addEventListener('change', sync);
+        sync();
+    })();
+    </script>
+    {% endif %}
 {% if show_label %}
 </div>
 {% endif %}

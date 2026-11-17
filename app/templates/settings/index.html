@@ -44,7 +44,6 @@
       <h2 id="hub-leader" class="sp-hub-section-title">{{ _('settings.sidebar.team_lead_heading') }}</h2>
       <div class="sp-hub-grid">
         {{ sp_hub_tile(url_for('settings.admin_teams'), 'bi-diagram-3', _('settings.admin.cards.teams.title'), _('settings.team_settings.teams_tile_short')) }}
-        {{ sp_hub_tile(url_for('settings.team_settings'), 'bi-sliders', _('settings.team_settings.title'), _('settings.team_settings.tile_short')) }}
       </div>
     </section>
     {% endif %}
@@ -75,7 +74,7 @@
       <h2 id="hub-admin-modules" class="sp-hub-section-title">{{ _('settings.sidebar.sections.modules') }}</h2>
       <div class="sp-hub-grid">
         {% if is_module_enabled('module_booking') %}
-        {{ sp_hub_tile(url_for('settings.booking_forms'), 'bi-calendar-check', _('booking.admin.cards.booking_forms.title'), _('booking.admin.cards.booking_forms.short')) }}
+        {{ sp_hub_tile(url_for('settings.booking_rooms'), 'bi-door-open', _('layout.nav.booking'), _('booking.admin.cards.booking_module.short')) }}
         {% endif %}
         {% if is_module_enabled('module_music') %}
         {{ sp_hub_tile(url_for('settings.admin_music'), 'bi-music-note-beamed', _('booking.admin.cards.music_module.title'), _('booking.admin.cards.music_module.short')) }}
@@ -88,6 +87,9 @@
         {% endif %}
         {% if is_module_enabled('module_calendar') %}
         {{ sp_hub_tile(url_for('settings.admin_calendar_settings'), 'bi-calendar-event', _('settings.admin.cards.calendar_settings.title'), _('settings.admin.cards.calendar_settings.short')) }}
+        {% endif %}
+        {% if is_module_enabled('module_events') %}
+        {{ sp_hub_tile(url_for('settings.admin_events_settings'), 'bi-calendar2-week', 'Veranstaltungen', 'Benutzerdefinierte Felder & Einstellungen') }}
         {% endif %}
         {{ sp_hub_tile(url_for('settings.admin_file_settings'), 'bi-folder', _('settings.admin.cards.file_settings.title'), _('settings.admin.cards.file_settings.short')) }}
       </div>
@@ -106,6 +108,7 @@
         <a href="{{ url_for('settings.privacy') }}" class="sp-sidepanel-link"><i class="bi bi-shield-check"></i>{{ _('settings.index.cards.privacy.title') }}</a>
         {% if current_user.is_admin %}
         <a href="{{ url_for('settings.admin_modules') }}" class="sp-sidepanel-link"><i class="bi bi-grid-3x3-gap"></i>{{ _('settings.admin.cards.modules.title') }}</a>
+        <a href="{{ url_for('settings.admin_events_settings') }}" class="sp-sidepanel-link"><i class="bi bi-calendar2-week"></i>Veranstaltungen</a>
         {% endif %}
       </div>
     </div>

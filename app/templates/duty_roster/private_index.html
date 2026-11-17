@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}{{ _('duty_roster.nav.private') }} – {{ _('duty_roster.nav.title') }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mod-buttons.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/duty_roster.css') }}">
+{% endblock %}
+
+{% block content %}
+{% set heading = _('duty_roster.private.heading') %}
+{% include 'duty_roster/_layout_start.html' %}
+
+        <div class="duty-toolbar">
+            <div class="duty-toolbar__title">
+                <h1>{{ _('duty_roster.private.heading') }}</h1>
+            </div>
+        </div>
+
+        {% if overtime_blocks %}
+        <div class="row g-2 mb-4">
+            {% for block in overtime_blocks %}
+            <div class="col-md-4">
+                <div class="card h-100">
+                    <div class="card-body py-2">
+                        <div class="fw-semibold">{{ block.team.name if block.team else '—' }}</div>
+                        <div class="small text-muted">{{ _('duty_roster.private.overtime') }}:
+                            {% if block.stats.overtime_ytd is not none %}
+                            <span class="{% if block.stats.overtime_ytd < 0 %}text-danger{% elif block.stats.overtime_ytd > 0 %}text-success{% endif %}">
+                                {{ '%+.1f'|format(block.stats.overtime_ytd) }}h
+                            </span>
+                            {% else %}—{% endif %}
+                        </div>
+                        {% if block.stats.vacation_days_remaining is not none %}
+                        <div class="small text-muted">{{ _('duty_roster.table.vacation_remaining') }}: {{ block.stats.vacation_days_remaining }}</div>
+                        {% endif %}
+                        {% if block.stats.weekly_hours_soll is not none %}
+                        <div class="small text-muted">{{ _('duty_roster.table.soll') }}: {{ block.stats.weekly_hours_soll }}h</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <p class="small text-muted">{{ _('duty_roster.private.sick_hint') }}</p>
+        {% endif %}
+
+        <div class="row g-4">
+            <div class="col-lg-7">
+                <h2 class="h6 mb-3">{{ _('duty_roster.private.timeline') }}</h2>
+
+                {% macro day_block(rows, section_class='') %}
+                {% for row in rows %}
+                <div class="duty-private-day {{ section_class }}">
+                    <div class="duty-private-day__date">
+                        <span class="duty-private-day__weekday">{{ row.weekday }}</span>
+                        <span class="duty-private-day__when">{{ row.date.strftime('%d.%m.%Y') }}</span>
+                    </div>
+                    <div class="duty-private-day__cols">
+                        <div class="duty-private-day__col">
+                            <div class="duty-private-day__label">{{ _('duty_roster.private.planned_short') }}</div>
+                            {% if row.planned %}
+                                {% for p in row.planned %}
+                                <div class="duty-private-day__line">
+                                    <span class="fw-semibold">{{ p.entry.display_text() }}</span>
+                                    {% if p.team %}<span class="text-muted"> · {{ p.team.name }}</span>{% endif %}
+                                    {% if p.whats_happening %}<div class="small text-muted">{{ p.whats_happening }}</div>{% endif %}
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="duty-private-day__empty">—</div>
+                            {% endif %}
+                        </div>
+                        <div class="duty-private-day__col">
+                            <div class="duty-private-day__label">{{ _('duty_roster.private.actual_short') }}</div>
+                            {% if row.actual %}
+                                {% for e in row.actual %}
+                                <div class="duty-private-day__line d-flex justify-content-between align-items-start gap-2">
+                                    <div>
+                                        <span class="fw-semibold">{{ e.display_text() }}</span>
+                                        {% if e.note %}<div class="small text-muted">{{ e.note }}</div>{% endif %}
+                                    </div>
+                                    <form method="post" action="{{ url_for('duty_roster.private_delete_entry', entry_id=e.id) }}" class="flex-shrink-0">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-link btn-sm text-danger p-0" title="{{ _('duty_roster.index.delete') }}">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="duty-private-day__empty">—</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endmacro %}
+
+                {% if today_rows or future_preview or future_more or past_rows %}
+                    {% if today_rows %}
+                    <h3 class="duty-roster-section-title">{{ _('duty_roster.private.section_today') }}</h3>
+                    {{ day_block(today_rows, 'duty-private-day--today') }}
+                    {% endif %}
+
+                    {% if future_preview or future_more %}
+                    <h3 class="duty-roster-section-title">{{ _('duty_roster.private.section_future') }}</h3>
+                    {{ day_block(future_preview) }}
+                    {% if future_more %}
+                    <details class="duty-private-more">
+                        <summary>{{ _('duty_roster.private.show_more_future', count=future_more|length) }}</summary>
+                        {{ day_block(future_more) }}
+                    </details>
+                    {% endif %}
+                    {% endif %}
+
+                    {% if past_rows %}
+                    <h3 class="duty-roster-section-title">{{ _('duty_roster.private.section_past') }}</h3>
+                    {{ day_block(past_rows[:10]) }}
+                    {% if past_rows|length > 10 %}
+                    <details class="duty-private-more">
+                        <summary>{{ _('duty_roster.private.show_more_past', count=(past_rows|length - 10)) }}</summary>
+                        {{ day_block(past_rows[10:]) }}
+                    </details>
+                    {% endif %}
+                    {% endif %}
+                {% else %}
+                <p class="text-muted small">{{ _('duty_roster.private.no_planned') }}</p>
+                {% endif %}
+            </div>
+
+            <div class="col-lg-5">
+                <h2 class="h6 mb-3">{{ _('duty_roster.private.add_entry') }}</h2>
+                <div class="card">
+                    <div class="card-body">
+                        <form method="post" action="{{ url_for('duty_roster.private_add_entry') }}" class="row g-2">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            {% if default_team_id %}
+                            <input type="hidden" name="team_id" value="{{ default_team_id }}">
+                            {% endif %}
+                            <div class="col-6">
+                                <label class="form-label small mb-0">{{ _('duty_roster.private.date') }}</label>
+                                <input type="date" name="date" class="form-control form-control-sm" required
+                                       value="{{ today.isoformat() }}">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small mb-0">{{ _('duty_roster.private.type') }}</label>
+                                <select name="entry_type" class="form-select form-select-sm" id="privateEntryType">
+                                    <option value="work">{{ _('duty_roster.private.type_work') }}</option>
+                                    <option value="sick">{{ _('duty_roster.private.type_sick') }}</option>
+                                    <option value="vacation">{{ _('duty_roster.private.type_vacation') }}</option>
+                                    <option value="other">{{ _('duty_roster.private.type_other') }}</option>
+                                </select>
+                            </div>
+                            <div class="col-6 private-time-fields">
+                                <label class="form-label small mb-0">{{ _('duty_roster.private.start') }}</label>
+                                <input type="time" name="start_time" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-6 private-time-fields">
+                                <label class="form-label small mb-0">{{ _('duty_roster.private.end') }}</label>
+                                <input type="time" name="end_time" class="form-control form-control-sm">
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label small mb-0">{{ _('duty_roster.private.note') }}</label>
+                                <input type="text" name="note" class="form-control form-control-sm" maxlength="500">
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent">{{ _('duty_roster.private.add_entry') }}</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+<script>
+(function () {
+    var sel = document.getElementById('privateEntryType');
+    if (!sel) return;
+    function sync() {
+        var work = sel.value === 'work';
+        document.querySelectorAll('.private-time-fields').forEach(function (el) {
+            el.style.display = work ? '' : 'none';
+        });
+    }
+    sel.addEventListener('change', sync);
+    sync();
+})();
+</script>
+{% endblock %}

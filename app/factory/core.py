@@ -27,6 +27,29 @@ def configure_core(app, config_name, basedir):
             f"{config_name.capitalize()} requires a strong SECRET_KEY via environment variable SECRET_KEY."
         )
 
+    if config_name in ('production', 'staging'):
+        totp_key = (app.config.get('TOTP_ENCRYPTION_KEY') or '').strip()
+        if not totp_key:
+            raise RuntimeError(
+                f"{config_name.capitalize()} requires TOTP_ENCRYPTION_KEY in .env "
+                "(python scripts/generate_encryption_keys.py). "
+                "Kein SECRET_KEY-Fallback für TOTP-at-rest."
+            )
+        try:
+            from cryptography.fernet import Fernet
+            Fernet(totp_key.encode('utf-8') if isinstance(totp_key, str) else totp_key)
+        except Exception as exc:
+            raise RuntimeError(
+                f"{config_name.capitalize()}: TOTP_ENCRYPTION_KEY ist kein gültiger Fernet-Key. "
+                "Erzeugen mit: python scripts/generate_encryption_keys.py"
+            ) from exc
+
+    if config_name == 'development' and _is_insecure_secret_key(app.config.get('SECRET_KEY')):
+        logging.getLogger(__name__).warning(
+            "Development nutzt den festen Dev-SECRET_KEY — nicht öffentlich betreiben. "
+            "Eigenen SECRET_KEY in .env setzen."
+        )
+
     if config_name in ('production', 'staging') and not app.config.get('SESSION_COOKIE_SECURE'):
         logging.getLogger(__name__).warning(
             "%s läuft mit SESSION_COOKIE_SECURE=False — Session-Cookies sind über HTTP lesbar. "
@@ -39,6 +62,19 @@ def configure_core(app, config_name, basedir):
             "%s: REMEMBER_COOKIE_SECURE=False — Remember-Me-Cookies ohne Secure-Flag.",
             config_name.capitalize(),
         )
+
+    if app.config.get('TWO_FACTOR_EMAIL_RECOVERY_ENABLED'):
+        mail_ok = all([
+            app.config.get('MAIL_SERVER'),
+            app.config.get('MAIL_USERNAME'),
+            app.config.get('MAIL_PASSWORD'),
+        ])
+        if not mail_ok:
+            logging.getLogger(__name__).warning(
+                "2FA-E-Mail-Recovery ist aktiv, aber MAIL_SERVER/MAIL_USERNAME/MAIL_PASSWORD "
+                "fehlen — Wiederherstellungscodes können nicht zugestellt werden. "
+                "MAIL_* setzen oder TWO_FACTOR_EMAIL_RECOVERY_ENABLED=false."
+            )
 
     public_base = (app.config.get('PUBLIC_BASE_URL') or '').strip().lower()
     if (

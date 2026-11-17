@@ -1,9 +1,32 @@
+from .booking import (
+    BookingRoom,
+    BookingForm,
+    BookingFormField,
+    BookingFormImage,
+    BookingRequest,
+    BookingRequestMessage,
+    BookingRequestField,
+    BookingRequestFile,
+    BookingFormRole,
+    BookingFormRoleUser,
+    BookingRequestApproval,
+)
 from .user import User
 from .user_session import UserSession
 from .chat import Chat, ChatMessage, ChatMember, ChatPin
 from .file import File, FileVersion, Folder, ResourceACL, FolderFavorite, FileEditLock, FileStorageException
 from .calendar import Calendar, CalendarEvent, EventParticipant, PublicCalendarFeed, CalendarSyncSource
-from .email import EmailMessage, EmailPermission, EmailAttachment, EmailFolder, Mailbox, MailboxMembership, MailboxUserPref
+from .email import (
+    EmailMessage,
+    EmailPermission,
+    EmailAttachment,
+    EmailFolder,
+    Mailbox,
+    MailboxMembership,
+    MailboxUserPref,
+    MailboxAutoReply,
+    MailboxAutoReplyLog,
+)
 from .contact import Contact, ContactFavorite
 from .credential import Credential, CredentialFolder, CredentialFavorite
 from .manual import Manual, ManualFolder
@@ -11,8 +34,9 @@ from .settings import SystemSettings
 from .cookie_consent import CookieConsentLog
 from .whitelist import WhitelistEntry
 from .notification import NotificationSettings, ChatNotificationSettings, PushSubscription, NotificationLog, PushDeliveryLog
-from .inventory import Product, BorrowTransaction, Checkout, CheckoutItem, ProductFolder, ProductSet, ProductSetItem, ProductDocument, SavedFilter, ProductFavorite, Inventory, InventoryItem, ProductLot, StockMovement, ProductStatusHistory, InventoryItemLock
+from .inventory import Product, BorrowTransaction, Checkout, CheckoutItem, ProductFolder, ProductSet, ProductSetItem, ProductDocument, DguvExamination, SavedFilter, ProductFavorite, Inventory, InventoryItem, ProductLot, StockMovement, ProductStatusHistory, InventoryItemLock
 from .api_token import ApiToken
+from .app_password import AppPassword
 from .wiki import WikiPage, WikiPageVersion, WikiCategory, WikiTag, WikiFavorite
 from .comment import Comment, CommentMention
 from .music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
@@ -20,7 +44,21 @@ from .guest import GuestShareAccess
 from .public_share import PublicShare, ShareAccessLog
 from .onlyoffice_session import OnlyOfficeSession
 from .shortlink import ShortLink
-from .event import Event, EventAppointment, EventAssignment, EventInventoryNeed, EventContact, EventTimelineItem
+from .event import (
+    Event,
+    EventDay,
+    EventAppointment,
+    EventAssignment,
+    EventInventoryNeed,
+    EventContact,
+    EventTimelineItem,
+    EventTodoList,
+    EventTodoItem,
+    EventBookingPersonalLink,
+    EventCustomField,
+    EventCustomFieldValue,
+    EventLink,
+)
 from .assessment import (
     AssessmentUser,
     AssessmentRole,
@@ -43,7 +81,7 @@ from .assessment import (
 from .media_downloader import MediaDownloadJob
 from .file_converter import ConversionJob
 from .cloud_import import CloudImportConnection, CloudImportJob
-from .team import Team, TeamMember
+from .team import Team, TeamMember, TeamModuleSetting, TeamInviteCode
 from .excalidraw import ExcalidrawDrawing, ExcalidrawDrawingVersion
 from .survey import (
     Survey,
@@ -57,6 +95,23 @@ from .survey import (
 )
 from .protocol import Protocol, ProtocolAgendaItem
 from .meetings import Meeting, MeetingInvite
+from .duty_roster import (
+    DutyRoster,
+    DutyRosterDay,
+    DutyRosterColumn,
+    DutyRosterEntry,
+    DutyPersonConfig,
+    DutyExternalPerson,
+    DutyRosterPlanner,
+    DutyTimeEntry,
+)
+from .booking_personal import (
+    BookingPersonalEvent,
+    BookingPersonalField,
+    BookingPersonalEntry,
+    BookingPersonalFile,
+    BookingPersonalTemplate,
+)
 from .kanban import (
     KanbanBoard,
     KanbanBoardMember,
@@ -70,6 +125,7 @@ from .kanban import (
     KanbanAttachment,
     KanbanCardVote,
     KanbanActivity,
+    KanbanActivityRead,
     KanbanBoardTemplate,
     KanbanBoardView,
     KanbanCustomFieldCategory,
@@ -84,6 +140,7 @@ __all__ = [
     'File', 'FileVersion', 'Folder', 'ResourceACL', 'FolderFavorite', 'FileEditLock', 'FileStorageException',
     'Calendar', 'CalendarEvent', 'EventParticipant', 'PublicCalendarFeed', 'CalendarSyncSource',
     'EmailMessage', 'EmailPermission', 'EmailAttachment', 'EmailFolder', 'Mailbox', 'MailboxMembership', 'MailboxUserPref',
+    'MailboxAutoReply', 'MailboxAutoReplyLog',
     'Contact', 'ContactFavorite',
     'Credential', 'CredentialFolder', 'CredentialFavorite',
     'Manual', 'ManualFolder',
@@ -91,8 +148,9 @@ __all__ = [
     'CookieConsentLog',
     'WhitelistEntry',
     'NotificationSettings', 'ChatNotificationSettings', 'PushSubscription', 'NotificationLog', 'PushDeliveryLog',
-    'Product', 'BorrowTransaction', 'Checkout', 'CheckoutItem', 'ProductFolder', 'ProductSet', 'ProductSetItem', 'ProductDocument', 'SavedFilter', 'ProductFavorite', 'Inventory', 'InventoryItem', 'ProductLot', 'StockMovement', 'ProductStatusHistory', 'InventoryItemLock',
+    'Product', 'BorrowTransaction', 'Checkout', 'CheckoutItem', 'ProductFolder', 'ProductSet', 'ProductSetItem', 'ProductDocument', 'DguvExamination', 'SavedFilter', 'ProductFavorite', 'Inventory', 'InventoryItem', 'ProductLot', 'StockMovement', 'ProductStatusHistory', 'InventoryItemLock',
     'ApiToken',
+    'AppPassword',
     'WikiPage', 'WikiPageVersion', 'WikiCategory', 'WikiTag', 'WikiFavorite',
     'Comment', 'CommentMention',
     'MusicProviderToken', 'MusicWish', 'MusicQueue', 'MusicSettings',
@@ -100,7 +158,7 @@ __all__ = [
     'PublicShare', 'ShareAccessLog',
     'OnlyOfficeSession',
     'ShortLink',
-    'Event', 'EventAppointment', 'EventAssignment', 'EventInventoryNeed', 'EventContact', 'EventTimelineItem',
+    'Event', 'EventDay', 'EventAppointment', 'EventAssignment', 'EventInventoryNeed', 'EventContact', 'EventTimelineItem', 'EventTodoList', 'EventTodoItem', 'EventBookingPersonalLink',
     'AssessmentUser', 'AssessmentRole', 'AssessmentUserRole', 'AssessmentUserList',
     'AssessmentStandType', 'AssessmentList', 'AssessmentListSubject',
     'AssessmentRoom', 'AssessmentStand', 'AssessmentCriterion',
@@ -111,7 +169,7 @@ __all__ = [
     'MediaDownloadJob',
     'ConversionJob',
     'CloudImportConnection', 'CloudImportJob',
-    'Team', 'TeamMember',
+    'Team', 'TeamMember', 'TeamModuleSetting', 'TeamInviteCode',
     'KanbanBoard', 'KanbanBoardMember', 'KanbanList', 'KanbanCard',
     'KanbanLabel', 'KanbanCardLabel', 'KanbanCardAssignee',
     'KanbanChecklist', 'KanbanChecklistItem', 'KanbanAttachment',
@@ -122,6 +180,11 @@ __all__ = [
     'SurveyResponse', 'SurveyAnswer', 'SurveyEmailVerification', 'SurveyResponseLock',
     'Protocol', 'ProtocolAgendaItem',
     'Meeting', 'MeetingInvite',
+    'DutyRoster', 'DutyRosterDay', 'DutyRosterColumn', 'DutyRosterEntry',
+    'DutyPersonConfig', 'DutyExternalPerson', 'DutyRosterPlanner', 'DutyTimeEntry',
+    'BookingPersonalEvent', 'BookingPersonalField', 'BookingPersonalEntry',
+    'BookingPersonalFile', 'BookingPersonalTemplate',
+    'BookingRoom', 'BookingForm', 'BookingFormField', 'BookingFormImage', 'BookingRequest', 'BookingRequestMessage', 'BookingRequestField', 'BookingRequestFile', 'BookingFormRole', 'BookingFormRoleUser', 'BookingRequestApproval',
 ]
 
 

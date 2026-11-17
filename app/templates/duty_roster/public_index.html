@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}{{ _('duty_roster.nav.public') }} – {{ _('duty_roster.nav.title') }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mod-buttons.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/duty_roster.css') }}">
+{% endblock %}
+
+{% block content %}
+{% set heading = _('duty_roster.public.heading') %}
+{% include 'duty_roster/_layout_start.html' %}
+
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h1 class="h4 mb-0">{{ _('duty_roster.public.heading') }}</h1>
+            <form method="get" class="d-flex gap-2 align-items-center">
+                <label class="small text-muted mb-0" for="teamFilter">{{ _('duty_roster.public.filter_team') }}</label>
+                <select name="team_id" id="teamFilter" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">{{ _('duty_roster.public.all_teams') }}</option>
+                    {% for t in teams %}
+                    <option value="{{ t.id }}" {% if filter_team_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+
+        {% if rosters %}
+        <div class="list-group">
+            {% for r in rosters %}
+            <a href="{{ url_for('duty_roster.public_view', roster_id=r.id) }}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="fw-semibold">{{ r.display_title }}</div>
+                    <div class="small text-muted">{{ r.team.name if r.team else '' }} · {{ '%02d'|format(r.month) }}/{{ r.year }}</div>
+                </div>
+                <i class="bi bi-chevron-right"></i>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">{{ _('duty_roster.public.empty') }}</p>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

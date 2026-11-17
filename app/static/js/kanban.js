@@ -445,4 +445,152 @@
       }
     });
   }
+
+  // Live unread notification badges on board cards
+  async function refreshBoardUnreadCounts() {
+    try {
+      var res = await fetch('/kanban/api/boards/unread_counts', {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      if (!res.ok) return;
+      var data = await res.json();
+      var counts = data.unread_counts || {};
+
+      qsa('[data-board-wrapper]').forEach(function (wrapper) {
+        var boardId = wrapper.dataset.boardWrapper;
+        var count = counts[boardId] || counts[String(boardId)] || 0;
+        var cover = wrapper.querySelector('.kanban-grid-cover');
+        var badge = wrapper.querySelector('.kanban-board-unread-badge');
+
+        if (count > 0) {
+          if (!badge && cover) {
+            badge = document.createElement('span');
+            badge.className = 'position-absolute top-0 end-0 m-2 badge rounded-pill bg-danger shadow-sm kanban-board-unread-badge d-flex align-items-center gap-1';
+            badge.dataset.boardUnreadBadge = boardId;
+            cover.appendChild(badge);
+          }
+          if (badge) {
+            badge.innerHTML = '<i class="bi bi-bell-fill" style="font-size: 0.65rem;"></i>' + count;
+            badge.title = count + (count > 1 ? ' neue Benachrichtigungen' : ' neue Benachrichtigung');
+            badge.style.display = '';
+          }
+        } else if (badge) {
+          badge.remove();
+        }
+      });
+    } catch (_) {}
+  }
+
+  window.addEventListener('focus', function () {
+    refreshBoardUnreadCounts();
+  });
+
+  // Stellt sicher, dass das ⋮-Menü auf Index-Karten immer über allen Nachbarkarten & Sektionen liegt
+  document.addEventListener('show.bs.dropdown', function (e) {
+    var toggle = e.target;
+    var card = toggle.closest ? toggle.closest('.kanban-board-card') : null;
+    if (card) {
+      card.classList.add('has-dropdown-open');
+      var wrapper = card.closest('[data-board-wrapper]');
+      if (wrapper) wrapper.classList.add('has-dropdown-open');
+      var section = card.closest('.kanban-section');
+      if (section) section.classList.add('has-dropdown-open');
+    }
+  });
+
+  document.addEventListener('hidden.bs.dropdown', function (e) {
+    var toggle = e.target;
+    var card = toggle.closest ? toggle.closest('.kanban-board-card') : null;
+    if (card) {
+      card.classList.remove('has-dropdown-open');
+      var wrapper = card.closest('[data-board-wrapper]');
+      if (wrapper) wrapper.classList.remove('has-dropdown-open');
+      var section = card.closest('.kanban-section');
+      if (section) section.classList.remove('has-dropdown-open');
+    }
+    document.querySelectorAll('.has-dropdown-open').forEach(function (el) {
+      if (!el.querySelector('.dropdown-menu.show')) {
+        el.classList.remove('has-dropdown-open');
+      }
+    });
+  });
+
+  // Live-Suche nach Boards auf der Startseite (Navbar & Mobile)
+  (function initKanbanBoardSearch() {
+    var inputs = [
+      qs('#kanbanIndexSearchInput'),
+      qs('#kanbanIndexSearchInputMobile')
+    ].filter(Boolean);
+    var clearBtns = [
+      qs('#kanbanIndexSearchClear'),
+      qs('#kanbanIndexSearchClearMobile')
+    ].filter(Boolean);
+    var emptyHint = qs('#kanbanBoardSearchEmpty');
+
+    if (!inputs.length) return;
+
+    function applySearch(rawQuery) {
+      var query = (rawQuery || '').trim().toLowerCase();
+
+      clearBtns.forEach(function (btn) {
+        btn.classList.toggle('d-none', !query);
+      });
+
+      var boardWrappers = qsa('[data-board-wrapper]');
+      var totalVisible = 0;
+
+      boardWrappers.forEach(function (el) {
+        var name = (el.getAttribute('data-board-search-name') || '').toLowerCase();
+        var team = (el.getAttribute('data-board-search-team') || '').toLowerCase();
+        var match = !query || name.includes(query) || team.includes(query);
+        el.classList.toggle('d-none', !match);
+        if (match) totalVisible++;
+      });
+
+      // Filter sections: hide sections that have no visible boards when searching
+      qsa('.kanban-section').forEach(function (sec) {
+        if (!query) {
+          sec.classList.remove('d-none');
+        } else {
+          var itemsInSec = sec.querySelectorAll('[data-board-wrapper]:not(.d-none)');
+          sec.classList.toggle('d-none', itemsInSec.length === 0);
+        }
+      });
+
+      if (emptyHint) {
+        emptyHint.classList.toggle('d-none', !(query && boardWrappers.length > 0 && totalVisible === 0));
+      }
+    }
+
+    inputs.forEach(function (input) {
+      input.addEventListener('input', function () {
+        var val = input.value;
+        inputs.forEach(function (other) {
+          if (other !== input) other.value = val;
+        });
+        applySearch(val);
+      });
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && input.value) {
+          e.preventDefault();
+          inputs.forEach(function (inp) { inp.value = ''; });
+          applySearch('');
+        }
+      });
+    });
+
+    clearBtns.forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        inputs.forEach(function (inp) {
+          inp.value = '';
+        });
+        if (inputs[0]) inputs[0].focus();
+        applySearch('');
+      });
+    });
+
+    if (inputs[0] && inputs[0].value) {
+      applySearch(inputs[0].value);
+    }
+  })();
 })();

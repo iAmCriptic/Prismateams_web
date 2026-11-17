@@ -217,6 +217,25 @@
         </div>
       </section>
 
+      {% if inventory_module_enabled %}
+      <section class="sp-group" id="notif-inventory" data-settings-search-id="notif-inventory">
+        <div class="sp-group-head">
+          <h2 class="sp-group-title"><i class="bi bi-box-seam" aria-hidden="true"></i>{{ _('settings.notifications.inventory.title') }}</h2>
+          {{ sp_info(_('settings.notifications.inventory.help')) }}
+        </div>
+        <div class="sp-group-body">
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.notifications.inventory.toggle') }}</span></div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="inventory_notifications_enabled" name="inventory_notifications_enabled" {% if settings.inventory_notifications_enabled %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+
       {% if kanban_module_enabled %}
       <section class="sp-group" id="notif-kanban" data-settings-search-id="notif-kanban">
         <div class="sp-group-head">

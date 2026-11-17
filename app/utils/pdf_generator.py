@@ -1,4 +1,4 @@
-from reportlab.lib.pagesizes import A4, A5, letter
+from reportlab.lib.pagesizes import A4, A5, letter, landscape
 from reportlab.lib.units import cm, mm
 from reportlab.lib import colors
 from reportlab.platypus import (
@@ -1431,3 +1431,123 @@ def generate_return_confirmation_pdf(borrow_transaction, output=None, returned_i
         ))
 
     return build_standard_pdf(story, pagesize=A4, output=output)
+
+
+def generate_booking_personal_pdf(event, fields, entries, output=None):
+    """
+    Exportiert die Booking-Tabelle eines Events als professionelle PDF-Tabelle
+    im DIN A4 Querformat (Landscape) mit Portalstandard-Design.
+    """
+    col_styles = getSampleStyleSheet()
+    th_style = ParagraphStyle(
+        'BpPdfTh',
+        parent=col_styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=8,
+        leading=10,
+        textColor=PDF_COLORS['text'],
+    )
+    td_style = ParagraphStyle(
+        'BpPdfTd',
+        parent=col_styles['Normal'],
+        fontName='Helvetica',
+        fontSize=7.5,
+        leading=9.5,
+        textColor=PDF_COLORS['text'],
+    )
+    td_bold_style = ParagraphStyle(
+        'BpPdfTdBold',
+        parent=col_styles['Normal'],
+        fontName='Helvetica-Bold',
+        fontSize=7.5,
+        leading=9.5,
+        textColor=PDF_COLORS['text'],
+    )
+
+    stand = datetime.now().strftime('%d.%m.%Y %H:%M')
+    content_width = 27.3 * cm
+
+    story = [
+        build_standard_header(
+            title=f"Booking: {event.name}",
+            subtitle=f"Stand: {stand} · {len(entries)} Act(s) / Einträge",
+            pagesize=landscape(A4),
+            content_width=content_width,
+            logo_size=1.8 * cm,
+        ),
+        Spacer(1, 0.35 * cm),
+    ]
+
+    export_fields = [f for f in fields if f.field_type not in ('action_accept', 'image_upload')]
+
+    if not entries:
+        story.append(Paragraph("Keine Booking-Einträge vorhanden.", col_styles['Normal']))
+        return build_standard_pdf(
+            story,
+            pagesize=landscape(A4),
+            leftMargin=1.2 * cm,
+            rightMargin=1.2 * cm,
+            topMargin=1.2 * cm,
+            bottomMargin=1.5 * cm,
+            output=output,
+        )
+
+    # Header Row
+    header_row = [Paragraph("#", th_style)]
+    for f in export_fields:
+        header_row.append(Paragraph(f.label or f.field_key, th_style))
+    table_data = [header_row]
+
+    # Data Rows
+    for idx, entry in enumerate(entries, 1):
+        if hasattr(entry, 'compute_formula_values'):
+            entry.compute_formula_values(fields)
+        custom = entry.get_custom_data() if hasattr(entry, 'get_custom_data') else {}
+        row = [Paragraph(str(idx), td_style)]
+        for f in export_fields:
+            raw_val = custom.get(f.field_key, '')
+            if f.field_key in ('auftrittsname_projektname', 'project_name', 'artist_name', 'name') or f == export_fields[0]:
+                val_text = str(raw_val or getattr(entry, 'name', '') or '—')
+                row.append(Paragraph(val_text, td_bold_style))
+            elif isinstance(raw_val, list):
+                val_text = ', '.join([str(v) for v in raw_val]) or '—'
+                row.append(Paragraph(val_text, td_style))
+            elif f.field_type == 'form_link':
+                val_text = getattr(entry, 'form_token', '') or '—'
+                row.append(Paragraph(val_text[:12] + '…' if len(val_text) > 14 else val_text, td_style))
+            else:
+                val_text = str(raw_val) if raw_val not in (None, '') else '—'
+                row.append(Paragraph(val_text, td_style))
+        table_data.append(row)
+
+    # Column widths calculation
+    pos_col_width = 0.8 * cm
+    avail_width = content_width - pos_col_width
+    if export_fields:
+        total_weight = sum(max(getattr(f, 'width', 120) or 120, 70) for f in export_fields)
+        col_widths = [pos_col_width] + [
+            (max(getattr(f, 'width', 120) or 120, 70) / total_weight) * avail_width
+            for f in export_fields
+        ]
+    else:
+        col_widths = [content_width]
+
+    table = Table(table_data, colWidths=col_widths, repeatRows=1)
+    tbl_style = standard_table_style(header=True)
+    tbl_style.add('TOPPADDING', (0, 0), (-1, -1), 4)
+    tbl_style.add('BOTTOMPADDING', (0, 0), (-1, -1), 4)
+    tbl_style.add('LEFTPADDING', (0, 0), (-1, -1), 4)
+    tbl_style.add('RIGHTPADDING', (0, 0), (-1, -1), 4)
+    table.setStyle(tbl_style)
+    story.append(table)
+
+    return build_standard_pdf(
+        story,
+        pagesize=landscape(A4),
+        leftMargin=1.2 * cm,
+        rightMargin=1.2 * cm,
+        topMargin=1.2 * cm,
+        bottomMargin=1.5 * cm,
+        output=output,
+    )
+

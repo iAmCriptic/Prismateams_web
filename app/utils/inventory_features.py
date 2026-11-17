@@ -69,6 +69,12 @@ FEATURE_ENDPOINT_GATES = {
     'inventory.inventory_list_pdf': 'inventory_stocktake_enabled',
     'inventory.inventory_complete': 'inventory_stocktake_enabled',
     'inventory.inventory_tool_pdf': 'inventory_stocktake_enabled',
+    'inventory.dguv_exam': 'inventory_dguv_enabled',
+    'inventory.api_dguv_exam_product': 'inventory_dguv_enabled',
+    'inventory.api_dguv_exam_prepare': 'inventory_dguv_enabled',
+    'inventory.api_dguv_exam_complete': 'inventory_dguv_enabled',
+    'inventory.dguv_exam_pdf': 'inventory_dguv_enabled',
+    'inventory.api_dguv_exam_signing_status': 'inventory_dguv_enabled',
 }
 
 

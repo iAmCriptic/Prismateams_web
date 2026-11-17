@@ -25,6 +25,8 @@ class NotificationSettings(db.Model):
     booking_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
     booking_message_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
 
+    inventory_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
+
     kanban_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
     kanban_upload_notifications = db.Column(db.Boolean, default=True, nullable=False)
     kanban_change_notifications = db.Column(db.Boolean, default=True, nullable=False)

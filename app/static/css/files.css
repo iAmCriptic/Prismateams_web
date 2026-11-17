@@ -2444,6 +2444,15 @@ body:has(.dropbox-shell) .container-fluid {
     font-size: 0.9rem;
 }
 
+.files-webdav-app-pw-list {
+  margin: 0;
+  padding: 0;
+}
+
+.files-webdav-app-pw-item {
+  padding: 0.2rem 0;
+}
+
 .files-webdav-steps li + li {
     margin-top: 0.35rem;
 }

@@ -247,8 +247,9 @@
                         {% endif %}
                     </div>
                     <p class="mb-1 email-subject">{{ email.subject|decode_email_header }}</p>
-                    {% if email.body_text %}
-                    <small class="text-muted email-preview">{{ email.body_text[:110] }}</small>
+                    {% set preview = email.body_preview if email.body_preview is defined else (email.body_text[:110] if email.body_text else '') %}
+                    {% if preview %}
+                    <small class="text-muted email-preview">{{ preview }}</small>
                     {% endif %}
                 </div>
             </div>
@@ -454,32 +455,15 @@
     </div>
 </div>
 
-<!-- Mobile Email List -->
-<div data-lazy-more
+<!-- Eine Shell + eine Liste (wie Dateien): scrollt in .email-main-content, kein Dreifach-DOM -->
+<div class="email-layout-desktop mod-shell--nav"
+     data-lazy-more
      data-lazy-page="{{ pagination.page if pagination is defined else 1 }}"
      data-lazy-has-more="{{ '1' if email_has_more|default(false) else '0' }}"
      data-lazy-param="page"
      data-lazy-items=".email-item"
-     data-lazy-targets=".email-list-mobile,.email-list-desktop,.email-list-mid">
-<div class="d-lg-none">
-    <div class="card">
-        <div class="card-body p-0">
-            {% if emails %}
-            <div class="list-group list-group-flush email-list email-list-mobile" data-folder="{{ current_folder }}">
-                {% for email in emails %}
-                    {{ email_list_item(email, 'mobile', folder_tree, current_folder) }}
-                {% endfor %}
-            </div>
-            {% else %}
-            {{ email_empty_state() }}
-            {% endif %}
-        </div>
-    </div>
-</div>
-
-<!-- Desktop Layout with Sidebar (from xl up) -->
-<div class="d-none d-xl-flex email-layout-desktop mod-shell--nav">
-    <div class="mod-sidebar email-folder-sidebar">
+     data-lazy-targets=".email-list">
+    <div class="mod-sidebar email-folder-sidebar d-none d-xl-flex">
         <div class="mod-sidebar-brand">
             <i class="bi bi-envelope" aria-hidden="true"></i>
             <span>{{ _('email.index.heading') }}</span>
@@ -565,82 +549,63 @@
     </div>
 
     <div class="mod-main email-main-content">
-        <div class="mod-toolbar email-list-toolbar mb-3">
+        <!-- Mid-desktop Header (lg to xl) -->
+        <div class="d-none d-lg-flex d-xl-none email-mid-toolbar row mb-3">
+            <div class="col">
+                <div class="d-flex align-items-center flex-wrap gap-2">
+                    <h1 class="mb-0 me-2"><i class="bi bi-envelope"></i> {{ _('email.index.heading') }}</h1>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                            <span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span><span id="currentFolder">{{ folder_display_name or _('email.index.folder_default') }}</span>
+                        </button>
+                        <ul class="dropdown-menu">
+                            {{ folder_tree_links(folder_tree, current_folder, 'dropdown') }}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <button type="button" class="dropdown-item" data-action="open-folder-create" data-folder-inline="emailFolderCreateMid">
+                                    <i class="bi bi-folder-plus me-2"></i>{{ _('email.index.buttons.new_folder') }}
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                {{ email_folder_create_inline('emailFolderCreateMid') }}
+            </div>
+            <div class="col-auto">
+                <form method="POST" action="{{ url_for('email.sync_emails') }}" class="d-inline me-2 sync-form" onsubmit="return handleSyncSubmit(event, this);">
+                    {% if active_mailbox_id %}<input type="hidden" name="mailbox_id" value="{{ active_mailbox_id }}">{% endif %}
+                    {% if current_folder %}<input type="hidden" name="folder" value="{{ current_folder }}">{% endif %}
+                    <button type="submit" class="btn mod-pill-btn mod-pill-btn--outline sync-btn">
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style="display: none;"></span>
+                        <i class="bi bi-arrow-clockwise sync-icon"></i> {{ _('email.index.buttons.sync') }}
+                    </button>
+                </form>
+                <a href="{{ url_for('email.compose') }}" class="btn btn-accent mod-pill-btn">
+                    <i class="bi bi-pencil-square"></i> {{ _('email.index.buttons.compose') }}
+                </a>
+            </div>
+        </div>
+
+        <div class="d-none d-xl-block mod-toolbar email-list-toolbar mb-3">
             <h4 class="mb-0 email-list-toolbar-title"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h4>
         </div>
-        <div class="card">
+
+        <div class="card email-list-card">
             <div class="card-body p-0">
                 {% if emails %}
-                <div class="list-group list-group-flush email-list email-list-desktop" data-folder="{{ current_folder }}">
+                <div class="list-group list-group-flush email-list" data-folder="{{ current_folder }}">
                     {% for email in emails %}
                         {{ email_list_item(email, 'desktop', folder_tree, current_folder) }}
                     {% endfor %}
                 </div>
-                    {% else %}
+                {% else %}
                 {{ email_empty_state() }}
                 {% endif %}
             </div>
         </div>
+        {{ email_list_load_more() }}
     </div>
 </div>
-
-<!-- Mid-desktop Header (lg to xl) -->
-<div class="d-none d-lg-flex d-xl-none row mb-3">
-    <div class="col">
-        <div class="d-flex align-items-center">
-            <h1 class="mb-0 me-3"><i class="bi bi-envelope"></i> {{ _('email.index.heading') }}</h1>
-            <div class="dropdown">
-                <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                    <span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span><span id="currentFolder">{{ folder_display_name or _('email.index.folder_default') }}</span>
-                </button>
-                <ul class="dropdown-menu">
-                    {{ folder_tree_links(folder_tree, current_folder, 'dropdown') }}
-                    <li><hr class="dropdown-divider"></li>
-                    <li>
-                        <button type="button" class="dropdown-item" data-action="open-folder-create" data-folder-inline="emailFolderCreateMid">
-                            <i class="bi bi-folder-plus me-2"></i>{{ _('email.index.buttons.new_folder') }}
-                        </button>
-                    </li>
-                </ul>
-            </div>
-        </div>
-        {{ email_folder_create_inline('emailFolderCreateMid') }}
-    </div>
-    <div class="col-auto">
-        <form method="POST" action="{{ url_for('email.sync_emails') }}" class="d-inline me-2 sync-form" onsubmit="return handleSyncSubmit(event, this);">
-            {% if active_mailbox_id %}<input type="hidden" name="mailbox_id" value="{{ active_mailbox_id }}">{% endif %}
-            {% if current_folder %}<input type="hidden" name="folder" value="{{ current_folder }}">{% endif %}
-            <button type="submit" class="btn mod-pill-btn mod-pill-btn--outline sync-btn">
-                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true" style="display: none;"></span>
-                <i class="bi bi-arrow-clockwise sync-icon"></i> {{ _('email.index.buttons.sync') }}
-            </button>
-        </form>
-        <a href="{{ url_for('email.compose') }}" class="btn btn-accent mod-pill-btn">
-            <i class="bi bi-pencil-square"></i> {{ _('email.index.buttons.compose') }}
-        </a>
-    </div>
-</div>
-
-<!-- Mid-desktop email list (md to xl) -->
-<div class="d-none d-lg-block d-xl-none">
-    <div class="card">
-        <div class="card-header mod-toolbar email-list-toolbar">
-            <h5 class="mb-0 email-list-toolbar-title"><span class="me-2">{% if current_folder_obj %}{{ folder_icon(current_folder_obj) }}{% else %}<i class="bi bi-folder"></i>{% endif %}</span>{{ folder_display_name or _('email.index.folder_default') }}</h5>
-        </div>
-        <div class="card-body p-0">
-            {% if emails %}
-            <div class="list-group list-group-flush email-list email-list-mid" data-folder="{{ current_folder }}">
-                {% for email in emails %}
-                    {{ email_list_item(email, 'desktop', folder_tree, current_folder) }}
-                {% endfor %}
-            </div>
-            {% else %}
-            {{ email_empty_state() }}
-            {% endif %}
-        </div>
-    </div>
-</div>
-{{ email_list_load_more() }}
 </div>
 {% endblock %}
 
@@ -829,18 +794,10 @@ function refreshFolderUnreadCounts() {
             refreshFolderUnreadCounts();
         }
     });
-    try {
-        const url = window.PT_DASHBOARD_SSE_URL;
-        if (url && window.EventSource) {
-            const es = window.ptDashboardSSE || new EventSource(url);
-            window.ptDashboardSSE = es;
-            es.addEventListener('dashboard:email_update', (evt) => {
-                try {
-                    applyUnreadUpdate(JSON.parse(evt.data || '{}'));
-                } catch (_) { /* ignore */ }
-            });
-        }
-    } catch (_) { /* ignore */ }
+    // QA G08: Fan-out aus notification-center (kein zweiter Dashboard-EventSource)
+    window.addEventListener('pt:dashboard:email_update', (e) => {
+        applyUnreadUpdate((e && e.detail) || {});
+    });
     setInterval(() => {
         if (document.hidden) return;
         refreshFolderUnreadCounts();
@@ -1058,10 +1015,82 @@ document.querySelectorAll('#mobileFolderMenu a[data-email-dismiss-offcanvas]').f
     });
 });
 
-// Sync submit handler (shared)
+function pollEmailSyncJob(statusUrl, attempt) {
+    const n = attempt || 0;
+    const maxAttempts = 90; // ~3 min at 2s
+    return fetch(statusUrl, {
+        method: 'GET',
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+    })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((job) => {
+            if (!job || !job.success) {
+                if (n >= maxAttempts) {
+                    throw new Error(EMAIL_MESSAGES.sync_error || EMAIL_MESSAGES.sync_failed);
+                }
+                return new Promise((resolve) => setTimeout(resolve, 2000))
+                    .then(() => pollEmailSyncJob(statusUrl, n + 1));
+            }
+            const status = String(job.status || '');
+            if (status === 'success' || status === 'error' || status === 'warning') {
+                return job;
+            }
+            if (n >= maxAttempts) {
+                throw new Error(EMAIL_MESSAGES.sync_timeout || EMAIL_MESSAGES.sync_error || 'Synchronisation dauert zu lange.');
+            }
+            return new Promise((resolve) => setTimeout(resolve, 2000))
+                .then(() => pollEmailSyncJob(statusUrl, n + 1));
+        });
+}
+
+function bindEmailSyncSse(jobId, onDone) {
+    if (!window.EventSource || !jobId) return null;
+    let es;
+    try {
+        es = new EventSource('/sse/events/email');
+    } catch (_) {
+        return null;
+    }
+    const finish = (job) => {
+        try { es.close(); } catch (_) {}
+        onDone(job);
+    };
+    es.addEventListener('email:sync_status', (e) => {
+        let data = {};
+        try { data = JSON.parse(e.data || '{}'); } catch (_) { data = {}; }
+        if (data.jobId && data.jobId !== jobId) return;
+        const status = String(data.status || '');
+        if (status === 'success' || status === 'error' || status === 'warning') {
+            finish(data);
+        }
+    });
+    es.addEventListener('error', () => {
+        // Redis oft aus — Polling übernimmt; SSE schließen
+        try { es.close(); } catch (_) {}
+    });
+    return es;
+}
+
+// Sync submit handler (shared) — Banner bei Start/Ende, Polling ohne Redis
 function handleSyncSubmit(event, form) {
     event.preventDefault();
     setSyncButtonsState(true);
+    let settled = false;
+    const settle = (job) => {
+        if (settled) return;
+        settled = true;
+        const status = String((job && job.status) || '');
+        const level = (job && job.level) || (status === 'success' ? 'success' : status === 'warning' ? 'warning' : 'danger');
+        const msg = (job && job.message) || EMAIL_MESSAGES.sync_failed;
+        emailAlert(msg, level);
+        if (status === 'success' && job && job.shouldRefresh !== false) {
+            setTimeout(() => window.location.reload(), 800);
+            return;
+        }
+        setSyncButtonsState(false);
+    };
+
     fetch(form.action, {
         method: 'POST',
         headers: {
@@ -1075,12 +1104,32 @@ function handleSyncSubmit(event, form) {
     .then(data => {
         if (!data || !data.success) throw new Error(data?.error || EMAIL_MESSAGES.sync_failed);
         emailAlert(data.message || EMAIL_MESSAGES.sync_started || 'Synchronisation gestartet.', 'info');
-        setTimeout(() => window.location.reload(), 10000);
+        const jobId = data.jobId;
+        const statusUrl = data.statusUrl;
+        let sseDone = false;
+        bindEmailSyncSse(jobId, (job) => {
+            sseDone = true;
+            settle(job);
+        });
+        if (!statusUrl) {
+            setTimeout(() => {
+                if (!settled) {
+                    emailAlert(EMAIL_MESSAGES.sync_error || 'Kein Status-Endpoint.', 'warning');
+                    setSyncButtonsState(false);
+                }
+            }, 15000);
+            return;
+        }
+        return pollEmailSyncJob(statusUrl).then((job) => {
+            if (!sseDone) settle(job);
+        });
     })
     .catch(err => {
         console.error('Sync error', err);
-        emailAlert(err.message || EMAIL_MESSAGES.sync_error, 'danger');
-        setSyncButtonsState(false);
+        if (!settled) {
+            emailAlert(err.message || EMAIL_MESSAGES.sync_error, 'danger');
+            setSyncButtonsState(false);
+        }
     });
     return false;
 }
@@ -1091,6 +1140,11 @@ function handleSyncSubmit(event, form) {
 (function initDragAndDrop() {
     let currentDragId = null;
     function onDragStart(e) {
+        // Touch/coarse pointer: kein HTML5-Drag — sonst blockiert Scrollen
+        if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) {
+            e.preventDefault();
+            return;
+        }
         const item = e.target.closest('.email-draggable');
         if (!item) return;
         currentDragId = item.dataset.emailId;

@@ -256,8 +256,13 @@ def notifications():
         settings.booking_notifications_enabled = 'booking_notifications_enabled' in request.form
         settings.booking_message_notifications_enabled = 'booking_message_notifications_enabled' in request.form
 
-        # Kanban-Benachrichtigungen
         from app.utils.common import is_module_enabled
+
+        # Lager / Ausleihen
+        if is_module_enabled('module_inventory'):
+            settings.inventory_notifications_enabled = 'inventory_notifications_enabled' in request.form
+
+        # Kanban-Benachrichtigungen
         if is_module_enabled('module_kanban'):
             settings.kanban_notifications_enabled = 'kanban_notifications_enabled' in request.form
             settings.kanban_upload_notifications = 'kanban_upload_notifications' in request.form
@@ -315,6 +320,7 @@ def notifications():
         settings=settings,
         user_chats=user_chats,
         chat_notification_settings=chat_notification_settings,
+        inventory_module_enabled=is_module_enabled('module_inventory'),
         kanban_module_enabled=is_module_enabled('module_kanban'),
     )
 
@@ -392,13 +398,15 @@ def appearance():
         if label == key:
             label = LANGUAGE_FALLBACK_NAMES.get(code, code.upper())
         completeness = LANGUAGE_COMPLETENESS.get(code)
-        badge = f'{completeness}%' if completeness is not None else None
+        if completeness is None:
+            completeness = 0
+        badge = f'{completeness}%'
         language_options.append({
             'code': code,
             'label': label,
             'completeness': completeness,
             'badge': badge,
-            'badge_grade': _language_badge_grade(completeness) if completeness is not None else None,
+            'badge_grade': _language_badge_grade(completeness),
         })
 
     return render_template(

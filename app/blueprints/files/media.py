@@ -109,7 +109,7 @@ from app.blueprints.files.helpers import *  # noqa: F401,F403
 def serve_pdf(file_id):
     """Serve a PDF file for inline viewing (without forcing download)."""
     file = File.query.get_or_404(file_id)
-    if not _is_guest_user() and not can_view_file(file, current_user) and not current_user.is_admin:
+    if not _can_serve_file_media(file):
         flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
         return redirect(url_for('files.index'))
     
@@ -168,7 +168,7 @@ def serve_thumb(file_id):
 def download_file(file_id):
     """Download a file."""
     file = File.query.get_or_404(file_id)
-    if not _is_guest_user() and not can_view_file(file, current_user) and not current_user.is_admin:
+    if not _can_serve_file_media(file):
         flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
         return redirect(url_for('files.index'))
     
@@ -201,7 +201,7 @@ def download_version(version_id):
     """Download a specific file version."""
     version = FileVersion.query.get_or_404(version_id)
     file = File.query.get_or_404(version.file_id)
-    if not _is_guest_user() and not can_view_file(file, current_user) and not current_user.is_admin:
+    if not _can_serve_file_media(file):
         flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
         return redirect(url_for('files.index'))
     
@@ -265,26 +265,41 @@ def edit_file(file_id):
             or 'application/json' in (request.headers.get('Accept') or '')
         )
         # Exclusive lock only for Markdown (OnlyOffice stays collaborative).
-        if is_markdown and not file_edit_lock_util.user_holds_lock(file.id, current_user.id):
-            blocker = file_edit_lock_util.get_active_lock(file.id)
-            locker_name = None
-            if blocker:
-                locker = blocker.locker or User.query.get(blocker.locked_by)
-                locker_name = (locker.full_name if locker else None) or 'einem anderen Nutzer'
-            msg = (
-                f'Die Datei wird gerade von {locker_name} bearbeitet und kann nicht gespeichert werden.'
-                if locker_name
-                else 'Sie halten keinen Bearbeitungs-Lock für diese Datei.'
-            )
-            if wants_json:
-                return jsonify({
-                    'success': False,
-                    'error': msg,
-                    'locked': True,
-                    'lock': file_edit_lock_util.serialize_lock(blocker, include_session=False),
-                }), 409
-            flash(msg, 'warning')
-            return redirect(url_for('files.edit_file', file_id=file.id))
+        if is_markdown:
+            from app.utils.file_occupancy import webdav_occupancy_for_file
+
+            dav_block = webdav_occupancy_for_file(file.id)
+            if dav_block:
+                msg = dav_block.message
+                if wants_json:
+                    return jsonify({
+                        'success': False,
+                        'error': msg,
+                        'locked': True,
+                        'lock': dav_block.as_dict(),
+                    }), 409
+                flash(msg, 'warning')
+                return redirect(url_for('files.edit_file', file_id=file.id))
+            if not file_edit_lock_util.user_holds_lock(file.id, current_user.id):
+                blocker = file_edit_lock_util.get_active_lock(file.id)
+                locker_name = None
+                if blocker:
+                    locker = blocker.locker or User.query.get(blocker.locked_by)
+                    locker_name = (locker.full_name if locker else None) or 'einem anderen Nutzer'
+                msg = (
+                    f'Die Datei wird gerade von {locker_name} bearbeitet und kann nicht gespeichert werden.'
+                    if locker_name
+                    else 'Sie halten keinen Bearbeitungs-Lock für diese Datei.'
+                )
+                if wants_json:
+                    return jsonify({
+                        'success': False,
+                        'error': msg,
+                        'locked': True,
+                        'lock': file_edit_lock_util.serialize_lock(blocker, include_session=False),
+                    }), 409
+                flash(msg, 'warning')
+                return redirect(url_for('files.edit_file', file_id=file.id))
 
         content = request.form.get('content', '')
         
@@ -356,14 +371,21 @@ def edit_file(file_id):
     lock_info = None
     edit_session_key = None
     if is_markdown:
-        lock, blocker = file_edit_lock_util.acquire(file.id, current_user.id)
-        edit_locked = lock is None
-        if lock:
-            lock_info = file_edit_lock_util.serialize_lock(lock, include_session=True)
-            edit_session_key = lock.session_key
-            db.session.commit()
+        from app.utils.file_occupancy import webdav_occupancy_for_file
+
+        dav_block = webdav_occupancy_for_file(file.id)
+        if dav_block:
+            edit_locked = True
+            lock_info = dav_block.as_dict()
         else:
-            lock_info = file_edit_lock_util.serialize_lock(blocker, include_session=False)
+            lock, blocker = file_edit_lock_util.acquire(file.id, current_user.id)
+            edit_locked = lock is None
+            if lock:
+                lock_info = file_edit_lock_util.serialize_lock(lock, include_session=True)
+                edit_session_key = lock.session_key
+                db.session.commit()
+            else:
+                lock_info = file_edit_lock_util.serialize_lock(blocker, include_session=False)
     
     return render_template(
         'files/edit.html',
@@ -445,6 +467,7 @@ def view_file(file_id):
             view_arg or session.get('files_last_view'),
             private_enabled=private_enabled,
             team_enabled=team_enabled,
+            user=current_user,
         )
         if files_view:
             session['files_last_view'] = files_view

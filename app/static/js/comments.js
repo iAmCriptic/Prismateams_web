@@ -75,16 +75,19 @@ class CommentSystem {
         const commentsList = container.querySelector('.comments-list');
         if (!commentsList) return;
         
+        commentsList.classList.add('is-empty');
         commentsList.innerHTML = `<div class="comment-loading">${this.translate('list.loading', 'Loading comments...')}</div>`;
         
         try {
             const response = await fetch(`/api/comments/${this.contentType}/${this.contentId}`);
             const data = await response.json();
             
-            if (data.comments) {
+            if (data.comments && data.comments.length > 0) {
+                commentsList.classList.remove('is-empty');
                 this.renderComments(data.comments, commentsList);
                 this.updateCommentCount(data.comments.length);
             } else {
+                commentsList.classList.add('is-empty');
                 commentsList.innerHTML = this.statusMessageHtml(
                     this.translate('list.empty', 'No comments yet'),
                     'info',
@@ -93,6 +96,7 @@ class CommentSystem {
             }
         } catch (error) {
             console.error('Error loading comments:', error);
+            commentsList.classList.add('is-empty');
             commentsList.innerHTML = this.statusMessageHtml(
                 this.translate('list.error', 'Failed to load comments'),
                 'danger',
@@ -124,7 +128,8 @@ class CommentSystem {
     }
     
     renderComments(comments, container) {
-        if (comments.length === 0) {
+        if (!comments || comments.length === 0) {
+            container.classList.add('is-empty');
             container.innerHTML = this.statusMessageHtml(
                 this.translate('list.empty', 'No comments yet'),
                 'info',
@@ -133,6 +138,7 @@ class CommentSystem {
             return;
         }
         
+        container.classList.remove('is-empty');
         container.innerHTML = '';
         comments.forEach(comment => {
             const commentElement = this.createCommentElement(comment);
@@ -145,7 +151,8 @@ class CommentSystem {
         li.className = 'comment-item';
         li.dataset.commentId = comment.id;
         
-        const avatar = this.getAvatar(comment.author);
+        const author = comment.author || { name: '?', profile_picture: null, avatar_url: null };
+        const avatar = this.getAvatar(author);
         const formattedDate = this.formatDate(comment.created_at);
         const formattedContent = this.formatContent(comment.content);
         
@@ -153,7 +160,7 @@ class CommentSystem {
             <div class="comment-header">
                 <div class="comment-avatar">${avatar}</div>
                 <div>
-                    <span class="comment-author">${this.escapeHtml(comment.author.name)}</span>
+                    <span class="comment-author">${this.escapeHtml(author.name || '')}</span>
                     <span class="comment-date">${formattedDate}</span>
                 </div>
             </div>
@@ -162,7 +169,7 @@ class CommentSystem {
                 <button class="comment-action-btn reply-btn" data-comment-id="${comment.id}">
                     <i class="bi bi-reply"></i> ${this.translate('actions.reply', 'Reply')}
                 </button>
-                ${comment.author.id === this.currentUserId ? `
+                ${author.id && author.id === this.currentUserId ? `
                     <button class="comment-action-btn edit-btn" data-comment-id="${comment.id}">
                         <i class="bi bi-pencil"></i> ${this.translate('actions.edit', 'Edit')}
                     </button>
@@ -198,11 +205,24 @@ class CommentSystem {
     }
     
     getAvatar(author) {
-        if (author.profile_picture) {
-            return `<img src="${this.escapeHtml(author.profile_picture)}" alt="${this.escapeHtml(author.name)}">`;
+        if (!author) return '?';
+        const name = (author.name || '').trim();
+        const parts = name.split(/\s+/).filter(Boolean);
+        let initials = '?';
+        if (parts.length === 1) {
+            initials = parts[0].substring(0, 2).toUpperCase();
+        } else if (parts.length > 1) {
+            initials = (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
         }
-        const initials = author.name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-        return initials;
+
+        let picUrl = (author.avatar_url || author.profile_picture || '').trim();
+        if (picUrl) {
+            if (!picUrl.startsWith('/') && !picUrl.startsWith('http://') && !picUrl.startsWith('https://') && !picUrl.startsWith('data:')) {
+                picUrl = `/settings/profile-picture/${encodeURIComponent(picUrl)}`;
+            }
+            return `<img src="${this.escapeHtml(picUrl)}" alt="" onerror="this.style.display='none';if(this.nextElementSibling)this.nextElementSibling.style.display='inline';"><span class="avatar-initials" style="display:none;">${this.escapeHtml(initials)}</span>`;
+        }
+        return `<span class="avatar-initials">${this.escapeHtml(initials)}</span>`;
     }
     
     formatDate(dateString) {

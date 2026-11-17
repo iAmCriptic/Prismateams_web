@@ -33,7 +33,7 @@
                             <i class="bi bi-upload" aria-hidden="true"></i>
                             {{ _('settings.profile.picture.change_button') }}
                         </label>
-                        <input type="file" id="profile_picture" name="profile_picture" class="d-none" accept="image/*" onchange="previewProfilePicture(this)">
+                        <input type="file" id="profile_picture" name="profile_picture" class="d-none" accept="image/*">
                         <button type="button" class="btn btn-outline-danger mod-pill-btn" onclick="removeProfilePicture()" id="remove-pic-btn" {% if not user.profile_picture %}hidden{% endif %}>
                             <i class="bi bi-trash" aria-hidden="true"></i>
                             {{ _('settings.profile.picture.remove_button') }}
@@ -191,6 +191,37 @@
 </div>
 {% endblock %}
 
+{% block settings_modals %}
+<div class="modal fade" id="avatarCropModal" tabindex="-1" aria-labelledby="avatarCropTitle" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content settings-avatar-crop-modal">
+            <div class="modal-header">
+                <h5 class="modal-title" id="avatarCropTitle">{{ _('settings.profile.picture.crop_title') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('settings.profile.picture.crop_cancel') }}"></button>
+            </div>
+            <div class="modal-body">
+                <p class="settings-profile-hint">{{ _('settings.profile.picture.crop_hint') }}</p>
+                <div class="settings-avatar-crop-stage" id="avatarCropStage">
+                    <canvas id="avatarCropCanvas" width="320" height="320"></canvas>
+                    <div class="settings-avatar-crop-mask" aria-hidden="true"></div>
+                </div>
+                <div class="settings-avatar-crop-zoom">
+                    <i class="bi bi-image" aria-hidden="true"></i>
+                    <input type="range" class="form-range" id="avatarCropZoom" min="1" max="4" step="0.01" value="1" aria-label="{{ _('settings.profile.picture.crop_zoom') }}">
+                    <i class="bi bi-image-fill" aria-hidden="true"></i>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">{{ _('settings.profile.picture.crop_cancel') }}</button>
+                <button type="button" class="btn btn-accent mod-pill-btn" id="avatarCropApply">
+                    <i class="bi bi-check-lg" aria-hidden="true"></i> {{ _('settings.profile.picture.crop_apply') }}
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
 {% block extra_js %}
 {% if can_delete_account and has_passkeys %}
 <script src="{{ url_for('static', filename='js/passkeys.js') }}"></script>
@@ -207,43 +238,121 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 {% endif %}
 <script>
-function previewProfilePicture(input) {
-    var file = input.files[0];
+(function () {
+    var input = document.getElementById('profile_picture');
+    var modalEl = document.getElementById('avatarCropModal');
+    var canvas = document.getElementById('avatarCropCanvas');
+    var zoomEl = document.getElementById('avatarCropZoom');
+    var applyBtn = document.getElementById('avatarCropApply');
     var preview = document.getElementById('profile-picture-preview');
     var errorDiv = document.getElementById('upload-error');
     var removeBtn = document.getElementById('remove-pic-btn');
-    if (!preview || !errorDiv) return;
+    if (!input || !modalEl || !canvas) return;
+    var ctx = canvas.getContext('2d');
+    var SIZE = canvas.width;
+    var OUT = 512;
+    var img = null, scale = 1, minScale = 1, offX = 0, offY = 0, dragging = false, lastX = 0, lastY = 0, origName = 'profile.jpg', origType = 'image/jpeg';
+    var modal = null, applied = false;
 
-    errorDiv.hidden = true;
-    errorDiv.textContent = '';
+    function showError(msg) { errorDiv.textContent = msg; errorDiv.hidden = false; }
 
-    if (!file) return;
-
-    var allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
-    var maxSize = 5 * 1024 * 1024;
-
-    if (allowedTypes.indexOf(file.type) === -1) {
-        errorDiv.textContent = {{ _('settings.profile.picture.error_type') | tojson }};
-        errorDiv.hidden = false;
-        input.value = '';
-        return;
+    function clamp() {
+        var w = img.width * scale, h = img.height * scale;
+        offX = Math.min(0, Math.max(SIZE - w, offX));
+        offY = Math.min(0, Math.max(SIZE - h, offY));
+    }
+    function draw() {
+        ctx.clearRect(0, 0, SIZE, SIZE);
+        ctx.drawImage(img, offX, offY, img.width * scale, img.height * scale);
+    }
+    function setScale(ns) {
+        var cx = (SIZE / 2 - offX) / scale, cy = (SIZE / 2 - offY) / scale;
+        scale = ns;
+        offX = SIZE / 2 - cx * scale;
+        offY = SIZE / 2 - cy * scale;
+        clamp(); draw();
     }
 
-    if (file.size > maxSize) {
-        errorDiv.textContent = {{ _('settings.profile.picture.error_size') | tojson }};
-        errorDiv.hidden = false;
-        input.value = '';
-        return;
-    }
+    input.addEventListener('change', function () {
+        errorDiv.hidden = true; errorDiv.textContent = '';
+        var file = input.files[0];
+        if (!file) return;
+        if (['image/jpeg', 'image/jpg', 'image/png', 'image/gif'].indexOf(file.type) === -1) {
+            showError({{ _('settings.profile.picture.error_type') | tojson }}); input.value = ''; return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            showError({{ _('settings.profile.picture.error_size') | tojson }}); input.value = ''; return;
+        }
+        origName = file.name; origType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
+        var reader = new FileReader();
+        reader.onload = function (e) {
+            var im = new Image();
+            im.onload = function () {
+                img = im;
+                minScale = Math.max(SIZE / im.width, SIZE / im.height);
+                scale = minScale;
+                offX = (SIZE - im.width * scale) / 2;
+                offY = (SIZE - im.height * scale) / 2;
+                zoomEl.value = 1;
+                draw();
+                modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modal.show();
+            };
+            im.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
 
-    var reader = new FileReader();
-    reader.onload = function (e) {
-        preview.innerHTML = '<img src="' + e.target.result + '" alt="' + {{ _('settings.profile.picture.alt_preview') | tojson }} + '">';
-        if (removeBtn) removeBtn.hidden = false;
-    };
-    reader.readAsDataURL(file);
-}
+    zoomEl.addEventListener('input', function () { if (img) setScale(minScale * parseFloat(zoomEl.value)); });
 
+    canvas.addEventListener('pointerdown', function (e) {
+        dragging = true; lastX = e.clientX; lastY = e.clientY; canvas.setPointerCapture(e.pointerId);
+    });
+    canvas.addEventListener('pointermove', function (e) {
+        if (!dragging || !img) return;
+        var k = SIZE / canvas.getBoundingClientRect().width;
+        offX += (e.clientX - lastX) * k; offY += (e.clientY - lastY) * k;
+        lastX = e.clientX; lastY = e.clientY;
+        clamp(); draw();
+    });
+    ['pointerup', 'pointercancel'].forEach(function (n) { canvas.addEventListener(n, function () { dragging = false; }); });
+    canvas.addEventListener('wheel', function (e) {
+        if (!img) return;
+        e.preventDefault();
+        var z = Math.min(4, Math.max(1, parseFloat(zoomEl.value) - e.deltaY * 0.002));
+        zoomEl.value = z; setScale(minScale * z);
+    }, { passive: false });
+
+    applyBtn.addEventListener('click', function () {
+        var out = document.createElement('canvas');
+        out.width = OUT; out.height = OUT;
+        var r = OUT / SIZE;
+        out.getContext('2d').drawImage(img, offX * r, offY * r, img.width * scale * r, img.height * scale * r);
+        out.toBlob(function (blob) {
+            if (!blob) return;
+            var ext = origType === 'image/png' ? '.png' : '.jpg';
+            var name = origName.replace(/\.[^.]+$/, '') + ext;
+            var file = new File([blob], name, { type: origType });
+            var dt = new DataTransfer();
+            dt.items.add(file);
+            input.files = dt.files;
+            applied = true;
+            preview.innerHTML = '';
+            var pv = document.createElement('img');
+            pv.src = out.toDataURL(origType);
+            pv.alt = {{ _('settings.profile.picture.alt_preview') | tojson }};
+            preview.appendChild(pv);
+            if (removeBtn) removeBtn.hidden = false;
+            modal.hide();
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }, origType, 0.92);
+    });
+
+    modalEl.addEventListener('hidden.bs.modal', function () {
+        if (!applied) input.value = '';
+        applied = false;
+    });
+})();
 async function removeProfilePicture() {
     var message = {{ _('settings.profile.picture.remove_confirm') | tojson }};
     var ok = true;

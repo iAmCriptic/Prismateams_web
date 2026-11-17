@@ -1017,6 +1017,10 @@
 
         textarea.dataset.mdTableMounted = '1';
         renderBlocks(parseBlocks(textarea.value));
+        const initialSegment = doc.querySelector('.md-segment-textarea');
+        if (initialSegment) {
+            inst.activeTextarea = initialSegment;
+        }
 
         inst.sync = sync;
         inst.insertTableAtCursor = insertTableAtCursor;
@@ -1027,7 +1031,13 @@
             }
             const focused = document.activeElement;
             if (focused && focused.classList && focused.classList.contains('md-segment-textarea') && inst.doc.contains(focused)) {
+                inst.activeTextarea = focused;
                 return focused;
+            }
+            const first = inst.doc.querySelector('.md-segment-textarea');
+            if (first) {
+                inst.activeTextarea = first;
+                return first;
             }
             return null;
         };

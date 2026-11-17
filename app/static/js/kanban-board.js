@@ -13,6 +13,24 @@
   const isShare = app.dataset.isShare === '1' || Boolean(shareToken);
   const boardId = board.id;
   const i18n = window.KANBAN_I18N || {};
+
+  const collapsedListStorageKey = `kanban_collapsed_lists_${boardId}`;
+  function getCollapsedListIds() {
+    try {
+      const raw = localStorage.getItem(collapsedListStorageKey);
+      return new Set(raw ? JSON.parse(raw) : []);
+    } catch (_) {
+      return new Set();
+    }
+  }
+  function setCollapsedListIds(set) {
+    try {
+      localStorage.setItem(collapsedListStorageKey, JSON.stringify(Array.from(set)));
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  const collapsedListIds = getCollapsedListIds();
   let currentCardId = null;
   let currentCardDetail = null;
   let checklistItemDueTarget = null;
@@ -20,11 +38,26 @@
   let commentSystem = null;
   let ignoreSSE = false;
   let cardModal = null;
+  let lastFocusedCardEl = null;
   const cardSortables = new Map();
   let listsSortable = null;
   let lastBoardSig = '';
   let pollTimer = null;
   let sseLive = false;
+  let eventSource = null;
+  let pageSseHeld = false;
+
+  function holdPageSse() {
+    if (pageSseHeld || !window.ptPageSse) return;
+    window.ptPageSse.acquire();
+    pageSseHeld = true;
+  }
+
+  function releasePageSse() {
+    if (!pageSseHeld || !window.ptPageSse) return;
+    window.ptPageSse.release();
+    pageSseHeld = false;
+  }
 
   board.custom_field_categories = board.custom_field_categories || [];
 
@@ -52,6 +85,37 @@
     return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
+  function formatChecklistDue(iso) {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    if (d.getFullYear() === now.getFullYear()) {
+      try {
+        const monthStr = d.toLocaleDateString('de-DE', { month: 'short' });
+        const cleanMonth = monthStr.endsWith('.') ? monthStr : `${monthStr}.`;
+        return `${d.getDate()}. ${cleanMonth}`;
+      } catch (_) {
+        const months = ['Jan.', 'Feb.', 'März', 'Apr.', 'Mai', 'Juni', 'Juli', 'Aug.', 'Sept.', 'Okt.', 'Nov.', 'Dez.'];
+        return `${d.getDate()}. ${months[d.getMonth()]}`;
+      }
+    }
+    return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+  }
+
+  function getChecklistDueState(iso, done) {
+    if (!iso) return null;
+    if (done) return 'done';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return null;
+    const now = new Date();
+    if (d.getTime() < now.getTime()) return 'overdue';
+    const diffHours = (d.getTime() - now.getTime()) / (1000 * 60 * 60);
+    if (diffHours <= 24) return 'soon';
+    return 'future';
+  }
+
   function toDatetimeLocalValue(iso) {
     if (!iso) return '';
     const d = new Date(iso);
@@ -64,7 +128,61 @@
     const el = document.getElementById('kanbanBoardMembers');
     if (!el) return;
     const members = board.members || [];
-    el.innerHTML = members.map((m) => avatarHtml(m)).join('');
+    const maxVisible = 4;
+    let topbarHtml = '';
+    if (!members.length) {
+      topbarHtml = '<span class="text-white-50 small"><i class="bi bi-people"></i></span>';
+    } else {
+      const visibleMembers = members.slice(0, maxVisible);
+      const extraCount = members.length - maxVisible;
+      topbarHtml = visibleMembers.map((m) => avatarHtml(m)).join('');
+      if (extraCount > 0) {
+        topbarHtml += `<span class="kanban-avatar kanban-avatar--more" title="+${extraCount} weitere Personen">+${extraCount}</span>`;
+      }
+    }
+    el.innerHTML = topbarHtml;
+
+    // Populate the members dropdown
+    const countEl = document.getElementById('kanbanBoardMembersCount');
+    if (countEl) countEl.textContent = String(members.length);
+
+    const noticeEl = document.getElementById('kanbanBoardAccessNotice');
+    if (noticeEl) {
+      if (board.visibility === 'public') {
+        noticeEl.innerHTML = '<i class="bi bi-globe me-1"></i><strong>Öffentliches Board:</strong> Alle Portalsnutzer haben Zugriff.';
+      } else if (board.visibility === 'team') {
+        const tName = board.team_name || (board.team && board.team.name) || 'Team';
+        noticeEl.innerHTML = `<i class="bi bi-people-fill me-1"></i><strong>Team-Board:</strong> Alle Mitglieder von <em>${esc(tName)}</em> haben Zugriff.`;
+      } else {
+        noticeEl.innerHTML = '<i class="bi bi-lock-fill me-1"></i><strong>Privates Board:</strong> Nur autorisierte Personen haben Zugriff.';
+      }
+    }
+
+    const listEl = document.getElementById('kanbanBoardMembersList');
+    if (listEl) {
+      if (!members.length) {
+        listEl.innerHTML = '<div class="text-muted small py-2">Keine Mitglieder gefunden.</div>';
+      } else {
+        listEl.innerHTML = members.map((m) => {
+          const roleClass = m.is_owner || m.role === 'owner' ? 'kanban-role-badge--owner'
+            : (m.role === 'admin' ? 'kanban-role-badge--admin' : 'kanban-role-badge--member');
+          const roleLabel = m.is_owner || m.role === 'owner' ? 'Inhaber'
+            : (m.role === 'admin' ? 'Administrator' : 'Mitglied');
+          return `
+            <div class="kanban-member-menu-item">
+              <div class="d-flex align-items-center gap-2 min-w-0 flex-grow-1">
+                ${avatarHtml(m)}
+                <div class="text-truncate min-w-0 flex-grow-1">
+                  <div class="fw-semibold text-truncate" style="font-size: 0.88rem;">${esc(m.name || 'Benutzer')}</div>
+                  <div class="small text-muted text-truncate" style="font-size: 0.75rem;">${esc(m.role_label || roleLabel)}</div>
+                </div>
+              </div>
+              <span class="kanban-role-badge ${roleClass}">${esc(roleLabel)}</span>
+            </div>
+          `;
+        }).join('');
+      }
+    }
   }
 
   function getModal(elOrId) {
@@ -78,6 +196,44 @@
     return cardModal;
   }
 
+  const cardModalEl = document.getElementById('kanbanCardModal');
+  if (cardModalEl) {
+    cardModalEl.addEventListener('hide.bs.modal', () => {
+      if (cardModalEl.contains(document.activeElement)) {
+        try { document.activeElement.blur(); } catch (_) {}
+      }
+    });
+    cardModalEl.addEventListener('hidden.bs.modal', () => {
+      currentCardId = null;
+      currentCardDetail = null;
+      if (commentSystem) {
+        commentSystem = null;
+        window.commentSystem = null;
+      }
+      // DOM leeren um Ressourcen / Speicher zu schonen
+      const clRoot = document.getElementById('cardChecklists');
+      if (clRoot) clRoot.innerHTML = '';
+      const attRoot = document.getElementById('cardAttachments');
+      if (attRoot) attRoot.innerHTML = '';
+      const actRoot = document.getElementById('kanbanCardActivity');
+      if (actRoot) actRoot.innerHTML = '';
+      const coverEl = document.getElementById('cardModalCover');
+      if (coverEl) coverEl.innerHTML = '';
+      const commentsRoot = document.getElementById('kanbanCardComments');
+      if (commentsRoot) {
+        const commentsList = commentsRoot.querySelector('.comments-list');
+        if (commentsList) {
+          commentsList.innerHTML = '';
+          commentsList.classList.add('is-empty');
+        }
+      }
+      if (lastFocusedCardEl) {
+        try { lastFocusedCardEl.focus(); } catch (_) {}
+        lastFocusedCardEl = null;
+      }
+    });
+  }
+
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -87,7 +243,7 @@
   function notify(message, category) {
     const msg = String(message || '');
     if (typeof window.showAppBanner === 'function') {
-      window.showAppBanner(msg, category || 'danger');
+      window.showAppBanner(msg, category || 'info');
     } else {
       window.alert(msg);
     }
@@ -563,7 +719,7 @@
   function cardHtml(card) {
     const labels = (card.labels || []).map((lb) => labelChipHtml(lb)).join('');
     const cover = card.cover && card.cover.is_image
-      ? `<div class="kanban-card__cover"><img src="${esc(card.cover.preview_url || card.cover.url)}" alt=""></div>`
+      ? `<div class="kanban-card__cover"><img src="${esc(card.cover.preview_url || card.cover.url)}" alt="" loading="lazy" decoding="async"></div>`
       : '';
     const cl = card.checklist || {};
     const meta = [];
@@ -573,7 +729,7 @@
     if (card.attachment_count) meta.push(`<span><i class="bi bi-paperclip"></i> ${card.attachment_count}</span>`);
     if (card.poll_text || card.vote_count) meta.push(`<span><i class="bi bi-hand-thumbs-up"></i> ${card.vote_count || 0}</span>`);
     const avatars = (card.assignees || []).map((a) => avatarHtml(a)).join('');
-    return `<div class="kanban-card${card.completed ? ' is-completed' : ''}" data-card-id="${card.id}" draggable="false">
+    return `<div class="kanban-card${card.completed ? ' is-completed' : ''}" data-card-id="${card.id}" role="button" tabindex="0">
       ${cover}
       ${labels ? `<div class="kanban-card__labels">${labels}</div>` : ''}
       <div class="kanban-card__title-row">
@@ -587,12 +743,13 @@
 
   function listHtml(list) {
     const cards = (list.cards || []).map(cardHtml).join('');
+    const isCollapsed = collapsedListIds.has(list.id);
     const menu = canEdit
       ? `<div class="dropdown kanban-list-menu">
-          <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="Listenaktionen">
+          <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-bs-toggle="dropdown" aria-label="Listenaktionen">
             <i class="bi bi-three-dots"></i>
           </button>
-          <ul class="dropdown-menu dropdown-menu-end">
+          <ul class="dropdown-menu dropdown-menu-end shadow">
             <li><button type="button" class="dropdown-item" data-list-rename="${list.id}">${esc(i18n.rename || 'Umbenennen')}</button></li>
             <li><button type="button" class="dropdown-item text-danger" data-list-delete="${list.id}">${esc(i18n.delete || 'Löschen')}</button></li>
           </ul>
@@ -612,11 +769,27 @@
           </form>
         </div>`
       : '';
-    return `<div class="kanban-list-col" data-list-id="${list.id}">
+    return `<div class="kanban-list-col${isCollapsed ? ' is-collapsed' : ''}" data-list-id="${list.id}">
       <div class="kanban-list-col__head">
-        <span class="kanban-list-col__title" data-list-title="${list.id}">${esc(list.title)}</span>
-        <span class="kanban-list-col__count">${(list.cards || []).length}</span>
-        ${menu}
+        <span class="kanban-list-col__title text-truncate" data-list-title="${list.id}" title="${esc(list.title)}">${esc(list.title)}</span>
+        <div class="d-flex align-items-center gap-1 flex-shrink-0">
+          <span class="kanban-list-col__count">${(list.cards || []).length}</span>
+          <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost kanban-list-collapse-btn p-0" data-list-collapse="${list.id}" title="Liste einklappen" aria-label="Liste einklappen">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M1 8a.5.5 0 0 1 .5-.5h5.793L5.146 5.354a.5.5 0 1 1 .708-.708l3 3a.5.5 0 0 1 0 .708l-3 3a.5.5 0 0 1-.708-.708L7.293 8.5H1.5A.5.5 0 0 1 1 8zm14 0a.5.5 0 0 0-.5-.5H8.707l2.147-2.146a.5.5 0 0 0-.708-.708l-3 3a.5.5 0 0 0 0 .708l3 3a.5.5 0 0 0 .708-.708L8.707 8.5H14.5a.5.5 0 0 0 .5-.5z"/>
+            </svg>
+          </button>
+          ${menu}
+        </div>
+      </div>
+      <div class="kanban-list-col__collapsed-view" data-list-expand="${list.id}" role="button" tabindex="0" title="Liste aufklappen: ${esc(list.title)}">
+        <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost kanban-list-expand-btn p-0" data-list-expand="${list.id}" title="Liste aufklappen" aria-label="Liste aufklappen">
+          <i class="bi bi-arrow-left-right"></i>
+        </button>
+        <div class="kanban-list-col__collapsed-body">
+          <span class="kanban-list-col__collapsed-title">${esc(list.title)}</span>
+          <span class="kanban-list-col__collapsed-count">${(list.cards || []).length}</span>
+        </div>
       </div>
       <div class="kanban-list-col__cards" data-list-cards="${list.id}">${cards}</div>
       ${footer}
@@ -644,6 +817,9 @@
       group: 'kanban-cards',
       animation: 200,
       ghostClass: 'opacity-50',
+      delay: 200,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 5,
       onEnd: async (evt) => {
         const cardId = Number(evt.item.dataset.cardId);
         const listId = Number(evt.to.dataset.listCards);
@@ -679,6 +855,9 @@
       handle: '.kanban-list-col__head',
       draggable: '.kanban-list-col',
       filter: '.kanban-add-list-wrap',
+      delay: 200,
+      delayOnTouchOnly: true,
+      touchStartThreshold: 5,
       onEnd: async () => {
         const order = Array.from(listsEl.querySelectorAll('.kanban-list-col')).map((el) => Number(el.dataset.listId));
         ignoreSSE = true;
@@ -750,6 +929,12 @@
     }
     const countEl = col.querySelector('.kanban-list-col__count');
     if (countEl) countEl.textContent = String((list.cards || []).length);
+    const collapsedTitleEl = col.querySelector('.kanban-list-col__collapsed-title');
+    if (collapsedTitleEl && collapsedTitleEl.textContent !== (list.title || '')) {
+      collapsedTitleEl.textContent = list.title || '';
+    }
+    const collapsedCountEl = col.querySelector('.kanban-list-col__collapsed-count');
+    if (collapsedCountEl) collapsedCountEl.textContent = String((list.cards || []).length);
     const cardsEl = col.querySelector(`[data-list-cards="${list.id}"]`);
     if (cardsEl) patchCards(cardsEl, list.cards || []);
   }
@@ -925,10 +1110,48 @@
     ignoreSSE = false;
   }
 
+  // Delegated error handling for failed cover images (hides empty cover)
+  app.addEventListener('error', (e) => {
+    if (e.target && e.target.tagName === 'IMG' && e.target.closest('.kanban-card__cover')) {
+      const cover = e.target.closest('.kanban-card__cover');
+      if (cover) cover.style.display = 'none';
+    }
+  }, true);
+
   // Delegated clicks / submits on the board
   app.addEventListener('click', async (e) => {
+    const collapseBtn = e.target.closest('[data-list-collapse]');
+    if (collapseBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      const listId = Number(collapseBtn.getAttribute('data-list-collapse'));
+      const col = listsEl.querySelector(`.kanban-list-col[data-list-id="${listId}"]`);
+      if (col) {
+        col.classList.add('is-collapsed');
+        collapsedListIds.add(listId);
+        setCollapsedListIds(collapsedListIds);
+      }
+      return;
+    }
+
+    const expandTarget = e.target.closest('[data-list-expand]');
+    if (expandTarget) {
+      e.preventDefault();
+      e.stopPropagation();
+      const listId = Number(expandTarget.getAttribute('data-list-expand'));
+      const col = listsEl.querySelector(`.kanban-list-col[data-list-id="${listId}"]`);
+      if (col) {
+        col.classList.remove('is-collapsed');
+        collapsedListIds.delete(listId);
+        setCollapsedListIds(collapsedListIds);
+        bindListInteractions();
+      }
+      return;
+    }
+
     const card = e.target.closest('.kanban-card');
-    if (card && listsEl.contains(card) && !e.target.closest('button, a, input, form')) {
+    if (card && listsEl.contains(card) && !e.target.closest('button, a, input, form, select, textarea, label')) {
+      lastFocusedCardEl = card;
       openCard(Number(card.dataset.cardId));
       return;
     }
@@ -1010,6 +1233,32 @@
     }
   });
 
+  app.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      const expandTarget = e.target.closest('[data-list-expand]');
+      if (expandTarget) {
+        e.preventDefault();
+        expandTarget.click();
+        return;
+      }
+      const card = e.target.closest('.kanban-card');
+      if (card && listsEl.contains(card) && !e.target.closest('button, a, input, form, select, textarea, label')) {
+        e.preventDefault();
+        lastFocusedCardEl = card;
+        openCard(Number(card.dataset.cardId));
+      }
+    }
+  });
+
+  document.addEventListener('show.bs.dropdown', (e) => {
+    const col = e.target && e.target.closest && e.target.closest('.kanban-list-col');
+    if (col) col.classList.add('has-dropdown-open');
+  });
+  document.addEventListener('hide.bs.dropdown', (e) => {
+    const col = e.target && e.target.closest && e.target.closest('.kanban-list-col');
+    if (col) col.classList.remove('has-dropdown-open');
+  });
+
   app.addEventListener('submit', async (e) => {
     if (e.target.id === 'kanbanAddListForm') {
       e.preventDefault();
@@ -1076,7 +1325,7 @@
       });
     }
     coverEl.innerHTML = card.cover && card.cover.is_image
-      ? `<img src="${esc(card.cover.preview_url || card.cover.url)}" alt="">`
+      ? `<img src="${esc(card.cover.preview_url || card.cover.url)}" alt="" loading="lazy" decoding="async">`
       : '';
     updateCompleteBtn(!!card.completed);
     renderPollSection(card);
@@ -1109,26 +1358,95 @@
         </div>
         <div class="kanban-checklist-progress">
           <span>${pct}%</span>
-          <div class="kanban-checklist-progress__bar"><div style="width:${pct}%"></div></div>
+          <div class="kanban-checklist-progress__bar${pct === 100 ? ' is-complete' : ''}"><div style="width:${pct}%"></div></div>
         </div>
         ${(cl.items || []).map((it) => {
-          const dueLabel = it.due_date ? formatDueDisplay(it.due_date) : '';
+          const dueState = getChecklistDueState(it.due_date, it.done);
+          const dueText = it.due_date ? formatChecklistDue(it.due_date) : '';
+          const dueTitle = it.due_date ? formatDueDisplay(it.due_date) : (i18n.addDue || 'Fälligkeitsdatum hinzufügen');
+
+          let dueHtml = '';
+          if (it.due_date) {
+            dueHtml = `
+              <button type="button" class="kanban-checklist-item__due kanban-checklist-item__due--${dueState}" data-item-due="${it.id}" title="${esc(dueTitle)}" ${canEdit ? '' : 'disabled'}>
+                <i class="bi bi-clock"></i>
+                <span>${esc(dueText)}</span>
+              </button>`;
+          } else if (canEdit) {
+            dueHtml = `
+              <button type="button" class="kanban-checklist-item__icon-btn kanban-checklist-item__icon-btn--due" data-item-due="${it.id}" title="${esc(i18n.addDue || 'Fälligkeitsdatum hinzufügen')}">
+                <i class="bi bi-clock"></i>
+              </button>`;
+          }
+
+          let assigneeHtml = '';
+          if (it.assignee) {
+            const aName = it.assignee.name || '';
+            const aUrl = it.assignee.avatar_url || it.assignee.profile_picture;
+            if (aUrl) {
+              assigneeHtml = `
+                <button type="button" class="kanban-checklist-item__avatar" data-item-assignee="${it.id}" title="${esc(aName)}" ${canEdit ? '' : 'disabled'}>
+                  <img src="${esc(aUrl)}" alt="${esc(aName)}">
+                </button>`;
+            } else {
+              assigneeHtml = `
+                <button type="button" class="kanban-checklist-item__avatar kanban-checklist-item__avatar--initials" data-item-assignee="${it.id}" title="${esc(aName)}" ${canEdit ? '' : 'disabled'}>
+                  <span>${esc(it.assignee.initials || '?')}</span>
+                </button>`;
+            }
+          } else if (canEdit) {
+            assigneeHtml = `
+              <button type="button" class="kanban-checklist-item__icon-btn kanban-checklist-item__icon-btn--assign" data-item-assignee="${it.id}" title="${esc(i18n.assignMember || 'Person zuweisen')}">
+                <i class="bi bi-person-plus"></i>
+              </button>`;
+          }
+
           return `
-          <div class="kanban-checklist-item" data-item-id="${it.id}">
-            <input type="checkbox" data-item-id="${it.id}" ${it.done ? 'checked' : ''} ${canEdit ? '' : 'disabled'}>
+          <div class="kanban-checklist-item${it.done ? ' is-done' : ''}" data-item-id="${it.id}">
+            <input type="checkbox" class="form-check-input kanban-checklist-item__check" data-item-id="${it.id}" ${it.done ? 'checked' : ''} ${canEdit ? '' : 'disabled'}>
             <div class="kanban-checklist-item__body">
               <span class="kanban-checklist-item__text">${esc(it.text)}</span>
-              <div class="kanban-checklist-item__meta">
-                ${dueLabel ? `<span class="kanban-checklist-item__due"><i class="bi bi-clock"></i> ${esc(dueLabel)}</span>` : ''}
-                ${it.assignee ? avatarHtml(it.assignee) : ''}
-              </div>
             </div>
-            ${canEdit ? `
-            <div class="kanban-checklist-item__actions">
-              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-item-due="${it.id}" title="${esc(i18n.due || 'Zeit')}"><i class="bi bi-clock"></i></button>
-              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-item-assignee="${it.id}" title="${esc(i18n.members || 'Person')}"><i class="bi bi-person-plus"></i></button>
-              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon mod-pill-btn--ghost" data-item-del="${it.id}" title="${esc(i18n.delete || 'Löschen')}"><i class="bi bi-trash"></i></button>
-            </div>` : ''}
+            <div class="kanban-checklist-item__meta">
+              ${dueHtml}
+              ${assigneeHtml}
+              ${canEdit ? `
+              <div class="dropdown kanban-checklist-item__dropdown">
+                <button type="button" class="kanban-checklist-item__more-btn" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" title="${esc(i18n.more || 'Optionen')}">
+                  <i class="bi bi-three-dots"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                  <li>
+                    <button type="button" class="dropdown-item" data-item-due="${it.id}">
+                      <i class="bi bi-clock me-2"></i>${it.due_date ? esc(i18n.changeDue || 'Fälligkeitsdatum ändern') : esc(i18n.addDue || 'Fälligkeitsdatum hinzufügen')}
+                    </button>
+                  </li>
+                  <li>
+                    <button type="button" class="dropdown-item" data-item-assignee="${it.id}">
+                      <i class="bi bi-person${it.assignee ? '' : '-plus'} me-2"></i>${it.assignee ? esc(i18n.changeAssignee || 'Zuweisung ändern') : esc(i18n.assignMember || 'Person zuweisen')}
+                    </button>
+                  </li>
+                  ${it.due_date ? `
+                  <li>
+                    <button type="button" class="dropdown-item" data-item-clear-due="${it.id}">
+                      <i class="bi bi-calendar-x me-2"></i>${esc(i18n.clearDue || 'Fälligkeitsdatum entfernen')}
+                    </button>
+                  </li>` : ''}
+                  ${it.assignee ? `
+                  <li>
+                    <button type="button" class="dropdown-item" data-item-clear-assignee="${it.id}">
+                      <i class="bi bi-person-x me-2"></i>${esc(i18n.clearAssignee || 'Zuweisung entfernen')}
+                    </button>
+                  </li>` : ''}
+                  <li><hr class="dropdown-divider"></li>
+                  <li>
+                    <button type="button" class="dropdown-item text-danger" data-item-del="${it.id}">
+                      <i class="bi bi-trash me-2"></i>${esc(i18n.delete || 'Löschen')}
+                    </button>
+                  </li>
+                </ul>
+              </div>` : ''}
+            </div>
           </div>`;
         }).join('')}
         ${canEdit ? `<form class="kanban-add-item-form mt-2" data-checklist-id="${cl.id}">
@@ -1143,14 +1461,19 @@
           const r = await api(`/kanban/api/checklist-items/${cb.dataset.itemId}`, {
             method: 'PATCH', body: { done: cb.checked },
           });
-          if (r.card) upsertCardLocal(r.card);
+          if (r.card) {
+            upsertCardLocal(r.card);
+            renderBoard();
+            openCard(cardId);
+          }
         } catch (err) {
           notify(err.message || 'Fehler');
         }
       });
     });
     clRoot.querySelectorAll('[data-item-due]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
         const itemId = Number(btn.getAttribute('data-item-due'));
         let item = null;
         (card.checklists || []).forEach((cl) => {
@@ -1163,17 +1486,55 @@
       });
     });
     clRoot.querySelectorAll('[data-item-assignee]').forEach((btn) => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
         checklistItemAssigneeTarget = Number(btn.getAttribute('data-item-assignee'));
         renderMembersPicker({ checklistItemId: checklistItemAssigneeTarget, card });
         getModal('kanbanMembersModal')?.show();
       });
     });
+    clRoot.querySelectorAll('[data-item-clear-due]').forEach((btn) => {
+      btn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        try {
+          const itemId = btn.getAttribute('data-item-clear-due');
+          const r = await api(`/kanban/api/checklist-items/${itemId}`, {
+            method: 'PATCH',
+            body: { due_date: null },
+          });
+          if (r.card) upsertCardLocal(r.card);
+          renderBoard();
+          openCard(cardId);
+        } catch (err) {
+          notify(err.message || 'Fehler');
+        }
+      });
+    });
+    clRoot.querySelectorAll('[data-item-clear-assignee]').forEach((btn) => {
+      btn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        try {
+          const itemId = btn.getAttribute('data-item-clear-assignee');
+          const r = await api(`/kanban/api/checklist-items/${itemId}`, {
+            method: 'PATCH',
+            body: { assignee_id: null },
+          });
+          if (r.card) upsertCardLocal(r.card);
+          renderBoard();
+          openCard(cardId);
+        } catch (err) {
+          notify(err.message || 'Fehler');
+        }
+      });
+    });
     clRoot.querySelectorAll('[data-item-del]').forEach((btn) => {
-      btn.addEventListener('click', async () => {
+      btn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
         if (!(await askConfirm(i18n.delete || 'Löschen?'))) return;
         try {
-          await api(`/kanban/api/checklist-items/${btn.getAttribute('data-item-del')}`, { method: 'DELETE' });
+          const r = await api(`/kanban/api/checklist-items/${btn.getAttribute('data-item-del')}`, { method: 'DELETE' });
+          if (r && r.card) upsertCardLocal(r.card);
+          renderBoard();
           openCard(cardId);
         } catch (err) {
           notify(err.message || 'Fehler');
@@ -1232,8 +1593,29 @@
       return `${formatDueDisplay(iso)} ${esc(i18n.addedSuffix || 'hinzugefügt')}`;
     }
 
+    function getFaviconUrl(rawUrl) {
+      if (!rawUrl) return null;
+      try {
+        const target = rawUrl.startsWith('http://') || rawUrl.startsWith('https://') ? rawUrl : `https://${rawUrl}`;
+        const u = new URL(target);
+        const host = (u.hostname || '').toLowerCase().replace(/\.$/, '');
+        if (!host || host === 'localhost' || host === '127.0.0.1' || host.endsWith('.local')) return null;
+        return `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`;
+      } catch (_) {
+        return null;
+      }
+    }
+
     function attachThumb(a) {
-      if (a.is_link) return `<div class="kanban-attach-thumb kanban-attach-thumb--icon"><i class="bi bi-link-45deg"></i></div>`;
+      if (a.is_link) {
+        const fav = a.favicon_url || getFaviconUrl(a.external_url || a.url);
+        if (fav) {
+          return `<div class="kanban-attach-thumb kanban-attach-thumb--icon kanban-attach-thumb--favicon">
+            <img class="kanban-attach-favicon" src="${esc(fav)}" alt="" loading="lazy" onerror="this.onerror=null;this.parentElement.innerHTML='<i class=\\\'bi bi-link-45deg\\\'></i>';">
+          </div>`;
+        }
+        return `<div class="kanban-attach-thumb kanban-attach-thumb--icon"><i class="bi bi-link-45deg"></i></div>`;
+      }
       if (a.is_image && a.preview_url) return `<img class="kanban-attach-thumb" src="${esc(a.preview_url)}" alt="">`;
       if (a.is_pdf) return `<div class="kanban-attach-thumb kanban-attach-thumb--badge">PDF</div>`;
       const ext = ((a.filename || '').split('.').pop() || '').toUpperCase().slice(0, 4);
@@ -1243,10 +1625,13 @@
     function attachRow(a) {
       const viewUrl = a.is_link ? a.url : (a.preview_url || a.url);
       const isCover = coverId && Number(coverId) === Number(a.id);
+      const rawUrl = a.external_url || (a.is_link ? a.url : null);
+      const showSubUrl = a.is_link && rawUrl && rawUrl !== a.filename;
       return `<div class="kanban-attach-row${isCover ? ' is-cover' : ''}" data-att-id="${a.id}">
         ${attachThumb(a)}
         <div class="kanban-attach-row__info">
           <a class="kanban-attach-row__name" href="${esc(viewUrl)}" target="_blank" rel="noopener">${esc(a.filename)}</a>
+          ${showSubUrl ? `<div class="kanban-attach-row__url" title="${esc(rawUrl)}">${esc(rawUrl)}</div>` : ''}
           <div class="kanban-attach-row__meta">
             ${a.created_at ? `<span>${formatAddedAt(a.created_at)}</span>` : ''}
             ${isCover ? `<span class="kanban-attach-cover-mark" title="${esc(i18n.setCover || 'Titelbild')}"><i class="bi bi-image-fill"></i> ${esc(i18n.setCover || 'Titelbild')}</span>` : ''}
@@ -1334,7 +1719,10 @@
           oldForm.replaceWith(clone);
         }
         const commentsList = commentsRoot.querySelector('.comments-list');
-        if (commentsList) commentsList.innerHTML = '';
+        if (commentsList) {
+          commentsList.innerHTML = '';
+          commentsList.classList.add('is-empty');
+        }
         if (window.CommentSystem) {
           commentSystem = new window.CommentSystem('kanban_card', cardId, 'kanbanCardComments');
           window.commentSystem = commentSystem;
@@ -1342,19 +1730,27 @@
       }
     }
 
+    ensureCardModal()?.show();
+
     try {
       const act = await api(`/kanban/api/boards/${boardId}/activity?card_id=${cardId}`);
-      document.getElementById('kanbanCardActivity').innerHTML = (act.activities || []).map((a) => `
-        <div class="kanban-activity-item">
-          <div><strong>${esc(a.user && a.user.name || '?')}</strong> ${esc(a.action_label || a.action || '')}</div>
-          ${a.detail ? `<div class="small">${esc(a.detail)}</div>` : ''}
-          <div class="kanban-activity-item__meta">${esc(a.created_at_display || formatDueDisplay(a.created_at) || '')}</div>
-        </div>`).join('') || '<p class="text-muted small">—</p>';
+      if (currentCardId === cardId) {
+        const actRoot = document.getElementById('kanbanCardActivity');
+        if (actRoot) {
+          actRoot.innerHTML = (act.activities || []).map((a) => `
+            <div class="kanban-activity-item">
+              <div><strong>${esc(a.user && a.user.name || '?')}</strong> ${esc(a.action_label || a.action || '')}</div>
+              ${a.detail ? `<div class="small kanban-activity-detail text-break" style="word-break: break-word; overflow-wrap: anywhere;">${esc(a.detail)}</div>` : ''}
+              <div class="kanban-activity-item__meta">${esc(a.created_at_display || formatDueDisplay(a.created_at) || '')}</div>
+            </div>`).join('') || '<p class="text-muted small">—</p>';
+        }
+      }
     } catch (_) {
-      document.getElementById('kanbanCardActivity').innerHTML = '';
+      if (currentCardId === cardId) {
+        const actRoot = document.getElementById('kanbanCardActivity');
+        if (actRoot) actRoot.innerHTML = '';
+      }
     }
-
-    ensureCardModal()?.show();
   }
 
   function renderPollSection(card) {
@@ -1520,6 +1916,31 @@
   document.getElementById('cardAttachLinkCancel')?.addEventListener('click', () => {
     const form = document.getElementById('cardAttachLinkForm');
     if (form) form.hidden = true;
+  });
+
+  let linkTitleFetchTimer = null;
+  const linkUrlInput = document.getElementById('cardAttachLinkUrl');
+  const linkTitleInput = document.getElementById('cardAttachLinkTitle');
+
+  linkUrlInput?.addEventListener('input', () => {
+    const rawVal = (linkUrlInput.value || '').trim();
+    if (!rawVal || (linkTitleInput && linkTitleInput.value.trim())) return;
+    clearTimeout(linkTitleFetchTimer);
+    linkTitleFetchTimer = setTimeout(async () => {
+      if (linkTitleInput && !linkTitleInput.value.trim() && (rawVal.startsWith('http://') || rawVal.startsWith('https://') || rawVal.includes('.'))) {
+        try {
+          linkTitleInput.setAttribute('placeholder', 'Titel wird ermittelt…');
+          const res = await api(`/kanban/api/fetch-url-title?url=${encodeURIComponent(rawVal)}`);
+          if (res && res.title && !linkTitleInput.value.trim()) {
+            linkTitleInput.value = res.title;
+          }
+        } catch (_) {
+          // ignore background fetch error
+        } finally {
+          linkTitleInput.setAttribute('placeholder', 'Titel (optional / automatisch)');
+        }
+      }
+    }, 400);
   });
 
   document.getElementById('cardAttachLinkForm')?.addEventListener('submit', async (e) => {
@@ -1817,11 +2238,173 @@
     }
   });
 
-  async function openShareModal() {
+  async function openShareModal(initialTab = 'users') {
+    const modalEl = document.getElementById('kanbanShareModal');
+    if (!modalEl) return;
+
+    const shareList = document.getElementById('kanbanShareList');
+    const portalList = document.getElementById('kanbanPortalUsersList');
+    if (shareList) shareList.innerHTML = '<tr><td colspan="5" class="text-muted small">Lade Freigabelinks…</td></tr>';
+    if (portalList) portalList.innerHTML = '<tr><td colspan="4" class="text-muted small">Lade Portalsnutzer…</td></tr>';
+
+    if (initialTab === 'links') {
+      const linksTabBtn = document.getElementById('kanbanShareTabLinksBtn');
+      if (linksTabBtn) {
+        try {
+          if (window.bootstrap && bootstrap.Tab) {
+            bootstrap.Tab.getOrCreateInstance(linksTabBtn).show();
+          } else {
+            linksTabBtn.click();
+          }
+        } catch (_) {
+          linksTabBtn.click();
+        }
+      }
+    } else {
+      const usersTabBtn = document.getElementById('kanbanShareTabUsersBtn');
+      if (usersTabBtn) {
+        try {
+          if (window.bootstrap && bootstrap.Tab) {
+            bootstrap.Tab.getOrCreateInstance(usersTabBtn).show();
+          } else {
+            usersTabBtn.click();
+          }
+        } catch (_) {
+          usersTabBtn.click();
+        }
+      }
+    }
+
+    try {
+      getModal(modalEl)?.show();
+    } catch (_) {}
+
+    loadPortalUsersShare();
+    loadPublicShares();
+  }
+
+  document.getElementById('kanbanShareModal')?.addEventListener('show.bs.modal', () => {
+    loadPortalUsersShare();
+    loadPublicShares();
+  });
+
+  async function loadPortalUsersShare() {
+    const portalList = document.getElementById('kanbanPortalUsersList');
+    const userSelect = document.getElementById('kanbanAddUserSelect');
+    try {
+      const membersData = await api(`/kanban/api/boards/${boardId}/members`);
+      if (membersData && membersData.members) {
+        board.members = membersData.members;
+        renderBoardMembers();
+        renderPortalUsersRows(membersData.members);
+      }
+    } catch (err) {
+      if (portalList) {
+        portalList.innerHTML = `<tr><td colspan="4" class="text-danger small">${esc(err.message || 'Fehler beim Laden der Portalsnutzer')}</td></tr>`;
+      }
+    }
+
+    if (canManage && userSelect) {
+      try {
+        const candidatesData = await api(`/kanban/api/boards/${boardId}/candidate_users`);
+        if (candidatesData && candidatesData.users) {
+          const nonMembers = candidatesData.users.filter((u) => !u.is_member);
+          userSelect.innerHTML = '<option value="">Benutzer auswählen…</option>' +
+            nonMembers.map((u) => `<option value="${u.id}">${esc(u.name || u.email)} (${esc(u.email || '')})</option>`).join('');
+        }
+      } catch (err) {
+        userSelect.innerHTML = `<option value="">${esc(err.message || 'Fehler beim Laden der Benutzer')}</option>`;
+      }
+    }
+  }
+
+  function renderPortalUsersRows(members) {
+    const list = document.getElementById('kanbanPortalUsersList');
+    if (!list) return;
+    if (!members || !members.length) {
+      list.innerHTML = '<tr><td colspan="4" class="text-muted small">Keine Portalsnutzer gefunden.</td></tr>';
+      return;
+    }
+
+    list.innerHTML = members.map((m) => {
+      const roleLabel = m.is_owner || m.role === 'owner' ? 'Inhaber'
+        : (m.role === 'admin' ? 'Administrator' : 'Mitglied');
+      const roleBadgeClass = m.is_owner || m.role === 'owner' ? 'kanban-role-badge--owner'
+        : (m.role === 'admin' ? 'kanban-role-badge--admin' : 'kanban-role-badge--member');
+      const accessNote = m.is_creator ? 'Board-Ersteller'
+        : (m.is_explicit ? 'Direkt freigegeben'
+        : (board.visibility === 'team' ? `Team (${esc(board.team_name || 'Team')})` : 'Portalweit'));
+
+      return `
+        <tr data-member-id="${m.id}">
+          <td>
+            <div class="d-flex align-items-center gap-2">
+              ${avatarHtml(m)}
+              <div>
+                <div class="fw-semibold">${esc(m.name || 'Benutzer')}</div>
+                <div class="small text-muted">${esc(m.email || '')}</div>
+              </div>
+            </div>
+          </td>
+          <td>
+            ${canManage && !m.is_owner ? `
+              <select class="form-select form-select-sm kanban-pill-input" data-change-role="${m.id}" style="width: auto; min-width: 8.5rem;">
+                <option value="member" ${m.role === 'member' ? 'selected' : ''}>Mitglied</option>
+                <option value="admin" ${m.role === 'admin' ? 'selected' : ''}>Administrator</option>
+              </select>
+            ` : `<span class="kanban-role-badge ${roleBadgeClass}">${esc(roleLabel)}</span>`}
+          </td>
+          <td>
+            <small class="text-muted">${accessNote}</small>
+          </td>
+          <td class="text-end text-nowrap">
+            ${canManage && !m.is_owner && m.is_explicit ? `
+              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost text-danger" data-del-member="${m.id}" data-member-name="${esc(m.name || 'Benutzer')}" title="Freigabe entfernen">
+                <i class="bi bi-trash"></i>
+              </button>
+            ` : ''}
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    list.querySelectorAll('[data-change-role]').forEach((sel) => {
+      sel.addEventListener('change', async () => {
+        const userId = Number(sel.getAttribute('data-change-role'));
+        const newRole = sel.value;
+        try {
+          await api(`/kanban/api/boards/${boardId}/members`, {
+            method: 'POST',
+            body: { user_id: userId, role: newRole },
+          });
+          notify('Rolle aktualisiert');
+          loadPortalUsersShare();
+        } catch (err) {
+          notify(err.message || 'Änderung fehlgeschlagen');
+          loadPortalUsersShare();
+        }
+      });
+    });
+
+    list.querySelectorAll('[data-del-member]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const userId = btn.getAttribute('data-del-member');
+        const name = btn.getAttribute('data-member-name') || 'Benutzer';
+        if (!(await askConfirm(`Freigabe für "${name}" auf diesem Board entfernen?`))) return;
+        try {
+          await api(`/kanban/api/boards/${boardId}/members/${userId}`, { method: 'DELETE' });
+          notify('Freigabe entfernt');
+          loadPortalUsersShare();
+        } catch (err) {
+          notify(err.message || 'Entfernen fehlgeschlagen');
+        }
+      });
+    });
+  }
+
+  async function loadPublicShares() {
     const list = document.getElementById('kanbanShareList');
     if (!list) return;
-    list.innerHTML = '<tr><td colspan="5" class="text-muted small">Lade…</td></tr>';
-    getModal('kanbanShareModal')?.show();
     try {
       const data = await api(`/kanban/api/boards/${boardId}/shares`);
       renderShareRows(data.shares || []);
@@ -2094,6 +2677,46 @@
     }
   });
 
+  document.getElementById('kanbanOpenShareFromMenuBtn')?.addEventListener('click', (e) => {
+    // Hide dropdown if open
+    const dropdownToggle = document.getElementById('kanbanBoardMembers');
+    if (dropdownToggle && window.bootstrap && bootstrap.Dropdown) {
+      try {
+        bootstrap.Dropdown.getOrCreateInstance(dropdownToggle).hide();
+      } catch (_) {}
+    }
+    const menu = document.getElementById('kanbanBoardMembersDropdown');
+    if (menu) menu.classList.remove('show');
+    if (dropdownToggle) {
+      dropdownToggle.classList.remove('show');
+      dropdownToggle.setAttribute('aria-expanded', 'false');
+    }
+    openShareModal('users');
+  });
+
+  document.getElementById('kanbanAddUserForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const userSelect = document.getElementById('kanbanAddUserSelect');
+    const roleSelect = document.getElementById('kanbanAddUserRole');
+    const userId = userSelect?.value;
+    const role = roleSelect?.value || 'member';
+    if (!userId) {
+      notify('Bitte einen Portalsnutzer auswählen', 'warning');
+      return;
+    }
+    try {
+      await api(`/kanban/api/boards/${boardId}/members`, {
+        method: 'POST',
+        body: { user_id: Number(userId), role },
+      });
+      notify('Board für Portalsnutzer freigegeben');
+      if (userSelect) userSelect.value = '';
+      loadPortalUsersShare();
+    } catch (err) {
+      notify(err.message || 'Freigabe fehlgeschlagen');
+    }
+  });
+
   document.getElementById('kanbanShareForm')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     const fd = new FormData(e.target);
@@ -2103,7 +2726,7 @@
         body: Object.fromEntries(fd.entries()),
       });
       e.target.reset();
-      openShareModal();
+      openShareModal('links');
     } catch (err) {
       notify(err.message || 'Link konnte nicht erstellt werden');
     }
@@ -2122,7 +2745,7 @@
     try {
       await api(`/kanban/api/boards/${boardId}/shares/${id}`, { method: 'PATCH', body });
       getModal('kanbanShareEditModal')?.hide();
-      openShareModal();
+      openShareModal('links');
     } catch (err) {
       notify(err.message || 'Speichern fehlgeschlagen');
     }
@@ -2197,8 +2820,23 @@
     if (collapse) collapse.checked = !!filterState.collapse_empty;
   }
 
+  function updateSearchClearButtons() {
+    const query = (filterState.q || '').trim();
+    document.getElementById('kanbanBoardSearchClear')?.classList.toggle('d-none', !query);
+    document.getElementById('kanbanBoardSearchClearMobile')?.classList.toggle('d-none', !query);
+  }
+
   function readFilterState() {
-    filterState.q = (document.getElementById('kanbanFilterKeyword')?.value || '').trim();
+    const navInput = document.getElementById('kanbanBoardSearchInput');
+    const mobileInput = document.getElementById('kanbanBoardSearchInputMobile');
+    const modalInput = document.getElementById('kanbanFilterKeyword');
+    const qVal = (navInput?.value || mobileInput?.value || modalInput?.value || filterState.q || '').trim();
+    filterState.q = qVal;
+    if (navInput && navInput.value !== qVal) navInput.value = qVal;
+    if (mobileInput && mobileInput.value !== qVal) mobileInput.value = qVal;
+    if (modalInput && modalInput.value !== qVal) modalInput.value = qVal;
+    updateSearchClearButtons();
+
     filterState.no_members = !!document.getElementById('kanbanFilterNoMembers')?.checked;
     filterState.assigned_to_me = !!document.getElementById('kanbanFilterAssignedMe')?.checked;
     filterState.assignee_ids = filterState.no_members
@@ -2241,6 +2879,60 @@
     document.getElementById('kanbanFilterBtn')?.classList.toggle('is-active', n > 0);
   }
 
+  function applyInstantLocalSearch(rawQuery) {
+    const query = (rawQuery || '').trim().toLowerCase();
+    filterState.q = query;
+    updateSearchClearButtons();
+
+    const navInput = document.getElementById('kanbanBoardSearchInput');
+    const mobileInput = document.getElementById('kanbanBoardSearchInputMobile');
+    const modalInput = document.getElementById('kanbanFilterKeyword');
+    if (navInput && navInput.value !== rawQuery) navInput.value = rawQuery;
+    if (mobileInput && mobileInput.value !== rawQuery) mobileInput.value = rawQuery;
+    if (modalInput && modalInput.value !== rawQuery) modalInput.value = rawQuery;
+
+    updateFilterBadge();
+
+    if (!query && countActiveFilters() === 0) {
+      listsEl.querySelectorAll('.kanban-card').forEach((el) => el.classList.remove('is-filtered-out'));
+      listsEl.querySelectorAll('.kanban-list-col').forEach((el) => el.classList.remove('is-collapsed-by-filter'));
+      const emptyHint = document.getElementById('kanbanBoardSearchEmpty');
+      if (emptyHint) emptyHint.classList.add('d-none');
+      return;
+    }
+
+    if (query) {
+      let totalVisibleCards = 0;
+      let totalVisibleLists = 0;
+
+      listsEl.querySelectorAll('.kanban-list-col').forEach((col) => {
+        const titleEl = col.querySelector('.kanban-list-col__title');
+        const listTitle = (titleEl?.textContent || '').trim().toLowerCase();
+        const listMatches = Boolean(listTitle && listTitle.includes(query));
+
+        const cards = col.querySelectorAll('.kanban-card');
+        let cardMatchesInCol = 0;
+
+        cards.forEach((cardEl) => {
+          const cardText = (cardEl.textContent || '').toLowerCase();
+          const cardMatches = listMatches || cardText.includes(query);
+          cardEl.classList.toggle('is-filtered-out', !cardMatches);
+          if (cardMatches) cardMatchesInCol++;
+        });
+
+        const showCol = listMatches || cardMatchesInCol > 0;
+        col.classList.toggle('is-collapsed-by-filter', !showCol);
+        if (showCol) totalVisibleLists++;
+        totalVisibleCards += cardMatchesInCol;
+      });
+
+      const emptyHint = document.getElementById('kanbanBoardSearchEmpty');
+      if (emptyHint) {
+        emptyHint.classList.toggle('d-none', !(totalVisibleCards === 0 && totalVisibleLists === 0));
+      }
+    }
+  }
+
   async function applyFilters() {
     readFilterState();
     updateFilterBadge();
@@ -2248,6 +2940,8 @@
     if (!active) {
       listsEl.querySelectorAll('.kanban-card').forEach((el) => el.classList.remove('is-filtered-out'));
       listsEl.querySelectorAll('.kanban-list-col').forEach((el) => el.classList.remove('is-collapsed-by-filter'));
+      const emptyHint = document.getElementById('kanbanBoardSearchEmpty');
+      if (emptyHint) emptyHint.classList.add('d-none');
       return;
     }
     try {
@@ -2268,18 +2962,37 @@
         body,
       });
       const ids = new Set(data.card_ids || []);
+      const matchingListIds = new Set(data.list_ids || []);
+      let totalVisibleCards = 0;
+      let totalVisibleLists = 0;
+
       listsEl.querySelectorAll('.kanban-card').forEach((el) => {
-        el.classList.toggle('is-filtered-out', !ids.has(Number(el.dataset.cardId)));
+        const isMatch = ids.has(Number(el.dataset.cardId));
+        el.classList.toggle('is-filtered-out', !isMatch);
+        if (isMatch) totalVisibleCards++;
       });
       listsEl.querySelectorAll('.kanban-list-col').forEach((col) => {
-        if (!filterState.collapse_empty) {
-          col.classList.remove('is-collapsed-by-filter');
-          return;
-        }
+        const colListId = Number(col.dataset.listId);
+        const listMatches = matchingListIds.has(colListId);
         const cards = col.querySelectorAll('.kanban-card');
-        const anyVisible = Array.from(cards).some((c) => !c.classList.contains('is-filtered-out'));
-        col.classList.toggle('is-collapsed-by-filter', cards.length > 0 && !anyVisible);
+        const anyCardVisible = Array.from(cards).some((c) => !c.classList.contains('is-filtered-out'));
+
+        if (filterState.q) {
+          const showCol = listMatches || anyCardVisible;
+          col.classList.toggle('is-collapsed-by-filter', !showCol);
+          if (showCol) totalVisibleLists++;
+        } else if (filterState.collapse_empty) {
+          col.classList.toggle('is-collapsed-by-filter', cards.length > 0 && !anyCardVisible);
+        } else {
+          col.classList.remove('is-collapsed-by-filter');
+        }
       });
+
+      const emptyHint = document.getElementById('kanbanBoardSearchEmpty');
+      if (emptyHint) {
+        const showEmpty = Boolean(filterState.q && totalVisibleCards === 0 && totalVisibleLists === 0);
+        emptyHint.classList.toggle('d-none', !showEmpty);
+      }
     } catch (err) {
       console.warn('Kanban filter failed', err);
     }
@@ -2295,8 +3008,213 @@
     getModal('kanbanFilterModal')?.show();
   });
 
+  // ── Board Notifications (Trello-Style Feed) ─────────────────────────────
+  let notifState = {
+    unread_only: true,
+    notifications: [],
+    unread_count: 0,
+  };
+
+  async function refreshNotificationsBadge() {
+    try {
+      const data = await api(`/kanban/api/boards/${boardId}/notifications/count`);
+      updateNotificationsBadge(data.unread_count || 0);
+    } catch (_) {}
+  }
+
+  function updateNotificationsBadge(count) {
+    notifState.unread_count = count || 0;
+    const badge = document.getElementById('kanbanNotificationsBadge');
+    const headerBadge = document.getElementById('kanbanNotificationsHeaderBadge');
+    const bellIcon = document.getElementById('kanbanNotificationsBellIcon');
+
+    if (badge) {
+      if (notifState.unread_count > 0) {
+        badge.textContent = notifState.unread_count > 99 ? '99+' : notifState.unread_count;
+        badge.style.display = 'inline-block';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+    if (headerBadge) {
+      if (notifState.unread_count > 0) {
+        headerBadge.textContent = `${notifState.unread_count} neu`;
+        headerBadge.style.display = 'inline-block';
+      } else {
+        headerBadge.style.display = 'none';
+      }
+    }
+    if (bellIcon) {
+      if (notifState.unread_count > 0) {
+        bellIcon.className = 'bi bi-bell-fill text-warning';
+      } else {
+        bellIcon.className = 'bi bi-bell';
+      }
+    }
+  }
+
+  async function loadNotifications() {
+    const feed = document.getElementById('kanbanNotificationsFeed');
+    if (!feed) return;
+    feed.innerHTML = '<div class="text-center text-muted py-4 small"><div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>Lade Benachrichtigungen…</div>';
+
+    try {
+      const params = new URLSearchParams();
+      if (notifState.unread_only) params.set('unread_only', '1');
+      params.set('limit', '50');
+
+      const data = await api(`/kanban/api/boards/${boardId}/notifications?${params.toString()}`);
+      notifState.notifications = data.notifications || [];
+      updateNotificationsBadge(data.unread_count);
+      renderNotifications();
+    } catch (err) {
+      feed.innerHTML = `<div class="text-center text-danger py-4 small">${esc(err.message || 'Benachrichtigungen konnten nicht geladen werden.')}</div>`;
+    }
+  }
+
+  function renderNotifications() {
+    const feed = document.getElementById('kanbanNotificationsFeed');
+    if (!feed) return;
+
+    if (!notifState.notifications.length) {
+      feed.innerHTML = `
+        <div class="text-center text-muted py-5">
+          <i class="bi bi-bell-slash fs-1 d-block mb-2 text-secondary opacity-50"></i>
+          <div class="fw-semibold small">${notifState.unread_only ? 'Keine ungelesenen Benachrichtigungen' : 'Noch keine Benachrichtigungen'}</div>
+          <div class="small text-muted mt-1">${notifState.unread_only ? 'Alle Aktivitäten auf diesem Board wurden gelesen.' : 'Sobald Karten verschoben oder bearbeitet werden, siehst du es hier.'}</div>
+        </div>
+      `;
+      return;
+    }
+
+    feed.innerHTML = notifState.notifications.map((item) => {
+      const isUnread = !item.is_read;
+      const cardTitle = item.card_title || `Board: ${item.board_title}`;
+      const subtitle = item.card_title
+        ? `${esc(item.board_title)}${item.list_title ? ` · ${esc(item.list_title)}` : ''}`
+        : 'Board-Aktivität';
+
+      return `
+        <div class="kanban-notif-card card mb-2 ${isUnread ? 'is-unread' : ''} ${item.is_for_me ? 'is-for-me' : ''}"
+             data-notif-id="${item.id}"
+             ${item.card_id ? `data-card-id="${item.card_id}"` : ''}
+             role="button"
+             tabindex="0">
+          <div class="card-header bg-transparent py-2 px-3 border-bottom-0 d-flex align-items-start justify-content-between gap-2">
+            <div class="min-width-0">
+              <div class="kanban-notif-card__title fw-semibold text-truncate" title="${esc(cardTitle)}">
+                ${item.card_id ? `<i class="bi bi-card-text me-1 opacity-75"></i>` : `<i class="bi bi-kanban me-1 opacity-75"></i>`}
+                ${esc(cardTitle)}
+              </div>
+              <div class="kanban-notif-card__subtitle text-truncate">${subtitle}</div>
+            </div>
+            <div class="d-flex align-items-center gap-1">
+              ${isUnread ? '<span class="kanban-notif-card__dot" title="Ungelesen"></span>' : ''}
+            </div>
+          </div>
+          <div class="card-body py-2 px-3 pt-0">
+            <div class="d-flex align-items-start gap-2 mt-1">
+              ${avatarHtml(item.actor)}
+              <div class="flex-grow-1 min-width-0">
+                <div class="small fw-semibold text-truncate">${esc(item.actor ? item.actor.name : 'Jemand')}</div>
+                <div class="small text-body kanban-notif-card__action">${esc(item.action_text)}</div>
+                <div class="kanban-notif-card__time mt-1 text-muted">${esc(item.created_at_relative || item.created_at_display || '')}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Click handler on notification cards
+    feed.querySelectorAll('.kanban-notif-card').forEach((el) => {
+      el.addEventListener('click', async () => {
+        const notifId = Number(el.dataset.notifId);
+        const cardId = el.dataset.cardId ? Number(el.dataset.cardId) : null;
+
+        // Mark as read immediately on client & server
+        if (el.classList.contains('is-unread')) {
+          el.classList.remove('is-unread');
+          const dot = el.querySelector('.kanban-notif-card__dot');
+          if (dot) dot.remove();
+          const target = notifState.notifications.find((n) => n.id === notifId);
+          if (target) target.is_read = true;
+          try {
+            const res = await api(`/kanban/api/boards/${boardId}/notifications/mark_read`, {
+              method: 'POST',
+              body: { activity_id: notifId },
+            });
+            updateNotificationsBadge(res.unread_count);
+          } catch (_) {}
+        }
+
+        // If card associated, open card and close notification panel
+        if (cardId) {
+          openCard(cardId);
+          hideNotificationsPanel();
+        }
+      });
+    });
+  }
+
+  function hideNotificationsPanel() {
+    const btn = document.getElementById('kanbanNotificationsBtn');
+    if (btn && window.bootstrap && bootstrap.Dropdown) {
+      const dd = bootstrap.Dropdown.getInstance(btn);
+      if (dd) dd.hide();
+    }
+  }
+
+  // Hook up event listeners for notifications
+  const notifBtn = document.getElementById('kanbanNotificationsBtn');
+  if (notifBtn) {
+    notifBtn.addEventListener('show.bs.dropdown', () => {
+      loadNotifications();
+    });
+  }
+  document.getElementById('kanbanNotificationsPanel')?.addEventListener('show.bs.dropdown', () => {
+    loadNotifications();
+  });
+  document.getElementById('kanbanNotificationsCloseBtn')?.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    hideNotificationsPanel();
+  });
+
+  document.getElementById('kanbanNotificationsUnreadOnly')?.addEventListener('change', (e) => {
+    notifState.unread_only = e.target.checked;
+    loadNotifications();
+  });
+
+  document.getElementById('kanbanNotificationsMarkAllRead')?.addEventListener('click', async () => {
+    try {
+      const res = await api(`/kanban/api/boards/${boardId}/notifications/mark_read`, {
+        method: 'POST',
+        body: { all: true },
+      });
+      notify('Alle Benachrichtigungen als gelesen markiert', 'info');
+      updateNotificationsBadge(res.unread_count);
+      notifState.notifications.forEach((n) => { n.is_read = true; });
+      if (notifState.unread_only) {
+        notifState.notifications = [];
+      }
+      renderNotifications();
+    } catch (err) {
+      notify(err.message || 'Fehler beim Markieren', 'danger');
+    }
+  });
+
+  async function loadBoardActivity() {
+    loadNotifications();
+  }
+
   document.getElementById('kanbanFilterReset')?.addEventListener('click', () => {
     filterState.q = '';
+    const navInput = document.getElementById('kanbanBoardSearchInput');
+    const mobileInput = document.getElementById('kanbanBoardSearchInputMobile');
+    if (navInput) navInput.value = '';
+    if (mobileInput) mobileInput.value = '';
+    updateSearchClearButtons();
     filterState.no_members = false;
     filterState.assigned_to_me = false;
     filterState.assignee_ids = [];
@@ -2349,6 +3267,45 @@
     scheduleFilter();
   });
 
+  // Topbar / Navbar & Mobile Search
+  const navSearchInput = document.getElementById('kanbanBoardSearchInput');
+  const mobileSearchInput = document.getElementById('kanbanBoardSearchInputMobile');
+  const navSearchClear = document.getElementById('kanbanBoardSearchClear');
+  const mobileSearchClear = document.getElementById('kanbanBoardSearchClearMobile');
+  const mobileSearchBtn = document.getElementById('kanbanMobileSearchBtn');
+  const mobileSearchWrap = document.getElementById('kanbanMobileSearchWrap');
+
+  [navSearchInput, mobileSearchInput].filter(Boolean).forEach((input) => {
+    input.addEventListener('input', () => {
+      applyInstantLocalSearch(input.value);
+      scheduleFilter();
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && input.value) {
+        e.preventDefault();
+        applyInstantLocalSearch('');
+        applyFilters();
+      }
+    });
+  });
+
+  [navSearchClear, mobileSearchClear].filter(Boolean).forEach((btn) => {
+    btn.addEventListener('click', () => {
+      applyInstantLocalSearch('');
+      applyFilters();
+      if (navSearchInput) navSearchInput.focus();
+    });
+  });
+
+  mobileSearchBtn?.addEventListener('click', () => {
+    if (!mobileSearchWrap) return;
+    const isHidden = mobileSearchWrap.classList.contains('d-none');
+    mobileSearchWrap.classList.toggle('d-none', !isHidden);
+    if (isHidden && mobileSearchInput) {
+      mobileSearchInput.focus();
+    }
+  });
+
   function stopPolling() {
     if (pollTimer) {
       clearInterval(pollTimer);
@@ -2357,29 +3314,47 @@
   }
 
   function startPolling() {
-    if (pollTimer || sseLive) return;
+    if (pollTimer || sseLive || document.hidden) return;
     pollTimer = setInterval(() => {
-      if (isBoardBusy() || sseLive) return;
+      if (document.hidden || isBoardBusy() || sseLive) return;
       refreshBoard();
     }, 8000);
   }
 
+  function disconnectSSE() {
+    stopPolling();
+    if (eventSource) {
+      try { eventSource.close(); } catch (_) { /* ignore */ }
+      eventSource = null;
+    }
+    sseLive = false;
+    releasePageSse();
+  }
+
   function connectSSE() {
+    if (document.hidden) return;
     const url = app.dataset.sseUrl;
     if (!url || !window.EventSource) {
       startPolling();
       return;
     }
+    if (eventSource && eventSource.readyState !== EventSource.CLOSED) {
+      return;
+    }
     try {
       const es = new EventSource(url);
+      eventSource = es;
+      holdPageSse();
       es.addEventListener('connected', () => {
         sseLive = true;
         stopPolling();
       });
       es.onerror = () => {
         if (es.readyState === EventSource.CLOSED) {
+          if (eventSource === es) eventSource = null;
           sseLive = false;
-          startPolling();
+          releasePageSse();
+          if (!document.hidden) startPolling();
         }
       };
       es.onmessage = (ev) => {
@@ -2391,13 +3366,16 @@
       ['kanban:card_created', 'kanban:card_updated', 'kanban:card_moved', 'kanban:card_deleted',
         'kanban:list_created', 'kanban:list_updated', 'kanban:list_deleted', 'kanban:lists_reordered',
         'kanban:board_updated', 'kanban:label_created', 'kanban:members_updated',
-        'kanban:custom_field_created', 'kanban:custom_field_updated', 'kanban:custom_field_deleted'].forEach((name) => {
+        'kanban:custom_field_created', 'kanban:custom_field_updated', 'kanban:custom_field_deleted',
+        'kanban:activity_added'].forEach((name) => {
         es.addEventListener(name, (ev) => {
           if (ignoreSSE) return;
           try { handleLiveEvent({ event: name, data: JSON.parse(ev.data) }); } catch (_) {}
         });
       });
     } catch (_) {
+      eventSource = null;
+      releasePageSse();
       startPolling();
     }
   }
@@ -2405,6 +3383,16 @@
   function handleLiveEvent(msg) {
     const event = msg.event || '';
     const data = msg.data || msg;
+
+    refreshNotificationsBadge();
+    const notifPanel = document.getElementById('kanbanNotificationsPanel');
+    if (notifPanel && notifPanel.classList.contains('show')) {
+      loadNotifications();
+    }
+
+    if (event.includes('activity_added')) {
+      return;
+    }
     if (event.includes('label_created') && data.id) {
       board.labels = board.labels || [];
       if (!board.labels.some((l) => l.id === data.id)) board.labels.push(data);
@@ -2450,9 +3438,16 @@
   }
 
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && !sseLive && !ignoreSSE) {
-      refreshBoard();
+    if (document.hidden) {
+      // Freigabe von Gunicorn-Threads: Hintergrund-Tabs brauchen kein Live-SSE/Polling.
+      disconnectSSE();
+      return;
     }
+    if (ignoreSSE) return;
+    refreshBoard();
+    refreshNotificationsBadge();
+    connectSSE();
+    if (!sseLive) startPolling();
   });
 
   if (new URLSearchParams(window.location.search).get('share') === '1' && canManage) {
@@ -2466,5 +3461,6 @@
 
   renderBoardMembers();
   renderBoard();
+  refreshNotificationsBadge();
   connectSSE();
 })();

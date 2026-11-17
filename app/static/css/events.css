@@ -499,3 +499,224 @@
     --events-form-elevated: var(--bs-body-bg, #212529);
     --events-form-border: rgba(255, 255, 255, 0.12);
 }
+
+/* --- Events Central Hub & Mode Toggle --- */
+
+.events-mode-toggle {
+    display: inline-flex;
+    background: var(--events-form-surface, var(--bs-tertiary-bg, #f8f9fa));
+}
+
+.events-mode-toggle .btn-check:checked + label {
+    background: var(--accent-style, var(--accent-color, var(--bs-primary))) !important;
+    color: #fff !important;
+    box-shadow: 0 0.15rem 0.35rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 28%, transparent);
+}
+
+.events-mode-toggle label {
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+/* --- ToDo Lists in Hub --- */
+
+.todo-list-card {
+    border-radius: 1.15rem !important;
+    overflow: hidden;
+    background: var(--events-form-elevated, var(--bs-body-bg, #fff));
+    border-color: var(--events-form-border, var(--bs-border-color-translucent, #e9ecef)) !important;
+}
+
+.todo-list-card .card-header {
+    background: var(--events-form-surface, var(--bs-tertiary-bg, #f8f9fa)) !important;
+    border-bottom-color: var(--events-form-border, var(--bs-border-color-translucent, #e9ecef)) !important;
+}
+
+.todo-checkbox {
+    width: 1.25rem !important;
+    height: 1.25rem !important;
+    cursor: pointer;
+    border-radius: 0.35rem !important;
+}
+
+.todo-checkbox:checked {
+    background-color: var(--accent-color, var(--bs-primary)) !important;
+    border-color: var(--accent-color, var(--bs-primary)) !important;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.add-todo-form .form-control {
+    border-radius: var(--mod-radius-pill, 1.5rem) 0 0 var(--mod-radius-pill, 1.5rem) !important;
+}
+
+.add-todo-form .btn {
+    border-radius: 0 var(--mod-radius-pill, 1.5rem) var(--mod-radius-pill, 1.5rem) 0 !important;
+}
+
+/* --- Custom Fields Grid (Hub Overview) --- */
+
+.events-custom-field-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.events-custom-field-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color, #6c757d);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    line-height: 1;
+}
+
+.events-custom-field-box {
+    min-height: 2.35rem;
+    padding: 0.4rem 0.75rem;
+    border-radius: 0.65rem;
+    border: 1px solid var(--events-form-border, var(--bs-border-color-translucent, #dee2e6));
+    background: var(--events-form-surface, var(--bs-tertiary-bg, #f8f9fa));
+    color: var(--events-form-text, var(--bs-body-color, #212529));
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.events-custom-field-box:hover {
+    border-color: var(--accent-color, var(--bs-primary));
+}
+
+.events-custom-field-box--checkbox {
+    border: none;
+    background: transparent;
+    padding-left: 0.1rem;
+}
+
+.events-custom-field-box--empty {
+    color: var(--bs-secondary-color, #6c757d);
+    font-style: italic;
+    opacity: 0.75;
+}
+
+.events-category-heading {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--bs-secondary-color, #6c757d);
+    margin-top: 0.75rem;
+    padding-bottom: 0.35rem;
+    border-bottom: 1px solid var(--events-form-border, var(--bs-border-color-translucent, #e9ecef));
+}
+
+.events-file-row,
+.events-link-row {
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.events-file-row:hover,
+.events-link-row:hover {
+    background: var(--bs-tertiary-bg, rgba(0, 0, 0, 0.03)) !important;
+}
+
+/* ——— Autosave Toast (wie in Einstellungen mit visuellem Haken) ——— */
+.sp-toast-host {
+    position: fixed;
+    z-index: 1090;
+    top: max(1rem, env(safe-area-inset-top, 0px));
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    pointer-events: none;
+    width: max-content;
+    max-width: calc(100vw - 1.5rem);
+}
+
+.sp-toast {
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    color: inherit;
+    font-size: 0.88rem;
+    transform: translateY(-0.65rem) scale(0.92);
+    opacity: 0;
+    transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sp-toast.is-visible {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+}
+
+.sp-toast--success {
+    width: 3.15rem;
+    height: 3.15rem;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--bs-success, #22c55e) 18%, var(--bs-body-bg, #1a1d21));
+    border: 1px solid color-mix(in srgb, var(--bs-success, #22c55e) 42%, transparent);
+    box-shadow: 0 0.45rem 1.35rem rgba(0, 0, 0, 0.22), 0 0 0 1px color-mix(in srgb, var(--bs-success, #22c55e) 12%, transparent);
+}
+
+.sp-toast-check {
+    display: block;
+    width: 1.85rem;
+    height: 1.85rem;
+}
+
+.sp-toast-check-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.sp-toast-check-circle {
+    stroke: var(--bs-success, #22c55e);
+    stroke-width: 2.5;
+    stroke-dasharray: 151;
+    stroke-dashoffset: 151;
+}
+
+.sp-toast-check-mark {
+    stroke: var(--bs-success, #22c55e);
+    stroke-width: 3.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 48;
+    stroke-dashoffset: 48;
+}
+
+.sp-toast.is-animating .sp-toast-check-circle {
+    animation: sp-check-circle 0.45s ease-out forwards;
+}
+
+.sp-toast.is-animating .sp-toast-check-mark {
+    animation: sp-check-mark 0.35s 0.28s ease-out forwards;
+}
+
+.sp-toast.is-visible:not(.is-animating) .sp-toast-check-circle,
+.sp-toast.is-visible:not(.is-animating) .sp-toast-check-mark {
+    stroke-dashoffset: 0;
+}
+
+@keyframes sp-check-circle {
+    to { stroke-dashoffset: 0; }
+}
+
+@keyframes sp-check-mark {
+    to { stroke-dashoffset: 0; }
+}

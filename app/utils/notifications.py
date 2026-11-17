@@ -851,8 +851,8 @@ def send_calendar_notification(event_id: int, reminder_minutes: int = 30) -> int
     return sent_count
 
 
-def _iter_booking_notification_recipients(preference_attr: str):
-    """Aktive User mit Booking-Zugang und aktivierter Preference."""
+def _iter_module_notification_recipients(module_key: str, preference_attr: str):
+    """Aktive User mit Modul-Zugang und aktivierter Preference."""
     from app.utils.access_control import has_module_access
 
     users = User.query.filter_by(is_active=True).all()
@@ -861,12 +861,84 @@ def _iter_booking_notification_recipients(preference_attr: str):
             continue
         if not user.notifications_enabled:
             continue
-        if not has_module_access(user, 'module_booking'):
+        if not has_module_access(user, module_key):
             continue
         settings = get_or_create_notification_settings(user.id)
         if not getattr(settings, preference_attr, True):
             continue
         yield user
+
+
+def _iter_booking_notification_recipients(preference_attr: str):
+    """Aktive User mit Booking-Zugang und aktivierter Preference."""
+    yield from _iter_module_notification_recipients('module_booking', preference_attr)
+
+
+def send_inventory_borrow_notification(checkout, *, actor_id: Optional[int] = None) -> int:
+    """In-App-Glocke + Push bei neuer Ausleihe (ohne Dauer-Polling)."""
+    if not checkout:
+        return 0
+
+    from app.utils.common import is_module_enabled
+
+    if not is_module_enabled('module_inventory'):
+        return 0
+
+    exclude_id = int(actor_id) if actor_id else None
+    if exclude_id is None and getattr(checkout, 'created_by', None):
+        exclude_id = int(checkout.created_by)
+
+    event_label = (getattr(checkout, 'event_name', None) or '').strip() or f"#{checkout.id}"
+    borrower = (getattr(checkout, 'borrower_name', None) or '').strip() or '—'
+    item_count = 0
+    try:
+        items = list(getattr(checkout, 'items', None) or [])
+        item_count = len(items)
+    except Exception:
+        item_count = 0
+    if item_count <= 0:
+        item_count = 1
+
+    url = '/inventory/borrows'
+    try:
+        from flask import url_for
+        url = url_for('inventory.borrows')
+    except Exception:
+        pass
+
+    sent_count = 0
+    for user in _iter_module_notification_recipients(
+        'module_inventory',
+        'inventory_notifications_enabled',
+    ):
+        if exclude_id and user.id == exclude_id:
+            continue
+        title = _user_translate(user, 'notifications.inventory.borrow_title')
+        body = _user_translate(
+            user,
+            'notifications.inventory.borrow_body',
+            event=event_label,
+            borrower=borrower,
+            count=item_count,
+        )
+        dedup_key = f"inventory_borrow:{checkout.id}:{user.id}"
+        if notify_user(
+            user.id,
+            title=title,
+            body=body,
+            url=url,
+            notification_type='inventory',
+            dedup_key=dedup_key,
+            source_id=checkout.id,
+            data={
+                'checkout_id': checkout.id,
+                'checkout_number': getattr(checkout, 'checkout_number', None),
+                'type': 'inventory',
+            },
+        ):
+            sent_count += 1
+
+    return sent_count
 
 
 def send_booking_request_notification(booking_request) -> int:
@@ -976,6 +1048,10 @@ def send_booking_message_notification(booking_request, message=None) -> int:
     return sent_count
 
 
+# Abgestimmt auf NotificationScheduler (10 Min bei aktivem Kalender): Fenster > Intervall/2.
+CALENDAR_REMINDER_MATCH_SECONDS = 420
+
+
 def schedule_calendar_reminders():
     try:
         from app.utils.common import is_module_enabled
@@ -1013,10 +1089,14 @@ def schedule_calendar_reminders():
                 except (TypeError, ValueError):
                     continue
 
+        if not reminder_times:
+            return
+
+        match_window = CALENDAR_REMINDER_MATCH_SECONDS
         for event in future_events:
             for reminder_minutes in reminder_times:
                 reminder_time = event.start_time - timedelta(minutes=reminder_minutes)
-                if abs((reminder_time - now).total_seconds()) <= 300:
+                if abs((reminder_time - now).total_seconds()) <= match_window:
                     send_calendar_notification(event.id, reminder_minutes)
     except Exception as e:
         logging.error(f"Fehler beim Planen von Kalender-Erinnerungen: {e}", exc_info=True)

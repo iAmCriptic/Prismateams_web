@@ -14,12 +14,15 @@ from app.utils.private_files import (
     folder_is_under_personal_root,
     is_private_folders_enabled,
     is_team_folders_enabled,
+    is_public_folders_enabled,
     list_folder_favorites,
     list_view_contents,
     normalize_view,
     parse_team_id,
     user_file_teams,
     user_may_use_file_team,
+    _folder_is_team_space,
+    _folder_team_id,
 )
 
 
@@ -37,6 +40,7 @@ def register_browse_routes(files_bp):
         is_guest = _is_guest_user()
         private_enabled = is_private_folders_enabled() and not is_guest
         team_enabled = is_team_folders_enabled() and not is_guest
+        public_enabled = is_public_folders_enabled()
         spaces_enabled = (private_enabled or team_enabled)
         files_team_id = parse_team_id(request.args.get('team_id')) if not is_guest else None
         # Gäste behalten die alte Root-Ansicht ohne Sidebar-Nav
@@ -47,14 +51,16 @@ def register_browse_routes(files_bp):
                 request.args.get('view'),
                 private_enabled=private_enabled,
                 team_enabled=team_enabled,
+                public_enabled=public_enabled,
+                user=current_user,
             )
 
         # Öffentliche / Team-Ordner landen ohne ?view= default in Ablage → kein Zugriff.
         if not is_guest and not request.args.get('view') and folder_id:
             target = Folder.query.get(folder_id)
             if target and target.deleted_at is None:
-                if team_enabled and ((getattr(target, 'space', None) or '') == 'team' or getattr(target, 'is_team_root', False)):
-                    tid = getattr(target, 'team_id', None)
+                if team_enabled and _folder_is_team_space(target):
+                    tid = _folder_team_id(target)
                     if tid:
                         return redirect(url_for('files.browse_folder', folder_id=folder_id, view='team', team_id=tid))
                 if private_enabled and files_view == 'ablage':
@@ -318,6 +324,7 @@ def register_browse_routes(files_bp):
             files_sharing_enabled=files_sharing_enabled,
             files_private_folders_enabled=private_enabled,
             files_team_folders_enabled=team_enabled,
+            files_public_folders_enabled=public_enabled,
             files_webdav_enabled=files_webdav_enabled,
             webdav_url=webdav_url,
             files_nav_teams=nav_teams,

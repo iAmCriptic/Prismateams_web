@@ -1,8 +1,32 @@
 {% extends "settings/base_settings.html" %}
 {% from 'settings/_macros.html' import sp_info %}
 
-{% block title %}{% if is_new %}{{ _('settings.admin.booking_forms.create_heading') }}{% else %}{{ _('settings.admin.booking_forms.edit_heading') }}{% endif %}{% endblock %}
-{% block settings_mobile_title %}{% if is_new %}{{ _('settings.admin.booking_forms.create_heading') }}{% else %}{{ _('settings.admin.booking_forms.edit_heading') }}{% endif %}{% endblock %}
+{% block title %}{% if is_new %}{{ _('settings.admin.booking_forms.create_heading') }}{% else %}{{ _('settings.admin.booking_forms.edit_heading') }}{% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const allowRoomCheck = document.getElementById('allow_room_selection');
+    const allowedRoomsWrap = document.getElementById('allowed_rooms_wrap');
+    if (allowRoomCheck && allowedRoomsWrap) {
+        allowRoomCheck.addEventListener('change', () => {
+            allowedRoomsWrap.style.display = allowRoomCheck.checked ? '' : 'none';
+        });
+    }
+});
+</script>
+{% endblock %}
+{% block settings_mobile_title %}{% if is_new %}{{ _('settings.admin.booking_forms.create_heading') }}{% else %}{{ _('settings.admin.booking_forms.edit_heading') }}{% endif %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const allowRoomCheck = document.getElementById('allow_room_selection');
+    const allowedRoomsWrap = document.getElementById('allowed_rooms_wrap');
+    if (allowRoomCheck && allowedRoomsWrap) {
+        allowRoomCheck.addEventListener('change', () => {
+            allowedRoomsWrap.style.display = allowRoomCheck.checked ? '' : 'none';
+        });
+    }
+});
+</script>
+{% endblock %}
 
 {% block settings_content %}
 <div class="sp-page sp-page--fluid settings-admin-booking">
@@ -51,6 +75,67 @@
           <div class="sp-row-control">
             <div class="form-check form-switch mb-0">
               <input class="form-check-input" type="checkbox" id="is_active" name="is_active" {% if form.is_active %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="sp-group" id="booking-rooms-config" aria-labelledby="booking-rooms-config-title">
+      <div class="sp-group-head">
+        <h2 id="booking-rooms-config-title" class="sp-group-title"><i class="bi bi-door-open" aria-hidden="true"></i>Raum-Zuordnung</h2>
+        {{ sp_info('Bestimmen Sie, für welchen Raum dieses Formular gilt oder ob der Antragsteller einen Raum wählen darf.') }}
+      </div>
+      <div class="sp-group-body">
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">Fester Raum</span>
+            {{ sp_info('Das Formular bucht fest diesen Raum (wenn Raumauswahl deaktiviert ist).') }}
+          </div>
+          <div class="sp-row-control">
+            <select class="form-select" id="room_id" name="room_id">
+              <option value="">-- Kein fester Raum / Allgemein --</option>
+              {% for r in all_rooms|default([]) %}
+              <option value="{{ r.id }}" {% if form.room_id == r.id %}selected{% endif %}>
+                {{ r.name }}{% if r.location %} ({{ r.location }}){% endif %}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">Raumauswahl durch Antragsteller erlauben</span>
+            {{ sp_info('Externe Personen können im Buchungsformular aus den verfügbaren Räumen wählen.') }}
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="allow_room_selection" name="allow_room_selection" {% if form.allow_room_selection %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-row sp-row--stack" id="allowed_rooms_wrap" {% if not form.allow_room_selection %}style="display:none;"{% endif %}>
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">Auswahl auf bestimmte Räume begrenzen</span>
+            {{ sp_info('Wählen Sie die Räume an, die in diesem Formular zur Auswahl stehen sollen. Wenn keine gewählt sind, stehen alle aktiven Räume zur Verfügung.') }}
+          </div>
+          <div class="sp-row-control" style="width:100%">
+            <div class="d-flex flex-column gap-2 p-2 border rounded-3 bg-body-tertiary">
+              {% set current_allowed_ids = [] %}
+              {% if form.allowed_room_ids %}
+                {% set current_allowed_ids = form.get_allowed_rooms()|map(attribute='id')|list %}
+              {% endif %}
+              {% for r in all_rooms|default([]) %}
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="allowed_room_ids[]" value="{{ r.id }}" id="allowed_room_{{ r.id }}" {% if r.id in current_allowed_ids %}checked{% endif %}>
+                <label class="form-check-label" for="allowed_room_{{ r.id }}">
+                  <span class="calendar-color-dot me-1" style="display:inline-block; width:8px; height:8px; background:{{ r.color }}; border-radius:50%;"></span>
+                  {{ r.name }}{% if r.location %} ({{ r.location }}){% endif %}{% if r.capacity %} · max. {{ r.capacity }} Pers.{% endif %}
+                </label>
+              </div>
+              {% endfor %}
             </div>
           </div>
         </div>
@@ -522,5 +607,17 @@
         showPanel('manageUsersPanel');
     };
 })();
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const allowRoomCheck = document.getElementById('allow_room_selection');
+    const allowedRoomsWrap = document.getElementById('allowed_rooms_wrap');
+    if (allowRoomCheck && allowedRoomsWrap) {
+        allowRoomCheck.addEventListener('change', () => {
+            allowedRoomsWrap.style.display = allowRoomCheck.checked ? '' : 'none';
+        });
+    }
+});
 </script>
 {% endblock %}

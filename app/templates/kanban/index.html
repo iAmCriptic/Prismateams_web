@@ -1,6 +1,25 @@
 {% extends "base.html" %}
 {% block title %}{{ _('kanban.index.title') }}{% endblock %}
 
+{% block navbar_search %}
+<div class="mod-search" role="search">
+    <label class="mod-search-field" for="kanbanIndexSearchInput">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="text"
+               id="kanbanIndexSearchInput"
+               class="mod-search-input"
+               value="{{ search_query|default('') }}"
+               placeholder="{{ _('kanban.index.search_placeholder') }}"
+               autocomplete="off"
+               spellcheck="false"
+               enterkeyhint="search">
+    </label>
+    <button type="button" class="btn mod-search-clear{% if not search_query %} d-none{% endif %}" id="kanbanIndexSearchClear" aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </button>
+</div>
+{% endblock %}
+
 {% block content %}
 {% macro board_bg(b) -%}
 {%- for bg in backgrounds -%}
@@ -10,7 +29,7 @@
 
 {% macro board_actions_dropdown(b, manage) %}
 <div class="dropdown">
-  <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="Aktionen" onclick="event.stopPropagation();">
+  <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-label="Aktionen" onclick="event.stopPropagation();">
     <i class="bi bi-three-dots-vertical"></i>
   </button>
   <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
@@ -27,7 +46,7 @@
     {% if manage %}
     <li><hr class="dropdown-divider"></li>
     <li>
-      <a class="dropdown-item" href="{{ url_for('kanban.board', board_id=b.id) }}?share=1" onclick="event.stopPropagation();">
+      <a class="dropdown-item" href="{{ url_for('kanban.board', board_id=b.public_id or b.id) }}?share=1" onclick="event.stopPropagation();">
         <i class="bi bi-share me-2"></i>{{ _('kanban.board.share') }}
       </a>
     </li>
@@ -57,25 +76,38 @@
 
 {% macro board_grid_card(b) %}
 {% set manage = b.id in manageable_ids %}
-{% set board_url = url_for('kanban.board', board_id=b.id) %}
-<div class="col-12 col-md-6 col-lg-3" data-lazy-item data-board-wrapper="{{ b.id }}">
+{% set board_url = url_for('kanban.board', board_id=b.public_id or b.id) %}
+{% set unread_cnt = unread_counts_by_board.get(b.id, 0) if unread_counts_by_board else 0 %}
+<div class="col-12 col-md-6 col-lg-3" data-lazy-item data-board-wrapper="{{ b.id }}" data-board-search-name="{{ b.title|e }}" data-board-search-team="{{ (b.team.name if b.team else '')|e }}">
   <div class="card folder-item kanban-board-card h-100 position-relative"
        role="link"
        tabindex="0"
        data-href="{{ board_url }}"
        onclick="location.href=this.dataset.href;">
     <div class="card-body d-flex flex-column">
-      <div class="mod-grid-preview text-center mb-3 kanban-grid-cover" data-board-cover="{{ b.id }}" style="background: {{ board_bg(b) }};">
+      <div class="mod-grid-preview text-center mb-3 kanban-grid-cover position-relative" data-board-cover="{{ b.id }}" style="background: {{ board_bg(b) }};">
         {% set cover_url = kanban_board_cover_url(b) %}
         {% if cover_url %}
         <img src="{{ cover_url }}" alt="" class="kanban-grid-cover__img" data-board-cover-img="{{ b.id }}">
         {% else %}
         <i class="bi bi-kanban text-white" aria-hidden="true"></i>
         {% endif %}
+        {% if unread_cnt > 0 %}
+        <span class="position-absolute top-0 end-0 m-2 badge rounded-pill bg-danger shadow-sm kanban-board-unread-badge d-flex align-items-center gap-1"
+              data-board-unread-badge="{{ b.id }}"
+              title="{{ unread_cnt }} neue Benachrichtigung{{ 'en' if unread_cnt > 1 else '' }}">
+          <i class="bi bi-bell-fill" style="font-size: 0.65rem;"></i>{{ unread_cnt }}
+        </span>
+        {% endif %}
       </div>
       <div class="d-flex justify-content-between align-items-start mb-1 gap-2">
         <div class="flex-grow-1 min-width-0">
-          <h6 class="mb-1 mod-item-name" data-rename-target="board-{{ b.id }}" title="{{ b.title }}">{{ b.title }}</h6>
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <h6 class="mb-0 mod-item-name text-truncate" data-rename-target="board-{{ b.id }}" title="{{ b.title }}">{{ b.title }}</h6>
+            {% if unread_cnt > 0 %}
+            <span class="badge rounded-pill bg-danger flex-shrink-0 d-md-none" style="font-size: 0.65rem;" title="{{ unread_cnt }} neue Benachrichtigung{{ 'en' if unread_cnt > 1 else '' }}">{{ unread_cnt }}</span>
+            {% endif %}
+          </div>
           <div class="small text-muted">{{ _('kanban.index.vis_' + b.visibility) }}{% if b.team %} · {{ b.team.name }}{% endif %}</div>
         </div>
         <div class="d-flex align-items-start gap-1 kanban-board-actions" onclick="event.stopPropagation();">
@@ -97,11 +129,17 @@
 
 {% macro board_list_row(b) %}
 {% set manage = b.id in manageable_ids %}
-<tr class="mod-list-row" data-lazy-item data-board-wrapper="{{ b.id }}">
+{% set unread_cnt = unread_counts_by_board.get(b.id, 0) if unread_counts_by_board else 0 %}
+<tr class="mod-list-row" data-lazy-item data-board-wrapper="{{ b.id }}" data-board-search-name="{{ b.title|e }}" data-board-search-team="{{ (b.team.name if b.team else '')|e }}">
   <td class="mod-list-name-cell">
-    <a class="mod-list-name text-decoration-none mod-item-name" data-rename-target="board-{{ b.id }}" href="{{ url_for('kanban.board', board_id=b.id) }}">
+    <a class="mod-list-name text-decoration-none mod-item-name d-inline-flex align-items-center gap-2" data-rename-target="board-{{ b.id }}" href="{{ url_for('kanban.board', board_id=b.public_id or b.id) }}">
       <span class="kanban-list-swatch" data-board-swatch="{{ b.id }}" style="background: {{ board_bg(b) }};" aria-hidden="true"></span>
-      <span class="mod-item-name-text" title="{{ b.title }}">{{ b.title }}</span>
+      <span class="mod-item-name-text text-truncate" title="{{ b.title }}">{{ b.title }}</span>
+      {% if unread_cnt > 0 %}
+      <span class="badge rounded-pill bg-danger ms-1" style="font-size: 0.65rem;" title="{{ unread_cnt }} neue Benachrichtigung{{ 'en' if unread_cnt > 1 else '' }}">
+        <i class="bi bi-bell-fill me-1" style="font-size: 0.6rem;"></i>{{ unread_cnt }}
+      </span>
+      {% endif %}
     </a>
   </td>
   <td class="d-none d-md-table-cell text-muted">{{ _('kanban.index.vis_' + b.visibility) }}</td>
@@ -111,7 +149,7 @@
     <div class="mod-list-actions position-relative" onclick="event.stopPropagation();">
       <div class="mod-list-hover-actions">
         {% if manage %}
-        <a class="btn btn-sm btn-link" href="{{ url_for('kanban.board', board_id=b.id) }}?share=1" title="{{ _('kanban.board.share') }}"><i class="bi bi-share"></i></a>
+        <a class="btn btn-sm btn-link" href="{{ url_for('kanban.board', board_id=b.public_id or b.id) }}?share=1" title="{{ _('kanban.board.share') }}"><i class="bi bi-share"></i></a>
         <button type="button" class="btn btn-sm btn-link" title="Umbenennen"
                 data-kanban-rename="{{ b.id }}" data-kanban-title="{{ b.title|e }}"
                 onclick="event.preventDefault(); event.stopPropagation(); window.kanbanStartRename && window.kanbanStartRename(this); return false;"><i class="bi bi-pencil"></i></button>
@@ -173,6 +211,22 @@
 
     <div class="page-toolbar-row mod-toolbar kanban-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
       <h1 class="h4 mb-0 d-none d-lg-block">{{ _('kanban.index.title') }}</h1>
+      <div class="mod-search d-lg-none flex-grow-1" role="search">
+        <label class="mod-search-field" for="kanbanIndexSearchInputMobile">
+          <i class="bi bi-search" aria-hidden="true"></i>
+          <input type="text"
+                 id="kanbanIndexSearchInputMobile"
+                 class="mod-search-input"
+                 value="{{ search_query|default('') }}"
+                 placeholder="{{ _('kanban.index.search_placeholder') }}"
+                 autocomplete="off"
+                 spellcheck="false"
+                 enterkeyhint="search">
+        </label>
+        <button type="button" class="btn mod-search-clear{% if not search_query %} d-none{% endif %}" id="kanbanIndexSearchClearMobile" aria-label="{{ _('common.cancel') }}">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
       <div class="mod-toolbar-actions kanban-toolbar-actions ms-auto">
         <div class="mod-view-toggle" data-view="grid" role="group" aria-label="{{ _('kanban.index.list_view') }} / {{ _('kanban.index.grid_view') }}">
           <span class="mod-view-toggle__indicator" aria-hidden="true"></span>
@@ -225,6 +279,10 @@
         {{ section(_('kanban.index.public'), public_boards, 'public', has_more=public_has_more|default(false), lazy_url=url_for('kanban.index', section='public'), list_page=1) }}
       {% endif %}
     {% endif %}
+    <div id="kanbanBoardSearchEmpty" class="text-muted py-5 text-center d-none">
+      <i class="bi bi-search fs-2 mb-2 d-block"></i>
+      <span>{{ _('kanban.index.no_search_results') }}</span>
+    </div>
   </div>
 </div>
 
@@ -344,5 +402,5 @@
 </script>
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
-<script src="{{ url_for('static', filename='js/kanban.js') }}"></script>
+<script src="{{ url_for('static', filename='js/kanban.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}"></script>
 {% endblock %}

@@ -1,7 +1,7 @@
 """
 Server-seitige Sessions (P18): Cookie trägt nur die Session-ID.
 
-- Redis, wenn REDIS_ENABLED / Redis erreichbar
+- Redis, wenn app.config REDIS_ENABLED nach init_realtime True ist
 - sonst Dateisystem unter instance/flask_sessions
 """
 
@@ -236,17 +236,9 @@ def configure_server_sessions(app) -> str:
     Aktiviert server-seitige Sessions. Returns backend label.
     """
     ttl = int(app.config.get('PERMANENT_SESSION_LIFETIME').total_seconds()) if app.config.get('PERMANENT_SESSION_LIFETIME') else DEFAULT_TTL_SECONDS
+    # REDIS_ENABLED wird in init_realtime aufgelöst (inkl. AUTO_DETECT) — hier nicht erneut anpingen.
     redis_enabled = bool(app.config.get('REDIS_ENABLED'))
     redis_url = app.config.get('REDIS_URL', 'redis://localhost:6379/0')
-
-    if not redis_enabled:
-        try:
-            import redis
-            client = redis.Redis.from_url(redis_url, socket_connect_timeout=1, socket_timeout=1, decode_responses=True)
-            if client.ping():
-                redis_enabled = True
-        except Exception:
-            redis_enabled = False
 
     if redis_enabled:
         try:

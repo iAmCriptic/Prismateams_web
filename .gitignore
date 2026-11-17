@@ -76,3 +76,12 @@ System level files
 .cursor/
 .graphify_python
 Wiki/
+
+# Windows C++ Desktop App
+windows/
+windows/bin/
+windows/obj/
+windows/packages/
+*.user
+*.suo
+*.ipch

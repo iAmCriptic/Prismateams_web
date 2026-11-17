@@ -1,0 +1,1495 @@
+/* ==========================================================================
+   Booking Module Stylesheet
+   ========================================================================== */
+
+/* Shell base styles */
+.booking-personal-shell {
+    width: 100%;
+    position: relative;
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+.booking-personal-shell .mod-main {
+    flex: 1 1 auto;
+    min-width: 0;
+    position: relative;
+    z-index: 1;
+}
+
+/* Desktop Viewport-Lock & Layout (>= 992px) */
+@media (min-width: 992px) {
+    body:has(.booking-personal-shell) {
+        overflow: hidden;
+        height: 100vh;
+        height: 100dvh;
+    }
+
+    .main-content:has(.booking-personal-shell) {
+        height: 100vh;
+        height: 100dvh;
+        max-height: 100vh;
+        max-height: 100dvh;
+        min-height: 0 !important;
+        overflow: hidden !important;
+        display: flex;
+        flex-direction: column;
+        box-sizing: border-box;
+        padding-bottom: 0.75rem !important;
+        background-color: var(--portal-bg, #f0f2f5) !important;
+    }
+
+    .main-content:has(.booking-personal-shell) > .container-fluid {
+        flex: 1 1 auto;
+        height: 100%;
+        max-height: 100%;
+        min-height: 0;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+
+    .booking-personal-shell {
+        flex: 1 1 auto;
+        min-height: 0;
+        height: 100%;
+        max-height: 100%;
+        overflow: hidden;
+        display: flex;
+        align-items: stretch;
+        gap: var(--mod-gap, 1.25rem);
+    }
+
+    /* Sidebar Specifics (exakt abgestimmt auf Dateien) */
+    .booking-personal-shell .mod-sidebar {
+        width: var(--mod-sidebar-width, 240px);
+        background: transparent !important;
+        border-right: none !important;
+        padding-right: 0 !important;
+        position: relative;
+        top: auto;
+        align-self: stretch;
+        height: 100%;
+        max-height: 100%;
+        min-height: 0;
+        overflow: visible;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .booking-personal-shell .mod-main {
+        min-height: 0;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    .booking-personal-shell #bpSettingsContainer,
+    .booking-personal-shell #bpActDetailContainer,
+    .booking-personal-shell #bpTemplatesContainer {
+        overflow-y: auto !important;
+        height: 100% !important;
+        max-height: 100% !important;
+    }
+}
+
+/* Mobile & Tablet Layout (< 992px) */
+@media (max-width: 991.98px) {
+    .main-content:has(.booking-personal-shell) {
+        padding-bottom: var(--portal-mobile-nav-clearance) !important;
+        min-height: calc(100vh - var(--top-navbar-height, 64px));
+        background-color: var(--portal-bg, #f0f2f5) !important;
+    }
+
+    .main-content:has(.booking-personal-shell) > .container-fluid {
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .booking-personal-shell {
+        display: block;
+        height: auto;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .booking-personal-shell .mod-sidebar {
+        display: none !important;
+    }
+
+    .booking-personal-shell .mod-main {
+        display: block;
+        height: auto;
+        max-height: none;
+        overflow: visible;
+    }
+
+    .booking-personal-shell #bpSettingsContainer,
+    .booking-personal-shell #bpActDetailContainer,
+    .booking-personal-shell #bpTemplatesContainer {
+        padding: 0.75rem !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+    }
+
+    .bp-top-toolbar {
+        padding-bottom: 0.5rem !important;
+    }
+
+    .bp-table-wrapper {
+        border-radius: var(--mod-radius-card, 0.75rem);
+        border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.18));
+        background: var(--bs-body-bg) !important;
+        max-height: calc(100vh - 210px);
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .bp-table th {
+        font-size: 0.75rem;
+        padding: 0.5rem 0.65rem;
+    }
+
+    .bp-table td {
+        font-size: 0.8125rem;
+        padding: 0.55rem 0.65rem;
+    }
+
+    .bp-table .mod-list-hover-actions {
+        display: none !important;
+    }
+
+    .bp-table .mod-list-row .mod-list-actions > .dropdown,
+    .bp-table .mod-list-row:hover .mod-list-actions > .dropdown,
+    .bp-table .mod-list-row:focus-within .mod-list-actions > .dropdown {
+        opacity: 1 !important;
+        visibility: visible !important;
+        pointer-events: auto !important;
+        display: inline-block !important;
+    }
+
+    .bp-table th:last-child,
+    .bp-table td:last-child {
+        width: 3.5rem !important;
+        min-width: 3.5rem !important;
+        padding-right: 0.5rem;
+    }
+
+    .bp-mobile-offcanvas {
+        max-width: 300px;
+    }
+}
+
+.booking-personal-shell .mod-sidebar-brand {
+    font-size: 1.35rem;
+    font-weight: 700;
+}
+
+.booking-personal-shell .mod-sidebar-new {
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    font-weight: 600;
+    padding: 0.65rem 1.25rem;
+    box-shadow: 0 0.2rem 0.6rem rgba(37, 99, 235, 0.25);
+}
+
+.booking-personal-shell .mod-nav-link,
+.booking-personal-shell a.mod-nav-link,
+.booking-personal-shell .nav-link.mod-nav-link {
+    border-radius: 9999px;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.88rem;
+    color: var(--bs-body-color, #1e293b) !important;
+    transition: all 0.12s ease-in-out;
+}
+
+.booking-personal-shell .mod-nav-link .bi,
+.booking-personal-shell a.mod-nav-link .bi,
+.booking-personal-shell .nav-link.mod-nav-link .bi {
+    color: var(--bs-secondary-color, #64748b) !important;
+}
+
+.booking-personal-shell .mod-nav-link:hover,
+.booking-personal-shell a.mod-nav-link:hover,
+.booking-personal-shell .nav-link.mod-nav-link:hover {
+    background-color: var(--bs-tertiary-bg, #f1f5f9) !important;
+    color: var(--bs-body-color, #0f172a) !important;
+}
+
+.booking-personal-shell .mod-nav-link.active,
+.booking-personal-shell a.mod-nav-link.active,
+.booking-personal-shell .nav-link.mod-nav-link.active {
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary, #2563eb)) 15%, transparent) !important;
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary, #2563eb)) 15%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary, #2563eb)) !important;
+    font-weight: 600;
+}
+
+.booking-personal-shell .mod-nav-link.active .bi,
+.booking-personal-shell a.mod-nav-link.active .bi,
+.booking-personal-shell .nav-link.mod-nav-link.active .bi {
+    color: var(--accent-color, var(--bs-primary, #2563eb)) !important;
+}
+
+.booking-personal-shell .mod-nav-link.active .badge,
+.booking-personal-shell a.mod-nav-link.active .badge,
+.booking-personal-shell .nav-link.mod-nav-link.active .badge {
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary, #2563eb)) 20%, transparent) !important;
+    color: var(--accent-color, var(--bs-primary, #2563eb)) !important;
+    border-color: transparent !important;
+}
+
+/* Top Toolbar & Filter (oben rechts unter der Navbar) */
+.bp-top-toolbar {
+    background: transparent !important;
+    padding: 0 0 0.85rem 0;
+}
+
+/* Table Wrapper & Table (Style wie bei Dateien mod-list-table) */
+.bp-table-wrapper {
+    flex: 1 1 auto;
+    overflow: auto;
+    position: relative;
+    background: transparent !important;
+    background-color: transparent !important;
+    padding: 0;
+}
+
+.bp-table {
+    border-collapse: separate;
+    border-spacing: 0;
+    width: max-content;
+    min-width: 100%;
+    font-size: 0.865rem;
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+.bp-table tbody,
+.bp-table tr {
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+.bp-table th {
+    background: var(--portal-bg, #f0f2f5) !important;
+    background-color: var(--portal-bg, #f0f2f5) !important;
+    color: var(--bs-secondary-color, #6c757d);
+    font-weight: 600;
+    padding: 0.65rem 0.85rem;
+    border-top: none;
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.22));
+    border-right: none;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    user-select: none;
+    font-size: 0.8rem;
+    letter-spacing: 0.01em;
+}
+
+[data-bs-theme="dark"] .main-content:has(.booking-personal-shell) {
+    background-color: #1a1a1a !important;
+}
+
+[data-bs-theme="dark"] .bp-table th {
+    background: #1a1a1a !important;
+    background-color: #1a1a1a !important;
+    color: var(--bs-secondary-color, #94a3b8);
+    border-bottom-color: var(--bs-border-color-translucent, rgba(255, 255, 255, 0.15));
+    border-right: none;
+}
+
+[data-oled-mode="true"] .main-content:has(.booking-personal-shell),
+[data-oled-mode="true"] .bp-table th {
+    background-color: #000000 !important;
+    background: #000000 !important;
+}
+
+.bp-table td {
+    padding: 0.7rem 0.85rem;
+    border-top: none;
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.15));
+    border-right: none;
+    white-space: nowrap;
+    vertical-align: middle;
+    color: var(--bs-body-color, #1e293b);
+    background: transparent !important;
+    background-color: transparent !important;
+    transition: background-color 0.1s ease;
+}
+
+[data-bs-theme="dark"] .bp-table td {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: var(--bs-body-color, #f1f5f9);
+    border-bottom-color: var(--bs-border-color-translucent, rgba(255, 255, 255, 0.08));
+    border-right: none;
+}
+
+.bp-table tr:hover td {
+    background-color: var(--bs-table-hover-bg, rgba(127, 127, 127, 0.08)) !important;
+}
+
+.bp-table th:last-child,
+.bp-table td:last-child {
+    width: 12rem;
+    min-width: 12rem;
+    overflow: visible;
+    white-space: nowrap;
+    text-align: right;
+}
+
+/* Mod-list actions container */
+.bp-table .mod-list-actions {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    width: 100%;
+    min-height: 2.2rem;
+}
+
+/* 3-Punkte-Menü wird beim Zeilen-Hover ausgeblendet (solange Dropdown nicht offen ist) */
+.bp-table .mod-list-row .mod-list-actions > .dropdown {
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.bp-table .mod-list-row:hover .mod-list-actions > .dropdown:not(.show),
+.bp-table .mod-list-row:focus-within .mod-list-actions > .dropdown:not(.show) {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* Hover-Aktionen: nahtlos anstelle der 3 Punkte, vollkommen ohne Rahmenlinien */
+.bp-table .mod-list-row .mod-list-hover-actions {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 5;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.bp-table .mod-list-row:hover .mod-list-hover-actions,
+.bp-table .mod-list-row:focus-within .mod-list-hover-actions {
+    visibility: visible;
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Einzelne Aktionsbuttons: vollkommen ohne Rahmenlinien, dezente Portal-Icons */
+.bp-table .mod-list-hover-actions .btn-link,
+.bp-table .mod-list-actions .btn-link {
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--bs-secondary-color, #6c757d);
+    padding: 0.25rem 0.35rem;
+    font-size: 0.95rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: color 0.12s ease, transform 0.1s ease;
+}
+
+.bp-table .mod-list-hover-actions .btn-link:hover,
+.bp-table .mod-list-actions .btn-link:hover {
+    color: var(--accent-color, var(--bs-primary)) !important;
+    background: transparent !important;
+    transform: scale(1.15);
+}
+
+/* Sidebar Footer Button ("Vorlagen verwalten" wie bei Dateien "In System einbinden") */
+.files-sidebar-bottom {
+    margin-top: auto;
+    gap: 0.45rem;
+}
+
+.files-webdav-connect-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--bs-secondary-color, #6c757d);
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.35rem 0.15rem;
+    line-height: 1.2;
+    text-align: left;
+    transition: color 0.12s ease;
+}
+
+.files-webdav-connect-btn:hover,
+.files-webdav-connect-btn:focus {
+    background: transparent !important;
+    box-shadow: none !important;
+    color: var(--bs-body-color, #212529);
+}
+
+.files-webdav-connect-btn .bi {
+    opacity: 0.9;
+    font-size: 1rem;
+}
+
+/* Artist Link (Direkter Klick auf Namen zur Detailseite) */
+.bp-artist-link {
+    color: var(--bs-body-color, #1e293b);
+    font-weight: 600;
+    font-size: 0.885rem;
+    transition: color 0.15s ease;
+    cursor: pointer;
+}
+
+.bp-artist-link:hover {
+    color: var(--accent-color, #2563eb) !important;
+    text-decoration: underline !important;
+}
+
+[data-bs-theme="dark"] .bp-artist-link {
+    color: #f1f5f9;
+}
+
+[data-bs-theme="dark"] .bp-artist-link:hover {
+    color: #60a5fa !important;
+}
+
+/* bp-row-kebab-btn removed in favor of standard mod-list-actions */
+
+/* Cell Types & Inline Editing */
+.bp-cell-editable {
+    cursor: pointer;
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    width: 100%;
+}
+
+.bp-cell-editable:hover {
+    outline: 1px dashed #cbd5e1;
+    border-radius: 4px;
+}
+
+.bp-cell-empty {
+    color: #94a3b8;
+}
+
+.bp-cell-input {
+    width: 100%;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.865rem;
+    border: 1px solid #2563eb;
+    border-radius: 4px;
+    background: #ffffff;
+    box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
+}
+
+[data-bs-theme="dark"] .bp-cell-input {
+    background: #1e293b;
+    color: #f8fafc;
+}
+
+/* Badges / Pills matching screenshots */
+.bp-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.65rem;
+    border-radius: 9999px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    line-height: 1.2;
+}
+
+.bp-badge-info, .bp-badge-he-him {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.bp-badge-warning, .bp-badge-she-her {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+.bp-badge-purple, .bp-badge-they-them {
+    background-color: #f3e8ff;
+    color: #7e22ce;
+}
+
+.bp-badge-pink {
+    background-color: #fce7f3;
+    color: #be185d;
+}
+
+.bp-badge-primary {
+    background-color: #dbeafe;
+    color: #1d4ed8;
+}
+
+.bp-badge-success, .bp-badge-action-mail {
+    background-color: #dcfce7;
+    color: #166534;
+    cursor: pointer;
+    border: 1px solid #bbf7d0;
+    transition: all 0.15s ease;
+}
+
+.bp-badge-action-mail:hover {
+    background-color: #bbf7d0;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(22,101,52,0.15);
+}
+
+.bp-badge-secondary {
+    background-color: #f1f5f9;
+    color: #475569;
+}
+
+.bp-badge-danger {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.bp-badge-dark {
+    background-color: #0f172a;
+    color: #f8fafc;
+}
+
+/* Promo pictures thumbnails */
+.bp-thumbnails {
+    display: inline-flex;
+    gap: 0.35rem;
+    align-items: center;
+}
+
+.bp-thumbnail {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    object-fit: cover;
+    border: 1px solid #e2e8f0;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.bp-thumbnail:hover {
+    transform: scale(1.15);
+    z-index: 20;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+/* Link pill */
+.bp-link {
+    color: #2563eb;
+    text-decoration: none;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+}
+
+.bp-link:hover {
+    text-decoration: underline;
+}
+
+/* Popover Badge Selector */
+.bp-popover {
+    position: absolute;
+    z-index: 1050;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+    padding: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 140px;
+}
+
+[data-bs-theme="dark"] .bp-popover {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.bp-popover-item {
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+
+.bp-popover-item:hover {
+    background: #f1f5f9;
+}
+
+[data-bs-theme="dark"] .bp-popover-item:hover {
+    background: #334155;
+}
+
+/* Bilingual Overview View (Public) */
+.bp-overview-card {
+    max-width: 900px;
+    margin: 2rem auto;
+    background: #ffffff;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+    padding: 2.5rem;
+}
+
+[data-bs-theme="dark"] .bp-overview-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+.bp-overview-header {
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 1.5rem;
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.bp-preset-chip {
+    font-size: 0.78rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 9999px;
+    border: 1px solid #cbd5e1;
+    background-color: #ffffff;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.bp-preset-chip:hover {
+    background-color: #eff6ff;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+.bp-preset-chip:active {
+    transform: translateY(0);
+}
+
+.bp-multiselect-popover {
+    position: absolute;
+    z-index: 1060;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.85rem;
+    padding: 0.5rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    min-width: 220px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.bp-badge-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    .bp-overview-card {
+        border: none;
+        box-shadow: none;
+        margin: 0;
+        padding: 0;
+        width: 100%;
+    }
+}
+
+/* ==========================================================================
+   Public Booking Pages (Standalone with Portal Gradient)
+   ========================================================================== */
+
+body.bp-public-body {
+    min-height: 100vh;
+    margin: 0;
+    background: var(--bp-public-bg, var(--auth-page-bg, linear-gradient(135deg, #4f46e5 0%, #3b82f6 50%, #06b6d4 100%))) !important;
+    background-attachment: fixed !important;
+    background-size: cover !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    -webkit-font-smoothing: antialiased;
+}
+
+.bp-public-shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 2.5rem 1rem 3.5rem;
+}
+
+@media (min-width: 768px) {
+    .bp-public-shell {
+        padding: 3.5rem 1.5rem 4.5rem;
+    }
+}
+
+.bp-public-brand {
+    text-align: center;
+    margin-bottom: 1.75rem;
+}
+
+.bp-public-brand-logo {
+    max-height: 52px;
+    width: auto;
+    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.25));
+}
+
+.bp-public-brand-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #ffffff;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.95rem;
+    border-radius: 9999px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.bp-public-card {
+    width: 100%;
+    max-width: 52rem;
+    background: #ffffff;
+    border-radius: 1.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    box-shadow: 0 24px 50px -12px rgba(15, 23, 42, 0.3), 0 0 1px rgba(0, 0, 0, 0.15);
+    padding: 2rem 1.5rem 2.25rem;
+    overflow: hidden;
+}
+
+@media (min-width: 576px) {
+    .bp-public-card {
+        padding: 2.75rem 2.5rem 3rem;
+    }
+}
+
+.bp-public-card--wide {
+    max-width: 58rem;
+}
+
+.bp-public-card--has-hero {
+    padding: 0 !important;
+}
+
+.bp-public-card-body {
+    padding: 0;
+}
+
+.bp-public-card--has-hero .bp-public-card-body {
+    padding: 2rem 1.5rem 2.25rem;
+}
+
+@media (min-width: 576px) {
+    .bp-public-card--has-hero .bp-public-card-body {
+        padding: 2.5rem 2.5rem 3rem;
+    }
+}
+
+/* Hero Banner on top of public cards */
+.bp-public-hero {
+    position: relative;
+    width: 100%;
+    height: 220px;
+    background: var(--bs-tertiary-bg, #f1f5f9);
+    overflow: hidden;
+}
+
+@media (min-width: 576px) {
+    .bp-public-hero {
+        height: 280px;
+    }
+}
+
+@media (min-width: 992px) {
+    .bp-public-hero {
+        height: 320px;
+    }
+}
+
+.bp-public-hero-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+.bp-public-hero-lang {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 5;
+}
+
+.bp-public-hero-lang .btn-group {
+    background: rgba(255, 255, 255, 0.9);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+[data-bs-theme="dark"] .bp-public-hero-lang .btn-group {
+    background: rgba(30, 41, 59, 0.85);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Category Sections inside public cards */
+.bp-public-section {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 1.15rem;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.bp-public-section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.15rem;
+    padding-bottom: 0.65rem;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.bp-public-section-title .bi {
+    color: var(--accent-color, var(--bs-primary));
+    font-size: 1.15rem;
+}
+
+/* Form Controls in Public Pages */
+.bp-public-card .form-control,
+.bp-public-card .form-select {
+    border-radius: 9999px;
+    padding: 0.65rem 1.15rem;
+    font-size: 0.92rem;
+    border-color: #cbd5e1;
+    background-color: #ffffff;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.bp-public-card textarea.form-control {
+    border-radius: 1rem;
+    padding: 0.85rem 1.15rem;
+}
+
+.bp-public-card .form-control:focus,
+.bp-public-card .form-select:focus {
+    border-color: var(--accent-color, var(--bs-primary));
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color, var(--bs-primary)) 18%, transparent);
+}
+
+.bp-public-card .form-label {
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: #334155;
+    margin-bottom: 0.35rem;
+}
+
+/* Public Upload Box / Dropzone */
+.bp-upload-dropzone {
+    border: 2px dashed #cbd5e1;
+    background: #ffffff;
+    border-radius: 1rem;
+    padding: 1.25rem 1rem;
+    text-align: center;
+    transition: all 0.15s ease-in-out;
+}
+
+.bp-upload-dropzone:hover {
+    border-color: var(--accent-color, var(--bs-primary));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 5%, #ffffff);
+}
+
+/* Submit & Action Buttons */
+.btn-public-submit {
+    border-radius: 9999px;
+    padding: 0.8rem 2.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    box-shadow: 0 6px 20px rgba(13, 110, 253, 0.35);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.btn-public-submit:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(13, 110, 253, 0.45);
+}
+
+/* Public Overview Document Pass Styles */
+.bp-doc-header {
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 1.5rem;
+    margin-bottom: 1.75rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.bp-overview-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.85rem;
+}
+
+.bp-overview-cell {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.85rem;
+    padding: 0.85rem 1rem;
+    display: flex;
+    flex-direction: column;
+}
+
+.bp-overview-cell-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 0.3rem;
+}
+
+.bp-overview-cell-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #0f172a;
+    word-break: break-word;
+}
+
+.bp-overview-cell--full {
+    grid-column: 1 / -1;
+}
+
+.bp-preset-chip {
+    font-size: 0.78rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 9999px;
+    border: 1px solid #cbd5e1;
+    background-color: #ffffff;
+    color: #334155;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.bp-preset-chip:hover {
+    background-color: #eff6ff;
+    border-color: #93c5fd;
+    color: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+.bp-preset-chip:active {
+    transform: translateY(0);
+}
+
+.bp-multiselect-popover {
+    position: absolute;
+    z-index: 1060;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.85rem;
+    padding: 0.5rem;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    min-width: 220px;
+    max-height: 280px;
+    overflow-y: auto;
+}
+
+.bp-badge-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    align-items: center;
+}
+
+@media print {
+    body.bp-public-body {
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+    .bp-public-shell {
+        padding: 0 !important;
+    }
+    .bp-public-brand,
+    .no-print {
+        display: none !important;
+    }
+    .bp-public-card {
+        box-shadow: none !important;
+        border: none !important;
+        padding: 0 !important;
+        max-width: 100% !important;
+    }
+    .bp-public-section {
+        background: #ffffff !important;
+        border: 1px solid #cccccc !important;
+        break-inside: avoid;
+    }
+}
+
+
+
+/* ==========================================================================
+   Booking Settings Page - Pill Style Language
+   ========================================================================== */
+
+.bp-pill-tabs .nav-link {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    color: var(--bs-secondary-color, #64748b) !important;
+    background: transparent !important;
+    border: none !important;
+    transition: all 0.15s ease-in-out;
+}
+
+.bp-pill-tabs .nav-link:hover {
+    color: var(--bs-body-color, #0f172a) !important;
+    background-color: var(--bs-tertiary-bg, rgba(127, 127, 127, 0.08)) !important;
+}
+
+.bp-pill-tabs .nav-link.active {
+    background-color: var(--accent-color, var(--bs-primary, #2563eb)) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25) !important;
+}
+
+.bp-sub-pills .nav-link {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    color: var(--bs-secondary-color, #64748b) !important;
+    background: transparent !important;
+    border: none !important;
+    transition: all 0.12s ease;
+}
+
+.bp-sub-pills .nav-link:hover {
+    color: var(--bs-body-color, #0f172a) !important;
+}
+
+.bp-sub-pills .nav-link.active {
+    background-color: var(--bs-body-bg, #ffffff) !important;
+    color: var(--accent-color, var(--bs-primary, #2563eb)) !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-bs-theme="dark"] .bp-sub-pills .nav-link.active {
+    background-color: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+}
+
+.bp-placeholder-btn {
+    border-radius: var(--mod-radius-pill, 1.5rem) !important;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.bp-placeholder-btn:hover {
+    background-color: #dbeafe !important;
+    border-color: #93c5fd !important;
+    color: #1e40af !important;
+    transform: translateY(-1px);
+}
+
+.bp-placeholder-btn:active {
+    transform: translateY(0);
+}
+
+[data-bs-theme="dark"] .bp-placeholder-btn {
+    background-color: #1e293b !important;
+    border-color: #334155 !important;
+    color: #93c5fd !important;
+}
+
+[data-bs-theme="dark"] .bp-placeholder-btn:hover {
+    background-color: #1e40af !important;
+    color: #ffffff !important;
+}
+
+/* ==========================================================================
+   Portal-Standard Back Link & Options Pill-Segment Switcher
+   ========================================================================== */
+
+.booking-personal-shell .mod-back-link,
+.booking-personal-shell .bp-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--bs-secondary-color, #6c757d);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    padding: 0.25rem 0.15rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    width: fit-content;
+    transition: color 0.15s ease;
+}
+
+.booking-personal-shell .mod-back-link:hover,
+.booking-personal-shell .mod-back-link:focus,
+.booking-personal-shell .bp-back-link:hover,
+.booking-personal-shell .bp-back-link:focus {
+    color: var(--accent-color, var(--bs-primary, #2563eb));
+    text-decoration: none;
+}
+
+.booking-personal-shell .mod-back-link i,
+.booking-personal-shell .bp-back-link i {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+/* Segmented Options Bar (.sp-seg) */
+.booking-personal-shell .sp-seg {
+    display: inline-flex;
+    padding: 0.25rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, var(--bs-tertiary-bg, #f1f5f9));
+    gap: 0.25rem;
+    flex-wrap: wrap;
+    border: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
+}
+
+.booking-personal-shell .sp-seg > button,
+.booking-personal-shell .sp-seg label {
+    border: 0;
+    background: transparent;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    padding: 0.45rem 1.15rem;
+    margin: 0;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--bs-secondary-color, #64748b);
+    transition: all 0.18s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.booking-personal-shell .sp-seg > button:hover,
+.booking-personal-shell .sp-seg label:hover {
+    color: var(--accent-color, var(--bs-primary, #2563eb));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+}
+
+.booking-personal-shell .sp-seg > button.active,
+.booking-personal-shell .sp-seg .btn-check:checked + label {
+    background: var(--accent-style, var(--accent-color, var(--bs-primary, #2563eb))) !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--accent-color, var(--bs-primary)) 30%, transparent);
+}
+
+.booking-personal-shell .sp-seg > button.active i,
+.booking-personal-shell .sp-seg .btn-check:checked + label i {
+    color: #ffffff !important;
+}
+
+/* ==========================================================================
+   Portalsübliche Form- & Card-Klassen (identisch zum Events-Modul)
+   ========================================================================== */
+.booking-personal-shell {
+    --events-form-surface: color-mix(in srgb, var(--bs-body-bg, #fff) 92%, var(--accent-color, var(--bs-primary)) 3%);
+    --events-form-elevated: var(--bs-body-bg, #fff);
+    --events-form-border: var(--bs-border-color-translucent, #e9ecef);
+    --events-form-text: var(--bs-body-color, #212529);
+    --events-form-muted: var(--bs-secondary-color, #6c757d);
+}
+
+[data-bs-theme="dark"] .booking-personal-shell,
+[data-oled-mode="true"] .booking-personal-shell {
+    --events-form-surface: color-mix(in srgb, var(--bs-body-bg, #212529) 88%, #fff);
+    --events-form-elevated: var(--bs-body-bg, #212529);
+    --events-form-border: rgba(255, 255, 255, 0.12);
+    --events-form-text: var(--bs-body-color, #f8f9fa);
+    --events-form-muted: var(--bs-secondary-color, #adb5bd);
+}
+
+.events-form-header {
+    margin-bottom: 0.75rem;
+}
+
+.events-form-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--bs-secondary-color, #6c757d);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.95rem;
+    margin-bottom: 0.65rem;
+    padding: 0.25rem 0.15rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    width: fit-content;
+    transition: color 0.15s ease;
+}
+
+.events-form-back:hover,
+.events-form-back:focus {
+    color: var(--accent-color, var(--bs-primary));
+    text-decoration: none;
+}
+
+.events-form-back i {
+    font-size: 1rem;
+    line-height: 1;
+}
+
+.events-form-title {
+    font-size: 1.45rem;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    margin: 0 0 0.25rem;
+    color: var(--events-form-text);
+}
+
+.events-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.events-form-card {
+    padding: 0.95rem 1.15rem;
+    border-radius: 1.15rem;
+    border: 1px solid var(--events-form-border);
+    background: var(--events-form-elevated);
+    min-width: 0;
+    box-shadow: none;
+    transition: border-color 0.15s ease;
+}
+
+.events-form-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.events-form-section-title {
+    font-size: 0.72rem;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--events-form-muted);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+}
+
+/* Neutral pill buttons: Keine grellen Rahmen, neutrales Design, Akzentfarbe nur bei Icons */
+.bp-neutral-btn {
+    border-color: var(--bs-border-color, #dee2e6) !important;
+    color: var(--bs-body-color, #212529) !important;
+    background-color: transparent !important;
+    transition: all 0.15s ease-in-out !important;
+    font-weight: 500;
+}
+
+.bp-neutral-btn:hover {
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, transparent) !important;
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 40%, var(--bs-border-color, #dee2e6)) !important;
+    color: var(--bs-body-color, #212529) !important;
+}
+
+[data-bs-theme="dark"] .bp-neutral-btn,
+[data-oled-mode="true"] .bp-neutral-btn {
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    color: var(--bs-body-color, #f8f9fa) !important;
+}
+
+[data-bs-theme="dark"] .bp-neutral-btn:hover,
+[data-oled-mode="true"] .bp-neutral-btn:hover {
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 15%, transparent) !important;
+    border-color: var(--accent-color, var(--bs-primary)) !important;
+}
+
+/* Klickbare Detail-Zeilen: Angaben bearbeiten direkt mit 1 Klick */
+.bp-editable-row {
+    cursor: pointer;
+    transition: background-color 0.15s ease-in-out, transform 0.1s ease-in-out;
+}
+
+.bp-editable-row:hover {
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 6%, var(--bs-tertiary-bg, #f8f9fa)) !important;
+}
+
+.bp-editable-row .bp-edit-indicator {
+    opacity: 0;
+    transition: opacity 0.15s ease-in-out;
+}
+
+.bp-editable-row:hover .bp-edit-indicator {
+    opacity: 0.8 !important;
+}
+
+
+/* Card Design gemäss STYLEGUIDE.md (1.3, 3.1 & 4.3) */
+.booking-personal-shell .card {
+    border: 1px solid var(--bs-border-color, #dee2e6) !important;
+    border-radius: var(--mod-radius-card, 0.75rem) !important;
+    background: var(--bs-body-bg, #fff);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+[data-bs-theme="dark"] .booking-personal-shell .card {
+    background: #242424;
+    border-color: rgba(255, 255, 255, 0.15) !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+[data-oled-mode="true"] .booking-personal-shell .card {
+    background: #000000;
+    border: 1px solid #1a1a1a !important;
+    box-shadow: none;
+}
+
+.booking-personal-shell .card-header {
+    background: transparent !important;
+    border-bottom: 1px solid var(--bs-border-color, #dee2e6) !important;
+    padding: 0.75rem 1rem;
+}
+
+[data-bs-theme="dark"] .booking-personal-shell .card-header {
+    border-bottom-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+[data-oled-mode="true"] .booking-personal-shell .card-header {
+    border-bottom-color: #1a1a1a !important;
+}
+
+.booking-personal-shell .card-body {
+    padding: 1rem;
+}
+
+/* Inline Edit Pen Indicator */
+.bp-detail-field-row .bp-field-edit-pen {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.bp-detail-field-row:hover .bp-field-edit-pen {
+    opacity: 0.8 !important;
+}
+
+.bp-detail-field-row.is-editing {
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, var(--bs-tertiary-bg, #f8f9fa)) !important;
+}
+
+/* ==========================================================================
+   Modals & Dropdowns im Pill-Design (Portal-Style)
+   ========================================================================== */
+.booking-personal-shell ~ .modal .modal-content,
+#bpNewEventModal .modal-content,
+#bpAddActModal .modal-content,
+#bpConfirmModal .modal-content,
+#bpPromptModal .modal-content,
+#bpColumnModal .modal-content,
+#bpTemplatesManagerModal .modal-content,
+#bpEntryModal .modal-content,
+#bpMailModal .modal-content,
+#bpCreateTemplateModal .modal-content,
+#bpEditTemplatePropsModal .modal-content,
+#bpAddTemplateFieldModal .modal-content,
+#bpApplyTemplateModal .modal-content {
+    border-radius: var(--mod-radius-card, 1.25rem) !important;
+    border: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.2)) !important;
+    box-shadow: 0 0.85rem 2.5rem rgba(0, 0, 0, 0.16) !important;
+    overflow: hidden;
+    background-color: var(--bs-body-bg, #fff);
+}
+
+.booking-personal-shell ~ .modal .modal-header,
+#bpNewEventModal .modal-header,
+#bpAddActModal .modal-header,
+#bpConfirmModal .modal-header,
+#bpPromptModal .modal-header,
+#bpColumnModal .modal-header,
+#bpTemplatesManagerModal .modal-header,
+#bpEntryModal .modal-header,
+#bpMailModal .modal-header,
+#bpCreateTemplateModal .modal-header,
+#bpEditTemplatePropsModal .modal-header,
+#bpAddTemplateFieldModal .modal-header,
+#bpApplyTemplateModal .modal-header {
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.12));
+    padding: 1.1rem 1.4rem;
+}
+
+.booking-personal-shell ~ .modal .modal-footer,
+#bpNewEventModal .modal-footer,
+#bpAddActModal .modal-footer,
+#bpConfirmModal .modal-footer,
+#bpPromptModal .modal-footer,
+#bpColumnModal .modal-footer,
+#bpTemplatesManagerModal .modal-footer,
+#bpEntryModal .modal-footer,
+#bpMailModal .modal-footer,
+#bpCreateTemplateModal .modal-footer,
+#bpEditTemplatePropsModal .modal-footer,
+#bpAddTemplateFieldModal .modal-footer,
+#bpApplyTemplateModal .modal-footer {
+    border-top: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.12));
+    padding: 0.9rem 1.4rem;
+}

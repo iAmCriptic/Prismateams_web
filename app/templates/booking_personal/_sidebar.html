@@ -1,0 +1,76 @@
+{% macro booking_personal_sidebar_nav(events, current_event=none, active_nav='index', dismiss_offcanvas=false) %}
+<div class="text-uppercase small fw-bold text-muted px-2 mb-2"
+    style="font-size: 0.75rem; letter-spacing: 0.04em;">
+    Veranstaltungen
+</div>
+
+<!-- Liste aller aktiven Veranstaltungen -->
+<nav class="mod-sidebar-nav nav flex-column gap-1 flex-grow-1 overflow-y-auto">
+    {% for ev in events %}
+    <a class="nav-link mod-nav-link rounded-pill d-flex align-items-center justify-content-between {% if current_event and current_event.id == ev.id and active_nav != 'templates' %}active{% endif %}"
+        href="{{ url_for('booking_personal.index', event_id=ev.id) }}"
+        {% if dismiss_offcanvas %}data-bp-dismiss-offcanvas="1"{% endif %}>
+        <span class="d-flex align-items-center text-truncate">
+            <i class="bi bi-calendar2-event me-2 flex-shrink-0"></i>
+            <span class="text-truncate">{{ ev.name }}</span>
+        </span>
+        {% if ev.entries %}
+        <span class="badge rounded-pill bg-body-secondary text-body border ms-1 flex-shrink-0">{{ ev.entries|length }}</span>
+        {% endif %}
+    </a>
+    {% else %}
+    <div class="text-muted small px-3 py-3">Keine Veranstaltungen vorhanden.</div>
+    {% endfor %}
+</nav>
+
+<!-- Sidebar Footer mit Vorlagenverwaltung -->
+<div class="mod-sidebar-footer files-sidebar-bottom mt-auto pt-3 border-top">
+    <a href="{{ url_for('booking_personal.templates_view') }}" class="btn files-webdav-connect-btn w-100 text-start text-decoration-none {% if active_nav == 'templates' %}active{% endif %}"
+       {% if dismiss_offcanvas %}data-bp-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-layout-three-columns" aria-hidden="true"></i>
+        <span>Vorlagen verwalten</span>
+    </a>
+</div>
+{% endmacro %}
+
+{% macro booking_personal_sidebar(events, current_event=none, active_nav='index') %}
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-person-badge text-primary" aria-hidden="true"></i>
+        <span>Booking</span>
+    </div>
+
+    <!-- Neuer Event Button -->
+    <div class="mod-sidebar-new-wrap w-100">
+        <button class="btn mod-sidebar-new rounded-pill w-100 text-start" type="button" data-bs-toggle="modal"
+            data-bs-target="#bpNewEventModal">
+            <i class="bi bi-plus-lg me-2"></i> NEU
+        </button>
+    </div>
+
+    {{ booking_personal_sidebar_nav(events, current_event, active_nav, false) }}
+</aside>
+{% endmacro %}
+
+{% macro booking_personal_mobile_offcanvas(events, current_event=none, active_nav='index') %}
+<div class="offcanvas offcanvas-start mod-offcanvas bp-mobile-offcanvas" tabindex="-1" id="bpMobileNav" aria-labelledby="bpMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="bpMobileNavLabel">
+            <i class="bi bi-person-badge text-primary" aria-hidden="true"></i>
+            <span>Booking</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Schließen"></button>
+    </div>
+    <div class="offcanvas-body pt-0 d-flex flex-column">
+        <!-- Neuer Event Button im Offcanvas -->
+        <div class="mod-sidebar-new-wrap w-100 mb-3">
+            <button class="btn mod-sidebar-new rounded-pill w-100 text-start" type="button" data-bs-toggle="modal"
+                data-bs-target="#bpNewEventModal" data-bs-dismiss="offcanvas">
+                <i class="bi bi-plus-lg me-2"></i> NEU
+            </button>
+        </div>
+
+        {{ booking_personal_sidebar_nav(events, current_event, active_nav, true) }}
+    </div>
+</div>
+{% endmacro %}

@@ -28,13 +28,18 @@ def sanitize_files_item_name(name):
 
 
 def is_private_folders_enabled():
-    setting = SystemSettings.query.filter_by(key='files_private_folders_enabled').first()
-    return bool(setting and str(setting.value).lower() == 'true')
+    from app.utils.module_visibility_settings import is_global_private_enabled
+    return is_global_private_enabled()
 
 
 def is_team_folders_enabled():
-    setting = SystemSettings.query.filter_by(key='files_team_folders_enabled').first()
-    return bool(setting and str(setting.value).lower() == 'true')
+    from app.utils.module_visibility_settings import is_global_team_enabled
+    return is_global_team_enabled()
+
+
+def is_public_folders_enabled():
+    from app.utils.module_visibility_settings import is_global_public_enabled
+    return is_global_public_enabled()
 
 
 def is_files_spaces_enabled():
@@ -48,18 +53,15 @@ def user_file_team_ids(user):
 
 
 def user_file_teams(user):
-    """Teams shown as file-sidebar folders (members; admins see all)."""
+    """Teams shown as file-sidebar folders (members only)."""
     from app.utils.team_module_settings import filter_teams_with_section
 
     if not is_team_folders_enabled() or not user or getattr(user, 'is_guest', False):
         return []
-    if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
-        teams = Team.query.order_by(Team.name).all()
-    else:
-        team_ids = list(user_file_team_ids(user))
-        if not team_ids:
-            return []
-        teams = Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
+    team_ids = list(user_file_team_ids(user))
+    if not team_ids:
+        return []
+    teams = Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
     return filter_teams_with_section(teams, 'files')
 
 
@@ -83,31 +85,56 @@ def parse_team_id(raw):
     return value if value > 0 else None
 
 
-def normalize_view(view, private_enabled=None, team_enabled=None):
+def normalize_view(view, private_enabled=None, team_enabled=None, public_enabled=None, user=None):
     """Normalize ?view= for the files browser."""
     if private_enabled is None:
         private_enabled = is_private_folders_enabled()
     if team_enabled is None:
         team_enabled = is_team_folders_enabled()
+    if public_enabled is None:
+        public_enabled = is_public_folders_enabled()
     view = (view or '').strip().lower()
 
-    allowed = {'public', 'trash'}
-    if private_enabled:
+    from app.utils.user_content_access import (
+        user_bypasses_content_restrictions,
+        user_may_access_private,
+        user_may_access_public,
+        user_may_access_team,
+    )
+
+    allow_public = public_enabled
+    allow_private = private_enabled
+    allow_team = team_enabled
+    if user and not user_bypasses_content_restrictions(user):
+        allow_public = allow_public and user_may_access_public(user)
+        allow_private = allow_private and user_may_access_private(user)
+        allow_team = allow_team and user_may_access_team(user)
+
+    allowed = {'trash'}
+    if allow_public:
+        allowed.add('public')
+    if private_enabled and allow_private:
         allowed.update({'ablage', 'freigaben'})
-    if team_enabled:
+    if team_enabled and allow_team:
         allowed.update({'team', 'freigaben'})
 
     if view in allowed:
         return view
     if view == 'ablage':
-        return 'public'
+        return 'team' if (team_enabled and allow_team) else ('public' if allow_public else 'trash')
     if view == 'freigaben':
-        return 'public'
-    if view == 'team':
-        return 'ablage' if private_enabled else 'public'
-    if private_enabled:
+        return 'ablage' if (private_enabled and allow_private) else ('team' if (team_enabled and allow_team) else ('public' if allow_public else 'trash'))
+    if view == 'public' and not allow_public:
+        return 'team' if (team_enabled and allow_team) else ('ablage' if (private_enabled and allow_private) else 'trash')
+    if view == 'team' and not allow_team:
+        return 'ablage' if (private_enabled and allow_private) else ('public' if allow_public else 'trash')
+    if private_enabled and allow_private:
         return 'ablage'
-    return 'public'
+    if team_enabled and allow_team:
+        return 'team'
+    if allow_public:
+        return 'public'
+    return 'trash'
 
 
 def ensure_personal_root(user_id):
@@ -204,22 +231,77 @@ def folder_is_under_team_root(folder, team_root_id):
     return False
 
 
+def _folder_team_id(folder):
+    node = folder
+    while node:
+        tid = getattr(node, 'team_id', None)
+        if tid:
+            return tid
+        node = getattr(node, 'parent', None)
+    return None
+
+
+def _file_team_id(file_obj):
+    if not file_obj:
+        return None
+    tid = getattr(file_obj, 'team_id', None)
+    if tid:
+        return tid
+    if getattr(file_obj, 'folder_id', None):
+        folder = getattr(file_obj, 'folder', None) or Folder.query.get(file_obj.folder_id)
+        if folder:
+            return _folder_team_id(folder)
+    return None
+
+
 def _folder_is_team_space(folder):
-    return bool(folder) and (
-        getattr(folder, 'is_team_root', False)
-        or (getattr(folder, 'space', None) or '') == 'team'
-    )
+    if not folder:
+        return False
+    if getattr(folder, 'is_team_root', False):
+        return True
+    if (getattr(folder, 'space', None) or '') == 'team':
+        return True
+    return _folder_team_id(folder) is not None
 
 
 def _file_is_team_space(file_obj):
-    return bool(file_obj) and (getattr(file_obj, 'space', None) or '') == 'team'
+    if not file_obj:
+        return False
+    if (getattr(file_obj, 'space', None) or '') == 'team':
+        return True
+    return _file_team_id(file_obj) is not None
+
+
+def _folder_is_personal_space(folder):
+    if not folder:
+        return False
+    if getattr(folder, 'is_personal_root', False):
+        return True
+    if (getattr(folder, 'space', None) or '') == 'personal':
+        return True
+    node = getattr(folder, 'parent', None)
+    while node:
+        if getattr(node, 'is_personal_root', False) or (getattr(node, 'space', None) or '') == 'personal':
+            return True
+        node = getattr(node, 'parent', None)
+    return False
+
+
+def _file_is_personal_space(file_obj):
+    if not file_obj:
+        return False
+    if (getattr(file_obj, 'space', None) or '') == 'personal':
+        return True
+    if getattr(file_obj, 'folder_id', None):
+        folder = getattr(file_obj, 'folder', None) or Folder.query.get(file_obj.folder_id)
+        if folder:
+            return _folder_is_personal_space(folder)
+    return False
 
 
 def _user_has_team_membership(user, team_id):
     if not user or not team_id:
         return False
-    if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
-        return True
     return team_id in user_file_team_ids(user)
 
 
@@ -354,10 +436,20 @@ def can_view_folder(folder, user, private_enabled=None, team_enabled=None):
     if folder.deleted_at is not None:
         return False
 
+    from app.utils.user_content_access import (
+        user_bypasses_content_restrictions,
+        user_may_access_private,
+        user_may_access_public,
+        user_may_access_team,
+    )
+
     if _folder_is_team_space(folder):
         if not team_enabled:
             return False
-        if _user_has_team_membership(user, folder.team_id):
+        if user and not user_bypasses_content_restrictions(user) and not user_may_access_team(user):
+            return False
+        team_id = _folder_team_id(folder)
+        if team_id and _user_has_team_membership(user, team_id):
             return True
         if has_acl_access('folder', folder.id, user.id):
             return True
@@ -365,10 +457,23 @@ def can_view_folder(folder, user, private_enabled=None, team_enabled=None):
         while node:
             if has_acl_access('folder', node.id, user.id):
                 return True
-            if _user_has_team_membership(user, getattr(node, 'team_id', None)):
+            node_team = getattr(node, 'team_id', None)
+            if node_team and _user_has_team_membership(user, node_team):
                 return True
             node = node.parent
         return False
+
+    is_personal = _folder_is_personal_space(folder)
+    if user and not user_bypasses_content_restrictions(user):
+        if is_personal and not user_may_access_private(user):
+            return False
+        if not is_personal and not user_may_access_public(user):
+            return False
+
+    if not is_personal:
+        if not is_public_folders_enabled():
+            return has_acl_access('folder', folder.id, user.id if user else None)
+        return True
 
     if not private_enabled:
         return True
@@ -378,17 +483,11 @@ def can_view_folder(folder, user, private_enabled=None, team_enabled=None):
         return True
     if has_acl_access('folder', folder.id, user.id):
         return True
-    # Ancestor shared with all / user grants access to descendants
     node = folder.parent
     while node:
         if has_acl_access('folder', node.id, user.id):
             return True
-        if node.space == 'public' and node.deleted_at is None and not node.is_personal_root:
-            if folder.space == 'public':
-                return True
         node = node.parent
-    if folder.space == 'public' and not folder.is_personal_root:
-        return True
     return False
 
 
@@ -402,20 +501,42 @@ def can_view_file(file_obj, user, private_enabled=None, team_enabled=None):
     if file_obj.deleted_at is not None:
         return False
 
+    from app.utils.user_content_access import (
+        user_bypasses_content_restrictions,
+        user_may_access_private,
+        user_may_access_public,
+        user_may_access_team,
+    )
+
     if _file_is_team_space(file_obj):
         if not team_enabled:
             return False
-        if _user_has_team_membership(user, getattr(file_obj, 'team_id', None)):
+        if user and not user_bypasses_content_restrictions(user) and not user_may_access_team(user):
+            return False
+        team_id = _file_team_id(file_obj)
+        if team_id and _user_has_team_membership(user, team_id):
             return True
         if has_acl_access('file', file_obj.id, user.id):
             return True
         if file_obj.folder_id:
-            folder = Folder.query.get(file_obj.folder_id)
+            folder = getattr(file_obj, 'folder', None) or Folder.query.get(file_obj.folder_id)
             if folder and can_view_folder(
                 folder, user, private_enabled=private_enabled, team_enabled=True
             ):
                 return True
         return False
+
+    is_personal = _file_is_personal_space(file_obj)
+    if user and not user_bypasses_content_restrictions(user):
+        if is_personal and not user_may_access_private(user):
+            return False
+        if not is_personal and not user_may_access_public(user):
+            return False
+
+    if not is_personal:
+        if not is_public_folders_enabled():
+            return has_acl_access('file', file_obj.id, user.id if user else None)
+        return True
 
     if not private_enabled:
         return True
@@ -424,30 +545,62 @@ def can_view_file(file_obj, user, private_enabled=None, team_enabled=None):
     if has_acl_access('file', file_obj.id, user.id):
         return True
     if file_obj.folder_id:
-        folder = Folder.query.get(file_obj.folder_id)
+        folder = getattr(file_obj, 'folder', None) or Folder.query.get(file_obj.folder_id)
         if folder and can_view_folder(folder, user, private_enabled=True, team_enabled=team_enabled):
             return True
-    if file_obj.space == 'public':
-        return True
     return False
 
 
 def can_edit_folder(folder, user, private_enabled=None, team_enabled=None):
     if not folder:
         return False
+    if folder.deleted_at is not None:
+        return False
+    if getattr(folder, 'is_personal_root', False) and folder.created_by != getattr(user, 'id', None):
+        return False
+    if getattr(user, 'is_admin', False):
+        return True
     if private_enabled is None:
         private_enabled = is_private_folders_enabled()
     if team_enabled is None:
         team_enabled = is_team_folders_enabled()
-    if folder.deleted_at is not None:
-        return False
+
+    from app.utils.user_content_access import (
+        user_bypasses_content_restrictions,
+        user_may_access_private,
+        user_may_access_public,
+        user_may_access_team,
+    )
 
     if _folder_is_team_space(folder):
         if not team_enabled:
             return False
-        if _user_has_team_membership(user, folder.team_id):
+        if not user_bypasses_content_restrictions(user) and not user_may_access_team(user):
+            return False
+        team_id = _folder_team_id(folder)
+        if team_id and _user_has_team_membership(user, team_id):
             return True
+        node = folder.parent
+        while node:
+            if has_acl_access('folder', node.id, user.id, need_edit=True):
+                return True
+            node_team = getattr(node, 'team_id', None)
+            if node_team and _user_has_team_membership(user, node_team):
+                return True
+            node = node.parent
         return has_acl_access('folder', folder.id, user.id, need_edit=True)
+
+    is_personal = _folder_is_personal_space(folder)
+    if not user_bypasses_content_restrictions(user):
+        if is_personal and not user_may_access_private(user):
+            return False
+        if not is_personal and not user_may_access_public(user):
+            return False
+
+    if not is_personal:
+        if not is_public_folders_enabled():
+            return has_acl_access('folder', folder.id, user.id, need_edit=True)
+        return True
 
     if not private_enabled:
         return True
@@ -459,19 +612,47 @@ def can_edit_folder(folder, user, private_enabled=None, team_enabled=None):
 def can_edit_file(file_obj, user, private_enabled=None, team_enabled=None):
     if not file_obj:
         return False
+    if file_obj.deleted_at is not None:
+        return False
+    if getattr(user, 'is_admin', False):
+        return True
     if private_enabled is None:
         private_enabled = is_private_folders_enabled()
     if team_enabled is None:
         team_enabled = is_team_folders_enabled()
-    if file_obj.deleted_at is not None:
-        return False
+
+    from app.utils.user_content_access import (
+        user_bypasses_content_restrictions,
+        user_may_access_private,
+        user_may_access_public,
+        user_may_access_team,
+    )
 
     if _file_is_team_space(file_obj):
         if not team_enabled:
             return False
-        if _user_has_team_membership(user, getattr(file_obj, 'team_id', None)):
+        if not user_bypasses_content_restrictions(user) and not user_may_access_team(user):
+            return False
+        team_id = _file_team_id(file_obj)
+        if team_id and _user_has_team_membership(user, team_id):
             return True
+        if file_obj.folder_id:
+            folder = getattr(file_obj, 'folder', None) or Folder.query.get(file_obj.folder_id)
+            if folder and can_edit_folder(folder, user, private_enabled=private_enabled, team_enabled=True):
+                return True
         return has_acl_access('file', file_obj.id, user.id, need_edit=True)
+
+    is_personal = _file_is_personal_space(file_obj)
+    if not user_bypasses_content_restrictions(user):
+        if is_personal and not user_may_access_private(user):
+            return False
+        if not is_personal and not user_may_access_public(user):
+            return False
+
+    if not is_personal:
+        if not is_public_folders_enabled():
+            return has_acl_access('file', file_obj.id, user.id, need_edit=True)
+        return True
 
     if not private_enabled:
         return True
@@ -484,18 +665,22 @@ def can_manage_acl(resource, resource_type, user):
     """Who may change internal ACL: owner, admin, or team member of a team space."""
     if not resource or not user:
         return False
-    if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
+    if getattr(user, 'is_admin', False):
         return True
     if resource_type == 'file':
         if _file_owned_by(resource, user.id):
             return True
-        if _file_is_team_space(resource) and _user_has_team_membership(user, getattr(resource, 'team_id', None)):
-            return True
+        if _file_is_team_space(resource):
+            team_id = _file_team_id(resource)
+            if team_id and _user_has_team_membership(user, team_id):
+                return True
         return False
     if _folder_owned_by(resource, user.id):
         return True
-    if _folder_is_team_space(resource) and _user_has_team_membership(user, resource.team_id):
-        return True
+    if _folder_is_team_space(resource):
+        team_id = _folder_team_id(resource)
+        if team_id and _user_has_team_membership(user, team_id):
+            return True
     return False
 
 
@@ -639,21 +824,23 @@ def list_move_destinations(user, exclude_folder_id=None):
     spaces = []
 
     if is_private_folders_enabled():
-        personal_root = ensure_personal_root(user.id)
-        folders = [
-            f for f in _folders_in_subtree(personal_root.id)
-            if can_view_folder(f, user, private_enabled=True)
-            or getattr(user, 'is_admin', False)
-        ]
-        by_parent = _build_folder_children_map(folders)
-        spaces.append({
-            'key': 'ablage',
-            'view': 'ablage',
-            'team_id': None,
-            'root_folder_id': personal_root.id,
-            'label': 'ablage',
-            'folders': _build_move_folder_tree(by_parent, personal_root.id, exclude_ids),
-        })
+        from app.utils.user_content_access import user_may_access_private
+        if user_may_access_private(user):
+            personal_root = ensure_personal_root(user.id)
+            folders = [
+                f for f in _folders_in_subtree(personal_root.id)
+                if can_view_folder(f, user, private_enabled=True)
+                or getattr(user, 'is_admin', False)
+            ]
+            by_parent = _build_folder_children_map(folders)
+            spaces.append({
+                'key': 'ablage',
+                'view': 'ablage',
+                'team_id': None,
+                'root_folder_id': personal_root.id,
+                'label': 'ablage',
+                'folders': _build_move_folder_tree(by_parent, personal_root.id, exclude_ids),
+            })
 
     if is_team_folders_enabled():
         for team in user_file_teams(user):
@@ -676,28 +863,30 @@ def list_move_destinations(user, exclude_folder_id=None):
                 'folders': _build_move_folder_tree(by_parent, team_root.id, exclude_ids),
             })
 
-    public_folders = (
-        _alive_folder_query()
-        .filter(
-            Folder.space == 'public',
-            Folder.is_personal_root.is_(False),
-            Folder.is_team_root.is_(False),
+    from app.utils.user_content_access import user_may_access_public
+    if user_may_access_public(user):
+        public_folders = (
+            _alive_folder_query()
+            .filter(
+                Folder.space == 'public',
+                Folder.is_personal_root.is_(False),
+                Folder.is_team_root.is_(False),
+            )
+            .all()
         )
-        .all()
-    )
-    public_folders = [
-        f for f in public_folders
-        if can_view_folder(f, user) or getattr(user, 'is_admin', False)
-    ]
-    by_parent = _build_folder_children_map(public_folders)
-    spaces.append({
-        'key': 'public',
-        'view': 'public',
-        'team_id': None,
-        'root_folder_id': None,
-        'label': 'public',
-        'folders': _build_move_folder_tree(by_parent, None, exclude_ids),
-    })
+        public_folders = [
+            f for f in public_folders
+            if can_view_folder(f, user) or getattr(user, 'is_admin', False)
+        ]
+        by_parent = _build_folder_children_map(public_folders)
+        spaces.append({
+            'key': 'public',
+            'view': 'public',
+            'team_id': None,
+            'root_folder_id': None,
+            'label': 'public',
+            'folders': _build_move_folder_tree(by_parent, None, exclude_ids),
+        })
 
     return spaces
 

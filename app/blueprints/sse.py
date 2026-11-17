@@ -7,7 +7,10 @@ from flask import Blueprint, Response, stream_with_context, current_app, request
 from flask_login import current_user, login_required
 import json
 import time
-import redis
+try:
+    import redis
+except ImportError:
+    redis = None
 import threading
 import os
 from queue import Queue, Empty
@@ -21,13 +24,31 @@ _redis_url = None  # Wird beim ersten Aufruf gesetzt
 
 # Sync-/gthread-Worker nicht endlos blockieren: Stream nach TTL schließen.
 # EventSource reconnectet automatisch; unter gunicorn --timeout halten.
-SSE_MAX_STREAM_SECONDS = int(os.environ.get('SSE_MAX_STREAM_SECONDS', '45'))
-SSE_HEARTBEAT_SECONDS = 15
+# Clamp: zu kurz = Reconnect-Sturm; zu lang = Thread-Hunger (QA F09).
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, str(default)) or default)
+    except (TypeError, ValueError):
+        return default
+
+
+def sse_stream_limits():
+    """(max_age_seconds, heartbeat_seconds) — per Env, hart geclampt."""
+    max_age = max(15, min(120, _env_int('SSE_MAX_STREAM_SECONDS', 45)))
+    heartbeat = max(5, min(max(max_age // 3, 5), _env_int('SSE_HEARTBEAT_SECONDS', 15)))
+    return max_age, heartbeat
+
+
+# Rückwärtskompatibel für Imports/Tests
+SSE_MAX_STREAM_SECONDS = sse_stream_limits()[0]
+SSE_HEARTBEAT_SECONDS = sse_stream_limits()[1]
 
 
 def get_redis_client():
     """Lazy-load Redis client."""
     global _redis_client, _redis_url
+    if redis is None:
+        return None
     if has_app_context() and not current_app.config.get('REDIS_ENABLED', False):
         return None
 
@@ -68,6 +89,47 @@ def publish_event(channel, event_type, data):
     return False
 
 
+def _sse_stream_headers():
+    """
+    SSE-Response-Header ohne Access-Control-Allow-Origin: *.
+
+    EventSource läuft same-origin (relative URLs). Cross-Origin nur, wenn
+    Origin zum Request-Host passt oder in SOCKETIO_CORS_ORIGINS / PUBLIC_BASE_URL liegt.
+    """
+    headers = {
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+    }
+    origin = (request.headers.get('Origin') or '').strip().rstrip('/')
+    if not origin:
+        return headers
+
+    try:
+        from urllib.parse import urlparse
+        from app.factory._util import resolve_socketio_cors_origins
+
+        allowed = resolve_socketio_cors_origins(current_app)
+        parsed = urlparse(origin)
+        origin_host = (parsed.netloc or '').lower()
+        req_host = (request.host or '').lower()
+
+        ok = False
+        if allowed is None:
+            ok = bool(origin_host) and origin_host == req_host
+        elif isinstance(allowed, (list, tuple)):
+            normalized = {o.rstrip('/') for o in allowed if o}
+            ok = origin in normalized
+        # allowed == '*': bewusst nicht spiegeln — SSE bleibt same-origin / Allowlist
+
+        if ok:
+            headers['Access-Control-Allow-Origin'] = origin
+            headers['Vary'] = 'Origin'
+    except Exception:
+        pass
+    return headers
+
+
 def event_stream(channels, user_id=None):
     """Generator für SSE-Stream mit Redis Pub/Sub."""
     client = get_redis_client()
@@ -88,7 +150,7 @@ def event_stream(channels, user_id=None):
 
         started = time.time()
         last_heartbeat = started
-        max_age = max(15, SSE_MAX_STREAM_SECONDS)
+        max_age, heartbeat_s = sse_stream_limits()
 
         while True:
             try:
@@ -113,7 +175,7 @@ def event_stream(channels, user_id=None):
                     except json.JSONDecodeError:
                         pass
 
-                if time.time() - last_heartbeat > SSE_HEARTBEAT_SECONDS:
+                if time.time() - last_heartbeat > heartbeat_s:
                     yield f"event: heartbeat\ndata: {json.dumps({'time': time.time()})}\n\n"
                     last_heartbeat = time.time()
 
@@ -145,17 +207,11 @@ def dashboard_events():
     def generate():
         yield from event_stream(channels, user_id)
     
-    response = Response(
+    return Response(
         stream_with_context(generate()),
         mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no',  # Nginx: Buffering deaktivieren
-            'Access-Control-Allow-Origin': '*'
-        }
+        headers=_sse_stream_headers(),
     )
-    return response
 
 
 @sse_bp.route('/events/music')
@@ -166,17 +222,11 @@ def music_events():
     def generate():
         yield from event_stream(channels)
     
-    response = Response(
+    return Response(
         stream_with_context(generate()),
         mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no',
-            'Access-Control-Allow-Origin': '*'
-        }
+        headers=_sse_stream_headers(),
     )
-    return response
 
 
 @sse_bp.route('/events/email')
@@ -189,17 +239,11 @@ def email_events():
     def generate():
         yield from event_stream(channels, user_id)
     
-    response = Response(
+    return Response(
         stream_with_context(generate()),
         mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no',
-            'Access-Control-Allow-Origin': '*'
-        }
+        headers=_sse_stream_headers(),
     )
-    return response
 
 
 # Helper-Funktionen zum Senden von Events
@@ -275,12 +319,7 @@ def chat_events(chat_id):
     return Response(
         stream_with_context(generate()),
         mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no',
-            'Access-Control-Allow-Origin': '*',
-        },
+        headers=_sse_stream_headers(),
     )
 
 
@@ -305,17 +344,11 @@ def kanban_events(board_id):
     def generate():
         yield from event_stream(channels, current_user.id)
 
-    response = Response(
+    return Response(
         stream_with_context(generate()),
         mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no',
-            'Access-Control-Allow-Origin': '*',
-        },
+        headers=_sse_stream_headers(),
     )
-    return response
 
 
 @sse_bp.route('/events/inventory/<int:inventory_id>')
@@ -340,10 +373,5 @@ def inventory_events(inventory_id):
     return Response(
         stream_with_context(generate()),
         mimetype='text/event-stream',
-        headers={
-            'Cache-Control': 'no-cache',
-            'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no',
-            'Access-Control-Allow-Origin': '*',
-        },
+        headers=_sse_stream_headers(),
     )

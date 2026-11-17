@@ -89,10 +89,17 @@ def _render_security_page(scroll_to_devices=False):
     from app.models.passkey import UserPasskey
 
     passkeys = []
+    app_passwords = []
     if not current_user.is_guest:
         passkeys = (
             UserPasskey.query.filter_by(user_id=current_user.id)
             .order_by(UserPasskey.created_at.desc())
+            .all()
+        )
+        from app.models.app_password import AppPassword
+        app_passwords = (
+            AppPassword.query.filter_by(user_id=current_user.id)
+            .order_by(AppPassword.created_at.desc())
             .all()
         )
 
@@ -114,6 +121,7 @@ def _render_security_page(scroll_to_devices=False):
         email_recovery_enabled=bool(
             current_app.config.get('TWO_FACTOR_EMAIL_RECOVERY_ENABLED', True)
         ),
+        app_passwords=app_passwords,
     )
 
 
@@ -378,6 +386,94 @@ def passkey_delete(passkey_id):
     db.session.delete(passkey)
     db.session.commit()
     flash(translate('settings.security.passkeys.deleted_success'), 'success')
+    return redirect(url_for('settings.security'))
+
+
+@settings_bp.route('/security/app-passwords', methods=['GET'])
+@login_required
+def app_passwords_list():
+    """JSON-Liste der App-Passwörter (ohne Klartext)."""
+    from app.models.app_password import AppPassword, MAX_PER_USER
+
+    if current_user.is_guest:
+        return jsonify({'success': False, 'error': translate('settings.security.app_passwords.guest_not_allowed')}), 403
+
+    rows = (
+        AppPassword.query.filter_by(user_id=current_user.id)
+        .order_by(AppPassword.created_at.desc())
+        .all()
+    )
+    return jsonify({
+        'success': True,
+        'items': [row.to_public_dict() for row in rows],
+        'max': MAX_PER_USER,
+        'count': len(rows),
+    })
+
+
+@settings_bp.route('/security/app-passwords/create', methods=['POST'])
+@login_required
+def app_passwords_create():
+    """Erzeugt ein vorgegebenes App-Passwort (Klartext nur in dieser Antwort)."""
+    from app.models.app_password import AppPassword, MAX_PER_USER
+
+    if current_user.is_guest:
+        return jsonify({'success': False, 'error': translate('settings.security.app_passwords.guest_not_allowed')}), 403
+
+    data = request.get_json(silent=True) or {}
+    name = data.get('name') if isinstance(data, dict) else None
+    if name is None:
+        name = request.form.get('name')
+
+    try:
+        row, raw = AppPassword.create_for_user(current_user, name=name)
+    except ValueError as exc:
+        if str(exc) == 'max_reached':
+            return jsonify({
+                'success': False,
+                'error': translate('settings.security.app_passwords.max_reached', max=MAX_PER_USER),
+            }), 400
+        return jsonify({'success': False, 'error': translate('settings.security.app_passwords.create_failed')}), 400
+    except Exception:
+        current_app.logger.exception('App password create failed')
+        db.session.rollback()
+        return jsonify({'success': False, 'error': translate('settings.security.app_passwords.create_failed')}), 500
+
+    return jsonify({
+        'success': True,
+        'password': raw,
+        'username': row.username,
+        'item': row.to_public_dict(),
+        'message': translate('settings.security.app_passwords.created_once_hint'),
+    })
+
+
+@settings_bp.route('/security/app-passwords/<int:password_id>/delete', methods=['POST'])
+@login_required
+def app_passwords_delete(password_id):
+    """App-Passwort widerrufen."""
+    from app.models.app_password import AppPassword
+
+    if current_user.is_guest:
+        if _wants_json_response():
+            return jsonify({'success': False, 'error': translate('settings.security.app_passwords.guest_not_allowed')}), 403
+        flash(translate('settings.security.app_passwords.guest_not_allowed'), 'danger')
+        return redirect(url_for('settings.security'))
+
+    row = AppPassword.query.filter_by(id=password_id, user_id=current_user.id).first()
+    if not row:
+        if _wants_json_response():
+            return jsonify({'success': False, 'error': translate('settings.security.app_passwords.not_found')}), 404
+        flash(translate('settings.security.app_passwords.not_found'), 'danger')
+        return redirect(url_for('settings.security'))
+
+    db.session.delete(row)
+    db.session.commit()
+
+    if _wants_json_response():
+        return jsonify({'success': True, 'message': translate('settings.security.app_passwords.deleted_success')})
+
+    flash(translate('settings.security.app_passwords.deleted_success'), 'success')
     return redirect(url_for('settings.security'))
 
 

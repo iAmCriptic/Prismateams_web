@@ -421,6 +421,17 @@ def admin_system():
                 description=INDEXING_DESC,
             ))
 
+        team_invite_allow_portal_user = request.form.get('team_invite_allow_portal_user') == 'on'
+        team_invite_setting = SystemSettings.query.filter_by(key='team_invite_allow_portal_user').first()
+        if team_invite_setting:
+            team_invite_setting.value = str(team_invite_allow_portal_user)
+        else:
+            db.session.add(SystemSettings(
+                key='team_invite_allow_portal_user',
+                value=str(team_invite_allow_portal_user),
+                description='Erlaube Teameinladungen mit vollwertigen Portalnutzer-Rechten'
+            ))
+
         from app.utils.access_log_retention import (
             set_session_record_retention_days,
             set_share_access_log_retention_days,
@@ -437,6 +448,8 @@ def admin_system():
         set_share_access_log_retention_days(share_log_days)
         
         db.session.commit()
+        from app.utils.system_settings_cache import invalidate_system_settings_cache
+        invalidate_system_settings_cache()
         return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.admin_system')
     
     # Get current settings
@@ -476,8 +489,16 @@ def admin_system():
     session_cookie_secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
     remember_cookie_secure = bool(current_app.config.get('REMEMBER_COOKIE_SECURE'))
     flask_env = (os.environ.get('FLASK_ENV') or ('development' if current_app.debug else 'production')).strip()
+    redis_runtime_status = (current_app.config.get('REDIS_RUNTIME_STATUS') or 'disabled').strip()
+    redis_runtime_detail = current_app.config.get('REDIS_RUNTIME_DETAIL') or ''
+    redis_runtime_url = current_app.config.get('REDIS_RUNTIME_URL') or current_app.config.get('REDIS_URL') or ''
+    session_backend = current_app.config.get('SESSION_BACKEND') or ''
+    rate_limit_storage = current_app.config.get('RATELIMIT_STORAGE_URI') or ''
+    from app.models.team import is_team_invite_portal_user_allowed
+    team_invite_allow_portal_user = is_team_invite_portal_user_allowed()
     
     return render_template('settings/admin_system.html', 
+                         team_invite_allow_portal_user=team_invite_allow_portal_user,
                          portal_name=portal_name, 
                          portal_logo=portal_logo,
                          default_accent_color=default_accent_color,
@@ -495,6 +516,11 @@ def admin_system():
                          session_cookie_secure=session_cookie_secure,
                          remember_cookie_secure=remember_cookie_secure,
                          flask_env=flask_env,
+                         redis_runtime_status=redis_runtime_status,
+                         redis_runtime_detail=redis_runtime_detail,
+                         redis_runtime_url=redis_runtime_url,
+                         session_backend=session_backend,
+                         rate_limit_storage=rate_limit_storage,
                          timezone_choices=get_timezone_choices())
 
 
@@ -778,8 +804,9 @@ def admin_file_settings():
     files_dropbox_enabled = (dropbox_setting and str(dropbox_setting.value).lower() == 'true') or False
     files_sharing_enabled = (sharing_setting and str(sharing_setting.value).lower() == 'true') or False
     files_webdav_enabled = (webdav_setting and str(webdav_setting.value).lower() == 'true') or False
-    files_private_folders_enabled = (private_setting and str(private_setting.value).lower() == 'true') or False
-    files_team_folders_enabled = (team_setting and str(team_setting.value).lower() == 'true') or False
+    from app.utils.private_files import is_private_folders_enabled, is_team_folders_enabled
+    files_private_folders_enabled = is_private_folders_enabled()
+    files_team_folders_enabled = is_team_folders_enabled()
     files_document_format = get_document_format() or FORMAT_OFFICE
     webdav_url = f"{request.url_root.rstrip('/')}/webdav"
 
@@ -965,9 +992,9 @@ def admin_modules():
 
         modules = {key: request.form.get(key) == 'on' for key in AVAILABLE_MODULES}
         from app.utils.mirotalk import mirotalk_configured
-        from app.utils.common import is_module_enabled
+        # Meetings nur mit MiroTalk — ohne URL immer aus (kein „stuck“ True in der DB)
         if not mirotalk_configured():
-            modules['module_meetings'] = is_module_enabled('module_meetings')
+            modules['module_meetings'] = False
         for module_key, enabled in modules.items():
             module_setting = SystemSettings.query.filter_by(key=module_key).first()
             if module_setting:
@@ -1310,7 +1337,9 @@ def admin_inventory_settings():
     # Lade aktuelle Einstellungen
     ownership_setting = SystemSettings.query.filter_by(key='inventory_ownership_text').first()
     ownership_text = ownership_setting.value if ownership_setting and ownership_setting.value else 'Eigentum der Technik'
-    
+
+    from app.utils.dguv_signing import certificate_status
+
     return render_template(
         'settings/admin_inventory_settings.html',
         ownership_text=ownership_text,
@@ -1320,7 +1349,42 @@ def admin_inventory_settings():
         inventory_owners_enabled=is_inventory_owners_enabled(),
         inventory_accounting_enabled=is_inventory_accounting_enabled(),
         inventory_stocktake_enabled=is_inventory_stocktake_enabled(),
+        dguv_cert_status=certificate_status(),
     )
+
+
+@settings_bp.route('/admin/inventory-settings/dguv-cert', methods=['POST'])
+@login_required
+def admin_inventory_dguv_cert():
+    """Generate organisational DGUV signing certificate (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.utils.dguv_signing import generate_org_certificate
+
+    action = (request.form.get('action') or 'generate').strip()
+    if action != 'generate':
+        flash(translate('settings.admin.inventory.dguv_cert_unknown_action'), 'warning')
+        return redirect(url_for('settings.admin_inventory_settings'))
+
+    try:
+        cn = (request.form.get('cert_cn') or '').strip() or None
+        # Empty CN → always use current portal_name
+        status = generate_org_certificate(cn=cn)
+        flash(
+            translate(
+                'settings.admin.inventory.dguv_cert_generated',
+                cn=status.get('cn') or '',
+                not_after=status.get('not_after') or '',
+            ),
+            'success',
+        )
+    except Exception as exc:
+        current_app.logger.exception('DGUV cert generate failed: %s', exc)
+        flash(translate('settings.admin.inventory.dguv_cert_error'), 'danger')
+
+    return redirect(url_for('settings.admin_inventory_settings'))
 
 
 @settings_bp.route('/admin/kanban-settings', methods=['GET', 'POST'])

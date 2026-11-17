@@ -31,6 +31,7 @@ from app.models.comment import Comment
 from app.models.public_share import PublicShare
 from app.models.kanban import (
     KanbanActivity,
+    KanbanActivityRead,
     KanbanAttachment,
     KanbanBoard,
     KanbanBoardMember,
@@ -289,17 +290,24 @@ def _emit_board(board_id: int, event_type: str, data: dict):
 
 def _log_activity(board_id: int, action: str, detail: str = None, card_id: int = None, user_id: int = None):
     try:
+        actor_id = user_id or (current_user.id if getattr(current_user, 'is_authenticated', False) else None)
         act = KanbanActivity(
             board_id=board_id,
             card_id=card_id,
-            user_id=user_id or (current_user.id if current_user.is_authenticated else None),
+            user_id=actor_id,
             action=action,
             detail=detail,
         )
         db.session.add(act)
         db.session.flush()
+        if actor_id:
+            db.session.add(KanbanActivityRead(activity_id=act.id, user_id=actor_id, read_at=portal_now_naive()))
+            db.session.flush()
+        _emit_board(board_id, 'activity_added', {'id': act.id, 'action': action, 'card_id': card_id})
+        return act
     except Exception:
         pass
+    return None
 
 
 def _upload_root():
@@ -377,6 +385,8 @@ def _serialize_board_members(board: KanbanBoard) -> list[dict]:
         for user in User.query.filter(User.id.in_(roles)).all()
     }
     role_order = {'owner': 0, 'admin': 1, 'member': 2}
+    role_labels = {'owner': 'Inhaber', 'admin': 'Administrator', 'member': 'Mitglied'}
+    explicit_ids = {m.user_id for m in (board.members or []) if m.user_id}
     entries = []
     for user_id, role in roles.items():
         user = users.get(user_id)
@@ -390,7 +400,14 @@ def _serialize_board_members(board: KanbanBoard) -> list[dict]:
         ))
     entries.sort()
     return [
-        {**(_user_brief(user) or {}), 'role': role}
+        {
+            **(_user_brief(user) or {}),
+            'role': role,
+            'role_label': role_labels.get(role, role),
+            'is_owner': (user.id == board.created_by or role == 'owner'),
+            'is_creator': (user.id == board.created_by),
+            'is_explicit': (user.id in explicit_ids),
+        }
         for _, _, user, role in entries
     ]
 
@@ -434,10 +451,32 @@ def _serialize_attachment(att: KanbanAttachment, share_token: str | None = None)
     name = att.original_filename or att.filename or (att.url or 'Link')
     ext = (os.path.splitext(name)[1] or '').lower().lstrip('.')
     is_image = mime.startswith('image/') or ext in ('png', 'jpg', 'jpeg', 'gif', 'webp', 'svg')
+    favicon_url = None
     if is_link:
         file_url = att.url
         # External image links can still act as card covers / previews
         preview_url = att.url if is_image else None
+        try:
+            from urllib.parse import urlparse
+            p_fav = urlparse((att.url or '').strip())
+            fav_host = (p_fav.hostname or '').strip().lower().rstrip('.')
+            if fav_host and fav_host not in {'localhost', '127.0.0.1', '::1'} and not fav_host.endswith('.local'):
+                favicon_url = f'https://www.google.com/s2/favicons?domain={fav_host}&sz=64'
+        except Exception:
+            favicon_url = None
+        # Clean up display name if it's currently a raw URL
+        if name.startswith(('http://', 'https://')):
+            try:
+                from urllib.parse import urlparse, unquote
+                p = urlparse(name)
+                segments = [s for s in p.path.strip('/').split('/') if s]
+                if segments:
+                    clean_seg = unquote(segments[-1]).replace('_', ' ').replace('-', ' ').strip()
+                    name = f"{clean_seg} ({p.netloc})" if clean_seg else p.netloc
+                else:
+                    name = p.netloc or name
+            except Exception:
+                pass
     elif share_token:
         file_url = url_for('kanban.share_download_attachment', token=share_token, attachment_id=att.id)
         preview_url = url_for('kanban.share_preview_attachment', token=share_token, attachment_id=att.id)
@@ -453,6 +492,7 @@ def _serialize_attachment(att: KanbanAttachment, share_token: str | None = None)
         'external_url': att.url,
         'preview_url': preview_url,
         'is_link': is_link,
+        'favicon_url': favicon_url,
         'is_image': is_image and (not is_link or bool(preview_url)),
         'is_pdf': (not is_link) and (mime == 'application/pdf' or ext == 'pdf'),
         'is_office': (not is_link) and (is_onlyoffice_file_type(ext) if ext else False),
@@ -642,6 +682,7 @@ def _serialize_board(
         board = _reload_with_options(KanbanBoard, board, *_board_full_load_options())
     data = {
         'id': board.id,
+        'public_id': board.public_id,
         'title': board.title,
         'description': board.description,
         'cover_path': _board_cover_url(board),
@@ -654,7 +695,7 @@ def _serialize_board(
         'closed': bool(board.closed_at),
         'created_at': board.created_at.isoformat() if board.created_at else None,
         'member_count': len(get_board_member_roles(board)),
-        'url': url_for('kanban.board', board_id=board.id),
+        'url': url_for('kanban.board', board_id=board.public_id or board.id),
     }
     if full:
         lists = [lst for lst in board.lists if not lst.archived_at]
@@ -700,22 +741,40 @@ def _serialize_board(
     return data
 
 
-def _require_board_view(board_id: int):
-    board = KanbanBoard.query.get_or_404(board_id)
+def find_board(board_ref) -> KanbanBoard | None:
+    if not board_ref:
+        return None
+    ref_str = str(board_ref).strip()
+    if not ref_str:
+        return None
+    # Check by public_id first
+    board = KanbanBoard.query.filter_by(public_id=ref_str).first()
+    if not board and ref_str.isdigit():
+        board = KanbanBoard.query.get(int(ref_str))
+    return board
+
+
+def _require_board_view(board_id):
+    board = find_board(board_id)
+    if not board:
+        return None, (jsonify({'error': 'Not found'}), 404)
     if _get_valid_share_for_board(board.id):
         return board, None
     if not current_user.is_authenticated:
         return None, (jsonify({'error': 'Unauthorized'}), 401)
-    if not can_view_board(current_user, board) and not board.closed_at:
-        if not (board.closed_at and can_manage_board(current_user, board)):
-            return None, (jsonify({'error': 'Forbidden'}), 403)
-    elif board.closed_at and not can_manage_board(current_user, board):
-        return None, (jsonify({'error': 'Board closed'}), 403)
+    # Security: do not disclose existence of closed or restricted boards to unauthorized users
+    if board.closed_at:
+        if not can_manage_board(current_user, board):
+            return None, (jsonify({'error': 'Not found'}), 404)
+    elif not can_view_board(current_user, board):
+        return None, (jsonify({'error': 'Not found'}), 404)
     return board, None
 
 
-def _require_board_edit(board_id: int):
-    board = KanbanBoard.query.get_or_404(board_id)
+def _require_board_edit(board_id):
+    board, err = _require_board_view(board_id)
+    if err:
+        return None, err
     if _can_edit_board_ctx(board):
         return board, None
     if not current_user.is_authenticated:
@@ -723,13 +782,34 @@ def _require_board_edit(board_id: int):
     return None, (jsonify({'error': 'Forbidden'}), 403)
 
 
-def _require_board_manage(board_id: int):
-    board = KanbanBoard.query.get_or_404(board_id)
+def _require_board_manage(board_id):
+    board, err = _require_board_view(board_id)
+    if err:
+        return None, err
+    if can_manage_board(current_user, board):
+        return board, None
     if not current_user.is_authenticated:
         return None, (jsonify({'error': 'Unauthorized'}), 401)
-    if not can_manage_board(current_user, board):
+    return None, (jsonify({'error': 'Forbidden'}), 403)
+
+
+def _require_card_view(card_id: int):
+    card = KanbanCard.query.get(card_id)
+    if not card or not card.list or not card.list.board:
+        return None, (jsonify({'error': 'Not found'}), 404)
+    board, err = _require_board_view(card.list.board.id)
+    if err:
+        return None, err
+    return card, None
+
+
+def _require_card_edit(card_id: int):
+    card, err = _require_card_view(card_id)
+    if err:
+        return None, err
+    if not _can_edit_board_ctx(card.list.board):
         return None, (jsonify({'error': 'Forbidden'}), 403)
-    return board, None
+    return card, None
 
 
 def _track_view(board: KanbanBoard):
@@ -749,15 +829,15 @@ def _share_guest_ok(token: str) -> bool:
 
 
 def _user_kanban_teams(user):
-    """Teams the user may assign boards to / see as sidebar folders."""
-    if VISIBILITY_TEAM not in get_allowed_visibilities():
+    """Teams the user may assign boards to / see as sidebar folders (members only)."""
+    if VISIBILITY_TEAM not in get_allowed_visibilities(user):
         return []
-    if getattr(user, 'is_admin', False) or getattr(user, 'has_full_access', False):
-        return Team.query.order_by(Team.name).all()
     team_ids = [m.team_id for m in TeamMember.query.filter_by(user_id=user.id).all()]
-    if not team_ids:
+    led_ids = [t.id for t in Team.query.filter_by(leader_id=user.id).all()]
+    all_ids = set(team_ids) | set(led_ids)
+    if not all_ids:
         return []
-    return Team.query.filter(Team.id.in_(team_ids)).order_by(Team.name).all()
+    return Team.query.filter(Team.id.in_(all_ids)).order_by(Team.name).all()
 
 
 def _user_may_use_team(user, team_id: int) -> bool:
@@ -795,9 +875,12 @@ __all__ = [
     '_serialize_card_detail',
     '_serialize_list',
     '_serialize_board',
+    'find_board',
     '_require_board_view',
     '_require_board_edit',
     '_require_board_manage',
+    '_require_card_view',
+    '_require_card_edit',
     '_track_view',
     '_share_guest_ok',
     '_user_kanban_teams',

@@ -445,7 +445,7 @@ def edit_onlyoffice(file_id):
             flash('Sie haben keine Bearbeitungsrechte für diese Datei.', 'danger')
             return redirect(url_for('files.index'))
         guest_accessible_folder_ids = _get_guest_accessible_folder_ids()
-    elif not can_edit_file(file, current_user) and not current_user.is_admin:
+    elif not can_view_file(file, current_user) and not current_user.is_admin:
         flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
         return redirect(url_for('files.index'))
     
@@ -460,6 +460,14 @@ def edit_onlyoffice(file_id):
     # Get document type and file type
     document_type = get_onlyoffice_document_type(file_ext)
     file_type = get_onlyoffice_file_type(file_ext)
+
+    from app.utils.file_occupancy import webdav_occupancy_for_file
+
+    dav_block = webdav_occupancy_for_file(file.id)
+    user_can_edit = bool(current_user.is_admin or can_edit_file(file, current_user))
+    editor_mode = 'edit' if (user_can_edit and not dav_block) else 'view'
+    if dav_block:
+        flash(dav_block.message + ' Euro-Office öffnet die Datei schreibgeschützt.', 'warning')
     
     # Generate unique document key for versioning
     from app.utils.onlyoffice import build_onlyoffice_document_key, resolve_storage_path
@@ -531,7 +539,7 @@ def edit_onlyoffice(file_id):
         "documentType": document_type,
         "editorConfig": {
             "callbackUrl": callback_url,
-            "mode": "edit",
+            "mode": editor_mode,
             "user": {
                 "id": str(current_user.id),
                 "name": current_user.full_name
@@ -664,6 +672,13 @@ def share_edit_onlyoffice(token):
     # Get document type and file type
     document_type = get_onlyoffice_document_type(file_ext)
     file_type = get_onlyoffice_file_type(file_ext)
+
+    from app.utils.file_occupancy import webdav_occupancy_for_file
+
+    dav_block = webdav_occupancy_for_file(file.id)
+    editor_mode = 'view' if dav_block else 'edit'
+    if dav_block:
+        flash(dav_block.message + ' Euro-Office öffnet die Datei schreibgeschützt.', 'warning')
     
     # Generate unique document key for versioning
     from app.utils.onlyoffice import build_onlyoffice_document_key, resolve_storage_path
@@ -722,7 +737,7 @@ def share_edit_onlyoffice(token):
         "documentType": document_type,
         "editorConfig": {
             "callbackUrl": callback_url,
-            "mode": "edit",
+            "mode": editor_mode,
             "user": {
                 "id": f"guest_{token}",
                 "name": guest_name

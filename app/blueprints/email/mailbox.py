@@ -587,9 +587,13 @@ def _emails_for_folder(
     page: int = 1,
     per_page: int = EMAIL_LIST_PER_PAGE,
 ):
-    """Load a page of emails for a folder (bodies: text only, no HTML)."""
+    """Load a page of emails for a folder (no full bodies — short preview only)."""
     query = EmailMessage.query.options(
         defer(EmailMessage.body_html),
+        defer(EmailMessage.body_text),
+        defer(EmailMessage.recipients),
+        defer(EmailMessage.cc),
+        defer(EmailMessage.bcc),
     ).filter_by(folder=folder_name).filter(
         _message_mailbox_filter(mailbox_id)
     )
@@ -599,9 +603,29 @@ def _emails_for_folder(
         )
     page = max(1, int(page or 1))
     per_page = min(max(1, int(per_page or EMAIL_LIST_PER_PAGE)), EMAIL_LIST_PER_PAGE)
-    return query.order_by(EmailMessage.received_at.desc()).paginate(
+    pagination = query.order_by(EmailMessage.received_at.desc()).paginate(
         page=page, per_page=per_page, error_out=False
     )
+    _attach_list_previews(pagination.items)
+    return pagination
+
+
+def _attach_list_previews(emails) -> None:
+    """Attach short body_preview without loading full body_text into the session."""
+    ids = [e.id for e in emails if getattr(e, 'id', None) is not None]
+    if not ids:
+        for email in emails:
+            email.body_preview = ''
+        return
+    # SUBSTR works on SQLite and MySQL; keep preview tiny for list cards
+    rows = (
+        db.session.query(EmailMessage.id, func.substr(EmailMessage.body_text, 1, 120))
+        .filter(EmailMessage.id.in_(ids))
+        .all()
+    )
+    preview_map = {eid: (snippet or '').strip() for eid, snippet in rows}
+    for email in emails:
+        email.body_preview = preview_map.get(email.id, '')
 
 
 def _restore_false_deleted_flags(emails, folder_name: str) -> None:

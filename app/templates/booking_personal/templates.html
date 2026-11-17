@@ -1,0 +1,790 @@
+{% extends "base.html" %}
+
+{% block title %}Vorlagen verwalten - Booking{% endblock %}
+
+{% block navbar_search %}
+<div class="mod-search" role="search">
+    <label class="mod-search-field" for="bpSearchInput">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="text"
+               id="bpSearchInput"
+               class="mod-search-input"
+               placeholder="In Vorlagen & Spalten suchen..."
+               autocomplete="off"
+               spellcheck="false"
+               enterkeyhint="search"
+               onkeyup="filterTemplateFields(this.value)">
+    </label>
+    <button type="button" class="btn mod-search-clear d-none" id="bpSearchClear" aria-label="Löschen" onclick="document.getElementById('bpSearchInput').value=''; filterTemplateFields('');">
+        <i class="bi bi-x-lg"></i>
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+{% from 'booking_personal/_sidebar.html' import booking_personal_sidebar, booking_personal_mobile_offcanvas %}
+<div class="mod-shell--nav booking-personal-shell">
+        {{ booking_personal_sidebar(events, none, "templates") }}
+
+    <!-- Hauptbereich: Vorlagenverwaltung -->
+    <main class="mod-main flex-grow-1 min-width-0 overflow-y-auto p-4" id="bpTemplatesContainer">
+        <!-- Mobile Topbar (< 992px) mit einklappbarer Navbar / Offcanvas-Sidebar -->
+        <div class="mod-mobile-topbar d-lg-none mb-3">
+            <div class="d-flex justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center min-width-0 gap-2">
+                    <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#bpMobileNav" aria-controls="bpMobileNav" aria-label="Menü">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <a href="{{ url_for('booking_personal.index', event_id=events[0].id if events else None) }}" class="btn btn-outline-secondary btn-sm rounded-pill" title="Zurück">
+                        <i class="bi bi-arrow-left"></i>
+                    </a>
+                    <strong class="text-truncate mod-mobile-title">Vorlagen verwalten</strong>
+                </div>
+                {% if selected_template and not selected_template.is_system_default %}
+                <div class="d-flex align-items-center gap-1 flex-shrink-0">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline" data-bs-toggle="modal" data-bs-target="#bpAddTemplateFieldModal" title="Spalte hinzufügen">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <!-- Portalstandard Toolbar: Zurück + Titel links, alle Aktionen rechts -->
+        <div class="d-none d-lg-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+            <div class="d-flex align-items-center flex-wrap gap-2">
+                <a href="{{ url_for('booking_personal.index', event_id=events[0].id if events else None) }}" class="mod-back-link bp-back-link text-decoration-none">
+                    <i class="bi bi-arrow-left me-1" aria-hidden="true"></i><span>Zurück</span>
+                </a>
+                <span class="text-muted opacity-50">|</span>
+                <span class="text-body fw-bold">Vorlagen verwalten</span>
+                <span class="badge rounded-pill bg-body-secondary text-secondary border ms-1 px-2.5 py-0.5 small fw-semibold">
+                    {{ templates|length }} Vorlage{% if templates|length != 1 %}n{% endif %}
+                </span>
+            </div>
+
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                {% if selected_template and events %}
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline" data-bs-toggle="modal" data-bs-target="#bpApplyTemplateModal">
+                    <i class="bi bi-play-circle"></i>
+                    <span>In Veranstaltung anwenden</span>
+                </button>
+                {% endif %}
+                {% if selected_template and not selected_template.is_system_default %}
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline" data-bs-toggle="modal" data-bs-target="#bpAddTemplateFieldModal">
+                    <i class="bi bi-plus-lg"></i>
+                    <span>Spalte hinzufügen</span>
+                </button>
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline-muted" data-bs-toggle="modal" data-bs-target="#bpEditTemplatePropsModal">
+                    <i class="bi bi-pencil"></i>
+                    <span>Bearbeiten</span>
+                </button>
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline-danger" onclick="confirmDeleteTemplatePage({{ selected_template.id }}, '{{ selected_template.name|replace("'", "\\'") }}')">
+                    <i class="bi bi-trash"></i>
+                    <span>Löschen</span>
+                </button>
+                {% endif %}
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--accent" data-bs-toggle="modal" data-bs-target="#bpCreateTemplateModal">
+                    <i class="bi bi-plus-lg"></i>
+                    <span>Neue Vorlage erstellen</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Einfache, professionelle Trennlinie -->
+        <hr class="my-3 opacity-25">
+
+        <div class="row g-3">
+            <!-- Linke Spalte: Liste aller Vorlagen -->
+            <div class="col-lg-4 col-xl-3">
+                <div class="d-flex align-items-center justify-content-between mb-2 px-1">
+                    <span class="text-uppercase small fw-bold text-muted" style="font-size: 0.75rem; letter-spacing: 0.04em;">
+                        Gespeicherte Vorlagen
+                    </span>
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline mod-pill-btn--icon" data-bs-toggle="modal" data-bs-target="#bpCreateTemplateModal" title="Neue Vorlage erstellen">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                </div>
+                <div class="d-flex flex-column gap-2">
+                    {% for tmpl in templates %}
+                    {% set fields_list = tmpl.get_fields() %}
+                    <a href="{{ url_for('booking_personal.templates_view', template_id=tmpl.id) }}"
+                       class="card text-decoration-none border shadow-none p-3 rounded-4 {% if selected_template and selected_template.id == tmpl.id %}border-primary bg-primary-subtle bg-opacity-10{% else %}bg-body{% endif %}">
+                        <div class="d-flex justify-content-between align-items-start gap-2 mb-1">
+                            <h6 class="fw-bold mb-0 text-body">{{ tmpl.name }}</h6>
+                            {% if tmpl.is_system_default %}
+                            <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle flex-shrink-0">
+                                Standard
+                            </span>
+                            {% else %}
+                            <span class="badge rounded-pill bg-body-secondary text-secondary border flex-shrink-0">
+                                Eigene
+                            </span>
+                            {% endif %}
+                        </div>
+                        {% if tmpl.description %}
+                        <p class="text-muted small mb-2 text-truncate">{{ tmpl.description }}</p>
+                        {% endif %}
+                        <div class="d-flex align-items-center justify-content-between mt-auto pt-2 border-top">
+                            <span class="text-muted small">
+                                <i class="bi bi-columns-gap me-1"></i>{{ fields_list|length }} Spalten
+                            </span>
+                            <span class="text-primary small fw-semibold">
+                                {% if selected_template and selected_template.id == tmpl.id %}Aktiv{% else %}Öffnen &rarr;{% endif %}
+                            </span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Rechte Spalte: Detailansicht & Spalten-Verwaltung der ausgewählten Vorlage -->
+            <div class="col-lg-8 col-xl-9">
+                {% if selected_template %}
+                {% set cur_fields = selected_template.get_fields() %}
+                <div class="card border rounded-4 bg-body overflow-hidden">
+                    <!-- Header der ausgewählten Vorlage -->
+                    <div class="card-header bg-transparent border-bottom p-3 d-flex justify-content-between align-items-start flex-wrap gap-3">
+                        <div>
+                            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                <h4 class="fw-bold mb-0 text-body">{{ selected_template.name }}</h4>
+                                {% if selected_template.is_system_default %}
+                                <span class="badge rounded-pill bg-success-subtle text-success border border-success-subtle px-2.5 py-1">
+                                    <i class="bi bi-shield-check me-1"></i>System-Standardvorlage
+                                </span>
+                                {% else %}
+                                <span class="badge rounded-pill bg-body-secondary text-primary border px-2.5 py-1">
+                                    Benutzerdefinierte Vorlage
+                                </span>
+                                {% endif %}
+                                <span class="badge rounded-pill bg-body-secondary text-secondary border px-2.5 py-1">
+                                    {{ cur_fields|length }} Spalten
+                                </span>
+                            </div>
+                            <p class="text-muted mb-0 small">
+                                {{ selected_template.description or 'Keine Beschreibung hinterlegt.' }}
+                            </p>
+                        </div>
+
+                        <!-- Aktionen direkt im Vorlagen-Header -->
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            {% if events %}
+                            <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline" data-bs-toggle="modal" data-bs-target="#bpApplyTemplateModal">
+                                <i class="bi bi-play-circle"></i>
+                                <span>In Veranstaltung anwenden</span>
+                            </button>
+                            {% endif %}
+
+                            {% if selected_template.is_system_default %}
+                            <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--accent" data-bs-toggle="modal" data-bs-target="#bpCreateTemplateModal">
+                                <i class="bi bi-copy"></i>
+                                <span>Als eigene Vorlage kopieren</span>
+                            </button>
+                            {% else %}
+                            <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--accent" data-bs-toggle="modal" data-bs-target="#bpAddTemplateFieldModal">
+                                <i class="bi bi-plus-lg"></i>
+                                <span>Spalte hinzufügen</span>
+                            </button>
+                            <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline-muted" data-bs-toggle="modal" data-bs-target="#bpEditTemplatePropsModal">
+                                <i class="bi bi-pencil"></i>
+                                <span>Eigenschaften</span>
+                            </button>
+                            <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline-danger" onclick="confirmDeleteTemplatePage({{ selected_template.id }}, '{{ selected_template.name|replace("'", "\\'") }}')">
+                                <i class="bi bi-trash"></i>
+                                <span>Löschen</span>
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Spalten-Übersicht & Bearbeitung -->
+                    <div class="card-body p-3">
+                        {% if selected_template.is_system_default %}
+                        <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 p-3 mb-3 rounded-4 border bg-body-tertiary small">
+                            <div class="d-flex align-items-center gap-2 text-body">
+                                <i class="bi bi-info-circle text-primary fs-5"></i>
+                                <span>Die <strong>Festival Standard</strong>-Vorlage ist schreibgeschützt. Erstelle eine eigene Vorlage, um Spalten beliebig anzupassen, hinzuzufügen oder zu löschen.</span>
+                            </div>
+                            <button type="button" class="btn mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline" data-bs-toggle="modal" data-bs-target="#bpCreateTemplateModal">
+                                <i class="bi bi-plus-lg"></i>
+                                <span>Neue Vorlage erstellen</span>
+                            </button>
+                        </div>
+                        {% endif %}
+
+                        <!-- Tabelle aller Spalten in mod-list-table Style -->
+                        <div class="mod-list-table-wrap overflow-auto">
+                            <table class="table mod-list-table align-middle mb-0" id="templateFieldsTable">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 44px;" class="text-center">#</th>
+                                        <th>Spaltenbezeichnung (DE / EN)</th>
+                                        <th>Kategorie</th>
+                                        <th>Schlüssel (Key)</th>
+                                        <th>Feldtyp</th>
+                                        <th>Herkunft / Pflege</th>
+                                        <th>Zusage-Übersicht</th>
+                                        {% if not selected_template.is_system_default %}
+                                        <th style="width: 3.75rem;" class="text-end">Aktion</th>
+                                        {% endif %}
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for f in cur_fields %}
+                                    {% if f.field_type != 'action_accept' %}
+                                    <tr class="mod-list-row template-field-row">
+                                        <td class="text-center text-muted small">{{ loop.index }}</td>
+                                        <td>
+                                            <div class="fw-semibold text-body">{{ f.label }}</div>
+                                            {% if f.label_en and f.label_en != f.label %}
+                                            <div class="text-muted small">{{ f.label_en }}</div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% set cat = f.category or 'Allgemein' %}
+                                            <span class="badge rounded-pill bg-body-secondary text-body border px-2.5 py-1">
+                                                <i class="bi bi-tag text-primary me-1"></i>{{ cat }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <code class="small text-secondary">{{ f.field_key }}</code>
+                                        </td>
+                                        <td>
+                                            {% if f.field_type == 'badge_select' %}
+                                            <span class="badge rounded-pill bg-body-secondary text-body border">Badge / Dropdown</span>
+                                            {% elif f.field_type == 'multi_select' %}
+                                            <span class="badge rounded-pill bg-body-secondary text-body border">Multiple Choice</span>
+                                            {% elif f.field_type == 'currency' %}
+                                            <span class="badge rounded-pill bg-body-secondary text-body border">Währung (€)</span>
+                                            {% elif f.field_type == 'counter' %}
+                                            <span class="badge rounded-pill bg-body-secondary text-body border">Zahl / Counter</span>
+                                            {% elif f.field_type == 'formula' %}
+                                            <span class="badge rounded-pill bg-body-secondary text-body border">Berechnete Formel</span>
+                                            {% elif f.field_type == 'form_link' %}
+                                            <span class="badge rounded-pill bg-body-secondary text-body border">Formular-Link</span>
+                                            {% elif f.field_type == 'image_upload' %}
+                                            <span class="badge rounded-pill bg-body-secondary text-body border">Foto-Upload</span>
+                                            {% elif f.field_type == 'textarea' %}
+                                            <span class="badge rounded-pill bg-body-secondary text-body border">Text mehrzeilig</span>
+                                            {% else %}
+                                            <span class="badge rounded-pill bg-body-secondary text-body border">Text einzeilig</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if f.is_external %}
+                                            <span class="badge rounded-pill bg-body-secondary text-primary border">
+                                                <i class="bi bi-box-arrow-in-right me-1"></i>Extern (Künstler)
+                                            </span>
+                                            {% else %}
+                                            <span class="badge rounded-pill bg-body-secondary text-secondary border">
+                                                <i class="bi bi-lock me-1"></i>Nur Intern
+                                            </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if f.visible_in_overview %}
+                                            <span class="text-body small fw-semibold"><i class="bi bi-eye text-primary me-1"></i>Sichtbar</span>
+                                            {% else %}
+                                            <span class="text-muted small"><i class="bi bi-eye-slash me-1"></i>Versteckt</span>
+                                            {% endif %}
+                                        </td>
+                                        {% if not selected_template.is_system_default %}
+                                        <td class="text-end">
+                                            <form action="{{ url_for('booking_personal.template_field_delete', template_id=selected_template.id, index=loop.index0) }}" method="POST" class="d-inline" onsubmit="return confirm('Spalte wirklich aus der Vorlage entfernen?');">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                <button type="submit" class="btn btn-sm btn-link text-danger" title="Spalte entfernen">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                        </td>
+                                        {% endif %}
+                                    </tr>
+                                    {% endif %}
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="8" class="text-center py-4 text-muted">
+                                            Keine Spalten in dieser Vorlage definiert.
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="card border rounded-4 p-5 text-center text-muted bg-body">
+                    <i class="bi bi-layout-three-columns display-4 text-primary mb-3"></i>
+                    <h4 class="fw-bold text-body">Keine Vorlage ausgewählt</h4>
+                    <p class="mb-3">Wähle links eine Vorlage aus oder erstelle eine neue Vorlage.</p>
+                    <div>
+                        <button type="button" class="btn mod-pill-btn mod-pill-btn--accent" data-bs-toggle="modal" data-bs-target="#bpCreateTemplateModal">
+                            <i class="bi bi-plus-lg"></i>
+                            <span>Neue Vorlage erstellen</span>
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+</div>
+
+{{ booking_personal_mobile_offcanvas(events, none, "templates") }}
+
+<!-- =========================================================================
+     MODALS FÜR DIE VORLAGENVERWALTUNG (außerhalb von .mod-shell--nav)
+     ========================================================================= -->
+
+<!-- Modal: Neue Vorlage anlegen -->
+<div class="modal fade" id="bpCreateTemplateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form action="{{ url_for('booking_personal.template_create') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-plus-circle me-2 text-primary"></i>Neue Vorlage erstellen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Name der Vorlage</label>
+                        <input type="text" name="name" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Clubnacht Minimal, Band-Festival 2026" required autofocus>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Beschreibung (optional)</label>
+                        <textarea name="description" class="form-control mod-pill-input rounded-4 px-3 py-2" rows="2" placeholder="Wofür wird diese Vorlage verwendet?"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Ausgangs-Basis für die Spalten</label>
+                        <select name="source_type" id="bpSourceTypeSelect" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select onchange="toggleTemplateSourceFields(this.value)">
+                            <option value="standard">Festival Standard kopieren (~35 Spalten)</option>
+                            {% if events %}
+                            <option value="event">Aus aktiver Veranstaltung übernehmen...</option>
+                            {% endif %}
+                            <option value="copy">Bestehende Vorlage duplizieren...</option>
+                            <option value="blank">Leere Vorlage (von Grund auf selbst definieren)</option>
+                        </select>
+                    </div>
+
+                    {% if events %}
+                    <div class="mb-3 d-none" id="bpSourceEventGroup">
+                        <label class="form-label fw-semibold">Veranstaltung wählen</label>
+                        <select name="source_event_id" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select>
+                            {% for ev in events %}
+                            <option value="{{ ev.id }}">{{ ev.name }} ({{ ev.fields|length }} Spalten)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+
+                    <div class="mb-3 d-none" id="bpCopyTemplateGroup">
+                        <label class="form-label fw-semibold">Zu duplizierende Vorlage</label>
+                        <select name="copy_template_id" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select>
+                            {% for tmpl in templates %}
+                            <option value="{{ tmpl.id }}">{{ tmpl.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-top pt-3 gap-2">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent px-4"><i class="bi bi-check2"></i><span>Vorlage anlegen</span></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Vorlagen-Eigenschaften bearbeiten -->
+{% if selected_template and not selected_template.is_system_default %}
+<div class="modal fade" id="bpEditTemplatePropsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form action="{{ url_for('booking_personal.template_update', template_id=selected_template.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square me-2 text-primary"></i>Vorlagen-Eigenschaften bearbeiten</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Name der Vorlage</label>
+                        <input type="text" name="name" class="form-control mod-pill-input rounded-pill px-3 py-2" value="{{ selected_template.name }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Beschreibung</label>
+                        <textarea name="description" class="form-control mod-pill-input rounded-4 px-3 py-2" rows="3">{{ selected_template.description }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer border-top pt-3 gap-2">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent px-4"><span>Änderungen speichern</span></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Neue Spalte zur Vorlage hinzufügen -->
+<div class="modal fade" id="bpAddTemplateFieldModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form action="{{ url_for('booking_personal.template_field_add', template_id=selected_template.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-plus-lg me-2 text-primary"></i>Neue Spalte zu „{{ selected_template.name }}“ hinzufügen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <!-- Schnell-Vorschläge für Vorlagen-Spalten -->
+                    <div class="p-2.5 mb-3 bg-body-tertiary rounded-4 border">
+                        <div class="d-flex align-items-center justify-content-between mb-1.5">
+                            <span class="small fw-bold text-muted"><i class="bi bi-magic text-primary me-1"></i>Schnell-Vorschläge (1 Klick):</span>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1.5">
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('status')"><i class="bi bi-tag-fill text-primary"></i>Booking Status</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('bereich')"><i class="bi bi-pin-map-fill text-primary"></i>Bereich</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('multi_select')"><i class="bi bi-ui-checks text-primary"></i>Multiple Choice</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('form_link')"><i class="bi bi-link-45deg text-primary"></i>Formular-Link</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('gage')"><i class="bi bi-cash text-primary"></i>Gage (€)</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('techrider')"><i class="bi bi-file-earmark-pdf text-primary"></i>Techrider</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('promo_images')"><i class="bi bi-images text-primary"></i>Promo-Bilder</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('pronoun')"><i class="bi bi-person-badge text-primary"></i>Pronomen</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('drinks')"><i class="bi bi-cup-straw text-primary"></i>Getränke</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('guestlist')"><i class="bi bi-people text-primary"></i>Gästeliste</button>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Spaltenbezeichnung (Deutsch) <span class="text-danger">*</span></label>
+                        <input type="text" name="label" id="tmplFieldLabel" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Übernachtungshotel, Ansprechpartner" required autofocus>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Spaltenbezeichnung (Englisch)</label>
+                        <input type="text" name="label_en" id="tmplFieldLabelEn" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Hotel, Contact Person">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Feldtyp <span class="text-danger">*</span></label>
+                        <select name="field_type" id="bpTmplFieldTypeSelect" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select onchange="toggleTmplFieldOptions(this.value)">
+                            <option value="text">Text (Einzeilig)</option>
+                            <option value="textarea">Text (Mehrzeilig)</option>
+                            <option value="currency">Zahl / Währung (€)</option>
+                            <option value="counter">Zahl / Zähler (z. B. Gästeliste)</option>
+                            <option value="badge_select">Dropdown / Status-Badges (Single Choice)</option>
+                            <option value="multi_select">Multiple Choice / Badges (Mehrfachauswahl)</option>
+                            <option value="image_upload">Datei- / Bild-Upload</option>
+                            <option value="form_link">Formular-Link</option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Kategorie / Bereich</label>
+                        <input type="text" name="category" id="tmplFieldCategory" class="form-control mod-pill-input rounded-pill px-3 py-2" list="categoryPresets" placeholder="z. B. Stammdaten & Status, Finanzen, Hospitality..." value="Allgemein">
+                        <datalist id="categoryPresets">
+                            <option value="Stammdaten & Status">
+                            <option value="Finanzen">
+                            <option value="Hospitality & Logistik">
+                            <option value="Presse & Technik">
+                            <option value="Aktionen & Links">
+                        </datalist>
+                        <div class="form-text small text-muted">Unterteilt dieses Feld im Artist-Profil in einen eigenen strukturierten Bereich.</div>
+                    </div>
+
+                    <div class="mb-3 d-none" id="bpTmplOptionsGroup">
+                        <label class="form-label fw-semibold">Auswahl-Optionen (eine Option pro Zeile; optional mit Farbe: Wert|Farbe)</label>
+                        <textarea name="options" id="tmplFieldOptions" class="form-control rounded-4 font-monospace small" rows="4" placeholder="Option 1|primary&#10;Option 2|success&#10;Option 3|danger"></textarea>
+                        <div class="form-text small">Farben: primary, success, danger, warning, info, secondary</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Technischer Feld-Key (optional)</label>
+                        <input type="text" name="field_key" id="tmplFieldKey" class="form-control mod-pill-input rounded-pill px-3 py-2 font-monospace small" placeholder="wird automatisch generiert">
+                    </div>
+
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" name="is_external" value="1" id="tmplFieldExternal">
+                        <label class="form-check-label" for="tmplFieldExternal">
+                            Externes Formularfeld (wird vom Künstler ausgefüllt)
+                        </label>
+                    </div>
+
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="visible_in_overview" value="1" id="tmplFieldOverview" checked>
+                        <label class="form-check-label" for="tmplFieldOverview">
+                            In zweisprachiger Zusage-Übersicht anzeigen (DE/EN)
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer border-top pt-3 gap-2">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent px-4"><span>Spalte speichern</span></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal: Vorlage in Veranstaltung anwenden -->
+{% if selected_template and events %}
+<div class="modal fade" id="bpApplyTemplateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form action="{{ url_for('booking_personal.template_apply', template_id=selected_template.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header border-bottom">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-play-circle me-2 text-primary"></i>Vorlage in Veranstaltung laden</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="alert alert-warning border-0 rounded-4 small mb-3">
+                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                        <strong>Achtung:</strong> Beim Laden der Vorlage <strong>„{{ selected_template.name }}“</strong> wird die Spaltenkonfiguration der ausgewählten Veranstaltung durch die {{ selected_template.get_fields()|length }} Spalten dieser Vorlage ersetzt.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Ziel-Veranstaltung auswählen</label>
+                        <select name="event_id" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select required>
+                            {% for ev in events %}
+                            <option value="{{ ev.id }}">{{ ev.name }} ({{ ev.entries|length }} Acts vorhanden)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-top pt-3 gap-2">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent px-4"><i class="bi bi-check2"></i><span>Vorlage jetzt anwenden</span></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal: Universal Bestätigung -->
+<div class="modal fade" id="bpConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <div class="modal-header border-bottom">
+                <h5 class="modal-title fw-bold" id="bpConfirmModalTitle">Bestätigung erforderlich</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body p-4" id="bpConfirmModalMessage">
+                Bist du sicher?
+            </div>
+            <div class="modal-footer border-top pt-3 gap-2">
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn mod-pill-btn mod-pill-btn--danger px-4" id="bpConfirmModalBtn">Bestätigen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Neue Veranstaltung anlegen -->
+<div class="modal fade" id="bpNewEventModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content rounded-4 border-0 shadow">
+            <form action="{{ url_for('booking_personal.create_event') }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header border-bottom pb-3">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-calendar-plus me-2 text-primary"></i>Neue Veranstaltung anlegen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Name der Veranstaltung</label>
+                        <input type="text" name="name" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Sommerfestival 2026" required autofocus>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Tabellen-Vorlage (Spalten-Set)</label>
+                        <select name="template_id" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select>
+                            {% for tmpl in templates %}
+                            <option value="{{ tmpl.id }}" {% if tmpl.is_system_default %}selected{% endif %}>
+                                {{ tmpl.name }} ({{ tmpl.get_fields()|length }} Spalten)
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-top pt-3 gap-2">
+                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent px-4"><i class="bi bi-check2"></i><span>Veranstaltung erstellen</span></button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleTemplateSourceFields(val) {
+    const evGrp = document.getElementById('bpSourceEventGroup');
+    const copyGrp = document.getElementById('bpCopyTemplateGroup');
+    if (evGrp) evGrp.classList.toggle('d-none', val !== 'event');
+    if (copyGrp) copyGrp.classList.toggle('d-none', val !== 'copy');
+}
+
+function toggleTmplFieldOptions(val) {
+    const optGrp = document.getElementById('bpTmplOptionsGroup');
+    if (optGrp) {
+        optGrp.classList.toggle('d-none', val !== 'badge_select' && val !== 'multi_select');
+    }
+}
+
+function applyTmplColPreset(key) {
+    const presets = {
+        'status': {
+            label: 'Booking Status',
+            label_en: 'Booking Status',
+            type: 'badge_select',
+            category: 'Stammdaten & Status',
+            options: 'Angefragt|secondary\nBewerbung eingegangen|info\nFormular gesendet|primary\nFormular ausgefüllt|purple\nZusage gesendet|success\nAbgeschlossen|success\nRechnung weitergeleitet|warning\nAbsage|danger',
+            is_external: false,
+            overview: false
+        },
+        'bereich': {
+            label: 'Bereich',
+            label_en: 'Area / Stage',
+            type: 'badge_select',
+            category: 'Stammdaten & Status',
+            options: 'Main Stage|primary\nAmbient|info\nMühle|warning\nWorkshop|success',
+            is_external: false,
+            overview: true
+        },
+        'multi_select': {
+            label: 'Aufgaben / Tags',
+            label_en: 'Tasks / Tags',
+            type: 'multi_select',
+            category: 'Allgemein',
+            options: 'Soundcheck|primary\nCatering|success\nHotel gebucht|info\nFahrservice|warning',
+            is_external: false,
+            overview: true
+        },
+        'form_link': {
+            label: 'Formular-Link',
+            label_en: 'Form Link',
+            type: 'form_link',
+            category: 'Aktionen & Links',
+            options: '',
+            is_external: false,
+            overview: false
+        },
+        'gage': {
+            label: 'Gage (€)',
+            label_en: 'Fee (€)',
+            type: 'currency',
+            category: 'Finanzen',
+            options: '',
+            is_external: false,
+            overview: true
+        },
+        'techrider': {
+            label: 'Techrider (PDF)',
+            label_en: 'Techrider (PDF)',
+            type: 'file_upload',
+            category: 'Presse & Technik',
+            options: '',
+            is_external: true,
+            overview: false
+        },
+        'promo_images': {
+            label: 'Promo-Bilder',
+            label_en: 'Press Photos',
+            type: 'image_upload',
+            category: 'Presse & Technik',
+            options: '',
+            is_external: true,
+            overview: false
+        },
+        'pronoun': {
+            label: 'Pronomen',
+            label_en: 'Pronouns',
+            type: 'text',
+            category: 'Stammdaten & Status',
+            options: '',
+            is_external: true,
+            overview: true
+        },
+        'drinks': {
+            label: 'Getränkeguthaben',
+            label_en: 'Drink Tokens',
+            type: 'counter',
+            category: 'Hospitality & Logistik',
+            options: '',
+            is_external: false,
+            overview: true
+        },
+        'guestlist': {
+            label: 'Gästeliste Plätze',
+            label_en: 'Guest List Spots',
+            type: 'counter',
+            category: 'Hospitality & Logistik',
+            options: '',
+            is_external: true,
+            overview: true
+        }
+    };
+
+    const p = presets[key];
+    if (!p) return;
+
+    const labelEl = document.getElementById('tmplFieldLabel');
+    const labelEnEl = document.getElementById('tmplFieldLabelEn');
+    const typeEl = document.getElementById('bpTmplFieldTypeSelect');
+    const catEl = document.getElementById('tmplFieldCategory');
+    const optEl = document.getElementById('tmplFieldOptions');
+    const extEl = document.getElementById('tmplFieldExternal');
+    const overEl = document.getElementById('tmplFieldOverview');
+
+    if (labelEl) labelEl.value = p.label;
+    if (labelEnEl) labelEnEl.value = p.label_en;
+    if (typeEl) typeEl.value = p.type;
+    if (catEl) catEl.value = p.category;
+    if (optEl) optEl.value = p.options;
+    if (extEl) extEl.checked = p.is_external;
+    if (overEl) overEl.checked = p.overview;
+
+    toggleTmplFieldOptions(p.type);
+}
+
+function filterTemplateFields(q) {
+    const term = (q || '').toLowerCase().trim();
+    const rows = document.querySelectorAll('.template-field-row');
+    rows.forEach(r => {
+        const text = r.textContent.toLowerCase();
+        r.style.display = (!term || text.includes(term)) ? '' : 'none';
+    });
+}
+
+function confirmDeleteTemplatePage(templateId, templateName) {
+    const modalEl = document.getElementById('bpConfirmModal');
+    if (!modalEl) return;
+    document.getElementById('bpConfirmModalTitle').textContent = 'Vorlage löschen';
+    document.getElementById('bpConfirmModalMessage').innerHTML = `Möchtest du die Vorlage <strong>„${templateName}“</strong> wirklich unwiderruflich löschen?`;
+    const btn = document.getElementById('bpConfirmModalBtn');
+    btn.textContent = 'Vorlage löschen';
+    btn.className = 'btn mod-pill-btn mod-pill-btn--danger px-4';
+    
+    btn.onclick = function() {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/booking-personal/templates/${templateId}/delete`;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrf_token';
+        csrfInput.value = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+        form.appendChild(csrfInput);
+        document.body.appendChild(form);
+        form.submit();
+    };
+    const bsModal = new bootstrap.Modal(modalEl);
+    bsModal.show();
+}
+</script>
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/booking_personal.js') }}"></script>
+{% endblock %}

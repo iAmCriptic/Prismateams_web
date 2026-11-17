@@ -199,37 +199,30 @@ class DashboardUpdater {
     }
 
     initSSE() {
-        const url = window.PT_DASHBOARD_SSE_URL;
-        if (!url || !window.EventSource) return;
-        try {
-            const es = window.ptDashboardSSE || new EventSource(url);
-            window.ptDashboardSSE = es;
-            this.eventSource = es;
-            this.eventSource.addEventListener('dashboard:chat_update', (e) => {
-                const data = JSON.parse(e.data);
-                this.updateBadge('#chat-count-badge', data.count);
+        // QA G08: kein eigener EventSource — notification-center fan-out (pt:dashboard:*)
+        const on = (type, handler) => {
+            window.addEventListener(`pt:${type}`, (e) => {
+                try { handler(e.detail || {}); } catch (_) { /* ignore */ }
             });
-            this.eventSource.addEventListener('dashboard:email_update', (e) => {
-                const data = JSON.parse(e.data);
-                this.updateBadge('.email-badge', data.count);
-                if (typeof window.updateEmailNavBadge === 'function') {
-                    window.updateEmailNavBadge(data.count);
-                }
-            });
-            this.eventSource.addEventListener('dashboard:calendar_update', (e) => {
-                const data = JSON.parse(e.data);
-                this.updateBadge('.calendar-badge', data.count);
-            });
-            this.eventSource.addEventListener('dashboard:files_update', (e) => {
-                const data = JSON.parse(e.data);
-                const badge = document.querySelector('.files-badge');
-                if (badge && data.files) {
-                    badge.textContent = data.files.length;
-                }
-            });
-        } catch (error) {
-            console.error('Dashboard: Fehler bei SSE-Initialisierung:', error);
-        }
+        };
+        on('dashboard:chat_update', (data) => {
+            this.updateBadge('#chat-count-badge', data.count);
+        });
+        on('dashboard:email_update', (data) => {
+            this.updateBadge('.email-badge', data.count);
+            if (typeof window.updateEmailNavBadge === 'function') {
+                window.updateEmailNavBadge(data.count);
+            }
+        });
+        on('dashboard:calendar_update', (data) => {
+            this.updateBadge('.calendar-badge', data.count);
+        });
+        on('dashboard:files_update', (data) => {
+            const badge = document.querySelector('.files-badge');
+            if (badge && data.files) {
+                badge.textContent = data.files.length;
+            }
+        });
     }
 
     updateBadge(selector, count) {

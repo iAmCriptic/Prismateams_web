@@ -150,6 +150,9 @@ def admin_roles_user(user_id):
         
         return jsonify({
             'has_full_access': user.has_full_access,
+            'can_access_public': bool(getattr(user, 'can_access_public', True)),
+            'can_access_team': bool(getattr(user, 'can_access_team', True)),
+            'can_access_private': bool(getattr(user, 'can_access_private', True)),
             'module_roles': module_roles,
             'booking_roles': booking_roles,
             'email_permissions': email_permissions,
@@ -181,6 +184,9 @@ def admin_roles_user_update(user_id):
     try:
         # Aktualisiere Vollzugriff
         user.has_full_access = request.form.get('has_full_access') == 'on'
+        user.can_access_public = request.form.get('can_access_public') == 'on'
+        user.can_access_team = request.form.get('can_access_team') == 'on'
+        user.can_access_private = request.form.get('can_access_private') == 'on'
         
         # Liste aller Module
         all_modules = [
@@ -205,6 +211,8 @@ def admin_roles_user_update(user_id):
             'module_surveys',
             'module_protocols',
             'module_meetings',
+            'module_duty_roster',
+            'module_booking_personal',
         ]
         
         # Aktualisiere Modul-Rollen
@@ -293,7 +301,7 @@ def admin_roles_default():
         ('module_manuals', 'Anleitungen'),
         ('module_inventory', 'Lagerverwaltung'),
         ('module_wiki', 'Wiki'),
-        ('module_booking', 'Buchungen'),
+        ('module_booking', 'Raumbuchung'),
         ('module_music', 'Musik'),
         ('module_media_downloader', 'Media Downloader'),
         ('module_file_converter', 'Dateikonverter'),
@@ -304,6 +312,8 @@ def admin_roles_default():
         ('module_surveys', 'Umfragen'),
         ('module_protocols', 'Protokollführung'),
         ('module_meetings', 'Meetings'),
+        ('module_duty_roster', 'Dienstplan'),
+        ('module_booking_personal', 'Booking'),
     ]
     
     from app.utils.access_control import load_default_module_roles, _roles_flag_enabled
@@ -311,7 +321,10 @@ def admin_roles_default():
     if request.method == 'POST':
         # Sammle Standardrollen-Einstellungen
         default_roles = {
-            'full_access': request.form.get('default_full_access') == 'on'
+            'full_access': request.form.get('default_full_access') == 'on',
+            'can_access_public': request.form.get('default_can_access_public') == 'on',
+            'can_access_team': request.form.get('default_can_access_team') == 'on',
+            'can_access_private': request.form.get('default_can_access_private') == 'on',
         }
         
         # Modulspezifische Rollen (auch bei Vollzugriff mitspeichern, damit Umschalten Werte behält)
@@ -338,6 +351,9 @@ def admin_roles_default():
     raw_roles = load_default_module_roles()
     default_roles = {
         'full_access': _roles_flag_enabled(raw_roles.get('full_access', True)),
+        'can_access_public': _roles_flag_enabled(raw_roles.get('can_access_public', True)),
+        'can_access_team': _roles_flag_enabled(raw_roles.get('can_access_team', True)),
+        'can_access_private': _roles_flag_enabled(raw_roles.get('can_access_private', True)),
     }
     for module_key, _ in all_modules:
         default_roles[module_key] = _roles_flag_enabled(raw_roles.get(module_key, False))
@@ -412,9 +428,12 @@ def booking_form_edit(form_id):
         if not title:
             flash(translate('settings.admin.booking_forms.flash_title_required'), 'danger')
             fields = BookingFormField.query.filter_by(form_id=form_id).order_by(BookingFormField.field_order).all()
+            from app.models.booking import BookingRoom
+            all_rooms = BookingRoom.query.order_by(BookingRoom.name).all()
             return render_template(
                 'booking/admin/form_edit.html',
                 form=form,
+                all_rooms=all_rooms,
                 fields=fields,
                 all_users=User.query.filter_by(is_active=True).all(),
                 is_new=is_new,
@@ -428,15 +447,23 @@ def booking_form_edit(form_id):
         form.enable_mailbox = enable_mailbox
         form.enable_shared_folder = enable_shared_folder
         form.is_active = is_active
+        room_id_raw = request.form.get('room_id')
+        form.room_id = int(room_id_raw) if room_id_raw and room_id_raw.isdigit() else None
+        form.allow_room_selection = request.form.get('allow_room_selection') == 'on'
+        allowed_rooms = request.form.getlist('allowed_room_ids[]')
+        form.set_allowed_rooms(allowed_rooms)
 
         db.session.commit()
         flash(translate('settings.admin.booking_forms.flash_form_updated', title=title), 'success')
         return _settings_redirect('settings.booking_forms')
 
     fields = BookingFormField.query.filter_by(form_id=form_id).order_by(BookingFormField.field_order).all()
+    from app.models.booking import BookingRoom
+    all_rooms = BookingRoom.query.order_by(BookingRoom.name).all()
     return render_template(
         'booking/admin/form_edit.html',
         form=form,
+        all_rooms=all_rooms,
         fields=fields,
         all_users=User.query.filter_by(is_active=True).all(),
         is_new=is_new,
@@ -857,3 +884,295 @@ def booking_roles(form_id):
         })
     
     return jsonify({'roles': roles})
+
+
+@settings_bp.route('/admin/events', methods=['GET', 'POST'])
+@login_required
+def admin_events_settings():
+    """Veranstaltungs-Einstellungen und benutzerdefinierte Felder (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.event import EventCustomField, EventCustomFieldValue
+
+    if request.method == 'POST':
+        action = request.form.get('action', '').strip()
+
+        if action == 'add_field':
+            label = request.form.get('label', '').strip()
+            category = request.form.get('category', 'Allgemein').strip() or 'Allgemein'
+            field_type = request.form.get('field_type', 'text').strip()
+            placeholder = request.form.get('placeholder', '').strip()
+            options_raw = request.form.get('options', '').strip()
+
+            if not label:
+                flash('Bitte einen Feldnamen angeben.', 'danger')
+            else:
+                max_pos = db.session.query(func.max(EventCustomField.position)).scalar() or 0
+                options_val = None
+                if field_type == 'select' and options_raw:
+                    lines = [opt.strip() for opt in options_raw.replace(',', '\n').splitlines() if opt.strip()]
+                    options_val = json.dumps(lines, ensure_ascii=False)
+
+                field = EventCustomField(
+                    label=label,
+                    category=category,
+                    field_type=field_type,
+                    placeholder=placeholder or None,
+                    options=options_val,
+                    position=max_pos + 10,
+                    is_active=True
+                )
+                db.session.add(field)
+                db.session.commit()
+                flash(f'Benutzerdefiniertes Feld „{label}“ erfolgreich angelegt.', 'success')
+
+        elif action == 'edit_field':
+            field_id = request.form.get('field_id', type=int)
+            field = db.session.get(EventCustomField, field_id) if field_id else None
+            if not field:
+                flash('Feld nicht gefunden.', 'danger')
+                return redirect(url_for('settings.admin_events_settings'))
+            label = request.form.get('label', '').strip()
+            category = request.form.get('category', 'Allgemein').strip() or 'Allgemein'
+            field_type = request.form.get('field_type', field.field_type).strip()
+            placeholder = request.form.get('placeholder', '').strip()
+            options_raw = request.form.get('options', '').strip()
+
+            if label:
+                field.label = label
+            field.category = category
+            field.field_type = field_type
+            field.placeholder = placeholder or None
+            if field_type == 'select' and options_raw:
+                lines = [opt.strip() for opt in options_raw.replace(',', '\n').splitlines() if opt.strip()]
+                field.options = json.dumps(lines, ensure_ascii=False)
+            elif field_type != 'select':
+                field.options = None
+
+            db.session.commit()
+            flash(f'Feld „{field.label}“ aktualisiert.', 'success')
+
+        elif action == 'delete_field':
+            field_id = request.form.get('field_id', type=int)
+            field = db.session.get(EventCustomField, field_id) if field_id else None
+            if field:
+                name = field.label
+                db.session.delete(field)
+                db.session.commit()
+                flash(f'Feld „{name}“ gelöscht.', 'success')
+
+        elif action == 'load_defaults':
+            defaults = [
+                # Kategorie: Allgemein (inkl. Vorverkauf & Sicherheit)
+                ('EPISODE', 'number', '1', None, 'Allgemein'),
+                ('ALTERSBESCHRÄNKUNG', 'select', 'Auswählen...', ['Keine', 'Ab 16', 'Ab 18', 'Familienfreundlich'], 'Allgemein'),
+                ('AK', 'text', 'AK hinzufügen ...', None, 'Allgemein'),
+                ('VVK', 'text', 'VVK hinzufügen ...', None, 'Allgemein'),
+                ('VVK VIA T4G?', 'checkbox', None, None, 'Allgemein'),
+                ('ANZAHL SECU', 'number', 'ANZAHL SECU...', None, 'Allgemein'),
+                ('SECU BESTELLT?', 'checkbox', None, None, 'Allgemein'),
+                # Kategorie: Personal & Gewerke
+                ('VA LEITUNG', 'person', 'Auswählen ...', None, 'Personal & Gewerke'),
+                ('GASTRO', 'person', 'Auswählen ...', None, 'Personal & Gewerke'),
+                ('AWARENESS AP', 'person', 'AWARENESS AP...', None, 'Personal & Gewerke'),
+                ('TECH SUPPORT ALL', 'text', 'TECH SUPPORT ALL...', None, 'Personal & Gewerke'),
+                ('OPERATOR LICHT', 'text', 'OPERATOR LICHT...', None, 'Personal & Gewerke'),
+                ('GARDEROBE', 'text', 'GARDEROBE hinzufügen...', None, 'Personal & Gewerke'),
+                ('EINLASS', 'text', 'EINLASS hinzufügen...', None, 'Personal & Gewerke'),
+                # Kategorie: Besonderheiten & Notizen
+                ('BESONDERHEITEN TON', 'textarea', 'BESONDERHEITEN TON...', None, 'Besonderheiten & Notizen'),
+                ('BESONDERHEITEN LICHT', 'textarea', 'BESONDERHEITEN LICHT...', None, 'Besonderheiten & Notizen'),
+                ('BESONDERHEITEN GASTRO', 'textarea', 'BESONDERHEITEN GASTRO...', None, 'Besonderheiten & Notizen'),
+            ]
+            added = 0
+            existing_labels = {f.label.upper() for f in EventCustomField.query.all()}
+            for idx, (lbl, ftype, ph, opts, cat) in enumerate(defaults):
+                if lbl.upper() not in existing_labels:
+                    opt_val = json.dumps(opts, ensure_ascii=False) if opts else None
+                    db.session.add(EventCustomField(
+                        label=lbl,
+                        category=cat,
+                        field_type=ftype,
+                        placeholder=ph,
+                        options=opt_val,
+                        position=(idx + 1) * 10,
+                        is_active=True
+                    ))
+                    added += 1
+            db.session.commit()
+            flash(f'{added} Standard-Felder wurden angelegt.', 'success')
+
+        return redirect(url_for('settings.admin_events_settings'))
+
+    fields = EventCustomField.query.order_by(EventCustomField.position, EventCustomField.id).all()
+    return render_template('settings/admin_events_settings.html', fields=fields)
+
+
+@settings_bp.route('/admin/booking-rooms')
+@login_required
+def booking_rooms():
+    """Room management (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.booking import BookingRoom
+    rooms = BookingRoom.query.order_by(BookingRoom.name.asc()).all()
+    return render_template('booking/admin/rooms.html', rooms=rooms)
+
+
+@settings_bp.route('/admin/booking-rooms/create', methods=['GET', 'POST'])
+@login_required
+def booking_room_create():
+    """Create a new room (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.booking import BookingRoom, BookingForm
+    from app.utils.booking_rooms import ensure_room_calendar
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip() or None
+        location = request.form.get('location', '').strip() or None
+        capacity_raw = request.form.get('capacity', '').strip()
+        capacity = int(capacity_raw) if capacity_raw and capacity_raw.isdigit() else None
+        color = request.form.get('color', '').strip() or '#4f46e5'
+        default_form_id_raw = request.form.get('default_form_id', '').strip()
+        default_form_id = int(default_form_id_raw) if default_form_id_raw and default_form_id_raw.isdigit() else None
+        is_active = request.form.get('is_active') == 'on'
+
+        if not name:
+            flash('Bitte geben Sie einen Raumnamen ein.', 'danger')
+            all_forms = BookingForm.query.order_by(BookingForm.title).all()
+            return render_template('booking/admin/room_edit.html', room=None, all_forms=all_forms, is_new=True)
+
+        room = BookingRoom(
+            name=name,
+            description=description,
+            location=location,
+            capacity=capacity,
+            color=color,
+            default_form_id=default_form_id,
+            is_active=is_active,
+        )
+        db.session.add(room)
+        db.session.flush()
+
+        # Image Upload
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and file.filename:
+                allowed_exts = {'png', 'jpg', 'jpeg', 'webp', 'svg'}
+                if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_exts:
+                    fname = secure_filename(file.filename)
+                    ts = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                    filename = f"room_{room.id}_{ts}_{fname}"
+                    project_root = os.path.dirname(current_app.root_path)
+                    upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'booking_rooms', str(room.id))
+                    os.makedirs(upload_dir, exist_ok=True)
+                    filepath = os.path.join(upload_dir, filename)
+                    file.save(filepath)
+                    room.image_path = os.path.join('booking_rooms', str(room.id), filename).replace('\\', '/')
+
+        ensure_room_calendar(room)
+        db.session.commit()
+        flash(f'Raum "{room.name}" wurde erfolgreich angelegt.', 'success')
+        return _settings_redirect('settings.booking_rooms')
+
+    all_forms = BookingForm.query.order_by(BookingForm.title).all()
+    return render_template('booking/admin/room_edit.html', room=None, all_forms=all_forms, is_new=True)
+
+
+@settings_bp.route('/admin/booking-rooms/<int:room_id>/edit', methods=['GET', 'POST'])
+@login_required
+def booking_room_edit(room_id):
+    """Edit an existing room (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.booking import BookingRoom, BookingForm
+    from app.utils.booking_rooms import ensure_room_calendar
+
+    room = BookingRoom.query.get_or_404(room_id)
+
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip() or None
+        location = request.form.get('location', '').strip() or None
+        capacity_raw = request.form.get('capacity', '').strip()
+        capacity = int(capacity_raw) if capacity_raw and capacity_raw.isdigit() else None
+        color = request.form.get('color', '').strip() or '#4f46e5'
+        default_form_id_raw = request.form.get('default_form_id', '').strip()
+        default_form_id = int(default_form_id_raw) if default_form_id_raw and default_form_id_raw.isdigit() else None
+        is_active = request.form.get('is_active') == 'on'
+
+        if not name:
+            flash('Bitte geben Sie einen Raumnamen ein.', 'danger')
+            all_forms = BookingForm.query.order_by(BookingForm.title).all()
+            return render_template('booking/admin/room_edit.html', room=room, all_forms=all_forms, is_new=False)
+
+        room.name = name
+        room.description = description
+        room.location = location
+        room.capacity = capacity
+        room.color = color
+        room.default_form_id = default_form_id
+        room.is_active = is_active
+
+        # Image Upload
+        if 'image' in request.files:
+            file = request.files['image']
+            if file and file.filename:
+                allowed_exts = {'png', 'jpg', 'jpeg', 'webp', 'svg'}
+                if '.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in allowed_exts:
+                    fname = secure_filename(file.filename)
+                    ts = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+                    filename = f"room_{room.id}_{ts}_{fname}"
+                    project_root = os.path.dirname(current_app.root_path)
+                    upload_dir = os.path.join(project_root, current_app.config['UPLOAD_FOLDER'], 'booking_rooms', str(room.id))
+                    os.makedirs(upload_dir, exist_ok=True)
+                    filepath = os.path.join(upload_dir, filename)
+                    file.save(filepath)
+                    room.image_path = os.path.join('booking_rooms', str(room.id), filename).replace('\\', '/')
+
+        ensure_room_calendar(room)
+        db.session.commit()
+        flash(f'Raum "{room.name}" wurde aktualisiert.', 'success')
+        return _settings_redirect('settings.booking_rooms')
+
+    all_forms = BookingForm.query.order_by(BookingForm.title).all()
+    return render_template('booking/admin/room_edit.html', room=room, all_forms=all_forms, is_new=False)
+
+
+@settings_bp.route('/admin/booking-rooms/<int:room_id>/delete', methods=['POST'])
+@login_required
+def booking_room_delete(room_id):
+    """Delete room (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.booking import BookingRoom
+    room = BookingRoom.query.get_or_404(room_id)
+    name = room.name
+    # Soft delete / deactive or delete
+    if room.requests:
+        room.is_active = False
+        db.session.commit()
+        flash(f'Raum "{name}" besitzt bestehende Buchungen und wurde daher deaktiviert.', 'info')
+    else:
+        if room.calendar_id:
+            from app.models.calendar import Calendar
+            cal = Calendar.query.get(room.calendar_id)
+            if cal:
+                db.session.delete(cal)
+        db.session.delete(room)
+        db.session.commit()
+        flash(f'Raum "{name}" wurde gelöscht.', 'success')
+
+    return _settings_redirect('settings.booking_rooms')

@@ -11,6 +11,7 @@ from app import db
 from app.models.calendar import CalendarEvent, EventParticipant
 from app.models.chat import Chat, ChatMember, ChatMessage
 from app.models.file import Folder
+from app.utils.private_files import can_view_folder
 from app.models.user import User
 from app.utils.access_control import has_module_access, get_guest_accessible_items
 from app.utils.i18n import translate
@@ -372,6 +373,9 @@ def send_message(chat_id):
         folder = Folder.query.get(folder_id)
         if not folder:
             return jsonify({"success": False, "error": "Ordner wurde nicht gefunden."}), 404
+
+        if not can_view_folder(folder, current_user):
+            return jsonify({"success": False, "error": "Keine Berechtigung für diesen Ordner."}), 403
 
         if current_user.is_guest:
             _, guest_folders = get_guest_accessible_items(current_user)

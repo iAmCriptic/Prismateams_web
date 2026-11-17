@@ -124,6 +124,53 @@
         let searchTimeout;
         const searchInput = document.getElementById('search-query');
         const searchBtn = document.getElementById('search-btn');
+        const WISH_DEVICE_KEY = 'mwish_device_fp';
+        const WISH_DEVICE_COOKIE = 'mwish_did';
+
+        function readCookie(name) {
+            const parts = (';cookie || '').split(';');
+            for (let i = 0; i < parts.length; i++) {
+                const p = parts[i].trim();
+                if (p.indexOf(name + '=') === 0) {
+                    return decodeURIComponent(p.slice(name.length + 1));
+                }
+            }
+            return '';
+        }
+
+        function isValidDeviceFp(value) {
+            return typeof value === 'string' && /^[A-Za-z0-9_-]{16,64}$/.test(value);
+        }
+
+        function randomDeviceFp() {
+            const bytes = new Uint8Array(16);
+            if (window.crypto && window.crypto.getRandomValues) {
+                window.crypto.getRandomValues(bytes);
+            } else {
+                for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+            }
+            let out = '';
+            for (let i = 0; i < bytes.length; i++) {
+                out += bytes[i].toString(16).padStart(2, '0');
+            }
+            return out;
+        }
+
+        function getWishDeviceFp() {
+            let fp = '';
+            try { fp = localStorage.getItem(WISH_DEVICE_KEY) || ''; } catch (e) { /* ignore */ }
+            if (!isValidDeviceFp(fp)) {
+                fp = readCookie(WISH_DEVICE_COOKIE);
+            }
+            if (!isValidDeviceFp(fp)) {
+                fp = randomDeviceFp();
+            }
+            try { localStorage.setItem(WISH_DEVICE_KEY, fp); } catch (e) { /* ignore */ }
+            return fp;
+        }
+
+        // Fingerabdruck früh erzeugen und Cookie vom Server mit lokalem Key abstimmen
+        getWishDeviceFp();
 
         function providerLabel(provider) {
             if (provider === 'spotify') return 'Spotify';
@@ -260,14 +307,22 @@
             formData.append('track_url', track.url || '');
             formData.append('image_url', track.image_url || '');
             formData.append('duration_ms', track.duration_ms || '');
+            const deviceFp = getWishDeviceFp();
+            formData.append('device_fp', deviceFp);
 
-            fetch('/music/wishlist', { method: 'POST', body: formData })
-            .then(function (response) { return response.json(); })
-            .then(function (data) {
+            fetch('/music/wishlist', {
+                method: 'POST',
+                body: formData,
+                credentials: 'same-origin',
+                headers: { 'X-Wish-Device': deviceFp }
+            })
+            .then(function (response) { return response.json().then(function (data) { return { ok: response.ok, status: response.status, data: data }; }); })
+            .then(function (result) {
+                const data = result.data || {};
                 const successMsg = document.getElementById('success-message');
                 const errorMsg = document.getElementById('error-message');
-                if (data.error) {
-                    setPortalMsgText(errorMsg, data.error);
+                if (!result.ok || data.error) {
+                    setPortalMsgText(errorMsg, data.error || translations.searchError.replace('{error}', String(result.status)));
                     errorMsg.hidden = false;
                     successMsg.hidden = true;
                     return;

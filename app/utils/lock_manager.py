@@ -430,6 +430,15 @@ def try_acquire_email_sync_leader(lock_dir=None):
     return manager.try_acquire_persistent('email_sync_leader')
 
 
+def try_acquire_background_jobs_leader(lock_dir=None):
+    """
+    QA G05: Nur ein Gunicorn-Worker startet IntervalScheduler / Auto-Sync.
+    Returns HeldLock oder None.
+    """
+    manager = get_lock_manager(lock_dir=lock_dir)
+    return manager.try_acquire_persistent('background_jobs_leader')
+
+
 def heartbeat_email_sync_lock():
     """Aktualisiert Heartbeat der Sync-Lock-Datei während langer Syncs."""
     get_lock_manager().touch_lock('email_sync')

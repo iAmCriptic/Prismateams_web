@@ -5,90 +5,120 @@
 
 {% block settings_content %}
 <div class="sp-page sp-page--fluid settings-admin-booking">
+  <div class="mod-back-row mb-3">
+    <a href="{{ url_for('settings.index') }}" class="mod-back-link">
+      <i class="bi bi-arrow-left" aria-hidden="true"></i>
+      <span>{{ _('layout.nav.back') }}</span>
+    </a>
+  </div>
+
   <header class="sp-page-header settings-admin-booking-header">
     <div class="settings-admin-booking-header-text">
       <h1 class="sp-page-title">
         <i class="bi bi-calendar-check" aria-hidden="true"></i>
-        <span>{{ _('settings.admin.booking_forms.heading') }}</span>
+        <span>Raumbuchung</span>
       </h1>
       <p class="sp-page-lead">{{ _('settings.admin.booking_forms.lead_short') }}</p>
     </div>
     <div class="settings-admin-booking-header-actions">
-      <a href="{{ url_for('settings.booking_form_create') }}" class="btn btn-accent rounded-pill mod-pill-btn">
+      <a href="{{ url_for('settings.booking_form_create') }}" class="btn mod-pill-btn mod-pill-btn--accent">
         <i class="bi bi-plus-lg" aria-hidden="true"></i>
-        {{ _('settings.admin.booking_forms.create') }}
+        <span>{{ _('settings.admin.booking_forms.create') }}</span>
       </a>
     </div>
   </header>
 
-  <section class="sp-group" id="booking-forms-list" data-settings-search-id="booking-forms-list" aria-labelledby="booking-forms-list-title">
-    <div class="sp-group-head">
-      <h2 id="booking-forms-list-title" class="sp-group-title">
-        <i class="bi bi-list-ul" aria-hidden="true"></i>
-        {{ _('settings.admin.booking_forms.list_title') }}
-        {% if forms %}<span class="badge rounded-pill text-bg-secondary">{{ forms|length }}</span>{% endif %}
-      </h2>
-    </div>
-    <div class="sp-group-body p-0">
-      {% if forms %}
-      <div class="mod-list-table-wrap">
-        <table class="table mod-list-table align-middle mb-0">
-          <thead>
-            <tr>
-              <th scope="col">{{ _('settings.admin.booking_forms.title_label') }}</th>
-              <th scope="col" class="d-none d-md-table-cell">{{ _('settings.admin.booking_forms.col_requests') }}</th>
-              <th scope="col" class="d-none d-lg-table-cell">{{ _('settings.admin.booking_forms.created') }}</th>
-              <th scope="col" class="text-end"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for form in forms %}
-            <tr class="mod-list-row">
-              <td>
-                <a href="{{ url_for('settings.booking_form_edit', form_id=form.id) }}" class="settings-admin-booking-list-link">
-                  <span class="mod-list-name">{{ form.title }}</span>
+  <div class="d-flex align-items-center gap-2 mb-3" role="tablist" aria-label="Raumbuchung Moduleinstellungen">
+    <a class="btn mod-pill-btn mod-pill-btn--outline-muted" href="{{ url_for('settings.booking_rooms') }}">
+      <i class="bi bi-door-open me-1" aria-hidden="true"></i> Räume
+    </a>
+    <a class="btn mod-pill-btn mod-pill-btn--accent" href="{{ url_for('settings.booking_forms') }}">
+      <i class="bi bi-ui-checks me-1" aria-hidden="true"></i> Buchungsformulare
+    </a>
+  </div>
+
+  {% if forms %}
+  <div class="mod-list-table-wrap sp-list-wrap">
+    <table class="table mod-list-table align-middle mb-0">
+      <thead>
+        <tr>
+          <th scope="col">{{ _('settings.admin.booking_forms.title_label') }}</th>
+          <th scope="col" class="d-none d-md-table-cell" style="width: 24%;">{{ _('settings.admin.booking_forms.col_requests') }}</th>
+          <th scope="col" class="d-none d-lg-table-cell" style="width: 20%;">{{ _('settings.admin.booking_forms.created') }}</th>
+          <th scope="col" class="d-none d-sm-table-cell" style="width: 16%;">Status</th>
+          <th scope="col" class="text-end" style="width: 5.5rem;"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for form in forms %}
+        <tr class="mod-list-row">
+          <td class="mod-list-name-cell">
+            <div class="d-flex align-items-center gap-2">
+              <a href="{{ url_for('settings.booking_form_edit', form_id=form.id) }}" class="fw-semibold text-decoration-none text-body">
+                {{ form.title }}
+              </a>
+            </div>
+            {% if form.description %}
+            <div class="text-muted small text-truncate" style="max-width: 420px;">{{ form.description }}</div>
+            {% endif %}
+          </td>
+          <td class="d-none d-md-table-cell text-muted">
+            {{ _('settings.admin.booking_forms.requests_count', count=form.requests|length) }}
+          </td>
+          <td class="d-none d-lg-table-cell text-muted">
+            {{ form.created_at|localdatetime('%d.%m.%Y') }}
+          </td>
+          <td class="d-none d-sm-table-cell">
+            {% if form.is_active %}
+            <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill">{{ _('settings.admin.booking_forms.status_active') }}</span>
+            {% else %}
+            <span class="badge bg-secondary-subtle text-secondary border rounded-pill">{{ _('settings.admin.booking_forms.status_inactive') }}</span>
+            {% endif %}
+          </td>
+          <td class="text-end">
+            <div class="mod-list-actions">
+              <div class="mod-list-hover-actions">
+                <a href="{{ url_for('settings.booking_form_edit', form_id=form.id) }}" class="btn btn-sm btn-link text-muted" title="{{ _('settings.admin.booking_forms.edit') }}">
+                  <i class="bi bi-pencil"></i>
                 </a>
-                <div class="settings-admin-users-meta">
-                  {% if form.is_active %}
-                  <span class="badge rounded-pill text-bg-success">{{ _('settings.admin.booking_forms.status_active') }}</span>
-                  {% else %}
-                  <span class="badge rounded-pill text-bg-secondary">{{ _('settings.admin.booking_forms.status_inactive') }}</span>
-                  {% endif %}
-                  {% if form.description %}
-                  <span>{{ form.description[:90] }}{% if form.description|length > 90 %}…{% endif %}</span>
-                  {% endif %}
-                </div>
-              </td>
-              <td class="d-none d-md-table-cell">{{ _('settings.admin.booking_forms.requests_count', count=form.requests|length) }}</td>
-              <td class="d-none d-lg-table-cell">{{ form.created_at|localdatetime('%d.%m.%Y') }}</td>
-              <td class="text-end">
-                <div class="settings-admin-booking-row-actions">
-                  <a href="{{ url_for('settings.booking_form_edit', form_id=form.id) }}" class="btn btn-sm btn-outline-secondary rounded-pill" title="{{ _('settings.admin.booking_forms.edit') }}">
-                    <i class="bi bi-pencil" aria-hidden="true"></i>
-                  </a>
-                  <form method="POST" action="{{ url_for('settings.booking_form_delete', form_id=form.id) }}" data-sp-no-autosave>
-                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill" data-confirm-delete="{{ _('settings.admin.booking_forms.delete_confirm') }}" title="{{ _('settings.admin.booking_forms.delete') }}">
-                      <i class="bi bi-trash" aria-hidden="true"></i>
-                    </button>
-                  </form>
-                </div>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <div class="settings-admin-booking-empty">
-        <i class="bi bi-calendar-plus" aria-hidden="true"></i>
-        <p>{{ _('settings.admin.booking_forms.empty') }}</p>
-        <a href="{{ url_for('settings.booking_form_create') }}" class="btn btn-accent rounded-pill mod-pill-btn">
-          <i class="bi bi-plus-lg" aria-hidden="true"></i>
-          {{ _('settings.admin.booking_forms.create') }}
-        </a>
-      </div>
-      {% endif %}
-    </div>
-  </section>
+              </div>
+              <div class="dropdown d-inline-block">
+                <button class="btn btn-sm btn-link text-muted" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-label="{{ _('common.actions') }}">
+                  <i class="bi bi-three-dots-vertical"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
+                  <li>
+                    <a class="dropdown-item" href="{{ url_for('settings.booking_form_edit', form_id=form.id) }}">
+                      <i class="bi bi-pencil me-2"></i>{{ _('settings.admin.booking_forms.edit') }}
+                    </a>
+                  </li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li>
+                    <form method="POST" action="{{ url_for('settings.booking_form_delete', form_id=form.id) }}" data-sp-no-autosave>
+                      <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('settings.admin.booking_forms.delete_confirm') }}">
+                        <i class="bi bi-trash me-2"></i>{{ _('settings.admin.booking_forms.delete') }}
+                      </button>
+                    </form>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="sp-list-wrap p-5 text-center text-muted">
+    <i class="bi bi-ui-checks display-4 mb-3 opacity-50"></i>
+    <h5>{{ _('settings.admin.booking_forms.empty_title') }}</h5>
+    <p class="mb-3">{{ _('settings.admin.booking_forms.empty_help') }}</p>
+    <a href="{{ url_for('settings.booking_form_create') }}" class="btn mod-pill-btn mod-pill-btn--accent">
+      <i class="bi bi-plus-lg" aria-hidden="true"></i>
+      {{ _('settings.admin.booking_forms.create') }}
+    </a>
+  </div>
+  {% endif %}
 </div>
 {% endblock %}

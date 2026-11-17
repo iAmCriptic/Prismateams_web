@@ -24,22 +24,16 @@ def allowed_import_spaces_for_user(user) -> list[dict[str, Any]]:
     if not user:
         return options
 
-    if is_private_folders_enabled():
-        options.append({
-            'space': 'personal',
-            'label_key': 'settings.cloud_import.space.personal',
-            'team_id': None,
-        })
-    else:
-        # Personal root still exists conceptually; allow personal when private folders off
-        # only if we fall back — plan says every user can import to personal.
+    from app.utils.user_content_access import user_may_access_private, user_may_access_public
+
+    if user_may_access_private(user):
         options.append({
             'space': 'personal',
             'label_key': 'settings.cloud_import.space.personal',
             'team_id': None,
         })
 
-    if getattr(user, 'is_admin', False):
+    if getattr(user, 'is_admin', False) and user_may_access_public(user):
         options.insert(0, {
             'space': 'public',
             'label_key': 'settings.cloud_import.space.public',
@@ -65,13 +59,17 @@ def allowed_import_spaces_for_user(user) -> list[dict[str, Any]]:
 
 def assert_can_import_to_space(user, space: str, team_id: Optional[int] = None) -> None:
     space = (space or '').strip().lower()
+    from app.utils.user_content_access import user_may_access_private, user_may_access_public
+
     if space == 'personal':
         if not user or not getattr(user, 'id', None):
             raise CloudImportPermissionError('not_authenticated')
+        if not user_may_access_private(user):
+            raise CloudImportPermissionError('private_forbidden')
         return
 
     if space == 'public':
-        if not getattr(user, 'is_admin', False):
+        if not getattr(user, 'is_admin', False) or not user_may_access_public(user):
             raise CloudImportPermissionError('admin_required')
         return
 

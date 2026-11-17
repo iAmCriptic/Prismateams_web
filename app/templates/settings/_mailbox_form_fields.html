@@ -8,7 +8,7 @@
 <div class="settings-admin-email-fields mb-3">
     <div class="settings-admin-email-field">
         <label class="form-label" for="name">{{ _('settings.mailboxes.name') }}</label>
-        <input type="text" class="form-control" id="name" name="name" required
+        <input type="text" class="form-control mod-pill-input" id="name" name="name" required
                value="{{ mb.display_name if mb else '' }}">
         <div class="form-text">{{ _('settings.mailboxes.name_help') }}</div>
     </div>
@@ -24,20 +24,20 @@
     {% endif %}
     <div class="settings-admin-email-field">
         <label class="form-label" for="color">{{ _('settings.mailboxes.color') }}</label>
-        <input type="color" class="form-control form-control-color" id="color" name="color"
-               value="{{ mb.color if mb else '#0d6efd' }}">
+        <input type="color" class="form-control form-control-color mailbox-color-input" id="color" name="color"
+               value="{{ mb.color if mb and mb.color else (current_user.accent_color or '#000000') }}">
     </div>
 </div>
 
 <h3 class="h6 mt-3">{{ _('settings.mailboxes.smtp_section') }}</h3>
 <div class="settings-admin-email-fields mb-3">
     <div class="settings-admin-email-field">
-        <label class="form-label" for="smtp_server">SMTP Server</label>
-        <input type="text" class="form-control" id="smtp_server" name="smtp_server" value="{{ mb.smtp_server if mb else '' }}">
+        <label class="form-label" for="smtp_server">{{ _('settings.mailboxes.smtp_server') }}</label>
+        <input type="text" class="form-control mod-pill-input" id="smtp_server" name="smtp_server" value="{{ mb.smtp_server if mb else '' }}">
     </div>
     <div class="settings-admin-email-field">
-        <label class="form-label" for="smtp_port">SMTP Port</label>
-        <input type="number" class="form-control" id="smtp_port" name="smtp_port" value="{{ mb.smtp_port if mb and mb.smtp_port else 587 }}">
+        <label class="form-label" for="smtp_port">{{ _('settings.mailboxes.smtp_port') }}</label>
+        <input type="number" class="form-control mod-pill-input" id="smtp_port" name="smtp_port" value="{{ mb.smtp_port if mb and mb.smtp_port else 587 }}">
     </div>
     <div class="settings-admin-email-field">
         <div class="form-check form-switch">
@@ -53,38 +53,38 @@
         <div class="form-text">{{ _('settings.mailboxes.smtp_ssl_help') }}</div>
     </div>
     <div class="settings-admin-email-field">
-        <label class="form-label" for="smtp_username">SMTP User</label>
-        <input type="text" class="form-control" id="smtp_username" name="smtp_username" value="{{ mb.smtp_username if mb else '' }}">
+        <label class="form-label" for="smtp_username">{{ _('settings.mailboxes.smtp_username') }}</label>
+        <input type="text" class="form-control mod-pill-input" id="smtp_username" name="smtp_username" value="{{ mb.smtp_username if mb else '' }}">
     </div>
     <div class="settings-admin-email-field">
-        <label class="form-label" for="smtp_password">SMTP Passwort</label>
-        <input type="password" class="form-control" id="smtp_password" name="smtp_password" placeholder="{% if mb and mb.smtp_password_enc %}••••••••{% endif %}" autocomplete="new-password">
+        <label class="form-label" for="smtp_password">{{ _('settings.mailboxes.smtp_password') }}</label>
+        <input type="password" class="form-control mod-pill-input" id="smtp_password" name="smtp_password" placeholder="{% if mb and mb.smtp_password_enc %}••••••••{% endif %}" autocomplete="new-password">
     </div>
 </div>
 
 <h3 class="h6 mt-3">{{ _('settings.mailboxes.imap_section') }}</h3>
 <div class="settings-admin-email-fields mb-3">
     <div class="settings-admin-email-field">
-        <label class="form-label" for="imap_server">IMAP Server</label>
-        <input type="text" class="form-control" id="imap_server" name="imap_server" value="{{ mb.imap_server if mb else '' }}">
+        <label class="form-label" for="imap_server">{{ _('settings.mailboxes.imap_server') }}</label>
+        <input type="text" class="form-control mod-pill-input" id="imap_server" name="imap_server" value="{{ mb.imap_server if mb else '' }}">
     </div>
     <div class="settings-admin-email-field">
-        <label class="form-label" for="imap_port">IMAP Port</label>
-        <input type="number" class="form-control" id="imap_port" name="imap_port" value="{{ mb.imap_port if mb and mb.imap_port else 993 }}">
+        <label class="form-label" for="imap_port">{{ _('settings.mailboxes.imap_port') }}</label>
+        <input type="number" class="form-control mod-pill-input" id="imap_port" name="imap_port" value="{{ mb.imap_port if mb and mb.imap_port else 993 }}">
     </div>
     <div class="settings-admin-email-field">
         <div class="form-check form-switch">
             <input class="form-check-input" type="checkbox" id="imap_use_ssl" name="imap_use_ssl" {% if not mb or mb.imap_use_ssl %}checked{% endif %}>
-            <label class="form-check-label" for="imap_use_ssl">SSL</label>
+            <label class="form-check-label" for="imap_use_ssl">{{ _('settings.mailboxes.imap_ssl') }}</label>
         </div>
     </div>
     <div class="settings-admin-email-field">
-        <label class="form-label" for="imap_username">IMAP User</label>
-        <input type="text" class="form-control" id="imap_username" name="imap_username" value="{{ mb.imap_username if mb else '' }}">
+        <label class="form-label" for="imap_username">{{ _('settings.mailboxes.imap_username') }}</label>
+        <input type="text" class="form-control mod-pill-input" id="imap_username" name="imap_username" value="{{ mb.imap_username if mb else '' }}">
     </div>
     <div class="settings-admin-email-field">
-        <label class="form-label" for="imap_password">IMAP Passwort</label>
-        <input type="password" class="form-control" id="imap_password" name="imap_password" placeholder="{% if mb and mb.imap_password_enc %}••••••••{% endif %}" autocomplete="new-password">
+        <label class="form-label" for="imap_password">{{ _('settings.mailboxes.imap_password') }}</label>
+        <input type="password" class="form-control mod-pill-input" id="imap_password" name="imap_password" placeholder="{% if mb and mb.imap_password_enc %}••••••••{% endif %}" autocomplete="new-password">
     </div>
 </div>
 
@@ -93,7 +93,7 @@
     {% if show_footer %}
     <div class="settings-admin-email-field">
         <label class="form-label" for="footer_html">{{ _('settings.mailboxes.footer') }}</label>
-        <textarea class="form-control" id="footer_html" name="footer_html" rows="4">{{ mb.footer_html if mb and mb.footer_html else '' }}</textarea>
+        <textarea class="form-control mod-pill-input" id="footer_html" name="footer_html" rows="4">{{ mb.footer_html if mb and mb.footer_html else '' }}</textarea>
         <div class="form-text">{{ _('settings.mailboxes.footer_help') }}</div>
     </div>
     {% endif %}
@@ -102,7 +102,7 @@
         <label class="form-label" for="logo">{{ _('settings.mailboxes.logo') }}</label>
         {% if mb and mb.logo_filename %}
         <div class="mb-2">
-            <img src="{{ url_for('settings.mailbox_logo', filename=mb.logo_filename) }}" alt="" style="max-height:48px;">
+            <img src="{{ url_for('settings.mailbox_logo', filename=mb.logo_filename) }}" alt="" class="mailbox-logo-thumb">
         </div>
         {% endif %}
         <input type="file" class="form-control" id="logo" name="logo" accept="image/png,image/jpeg,image/gif,image/webp">

@@ -1,4 +1,7 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import (
+    Blueprint, render_template, request, redirect, url_for, flash, jsonify,
+    current_app, make_response, session,
+)
 from flask_login import login_required, current_user
 from app import db
 from app.models.music import MusicProviderToken, MusicWish, MusicQueue, MusicSettings
@@ -15,12 +18,114 @@ from app.utils.system_settings_cache import get_setting
 from sqlalchemy.orm import joinedload
 from sqlalchemy import func, case
 from datetime import datetime
-import secrets
 import logging
+import re
+import secrets
+import threading
+import time
 
 logger = logging.getLogger(__name__)
 
 music_bp = Blueprint('music', __name__, url_prefix='/music')
+
+# Öffentliche Wunschliste: max. 5 Absendungen / 10 Minuten pro Geräte-Fingerabdruck
+# (nicht IP — damit mehrere Handys im gleichen WLAN unabhängig wünschen können)
+_WISH_SUBMIT_LIMIT = 5
+_WISH_SUBMIT_WINDOW_SEC = 10 * 60
+_WISH_DEVICE_COOKIE = 'mwish_did'
+_WISH_DEVICE_RE = re.compile(r'^[A-Za-z0-9_-]{16,64}$')
+_wish_submit_lock = threading.Lock()
+_wish_submit_memory: dict[str, list[float]] = {}
+
+
+def _normalize_wish_device_fp(raw: str | None) -> str | None:
+    value = (raw or '').strip()
+    if _WISH_DEVICE_RE.fullmatch(value):
+        return value.lower()
+    return None
+
+
+def _wishlist_device_key() -> str:
+    """Stabiler Geräte-Key aus Client-Fingerabdruck, Cookie oder Session."""
+    raw = (
+        request.form.get('device_fp')
+        or request.headers.get('X-Wish-Device')
+        or request.cookies.get(_WISH_DEVICE_COOKIE)
+        or ''
+    )
+    fp = _normalize_wish_device_fp(raw)
+    if fp:
+        return f'fp:{fp}'
+
+    sid = session.get('music_wish_device')
+    if not isinstance(sid, str) or not _WISH_DEVICE_RE.fullmatch(sid):
+        sid = secrets.token_hex(16)
+        session['music_wish_device'] = sid
+    return f'sess:{sid}'
+
+
+def _attach_wish_device_cookie(response, device_fp: str | None = None):
+    """Persistenter Geräte-Cookie (1 Jahr) für Wunsch-Limit ohne IP."""
+    fp = _normalize_wish_device_fp(device_fp) or _normalize_wish_device_fp(
+        request.cookies.get(_WISH_DEVICE_COOKIE)
+    )
+    if not fp:
+        fp = secrets.token_hex(16)
+    response.set_cookie(
+        _WISH_DEVICE_COOKIE,
+        fp,
+        max_age=365 * 24 * 3600,
+        httponly=False,
+        samesite='Lax',
+        secure=bool(current_app.config.get('SESSION_COOKIE_SECURE')),
+        path='/',
+    )
+    return response
+
+
+def _wishlist_submit_allowed(device_key: str | None = None) -> tuple[bool, int]:
+    """
+    True wenn unter dem Limit (5 / 10 Min) für diesen Geräte-Fingerabdruck.
+    Bei False: Retry-After in Sekunden.
+    """
+    bucket = device_key or _wishlist_device_key()
+    now = time.time()
+    cutoff = now - _WISH_SUBMIT_WINDOW_SEC
+    key = f'music:wishlist:submits:{bucket}'
+
+    try:
+        from app.blueprints.sse import get_redis_client
+        client = get_redis_client()
+        if client is not None:
+            client.zremrangebyscore(key, 0, cutoff)
+            count = int(client.zcard(key) or 0)
+            if count >= _WISH_SUBMIT_LIMIT:
+                oldest = client.zrange(key, 0, 0, withscores=True)
+                if oldest:
+                    retry = int(_WISH_SUBMIT_WINDOW_SEC - (now - float(oldest[0][1]))) + 1
+                else:
+                    retry = _WISH_SUBMIT_WINDOW_SEC
+                return False, max(retry, 1)
+            member = f'{now:.6f}:{secrets.token_hex(4)}'
+            client.zadd(key, {member: now})
+            client.expire(key, _WISH_SUBMIT_WINDOW_SEC + 60)
+            return True, 0
+    except Exception as exc:
+        logger.debug('Wishlist-Limit Redis fallback: %s', exc)
+
+    with _wish_submit_lock:
+        stamps = [t for t in _wish_submit_memory.get(bucket, []) if t > cutoff]
+        if len(stamps) >= _WISH_SUBMIT_LIMIT:
+            retry = int(_WISH_SUBMIT_WINDOW_SEC - (now - stamps[0])) + 1
+            _wish_submit_memory[bucket] = stamps
+            return False, max(retry, 1)
+        stamps.append(now)
+        _wish_submit_memory[bucket] = stamps
+        if len(_wish_submit_memory) > 5000:
+            stale = [k for k, v in _wish_submit_memory.items() if not v or v[-1] < cutoff]
+            for k in stale[:1000]:
+                _wish_submit_memory.pop(k, None)
+        return True, 0
 
 
 def get_cached_system_setting(key):
@@ -55,6 +160,24 @@ def public_wishlist():
         
         if not all([provider, track_id, title]):
             return jsonify({'error': translate('music.flash.missing_data')}), 400
+
+        # Max. 5 Wünsche / 10 Min. pro Geräte-Fingerabdruck (WLAN-tauglich)
+        device_key = _wishlist_device_key()
+        allowed, retry_after = _wishlist_submit_allowed(device_key)
+        if not allowed:
+            minutes = max(1, (retry_after + 59) // 60)
+            resp = jsonify({
+                'error': translate(
+                    'music.flash.wish_limit',
+                    limit=_WISH_SUBMIT_LIMIT,
+                    minutes=10,
+                    retry_minutes=minutes,
+                ),
+                'retry_after': retry_after,
+            })
+            resp.status_code = 429
+            resp.headers['Retry-After'] = str(retry_after)
+            return _attach_wish_device_cookie(resp, request.form.get('device_fp'))
         
         # Prüfe ob Lied bereits existiert (beliebiger Status)
         existing = MusicWish.query.filter_by(
@@ -83,7 +206,8 @@ def public_wishlist():
                 }
             })
             
-            return jsonify({'success': True, 'message': translate('music.flash.wish_count_increased', count=existing.wish_count)})
+            resp = jsonify({'success': True, 'message': translate('music.flash.wish_count_increased', count=existing.wish_count)})
+            return _attach_wish_device_cookie(resp, request.form.get('device_fp'))
         
         # Erstelle neuen Wunsch
         wish = MusicWish(
@@ -116,7 +240,8 @@ def public_wishlist():
             }
         })
         
-        return jsonify({'success': True, 'message': translate('music.flash.wish_added')})
+        resp = jsonify({'success': True, 'message': translate('music.flash.wish_added')})
+        return _attach_wish_device_cookie(resp, request.form.get('device_fp'))
     
     # GET: Zeige Suchseite
     # Hole Einstellungen für Template (mit Cache)
@@ -146,7 +271,7 @@ def public_wishlist():
     accent_color = get_cached_system_setting('default_accent_color') or '#0d6efd'
     accent_style = f'linear-gradient(45deg, {accent_color}, {accent_color})'
     
-    return render_template('music/public_wishlist.html', 
+    html = render_template('music/public_wishlist.html', 
                          has_providers=has_providers,
                          enabled_providers=enabled_providers,
                          color_gradient=color_gradient,
@@ -156,6 +281,7 @@ def public_wishlist():
                          show_provider_badges=show_provider_badges,
                          accent_color=accent_color,
                          accent_style=accent_style)
+    return _attach_wish_device_cookie(make_response(html))
 
 
 @music_bp.route('/wishlist/search', methods=['POST'])

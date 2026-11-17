@@ -18,7 +18,8 @@ Allgemein:
 
 Anwendung / Gunicorn:
   --port PORT                Gunicorn-Port (Standard: 5000)
-  --workers N                Gunicorn-Worker (Standard: 2; Redis für SocketIO bei N>1)
+  --workers N                Gunicorn-Worker (Standard: 2; bei N>1 ist Redis Pflicht)
+  --profile PROFILE          Install-Profil: default | small (2-GB-VPS: 2×4 Threads, schlanke Caps)
   --no-gunicorn              Keinen systemd-Service anlegen
 
 Webserver:
@@ -44,6 +45,8 @@ Optionale Dienste:
   --excalidraw               Excalidraw-Room installieren
   --skip-mirotalk            MiroTalk SFU (Meetings) überspringen
   --mirotalk                 MiroTalk SFU installieren
+  --force-heavy-sidecars     Euro-Office/MiroTalk trotz small/Low-RAM erlauben (nicht empfohlen)
+  --force-multi-worker-no-redis  workers>1 ohne Redis erlauben (nicht empfohlen; SSE/SocketIO)
   --skip-media-downloader    FFmpeg/Media Downloader überspringen
   --ffmpeg                   FFmpeg installieren
 
@@ -56,6 +59,7 @@ Optionale Dienste:
 Beispiele:
   sudo bash scripts/install_ubuntu.sh
   sudo bash scripts/install_ubuntu.sh --port 8000 --workers 4 --webserver nginx
+  sudo bash scripts/install_ubuntu.sh --profile small --webserver nginx --domain example.com
   sudo bash scripts/install_ubuntu.sh --repo-url https://github.com/ME/fork.git --branch Development
   sudo bash scripts/install_ubuntu.sh --no-webserver --skip-onlyoffice --ffmpeg
   sudo bash scripts/install_ubuntu.sh --non-interactive --install-dir /var/www/tp --domain example.com --webserver nginx
@@ -90,6 +94,11 @@ parse_arguments() {
             --workers)
                 [ -n "${2:-}" ] || error_exit "--workers erfordert eine Zahl"
                 GUNICORN_WORKERS="$2"
+                shift 2
+                ;;
+            --profile)
+                [ -n "${2:-}" ] || error_exit "--profile erfordert default oder small"
+                INSTALL_PROFILE="$2"
                 shift 2
                 ;;
             --no-gunicorn)
@@ -180,6 +189,14 @@ parse_arguments() {
             --mirotalk)
                 INSTALL_MIROTALK="j"
                 INSTALL_DOCKER="j"
+                shift
+                ;;
+            --force-heavy-sidecars)
+                FORCE_HEAVY_SIDECARS="j"
+                shift
+                ;;
+            --force-multi-worker-no-redis)
+                FORCE_MULTI_WORKER_NO_REDIS="j"
                 shift
                 ;;
             --skip-media-downloader)
