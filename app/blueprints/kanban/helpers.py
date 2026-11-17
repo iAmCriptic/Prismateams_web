@@ -354,11 +354,11 @@ def _board_cover_url(board: KanbanBoard) -> str | None:
         return None
     if path.startswith(('http://', 'https://')):
         return path
+    if _board_cover_file_path(board):
+        return url_for('kanban.board_background', board_id=board.id)
     if path.startswith('/') and not path.startswith('//'):
         # Already an app-relative URL (legacy)
         return path
-    if _board_cover_file_path(board):
-        return url_for('kanban.board_background', board_id=board.id)
     return None
 
 

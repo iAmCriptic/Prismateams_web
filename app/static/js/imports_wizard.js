@@ -916,29 +916,42 @@
         var ids = state.selectedTrelloBoards.map(function (b) { return b.id; });
         var visSelect = document.getElementById('wizardKanbanTarget');
         var visVal = visSelect ? visSelect.value : 'private';
-        var payload = { board_ids: ids, visibility: visVal.indexOf('team:') === 0 ? 'team' : visVal };
-        if (visVal.indexOf('team:') === 0) payload.team_id = visVal.slice(5);
+        var basePayload = { visibility: visVal.indexOf('team:') === 0 ? 'team' : visVal };
+        if (visVal.indexOf('team:') === 0) basePayload.team_id = visVal.slice(5);
         startBtn.disabled = true;
         toast(msg('saving'), 'saving');
+        var importedBoards = [];
+        var lastError = null;
         try {
-          var tres = await fetch(root.getAttribute('data-url-trello-import'), {
-            method: 'POST',
-            headers: Object.assign({ 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, csrfHeaders()),
-            body: JSON.stringify(payload),
-          });
-          var tdata = await tres.json().catch(function () { return {}; });
-          if (tres.ok && tdata.success) {
-            var boards = tdata.boards || [];
-            renderKanbanResults(boards);
+          for (var bi = 0; bi < ids.length; bi++) {
+            var payload = Object.assign({ board_ids: [ids[bi]] }, basePayload);
+            var tres = await fetch(root.getAttribute('data-url-trello-import'), {
+              method: 'POST',
+              headers: Object.assign({ 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, csrfHeaders()),
+              body: JSON.stringify(payload),
+            });
+            var tdata = await tres.json().catch(function () { return {}; });
+            if (tres.ok && tdata.success && tdata.boards) {
+              importedBoards = importedBoards.concat(tdata.boards);
+              renderKanbanResults(importedBoards);
+            } else {
+              lastError = tdata.error || msg('failed');
+            }
+          }
+          if (importedBoards.length) {
             toast(
-              boards.length === 1 ? msg('done-one') : msg('done-many').replace('{count}', String(boards.length)),
+              importedBoards.length === 1 ? msg('done-one') : msg('done-many').replace('{count}', String(importedBoards.length)),
               'success'
             );
           } else {
-            showStepError(4, tdata.error || msg('failed'));
+            showStepError(4, lastError || msg('failed'));
           }
         } catch (_) {
-          showStepError(4, msg('failed'));
+          if (importedBoards.length) {
+            renderKanbanResults(importedBoards);
+          } else {
+            showStepError(4, msg('failed'));
+          }
         } finally {
           syncFooterButtons();
         }

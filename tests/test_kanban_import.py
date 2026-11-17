@@ -242,3 +242,33 @@ def test_settings_trello_api_connect_boards_and_import(client, import_user):
 
     r = client.post('/settings/kanban-import/trello/disconnect')
     assert r.status_code == 200
+
+
+def test_board_cover_url_prefers_local_file_over_posix_slash_prefix(app, import_user, tmp_path):
+    from app.blueprints.kanban.helpers import _board_cover_url
+
+    img_file = tmp_path / 'board-bg.jpg'
+    img_file.write_bytes(b'\xff\xd8\xff\xe0FAKEJPEG')
+    posix_like_path = '/' + str(img_file).lstrip('/').replace('\\', '/')
+
+    board = KanbanBoard(
+        title='Cover Test',
+        created_by=import_user.id,
+        visibility='private',
+        cover_path=str(img_file),
+    )
+    db.session.add(board)
+    db.session.commit()
+
+    with app.test_request_context():
+        with patch('app.blueprints.kanban.helpers._board_cover_file_path', return_value=str(img_file)):
+            board.cover_path = '/var/www/teamportal/uploads/kanban/boards/abc_bg.jpg'
+            url = _board_cover_url(board)
+            assert url is not None
+            assert not url.startswith('/var/www/')
+            assert f'/boards/{board.id}/background' in url or 'background' in url
+
+        with patch('app.blueprints.kanban.helpers._board_cover_file_path', return_value=None):
+            board.cover_path = '/static/img/bg.jpg'
+            assert _board_cover_url(board) == '/static/img/bg.jpg'
+            assert posix_like_path.startswith('/')
