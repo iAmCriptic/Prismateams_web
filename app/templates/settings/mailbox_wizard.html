@@ -1,22 +1,23 @@
 {% extends "settings/base_settings.html" %}
 
+{% set is_main_mailbox = is_main_mailbox|default(false) %}
 {% set is_edit = mailbox is not none %}
 {% set google_ready = google_oauth_ready|default(false) %}
 {% set microsoft_ready = microsoft_oauth_ready|default(false) %}
 {% set oauth_result = oauth_result|default(none) %}
 {% set initial_provider = (mailbox.provider if mailbox else (oauth_result.provider if oauth_result else 'custom')) %}
 {% set ui_provider = initial_provider if initial_provider in ('google', 'microsoft') else 'custom' %}
-{% block title %}{% if is_edit %}{{ _('settings.mailboxes.edit_title') }}{% else %}{{ _('settings.mailboxes.wizard_title') }}{% endif %}{% endblock %}
-{% block settings_mobile_title %}{% if is_edit %}{{ _('settings.mailboxes.edit_title') }}{% else %}{{ _('settings.mailboxes.wizard_title') }}{% endif %}{% endblock %}
+{% block title %}{% if is_main_mailbox %}{{ _('settings.admin.main_mailbox.page_title') }}{% elif is_edit %}{{ _('settings.mailboxes.edit_title') }}{% else %}{{ _('settings.mailboxes.wizard_title') }}{% endif %}{% endblock %}
+{% block settings_mobile_title %}{% if is_main_mailbox %}{{ _('settings.admin.main_mailbox.heading') }}{% elif is_edit %}{{ _('settings.mailboxes.edit_title') }}{% else %}{{ _('settings.mailboxes.wizard_title') }}{% endif %}{% endblock %}
 
 {% block settings_content %}
 {% set mb = mailbox %}
 {% set show_logo = show_logo|default(false) %}
 {% set show_owner = show_owner|default(false) %}
 <div class="settings-admin-email settings-mailboxes-page" id="mailboxWizard"
-     data-test-smtp-url="{{ url_for('settings.mailbox_test_smtp') }}"
-     data-test-imap-url="{{ url_for('settings.mailbox_test_imap') }}"
-     data-autodiscover-url="{{ url_for('settings.mailbox_autodiscover') }}"
+     data-test-smtp-url="{{ test_smtp_url|default(url_for('settings.mailbox_test_smtp')) }}"
+     data-test-imap-url="{{ test_imap_url|default(url_for('settings.mailbox_test_imap')) }}"
+     data-autodiscover-url="{{ autodiscover_url|default(url_for('settings.mailbox_autodiscover')) }}"
      data-oauth-start-url="{{ url_for('settings.mailbox_oauth_start', provider='PROVIDER') }}"
      data-google-ready="{{ '1' if google_ready else '0' }}"
      data-microsoft-ready="{{ '1' if microsoft_ready else '0' }}"
@@ -24,6 +25,7 @@
      data-oauth-email="{{ oauth_result.email if oauth_result else '' }}"
      data-initial-provider="{{ initial_provider }}"
      data-is-edit="{{ '1' if is_edit else '0' }}"
+     data-is-main-mailbox="{{ '1' if is_main_mailbox else '0' }}"
      data-mailbox-auth-type="{{ mailbox.auth_type if mailbox else '' }}"
      data-i18n-detecting="{{ _('settings.mailboxes.autodiscover_detecting') }}"
      data-i18n-next="{{ _('settings.mailboxes.wizard_next') }}"
@@ -38,9 +40,9 @@
 
     <div class="settings-admin-email-header">
         <h1 class="settings-admin-email-title">
-            {% if is_edit %}{{ _('settings.mailboxes.edit_title') }}{% else %}{{ _('settings.mailboxes.wizard_heading') }}{% endif %}
+            {% if is_main_mailbox %}{{ _('settings.admin.main_mailbox.heading') }}{% elif is_edit %}{{ _('settings.mailboxes.edit_title') }}{% else %}{{ _('settings.mailboxes.wizard_heading') }}{% endif %}
         </h1>
-        <p class="settings-admin-email-subtitle">{{ _('settings.mailboxes.wizard_subtitle_provider') }}</p>
+        <p class="settings-admin-email-subtitle">{% if is_main_mailbox %}{{ _('settings.admin.main_mailbox.lead') }}{% else %}{{ _('settings.mailboxes.wizard_subtitle_provider') }}{% endif %}</p>
     </div>
 
     <nav class="mailbox-wizard-steps" aria-label="{{ _('settings.mailboxes.wizard_steps_label') }}">
@@ -101,6 +103,20 @@
         <section class="settings-admin-email-card mailbox-wizard-panel" data-step="1" hidden>
             <h2 class="settings-admin-email-section-title">{{ _('settings.mailboxes.wizard_step_name') }}</h2>
             <div class="settings-admin-email-fields mailbox-wizard-fields">
+                {% if is_main_mailbox %}
+                <div class="settings-admin-email-field">
+                    <label class="form-label" for="name">{{ _('settings.admin.main_mailbox.sender_name_label') }}</label>
+                    <input type="text" class="form-control mod-pill-input" id="name" name="sender_name"
+                           placeholder="{{ _('settings.admin.main_mailbox.sender_name_placeholder') }}"
+                           value="{{ mb.display_name if mb else '' }}">
+                </div>
+                <div class="settings-admin-email-field">
+                    <label class="form-label" for="default_sender">{{ _('settings.admin.main_mailbox.default_sender_label') }}</label>
+                    <input type="email" class="form-control mod-pill-input" id="default_sender" name="default_sender"
+                           placeholder="{{ _('settings.admin.main_mailbox.default_sender_placeholder') }}"
+                           value="{{ mb.default_sender if mb else '' }}">
+                </div>
+                {% else %}
                 <div class="settings-admin-email-field">
                     <label class="form-label" for="name">{{ _('settings.mailboxes.name') }}</label>
                     <input type="text" class="form-control mod-pill-input" id="name" name="name" required
@@ -122,6 +138,7 @@
                     <input type="color" class="form-control form-control-color mailbox-color-input" id="color" name="color"
                            value="{{ mb.color if mb and mb.color else (current_user.accent_color or '#000000') }}">
                 </div>
+                {% endif %}
             </div>
             <div class="mailbox-wizard-footer">
                 <div class="mailbox-wizard-actions">
@@ -299,6 +316,9 @@
 
         <section class="settings-admin-email-card mailbox-wizard-panel" data-step="5" hidden>
             <h2 class="settings-admin-email-section-title">{{ _('settings.mailboxes.wizard_step_finish') }}</h2>
+            {% if is_main_mailbox %}
+            <p class="settings-admin-email-subtitle mb-3">{{ _('settings.admin.main_mailbox.lead') }}</p>
+            {% else %}
             <div class="settings-admin-email-fields mb-3">
                 <div class="settings-admin-email-field">
                     <label class="form-label" for="footer_html">{{ _('settings.mailboxes.footer') }}</label>
@@ -334,6 +354,7 @@
                 </div>
                 {% endif %}
             </div>
+            {% endif %}
             <div class="mailbox-wizard-footer">
                 <div class="mailbox-wizard-actions">
                     <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" id="btnFinishBack" data-prev="2">{{ _('settings.mailboxes.wizard_back') }}</button>
@@ -471,8 +492,9 @@
 
     const fallbackBox = root.querySelector('#oauthPasswordFallback');
     const fallbackHelp = root.querySelector('#oauthPasswordFallbackHelp');
-    if (fallbackBox) fallbackBox.hidden = !passwordFallback;
-    if (fallbackHelp) fallbackHelp.hidden = !passwordFallback;
+    const showFallback = passwordFallback && root.dataset.isMainMailbox !== '1';
+    if (fallbackBox) fallbackBox.hidden = !showFallback;
+    if (fallbackHelp) fallbackHelp.hidden = !showFallback;
 
     // SMTP/IMAP-Schritte nur wenn bei "Andere" der manuelle Fallback aktiv ist
     steps.forEach((s) => {
@@ -595,7 +617,7 @@
     btn.addEventListener('click', async () => {
       const next = Number(btn.dataset.next);
       if (next === 1 && !currentProvider()) return;
-      if (btn.closest('[data-step="1"]')) {
+      if (btn.closest('[data-step="1"]') && root.dataset.isMainMailbox !== '1') {
         const name = root.querySelector('#name');
         if (name && !name.value.trim()) {
           name.reportValidity();

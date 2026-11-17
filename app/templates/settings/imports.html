@@ -49,7 +49,10 @@
      data-i18n-cloud-started="{{ _('settings.imports.cloud_job_started') }}"
      data-i18n-cancel="{{ _('common.cancel') }}"
      data-i18n-delete="{{ _('common.delete') }}"
-     data-i18n-root="{{ _('settings.cloud_import.dest_root') }}">
+     data-i18n-root="{{ _('settings.cloud_import.dest_root') }}"
+     data-i18n-status-running="{{ _('settings.imports.job_status.running') }}"
+     data-i18n-status-completed="{{ _('settings.imports.job_status.completed') }}"
+     data-i18n-status-failed="{{ _('settings.imports.job_status.failed') }}">
 
   <header class="sp-page-header">
     <h1 class="sp-page-title"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i><span>{{ _('settings.imports.heading') }}</span></h1>
@@ -479,7 +482,7 @@
     </div>
   </section>
 
-  {% if show_cloud_import %}
+  {% if show_cloud_import or show_kanban_import %}
   <section class="sp-group mt-4" aria-labelledby="cloud-import-jobs-heading" id="cloud-import-jobs">
     <div class="sp-group-head">
       <h2 id="cloud-import-jobs-heading" class="sp-group-title"><i class="bi bi-list-task" aria-hidden="true"></i>{{ _('settings.cloud_import.jobs') }}</h2>

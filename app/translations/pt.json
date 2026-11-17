@@ -1657,6 +1657,11 @@
       "next": "Seguinte",
       "start_import": "Iniciar importação",
       "cloud_job_started": "Tarefa de importação iniciada.",
+      "job_status": {
+        "running": "Em andamento",
+        "completed": "Concluído",
+        "failed": "Falhou"
+      },
       "delete_connection_confirm": "Remover esta ligação?",
       "steps": {
         "source": "Origem",

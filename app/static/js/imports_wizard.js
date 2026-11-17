@@ -846,6 +846,123 @@
     });
   }
 
+  function createKanbanJobRow(title, targetLabel, subtitleText) {
+    var list = document.getElementById('cloudImportJobs');
+    if (!list) {
+      return {
+        setProgress: function () {},
+        setDetail: function () {},
+        complete: function () {},
+        fail: function () {},
+      };
+    }
+    var empty = document.getElementById('cloudImportEmptyJobs');
+    if (empty) empty.remove();
+
+    var li = document.createElement('li');
+    li.className = 'sp-job-row kanban-import-job';
+    li.setAttribute('data-status', 'running');
+    li.innerHTML =
+      '<div class="d-flex justify-content-between align-items-start gap-2">' +
+      '<div class="min-width-0 flex-grow-1">' +
+      '<strong class="kanban-import-job-title"></strong> ' +
+      '<span class="badge text-bg-primary ms-1 kanban-import-job-status"></span>' +
+      '<div class="small text-muted kanban-import-job-meta"></div>' +
+      '</div>' +
+      '<div class="kanban-import-job-actions"></div>' +
+      '</div>' +
+      '<div class="progress mt-2 sp-job-progress">' +
+      '<div class="progress-bar progress-bar-striped progress-bar-animated sp-job-bar-slow" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="5" style="width: 5%"></div>' +
+      '</div>';
+
+    var titleEl = li.querySelector('.kanban-import-job-title');
+    var badgeEl = li.querySelector('.kanban-import-job-status');
+    var metaEl = li.querySelector('.kanban-import-job-meta');
+    var actionsEl = li.querySelector('.kanban-import-job-actions');
+    var barEl = li.querySelector('.progress-bar');
+
+    if (titleEl) titleEl.textContent = title || 'Kanban';
+    if (badgeEl) badgeEl.textContent = msg('status-running') || 'In progress';
+    if (metaEl) {
+      metaEl.textContent = targetLabel + (subtitleText ? ' · ' + subtitleText : '');
+    }
+
+    list.insertBefore(li, list.firstChild);
+    li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    var pct = 5;
+    var finished = false;
+    var timer = setInterval(function () {
+      if (finished) return;
+      pct = Math.min(88, pct + Math.max(0.15, (88 - pct) * 0.022));
+      if (barEl) {
+        barEl.style.width = pct.toFixed(1) + '%';
+        barEl.setAttribute('aria-valuenow', String(Math.round(pct)));
+      }
+    }, 600);
+
+    return {
+      setProgress: function (nextPct) {
+        if (finished) return;
+        var clamped = Math.max(pct, Math.min(88, Number(nextPct) || 0));
+        pct = clamped;
+        if (barEl) {
+          barEl.style.width = pct.toFixed(1) + '%';
+          barEl.setAttribute('aria-valuenow', String(Math.round(pct)));
+        }
+      },
+      setDetail: function (detail) {
+        if (metaEl) {
+          metaEl.textContent = targetLabel + (detail ? ' · ' + detail : '');
+        }
+      },
+      complete: function (boards) {
+        if (finished) return;
+        finished = true;
+        clearInterval(timer);
+        li.setAttribute('data-status', 'completed');
+        if (badgeEl) {
+          badgeEl.className = 'badge text-bg-success ms-1 kanban-import-job-status';
+          badgeEl.textContent = msg('status-completed') || 'Completed';
+        }
+        if (barEl) {
+          barEl.classList.remove('sp-job-bar-slow', 'progress-bar-striped', 'progress-bar-animated');
+          barEl.classList.add('sp-job-bar-finish', 'bg-success');
+          barEl.style.width = '100%';
+          barEl.setAttribute('aria-valuenow', '100');
+        }
+        if (actionsEl && boards && boards.length === 1 && boards[0].url) {
+          var link = document.createElement('a');
+          link.href = boards[0].url;
+          link.className = 'btn btn-sm btn-outline-secondary rounded-pill';
+          link.textContent = msg('open') || 'Open';
+          actionsEl.appendChild(link);
+        }
+      },
+      fail: function (errMsg) {
+        if (finished) return;
+        finished = true;
+        clearInterval(timer);
+        li.setAttribute('data-status', 'failed');
+        if (badgeEl) {
+          badgeEl.className = 'badge text-bg-danger ms-1 kanban-import-job-status';
+          badgeEl.textContent = msg('status-failed') || 'Failed';
+        }
+        if (barEl) {
+          barEl.classList.remove('sp-job-bar-slow', 'progress-bar-striped', 'progress-bar-animated');
+          barEl.classList.add('sp-job-bar-finish', 'bg-danger');
+        }
+        if (errMsg) {
+          var errDiv = document.createElement('div');
+          errDiv.className = 'small text-danger mt-1';
+          errDiv.textContent = errMsg;
+          var infoWrap = li.querySelector('.min-width-0');
+          if (infoWrap) infoWrap.appendChild(errDiv);
+        }
+      },
+    };
+  }
+
   function addCloudJobToList(job) {
     var list = document.getElementById('cloudImportJobs');
     if (!list || !job) return;
@@ -916,29 +1033,56 @@
         var ids = state.selectedTrelloBoards.map(function (b) { return b.id; });
         var visSelect = document.getElementById('wizardKanbanTarget');
         var visVal = visSelect ? visSelect.value : 'private';
-        var payload = { board_ids: ids, visibility: visVal.indexOf('team:') === 0 ? 'team' : visVal };
-        if (visVal.indexOf('team:') === 0) payload.team_id = visVal.slice(5);
+        var visLabel = visSelect && visSelect.selectedIndex >= 0 ? visSelect.options[visSelect.selectedIndex].text.trim() : visVal;
+        var basePayload = { visibility: visVal.indexOf('team:') === 0 ? 'team' : visVal };
+        if (visVal.indexOf('team:') === 0) basePayload.team_id = visVal.slice(5);
         startBtn.disabled = true;
         toast(msg('saving'), 'saving');
+
+        var trelloJobTitle = state.selectedTrelloBoards.length === 1
+          ? state.selectedTrelloBoards[0].name
+          : msg('src-kanban-trello');
+        var trelloJobSubtitle = state.selectedTrelloBoards.length > 1
+          ? msg('boards-count').replace('{count}', String(state.selectedTrelloBoards.length))
+          : msg('src-kanban-trello');
+        var kanbanJob = createKanbanJobRow(trelloJobTitle, visLabel, trelloJobSubtitle);
+
+        var importedBoards = [];
+        var lastError = null;
         try {
-          var tres = await fetch(root.getAttribute('data-url-trello-import'), {
-            method: 'POST',
-            headers: Object.assign({ 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, csrfHeaders()),
-            body: JSON.stringify(payload),
-          });
-          var tdata = await tres.json().catch(function () { return {}; });
-          if (tres.ok && tdata.success) {
-            var boards = tdata.boards || [];
-            renderKanbanResults(boards);
+          for (var bi = 0; bi < ids.length; bi++) {
+            var payload = Object.assign({ board_ids: [ids[bi]] }, basePayload);
+            var tres = await fetch(root.getAttribute('data-url-trello-import'), {
+              method: 'POST',
+              headers: Object.assign({ 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, csrfHeaders()),
+              body: JSON.stringify(payload),
+            });
+            var tdata = await tres.json().catch(function () { return {}; });
+            if (tres.ok && tdata.success && tdata.boards) {
+              importedBoards = importedBoards.concat(tdata.boards);
+              renderKanbanResults(importedBoards);
+            } else {
+              lastError = tdata.error || msg('failed');
+            }
+          }
+          if (importedBoards.length) {
+            kanbanJob.complete(importedBoards);
             toast(
-              boards.length === 1 ? msg('done-one') : msg('done-many').replace('{count}', String(boards.length)),
+              importedBoards.length === 1 ? msg('done-one') : msg('done-many').replace('{count}', String(importedBoards.length)),
               'success'
             );
           } else {
-            showStepError(4, tdata.error || msg('failed'));
+            kanbanJob.fail(lastError || msg('failed'));
+            showStepError(4, lastError || msg('failed'));
           }
         } catch (_) {
-          showStepError(4, msg('failed'));
+          if (importedBoards.length) {
+            kanbanJob.complete(importedBoards);
+            renderKanbanResults(importedBoards);
+          } else {
+            kanbanJob.fail(msg('failed'));
+            showStepError(4, msg('failed'));
+          }
         } finally {
           syncFooterButtons();
         }
@@ -949,7 +1093,9 @@
         if (!state.selectedFile) return;
         var fd = new FormData();
         fd.append('file', state.selectedFile);
-        var fVis = (document.getElementById('wizardKanbanTarget') || {}).value || 'private';
+        var fVisEl = document.getElementById('wizardKanbanTarget');
+        var fVis = (fVisEl && fVisEl.value) || 'private';
+        var fVisLabel = fVisEl && fVisEl.selectedIndex >= 0 ? fVisEl.options[fVisEl.selectedIndex].text.trim() : fVis;
         if (fVis.indexOf('team:') === 0) {
           fd.append('visibility', 'team');
           fd.append('team_id', fVis.slice(5));
@@ -974,6 +1120,7 @@
         startBtn.disabled = true;
         setProg(0, msg('uploading'));
         toast(msg('saving'), 'saving');
+        var fileJob = createKanbanJobRow(state.selectedFile.name, fVisLabel, msg('src-kanban-file'));
 
         var xhr = new XMLHttpRequest();
         xhr.open('POST', root.getAttribute('data-url-kanban-import'), true);
@@ -985,10 +1132,12 @@
           if (ev.lengthComputable && ev.total > 0) {
             var pct = (ev.loaded / ev.total) * 100;
             setProg(pct, pct >= 100 ? msg('processing') : msg('uploading'));
+            fileJob.setProgress(Math.min(40, (ev.loaded / ev.total) * 40));
           }
         });
         xhr.upload.addEventListener('load', function () {
           setProg(100, msg('processing'));
+          fileJob.setProgress(40);
         });
         xhr.addEventListener('load', function () {
           if (progressWrap) progressWrap.hidden = true;
@@ -997,18 +1146,21 @@
           try { data = JSON.parse(xhr.responseText || '{}'); } catch (_) {}
           if (xhr.status >= 200 && xhr.status < 300 && data.success) {
             var boards = data.boards || (data.board ? [data.board] : []);
+            fileJob.complete(boards);
             renderKanbanResults(boards);
             toast(
               boards.length === 1 ? msg('done-one') : msg('done-many').replace('{count}', String(boards.length)),
               'success'
             );
           } else {
+            fileJob.fail(data.error || msg('failed'));
             showStepError(4, data.error || msg('failed'));
           }
         });
         xhr.addEventListener('error', function () {
           if (progressWrap) progressWrap.hidden = true;
           syncFooterButtons();
+          fileJob.fail(msg('failed'));
           showStepError(4, msg('failed'));
         });
         xhr.send(fd);

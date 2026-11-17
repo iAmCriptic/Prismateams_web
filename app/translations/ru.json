@@ -3086,6 +3086,11 @@
       "next": "Далее",
       "start_import": "Начать импорт",
       "cloud_job_started": "Задача импорта запущена.",
+      "job_status": {
+        "running": "В работе",
+        "completed": "Завершено",
+        "failed": "Ошибка"
+      },
       "delete_connection_confirm": "Удалить это подключение?",
       "steps": {
         "source": "Источник",

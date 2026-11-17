@@ -69,7 +69,7 @@ _TRELLO_BG_MAP = {
     'black': 'slate',
 }
 
-_DOWNLOAD_TIMEOUT = 45
+_DOWNLOAD_TIMEOUT = (5, 15)
 _DOWNLOAD_MAX_BYTES = 40 * 1024 * 1024  # 40 MB
 _IMAGE_EXTS = frozenset({'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp'})
 
@@ -442,6 +442,9 @@ def _download_remote_file(
                     logger.info('kanban import download failed %s → %s', current_url, resp.status_code)
                     return None
                 mime = (resp.headers.get('Content-Type') or '').split(';')[0].strip() or None
+                if mime and mime.lower() in ('text/html', 'application/xhtml+xml'):
+                    logger.info('kanban import download skipped HTML page %s', current_url)
+                    return None
                 if not mime or mime in ('application/octet-stream', 'binary/octet-stream'):
                     mime = mimetypes.guess_type(original)[0] or mime
                 # Improve filename from content-disposition if present
@@ -538,9 +541,10 @@ def _create_attachment_from_url(
     file_size_hint: int | None,
     user_id: int,
     trello_auth: tuple[str, str] | None = None,
+    download: bool = True,
 ) -> KanbanAttachment:
     """Try to download URL as a local attachment; fall back to link."""
-    downloaded = _download_remote_file(url, preferred_name=name, trello_auth=trello_auth)
+    downloaded = _download_remote_file(url, preferred_name=name, trello_auth=trello_auth) if download else None
     if downloaded:
         return KanbanAttachment(
             card_id=card_id,
@@ -807,6 +811,8 @@ def _import_trello_json(
             name = (att.get('name') or att.get('fileName') or url or 'Attachment')[:255]
             if not url:
                 continue
+            # Trello marks external web links (Google Docs, WeTransfer, etc.) with isUpload=False
+            should_download = att.get('isUpload') is not False
             ka = _create_attachment_from_url(
                 card_id=card.id,
                 url=url,
@@ -815,6 +821,7 @@ def _import_trello_json(
                 file_size_hint=att.get('bytes'),
                 user_id=user.id,
                 trello_auth=trello_auth,
+                download=should_download,
             )
             db.session.add(ka)
             db.session.flush()
