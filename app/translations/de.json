@@ -3119,6 +3119,11 @@
       "next": "Weiter",
       "start_import": "Import starten",
       "cloud_job_started": "Import-Auftrag gestartet.",
+      "job_status": {
+        "running": "In Arbeit",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen"
+      },
       "delete_connection_confirm": "Verbindung wirklich entfernen?",
       "steps": {
         "source": "Quelle",

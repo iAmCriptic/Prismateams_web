@@ -3086,6 +3086,11 @@
       "next": "Siguiente",
       "start_import": "Iniciar importación",
       "cloud_job_started": "Trabajo de importación iniciado.",
+      "job_status": {
+        "running": "En curso",
+        "completed": "Completado",
+        "failed": "Fallido"
+      },
       "delete_connection_confirm": "¿Seguro que quieres eliminar esta conexión?",
       "steps": {
         "source": "Fuente",

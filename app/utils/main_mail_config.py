@@ -309,7 +309,7 @@ def parse_main_mail_form(form: Any) -> dict[str, Any]:
         'imap_username': imap_username,
         'imap_password': imap_password,
         'default_sender': str(form.get('default_sender') or '').strip() or smtp_username,
-        'sender_name': str(form.get('sender_name') or '').strip(),
+        'sender_name': str(form.get('sender_name') or form.get('name') or '').strip(),
     }
 
 

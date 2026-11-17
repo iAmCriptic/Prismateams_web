@@ -123,6 +123,36 @@ Gesendet von <user> (<email>)
     )
 
 
+def _main_mail_wizard_mailbox(cfg: dict):
+    """Erstellt ein leichtgewichtiges Mailbox-Objekt für mailbox_wizard.html aus main_mail_config."""
+    if not cfg or cfg.get('source') == 'none':
+        return None
+    from types import SimpleNamespace
+
+    has_pw = bool(cfg.get('has_imap_password') or cfg.get('has_smtp_password'))
+    return SimpleNamespace(
+        provider=cfg.get('provider') or 'custom',
+        auth_type='password',
+        display_name=cfg.get('sender_name') or '',
+        default_sender=cfg.get('default_sender') or '',
+        imap_username=cfg.get('imap_username') or cfg.get('smtp_username') or '',
+        smtp_username=cfg.get('smtp_username') or '',
+        imap_password_enc=has_pw,
+        smtp_server=cfg.get('smtp_server') or '',
+        smtp_port=cfg.get('smtp_port') or 587,
+        smtp_use_tls=bool(cfg.get('smtp_use_tls', True)),
+        smtp_use_ssl=bool(cfg.get('smtp_use_ssl', False)),
+        imap_server=cfg.get('imap_server') or '',
+        imap_port=cfg.get('imap_port') or 993,
+        imap_use_ssl=bool(cfg.get('imap_use_ssl', True)),
+        color=None,
+        oauth_email='',
+        footer_html='',
+        logo_filename=None,
+        is_active=True,
+    )
+
+
 @settings_bp.route('/admin/main-mailbox', methods=['GET', 'POST'])
 @login_required
 def admin_main_mailbox():
@@ -136,7 +166,23 @@ def admin_main_mailbox():
         parse_main_mail_form,
         save_main_mail_config,
     )
-    from app.utils.multi_mailboxes import MAILBOX_PROVIDER_PRESETS
+
+    def _render_main_wizard(cfg: dict):
+        return render_template(
+            'settings/mailbox_wizard.html',
+            **_mailbox_wizard_context(
+                mailbox=_main_mail_wizard_mailbox(cfg),
+                mailbox_type='main',
+                cancel_url=url_for('settings.admin_system'),
+                is_main_mailbox=True,
+                google_oauth_ready=False,
+                microsoft_oauth_ready=False,
+                oauth_result=None,
+                autodiscover_url=url_for('settings.admin_main_mailbox_autodiscover'),
+                test_smtp_url=url_for('settings.admin_main_mailbox_test_smtp'),
+                test_imap_url=url_for('settings.admin_main_mailbox_test_imap'),
+            ),
+        )
 
     if request.method == 'POST':
         parsed = parse_main_mail_form(request.form)
@@ -144,21 +190,13 @@ def admin_main_mailbox():
         has_pw = bool(parsed['smtp_password'] or existing.get('has_smtp_password'))
         if not parsed['smtp_server'] or not parsed['smtp_username'] or not has_pw:
             flash(translate('setup.email.flash_incomplete'), 'danger')
-            return render_template(
-                'settings/admin_main_mailbox.html',
-                mail_cfg={**existing, **parsed},
-                provider_presets=MAILBOX_PROVIDER_PRESETS,
-            )
+            return _render_main_wizard({**existing, **parsed, 'source': 'db'})
 
         save_main_mail_config(parsed, commit=True)
         flash(translate('settings.admin.main_mailbox.flash_saved'), 'success')
         return redirect(url_for('settings.admin_system'))
 
-    return render_template(
-        'settings/admin_main_mailbox.html',
-        mail_cfg=get_main_mail_config(),
-        provider_presets=MAILBOX_PROVIDER_PRESETS,
-    )
+    return _render_main_wizard(get_main_mail_config())
 
 
 @settings_bp.route('/admin/main-mailbox/autodiscover', methods=['POST'])
