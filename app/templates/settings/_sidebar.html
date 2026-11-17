@@ -29,7 +29,7 @@
 {% set security_active = ep.startswith('settings.security') %}
 {% set privacy_active = ep in ['settings.privacy', 'settings.privacy_export'] %}
 {% set about_active = ep == 'settings.about' %}
-{% set kanban_import_active = ep == 'settings.kanban_import' %}
+{% set imports_active = ep in ['settings.imports', 'settings.cloud_import', 'settings.kanban_import'] %}
 
 {% set users_active = ep in [
     'settings.admin_users',
@@ -91,9 +91,9 @@
 {% set calendar_active = ep == 'settings.admin_calendar_settings' %}
 {% set files_active = ep == 'settings.admin_file_settings' %}
 {% set events_active = ep == 'settings.admin_events_settings' %}
-{% set cloud_import_active = ep.startswith('settings.cloud_import') %}
 {% set show_cloud_import = is_module_enabled('module_files') %}
 {% set show_kanban_import = is_module_enabled('module_kanban') and (kanban_import_targets is defined and kanban_import_targets) %}
+{% set show_imports = show_cloud_import or show_kanban_import %}
 
 <div class="settings-sidebar-scroll">
 <nav class="mod-sidebar-nav nav flex-column gap-1" aria-label="{{ _('settings.sidebar.nav_label') }}">
@@ -126,19 +126,14 @@
     <a href="{{ url_for('settings.privacy') }}" class="nav-link mod-nav-link{% if privacy_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-shield-check me-2"></i>{{ _('settings.index.cards.privacy.title') }}
     </a>
-    {% if show_cloud_import %}
-    <a href="{{ url_for('settings.cloud_import') }}" class="nav-link mod-nav-link{% if cloud_import_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-cloud-arrow-down me-2"></i>{{ _('settings.cloud_import.title') }}
+    {% if show_imports %}
+    <a href="{{ url_for('settings.imports') }}" class="nav-link mod-nav-link{% if imports_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-box-arrow-in-down me-2"></i>{{ _('settings.imports.nav') }}
     </a>
     {% endif %}
     {% if is_module_enabled('module_email') and is_email_multi_enabled() %}
     <a href="{{ url_for('settings.my_mailboxes') }}" class="nav-link mod-nav-link{% if my_mailboxes_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-mailbox me-2"></i>{{ _('settings.mailboxes.my_title') }}
-    </a>
-    {% endif %}
-    {% if show_kanban_import %}
-    <a href="{{ url_for('settings.kanban_import') }}" class="nav-link mod-nav-link{% if kanban_import_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
-        <i class="bi bi-kanban me-2"></i>{{ _('settings.kanban_import.nav') }}
     </a>
     {% endif %}
 

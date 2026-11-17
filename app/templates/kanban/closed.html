@@ -1,5 +1,24 @@
 {% extends "base.html" %}
 {% block title %}{{ _('kanban.closed.title') }}{% endblock %}
+
+{% block navbar_search %}
+<div class="mod-search" role="search">
+    <label class="mod-search-field" for="kanbanClosedSearchInput">
+        <i class="bi bi-search" aria-hidden="true"></i>
+        <input type="text"
+               id="kanbanClosedSearchInput"
+               class="mod-search-input"
+               placeholder="{{ _('kanban.closed.search_placeholder') }}"
+               autocomplete="off"
+               spellcheck="false"
+               enterkeyhint="search">
+    </label>
+    <button type="button" class="btn mod-search-clear d-none" id="kanbanClosedSearchClear" aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </button>
+</div>
+{% endblock %}
+
 {% block content %}
 {% set active_nav = 'closed' %}
 {% set create_modal = false %}
@@ -22,7 +41,7 @@
     {% else %}
     <div class="d-grid gap-2">
       {% for b in boards %}
-      <div class="kanban-closed-row d-flex align-items-center justify-content-between gap-2">
+      <div class="kanban-closed-row d-flex align-items-center justify-content-between gap-2" data-closed-title="{{ b.title|lower|e }}">
         <div>
           <strong>{{ b.title }}</strong>
           <div class="small text-muted">{% if b.closed_at %}{{ b.closed_at.strftime('%d.%m.%Y, %H:%M') }}{% endif %}</div>
@@ -38,6 +57,7 @@
   </div>
 </div>
 <script>
+const kanbanClosedDeleteConfirm = {{ _('kanban.closed.delete_confirm') | tojson }};
 document.querySelectorAll('[data-reopen]').forEach(btn => {
   btn.addEventListener('click', async () => {
     await fetch(`/kanban/api/boards/${btn.dataset.reopen}`, {
@@ -50,11 +70,32 @@ document.querySelectorAll('[data-reopen]').forEach(btn => {
 document.querySelectorAll('[data-delete]').forEach(btn => {
   btn.addEventListener('click', async () => {
     if (!(typeof window.ptConfirm === 'function'
-        ? await window.ptConfirm('Board löschen?', { danger: true })
-        : window.confirm('Board löschen?'))) return;
+        ? await window.ptConfirm(kanbanClosedDeleteConfirm, { danger: true })
+        : window.confirm(kanbanClosedDeleteConfirm))) return;
     await fetch(`/kanban/api/boards/${btn.dataset.delete}`, { method: 'DELETE', headers: {'X-Requested-With':'XMLHttpRequest'} });
     location.reload();
   });
 });
+(function () {
+  const input = document.getElementById('kanbanClosedSearchInput');
+  const clearBtn = document.getElementById('kanbanClosedSearchClear');
+  if (!input) return;
+  function filterClosed() {
+    const q = (input.value || '').trim().toLowerCase();
+    if (clearBtn) clearBtn.classList.toggle('d-none', !q);
+    document.querySelectorAll('.kanban-closed-row').forEach(row => {
+      const title = row.getAttribute('data-closed-title') || '';
+      row.classList.toggle('d-none', Boolean(q && !title.includes(q)));
+    });
+  }
+  input.addEventListener('input', filterClosed);
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      input.value = '';
+      filterClosed();
+      input.focus();
+    });
+  }
+})();
 </script>
 {% endblock %}

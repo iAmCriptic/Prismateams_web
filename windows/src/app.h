@@ -37,6 +37,7 @@ public:
     void OnLogout();
     void SetDarkMode(bool isDark);
     bool IsDarkMode() const { return m_isDarkMode; }
+    void ShowTrayNotification(const std::wstring& title, const std::wstring& message);
 
 private:
     App() = default;

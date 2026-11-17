@@ -93,14 +93,11 @@
                     <h5 class="mb-0"><i class="bi bi-lightbulb me-2"></i>Lösungsvorschläge</h5>
                 </div>
                 <div class="card-body">
-                    <h6>1. E-Mail-Konfiguration prüfen</h6>
-                    <p>Stellen Sie sicher, dass alle E-Mail-Einstellungen in der <code>.env</code> Datei korrekt sind:</p>
-                    <pre class="bg-light p-3"><code>MAIL_SERVER=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USE_TLS=True
-MAIL_USERNAME=ihre-email@gmail.com
-MAIL_PASSWORD=ihr-app-passwort
-MAIL_DEFAULT_SENDER=ihre-email@gmail.com</code></pre>
+                    <h6>1. {{ _('settings.admin.main_mailbox.card_title') }}</h6>
+                    <p>{{ _('settings.admin.main_mailbox.test_result_hint') }}</p>
+                    <a href="{{ url_for('settings.admin_main_mailbox') }}" class="btn btn-primary btn-sm mod-pill-btn mb-3">
+                        <i class="bi bi-sliders me-1"></i>{{ _('settings.admin.main_mailbox.edit_btn') }}
+                    </a>
                     
                     <h6 class="mt-4">2. Gmail App-Passwort verwenden</h6>
                     <p>Für Gmail müssen Sie ein App-Passwort verwenden, nicht Ihr normales Passwort:</p>
@@ -108,7 +105,7 @@ MAIL_DEFAULT_SENDER=ihre-email@gmail.com</code></pre>
                         <li>Gehen Sie zu <a href="https://myaccount.google.com/security" target="_blank">Google Konto Sicherheit</a></li>
                         <li>Aktivieren Sie die 2-Faktor-Authentifizierung</li>
                         <li>Erstellen Sie ein App-Passwort für "Mail"</li>
-                        <li>Verwenden Sie dieses Passwort in der <code>.env</code> Datei</li>
+                        <li>Tragen Sie dieses App-Passwort in den Hauptpostfach-Einstellungen ein</li>
                     </ol>
                     
                     <h6 class="mt-4">3. Firewall/Netzwerk prüfen</h6>

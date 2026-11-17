@@ -555,6 +555,57 @@ def ensure_critical_columns(db) -> None:
                     except Exception as err:
                         logger.warning("Konnte event_appointments.%s nicht ergänzen: %s", col_name, err)
 
+        if "notification_settings" in table_names:
+            ns_cols = {col["name"] for col in inspector.get_columns("notification_settings")}
+            dt_null = "TIMESTAMP NULL" if is_pg else "DATETIME NULL"
+            notif_col_defs = [
+                ("notifications_paused_until", dt_null),
+                ("chat_portal_enabled", bool_true),
+                ("kanban_portal_enabled", bool_true),
+                ("email_portal_enabled", bool_true),
+                ("comment_portal_enabled", bool_true),
+                ("inventory_portal_enabled", bool_true),
+                ("booking_portal_enabled", bool_true),
+                ("room_booking_portal_enabled", bool_true),
+                ("survey_portal_enabled", bool_true),
+                ("calendar_portal_enabled", bool_true),
+                ("file_portal_enabled", bool_true),
+                ("chat_push_enabled", bool_true),
+                ("kanban_push_enabled", bool_true),
+                ("email_push_enabled", bool_true),
+                ("comment_push_enabled", bool_true),
+                ("inventory_push_enabled", bool_true),
+                ("booking_push_enabled", bool_true),
+                ("room_booking_push_enabled", bool_true),
+                ("survey_push_enabled", bool_true),
+                ("calendar_push_enabled", bool_true),
+                ("file_push_enabled", bool_true),
+                ("comment_mention_notifications", bool_true),
+                ("comment_reply_notifications", bool_true),
+                ("survey_new_notifications", bool_true),
+                ("survey_response_notifications", bool_true),
+                ("room_booking_new_notifications", bool_true),
+                ("room_booking_status_notifications", bool_true),
+            ]
+            for col_name, ddl in notif_col_defs:
+                if col_name not in ns_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE notification_settings ADD COLUMN {col_name} {ddl}"))
+                        logger.info("[OK] notification_settings.%s ergänzt", col_name)
+                    except Exception as err:
+                        logger.warning("Konnte notification_settings.%s nicht ergänzen: %s", col_name, err)
+
+        if inspector.has_table("kanban_lists"):
+            kl_cols = {col["name"] for col in inspector.get_columns("kanban_lists")}
+            if "default_custom_field_ids" not in kl_cols:
+                try:
+                    with db.engine.begin() as conn:
+                        conn.execute(text("ALTER TABLE kanban_lists ADD COLUMN default_custom_field_ids TEXT"))
+                    logger.info("[OK] kanban_lists.default_custom_field_ids ergänzt")
+                except Exception as err:
+                    logger.warning("Konnte kanban_lists.default_custom_field_ids nicht ergänzen: %s", err)
+
     except Exception as exc:
         logger.warning("ensure_critical_columns fehlgeschlagen: %s", exc)
 

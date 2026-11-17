@@ -110,3 +110,33 @@ def test_kanban_board_filter_cards_and_lists(client, kanban_search_data):
     assert list_done.id in data['list_ids']
     assert card2.id in data['card_ids']
     assert card1.id not in data['card_ids']
+
+
+def test_kanban_team_section_does_not_leak_sql_into_search_input(client, kanban_search_data):
+    from app.models.team import Team, TeamMember
+
+    user = kanban_search_data['user']
+    team = Team(name='Engineering Team')
+    db.session.add(team)
+    db.session.flush()
+    db.session.add(TeamMember(team_id=team.id, user_id=user.id))
+
+    team_board = KanbanBoard(
+        title='Team Sprint Board',
+        created_by=user.id,
+        visibility='team',
+        team_id=team.id,
+    )
+    db.session.add(team_board)
+    db.session.flush()
+    db.session.add(KanbanBoardMember(board_id=team_board.id, user_id=user.id, role='owner'))
+    db.session.commit()
+
+    _login(client, user.email)
+
+    for url in ('/kanban/', f'/kanban/?section=team&team_id={team.id}'):
+        resp = client.get(url)
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert 'SELECT kanban_boards' not in html
+        assert 'Team Sprint Board' in html

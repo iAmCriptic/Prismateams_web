@@ -90,20 +90,21 @@
     table-layout: fixed;
     border-collapse: collapse !important;
     margin: 1rem 0 !important;
-    border: 2px solid #007bff !important;
+    border: 2px solid var(--accent-color, var(--bs-primary)) !important;
     border-radius: 0.5rem !important;
     overflow: hidden !important;
-    background: white !important;
+    background: var(--bs-body-bg) !important;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1) !important;
 }
 
 .markdown-content th,
 .markdown-content td {
-    border: 1px solid #dee2e6 !important;
+    border: 1px solid var(--bs-border-color) !important;
     padding: 0.75rem !important;
     text-align: left;
     vertical-align: top !important;
     font-size: 0.9rem !important;
+    color: var(--bs-body-color) !important;
 }
 
 .markdown-content th[align="center"],
@@ -117,43 +118,18 @@
 }
 
 .markdown-content th {
-    background: #f8f9fa !important;
+    background: var(--bs-tertiary-bg) !important;
     font-weight: 600 !important;
-    border-bottom: 2px solid #007bff !important;
-    color: #495057 !important;
+    border-bottom: 2px solid var(--accent-color, var(--bs-primary)) !important;
+    color: var(--bs-body-color) !important;
 }
 
 .markdown-content tr:nth-child(even) {
-    background: #f8f9fa !important;
+    background: var(--bs-tertiary-bg) !important;
 }
 
 .markdown-content tr:hover {
-    background: #e9ecef !important;
-}
-
-[data-bs-theme="dark"] .markdown-content table {
-    background: #212529 !important;
-    border-color: #495057 !important;
-}
-
-[data-bs-theme="dark"] .markdown-content th {
-    background: #343a40 !important;
-    color: #fff !important;
-    border-bottom-color: #007bff !important;
-}
-
-[data-bs-theme="dark"] .markdown-content th,
-[data-bs-theme="dark"] .markdown-content td {
-    border-color: #495057 !important;
-    color: #fff !important;
-}
-
-[data-bs-theme="dark"] .markdown-content tr:nth-child(even) {
-    background: #343a40 !important;
-}
-
-[data-bs-theme="dark"] .markdown-content tr:hover {
-    background: #495057 !important;
+    background: var(--bs-secondary-bg) !important;
 }
 
 .markdown-content ul,
@@ -1207,21 +1183,21 @@ body.md-table-resizing {
 
 /* Editor Dragover State */
 .wiki-editor-dragover {
-    outline: 2px dashed var(--accent-color, #0d6efd) !important;
+    outline: 2px dashed var(--accent-color, var(--bs-primary)) !important;
     outline-offset: -4px;
-    background-color: rgba(13, 110, 253, 0.05) !important;
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 6%, transparent) !important;
 }
 
 /* Dropzone styling in Media Modal */
 .wiki-upload-dropzone {
-    border: 2px dashed var(--bs-border-color, #dee2e6) !important;
+    border: 2px dashed var(--bs-border-color) !important;
     cursor: pointer;
     transition: all 0.2s ease;
-    background: var(--bs-tertiary-bg, #f8f9fa);
+    background: var(--bs-tertiary-bg);
 }
 
 .wiki-upload-dropzone:hover,
 .wiki-upload-dropzone.border-primary {
-    border-color: var(--accent-color, #0d6efd) !important;
-    background: color-mix(in srgb, var(--accent-color, #0d6efd) 8%, var(--bs-body-bg)) !important;
+    border-color: var(--accent-color, var(--bs-primary)) !important;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, var(--bs-body-bg)) !important;
 }

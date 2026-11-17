@@ -67,7 +67,7 @@ data-col-span="{{ col_span }}"
             {% if cals %}
             <span class="dash-cal-dots" aria-hidden="true">
                 {% for cal in cals[:4] %}
-                <span class="dash-cal-dot" style="background: {{ cal.color or '#0d6efd' }};" title="{{ cal.name }}"></span>
+                <span class="dash-cal-dot" style="background: {{ cal.color or 'var(--accent-color, var(--bs-primary))' }};" title="{{ cal.name }}"></span>
                 {% endfor %}
             </span>
             {% endif %}
@@ -428,7 +428,7 @@ data-col-span="{{ col_span }}"
                 <p class="dash-widget-row-title">{{ _('dashboard.widgets.borrows.borrowed_on', date=group.borrow_date|localdatetime('%d.%m.%Y')) }}</p>
                 {% if group.is_overdue %}<span class="badge bg-danger">{{ _('dashboard.widgets.borrows.overdue') }}</span>{% endif %}
             </div>
-            <p class="dash-widget-row-sub">{{ _('dashboard.widgets.borrows.item_count', count=group.product_count) }} · {{ _('dashboard.widgets.borrows.return_by', date=group.expected_return_date|localdatetime('%d.%m.%Y')) }}</p>
+            <p class="dash-widget-row-sub">{{ _('dashboard.widgets.borrows.item_count', count=group.product_count) }}{% if group.expected_return_date %} · {{ _('dashboard.widgets.borrows.return_by', date=group.expected_return_date|localdatetime('%d.%m.%Y')) }}{% endif %}</p>
             <a href="{{ url_for('inventory.return_item') }}?transaction_number={{ group.transactions[0].transaction_number }}" class="mod-pill-btn mod-pill-btn--accent mod-pill-btn--sm mt-1" data-stop-nav>
                 <i class="bi bi-arrow-return-left"></i> {{ _('dashboard.widgets.borrows.return_button') }}
             </a>
@@ -472,9 +472,6 @@ data-col-span="{{ col_span }}"
             <p class="dash-widget-row-sub">{{ req.created_at|localtime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}{% if req.email %} · {{ req.email }}{% endif %}</p>
         </a>
         {% endfor %}
-        {% if total_pending_bookings > 3 %}
-        <div class="dash-widget-row-sub text-center px-2">{{ _('dashboard.widgets.bookings.more_indicator', count=total_pending_bookings - 3) }}</div>
-        {% endif %}
     </div>
     {% else %}
     <div class="dash-widget-empty">{{ _('dashboard.widgets.bookings.empty') }}</div>
@@ -519,6 +516,363 @@ data-col-span="{{ col_span }}"
     </div>
     {% else %}
     <div class="dash-widget-empty">{{ _('dashboard.widgets.kanban_changes.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'kanban_meine_karten' %}
+{% set cards = data.get('cards', []) %}
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="kanban_meine_karten"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('kanban.index') }}">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
+            <i class="bi bi-check2-square" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.kanban_my_cards.title') }}</span>
+        </h3>
+        <div class="dash-widget-header-actions">
+            <button type="button" class="dash-widget-settings-btn" data-widget-settings="{{ wid }}" title="{{ _('dashboard.live.settings') }}" aria-label="{{ _('dashboard.live.settings') }}">
+                <i class="bi bi-gear" aria-hidden="true"></i>
+            </button>
+            <span class="dash-widget-badge">{{ cards|length }}</span>
+        </div>
+    </div>
+    {% if cards %}
+    <div class="dash-widget-list">
+        {% for card in cards %}
+        <a class="dash-widget-row" href="{{ url_for('kanban.board', board_id=card.board_id) }}" data-stop-nav>
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ card.title }}</p>
+                {{ vis_badge(card.board_visibility) }}
+                {% if card.is_overdue %}
+                <span class="badge bg-danger">{{ _('dashboard.widgets.kanban_my_cards.overdue') }}</span>
+                {% elif card.due_date %}
+                <span class="dash-widget-row-meta">{{ card.due_date.strftime('%d.%m.') }}</span>
+                {% endif %}
+            </div>
+            <p class="dash-widget-row-sub">{{ card.board_title }}{% if card.list_title %} · {{ card.list_title }}{% endif %}</p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.kanban_my_cards.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'booking_personal' %}
+{% set bp_events = data.get('events', []) %}
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="booking_personal"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('booking_personal.index') }}">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
+            <i class="bi bi-person-badge" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.booking_personal.title') }}</span>
+        </h3>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge">{{ bp_events|length }}</span>
+        </div>
+    </div>
+    {% if bp_events %}
+    <div class="dash-widget-list">
+        {% for ev in bp_events %}
+        <a class="dash-widget-row" href="{{ url_for('booking_personal.index', event_id=ev.id) }}" data-stop-nav>
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ ev.name }}</p>
+                {% if ev.start_date %}
+                <span class="dash-widget-row-meta">{{ ev.start_date.strftime('%d.%m.') }}</span>
+                {% endif %}
+            </div>
+            <p class="dash-widget-row-sub">{{ _('dashboard.widgets.booking_personal.entries_count', count=ev.entries_count) }}</p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.booking_personal.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'raumbuchung_kommende' %}
+{% set room_bookings = data.get('requests', []) %}
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="raumbuchung_kommende"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('booking.rooms') }}">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
+            <i class="bi bi-door-open" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.room_bookings_upcoming.title') }}</span>
+        </h3>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge">{{ room_bookings|length }}</span>
+        </div>
+    </div>
+    {% if room_bookings %}
+    <div class="dash-widget-list">
+        {% for req in room_bookings %}
+        <a class="dash-widget-row" href="{{ url_for('booking.request_detail', request_id=req.id) }}" data-stop-nav>
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ req.event_name }}</p>
+                {% if req.event_date %}
+                <span class="dash-widget-row-meta">{{ req.event_date.strftime('%d.%m.') }}</span>
+                {% endif %}
+            </div>
+            <p class="dash-widget-row-sub">
+                {% if req.room %}{{ req.room.name }}{% endif %}{% if req.room and req.event_start_time %} · {% endif %}{% if req.event_start_time %}{{ req.event_start_time.strftime('%H:%M') }}{% if req.event_end_time %}–{{ req.event_end_time.strftime('%H:%M') }}{% endif %}{% if time_suffix %} {{ time_suffix }}{% endif %}{% endif %}
+            </p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.room_bookings_upcoming.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'veranstaltungen' %}
+{% set events_list = data.get('events', []) %}
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="veranstaltungen"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('events.index') }}">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
+            <i class="bi bi-calendar2-week" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.events.title') }}</span>
+        </h3>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge">{{ events_list|length }}</span>
+        </div>
+    </div>
+    {% if events_list %}
+    <div class="dash-widget-list">
+        {% for ev in events_list %}
+        <a class="dash-widget-row" href="{{ url_for('events.view_event', event_id=ev.id) }}" data-stop-nav>
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ ev.name }}</p>
+                {% if ev.start_date %}
+                <span class="dash-widget-row-meta">{{ ev.start_date.strftime('%d.%m.') }}</span>
+                {% endif %}
+            </div>
+            {% if ev.room or ev.default_location %}
+            <p class="dash-widget-row-sub">{{ ev.room.name if ev.room else ev.default_location }}</p>
+            {% endif %}
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.events.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'umfragen' %}
+{% set surveys_list = data.get('surveys', []) %}
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="umfragen"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('surveys.index') }}">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
+            <i class="bi bi-ui-checks-grid" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.surveys.title') }}</span>
+        </h3>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge">{{ surveys_list|length }}</span>
+        </div>
+    </div>
+    {% if surveys_list %}
+    <div class="dash-widget-list">
+        {% for s in surveys_list %}
+        <a class="dash-widget-row" href="{{ url_for('surveys.results', survey_id=s.id) }}" data-stop-nav>
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ s.title }}</p>
+                {{ vis_badge(s.visibility) }}
+            </div>
+            <p class="dash-widget-row-sub">{{ _('dashboard.widgets.surveys.responses_count', count=s.responses_count) }}</p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.surveys.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'protokolle' %}
+{% set protocols_list = data.get('protocols', []) %}
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="protokolle"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('protocols.index') }}">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
+            <i class="bi bi-journal-richtext" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.protocols.title') }}</span>
+        </h3>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge">{{ protocols_list|length }}</span>
+        </div>
+    </div>
+    {% if protocols_list %}
+    <div class="dash-widget-list">
+        {% for p in protocols_list %}
+        <a class="dash-widget-row" href="{{ url_for('protocols.view', protocol_id=p.id) }}" data-stop-nav>
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ p.title }}</p>
+                {{ vis_badge(p.visibility) }}
+                {% if p.meeting_date %}
+                <span class="dash-widget-row-meta">{{ p.meeting_date.strftime('%d.%m.') }}</span>
+                {% endif %}
+            </div>
+            <p class="dash-widget-row-sub">{{ _('dashboard.widgets.protocols.status.' ~ p.status) }}</p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.protocols.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'meetings' %}
+{% set meetings_list = data.get('meetings', []) %}
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="meetings"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('meetings.index') }}">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
+            <i class="bi bi-camera-video" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.meetings.title') }}</span>
+        </h3>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge">{{ meetings_list|length }}</span>
+        </div>
+    </div>
+    {% if meetings_list %}
+    <div class="dash-widget-list">
+        {% for m in meetings_list %}
+        <a class="dash-widget-row" href="{{ url_for('meetings.join', meeting_id=m.id) }}" data-stop-nav>
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ m.title }}</p>
+                <span class="badge bg-success">{{ _('dashboard.widgets.meetings.live') }}</span>
+            </div>
+            <p class="dash-widget-row-sub">{{ _('dashboard.widgets.meetings.join_hint') }}</p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.meetings.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'dienstplan' %}
+{% set shifts_list = data.get('entries', []) %}
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="dienstplan"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('duty_roster.index') }}">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
+            <i class="bi bi-calendar3" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.duty_roster.title') }}</span>
+        </h3>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge">{{ shifts_list|length }}</span>
+        </div>
+    </div>
+    {% if shifts_list %}
+    <div class="dash-widget-list">
+        {% for entry in shifts_list %}
+        <a class="dash-widget-row" href="{{ url_for('duty_roster.team_view', roster_id=entry.day.roster_id) }}" data-stop-nav>
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ entry.label or entry.day.weekday_label }}</p>
+                <span class="dash-widget-row-meta">{{ entry.day.date.strftime('%d.%m.') }}</span>
+            </div>
+            <p class="dash-widget-row-sub">
+                {% if entry.day.roster and entry.day.roster.team %}{{ entry.day.roster.team.name }}{% endif %}{% if entry.start_time %} · {{ entry.start_time.strftime('%H:%M') }}{% if entry.end_time %}–{{ entry.end_time.strftime('%H:%M') }}{% endif %}{% if time_suffix %} {{ time_suffix }}{% endif %}{% endif %}
+            </p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.duty_roster.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'excalidraw' %}
+{% set drawings_list = data.get('drawings', []) %}
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="excalidraw"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('excalidraw.index') }}">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
+            <i class="bi bi-pencil-square" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.excalidraw.title') }}</span>
+        </h3>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge">{{ drawings_list|length }}</span>
+        </div>
+    </div>
+    {% if drawings_list %}
+    <div class="dash-widget-list">
+        {% for d in drawings_list %}
+        <a class="dash-widget-row" href="{{ url_for('excalidraw.edit', drawing_id=d.id) }}" data-stop-nav>
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ d.name }}</p>
+                {{ vis_badge(d.visibility) }}
+                <span class="dash-widget-row-meta">{{ d.updated_at|localdatetime('%d.%m.') }}</span>
+            </div>
+            <p class="dash-widget-row-sub">{{ d.updated_at|localtime('%H:%M') }}{% if time_suffix %} {{ time_suffix }}{% endif %}</p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.excalidraw.empty') }}</div>
     {% endif %}
 </div>
 {% endif %}

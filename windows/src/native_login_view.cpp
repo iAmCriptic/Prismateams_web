@@ -10,6 +10,7 @@
 #include <vector>
 
 #pragma comment(lib, "uxtheme.lib")
+#pragma comment(lib, "msimg32.lib")
 
 namespace Prismateams {
 
@@ -98,13 +99,13 @@ void NativeLoginView::SetTheme(bool isDarkMode) {
     if (m_hPenInputFocus) DeleteObject(m_hPenInputFocus);
 
     if (m_isDarkMode) {
-        m_hBrBg = CreateSolidBrush(RGB(10, 14, 20));           // Deep sleek canvas #0a0e14
-        m_hBrCard = CreateSolidBrush(RGB(22, 27, 34));         // Elevated card #161b22
-        m_hBrInput = CreateSolidBrush(RGB(13, 17, 23));        // Sleek input background #0d1117
+        m_hBrBg = CreateSolidBrush(RGB(15, 17, 23));           // Deep sleek canvas fallback
+        m_hBrCard = CreateSolidBrush(RGB(26, 30, 38));         // Elevated card #1a1e26
+        m_hBrInput = CreateSolidBrush(RGB(17, 20, 26));        // Sleek input background #11141a
         m_hBrBtnPrimary = CreateSolidBrush(RGB(37, 99, 235));  // Vibrant blue #2563eb
-        m_hBrBtnSecondary = CreateSolidBrush(RGB(33, 38, 45)); // Secondary button #21262d
-        m_hPenCardBorder = CreatePen(PS_SOLID, 1, RGB(48, 54, 61)); // #30363d
-        m_hPenInputBorder = CreatePen(PS_SOLID, 1, RGB(55, 65, 81)); // Subtle border #374151
+        m_hBrBtnSecondary = CreateSolidBrush(RGB(33, 38, 48)); // Secondary button #212630
+        m_hPenCardBorder = CreatePen(PS_SOLID, 1, RGB(55, 62, 74)); // Subtle card border
+        m_hPenInputBorder = CreatePen(PS_SOLID, 1, RGB(60, 68, 82)); // Subtle input border
         m_hPenInputFocus = CreatePen(PS_SOLID, 2, RGB(59, 130, 246)); // Vibrant active focus #3b82f6
     } else {
         m_hBrBg = CreateSolidBrush(RGB(241, 245, 249));
@@ -431,8 +432,78 @@ LRESULT CALLBACK NativeLoginView::WndProc(HWND hWnd, UINT message, WPARAM wParam
         int winW = rc.right - rc.left;
         int winH = rc.bottom - rc.top;
 
-        // Background canvas
-        FillRect(hdc, &rc, pThis->m_hBrBg);
+        // Render rich diagonal Blau-Lila gradient in background canvas
+        TRIVERTEX vertex[4];
+        if (pThis->m_isDarkMode) {
+            // Deep rich indigo/blue to violet/purple gradient for dark mode
+            vertex[0].x = 0;
+            vertex[0].y = 0;
+            vertex[0].Red   = (COLOR16)(49 << 8);  // #312e81
+            vertex[0].Green = (COLOR16)(46 << 8);
+            vertex[0].Blue  = (COLOR16)(129 << 8);
+            vertex[0].Alpha = 0;
+
+            vertex[1].x = winW;
+            vertex[1].y = 0;
+            vertex[1].Red   = (COLOR16)(67 << 8);  // #4338ca
+            vertex[1].Green = (COLOR16)(56 << 8);
+            vertex[1].Blue  = (COLOR16)(202 << 8);
+            vertex[1].Alpha = 0;
+
+            vertex[2].x = 0;
+            vertex[2].y = winH;
+            vertex[2].Red   = (COLOR16)(107 << 8); // #6b21a8
+            vertex[2].Green = (COLOR16)(33 << 8);
+            vertex[2].Blue  = (COLOR16)(168 << 8);
+            vertex[2].Alpha = 0;
+
+            vertex[3].x = winW;
+            vertex[3].y = winH;
+            vertex[3].Red   = (COLOR16)(88 << 8);  // #581c87
+            vertex[3].Green = (COLOR16)(28 << 8);
+            vertex[3].Blue  = (COLOR16)(135 << 8);
+            vertex[3].Alpha = 0;
+        } else {
+            // Bright vibrant blue to purple/violet gradient for light mode
+            vertex[0].x = 0;
+            vertex[0].y = 0;
+            vertex[0].Red   = (COLOR16)(59 << 8);  // #3b82f6
+            vertex[0].Green = (COLOR16)(130 << 8);
+            vertex[0].Blue  = (COLOR16)(246 << 8);
+            vertex[0].Alpha = 0;
+
+            vertex[1].x = winW;
+            vertex[1].y = 0;
+            vertex[1].Red   = (COLOR16)(99 << 8);  // #6366f1
+            vertex[1].Green = (COLOR16)(102 << 8);
+            vertex[1].Blue  = (COLOR16)(241 << 8);
+            vertex[1].Alpha = 0;
+
+            vertex[2].x = 0;
+            vertex[2].y = winH;
+            vertex[2].Red   = (COLOR16)(139 << 8); // #8b5cf6
+            vertex[2].Green = (COLOR16)(92 << 8);
+            vertex[2].Blue  = (COLOR16)(246 << 8);
+            vertex[2].Alpha = 0;
+
+            vertex[3].x = winW;
+            vertex[3].y = winH;
+            vertex[3].Red   = (COLOR16)(118 << 8); // #764ba2
+            vertex[3].Green = (COLOR16)(75 << 8);
+            vertex[3].Blue  = (COLOR16)(162 << 8);
+            vertex[3].Alpha = 0;
+        }
+
+        GRADIENT_TRIANGLE gTri[2];
+        gTri[0].Vertex1 = 0;
+        gTri[0].Vertex2 = 1;
+        gTri[0].Vertex3 = 2;
+
+        gTri[1].Vertex1 = 1;
+        gTri[1].Vertex2 = 3;
+        gTri[1].Vertex3 = 2;
+
+        GradientFill(hdc, vertex, 4, gTri, 2, GRADIENT_FILL_TRIANGLE);
 
         int cardW = 440;
         int cardH = pThis->m_show2Fa ? 530 : 460;
@@ -550,21 +621,25 @@ LRESULT CALLBACK NativeLoginView::WndProc(HWND hWnd, UINT message, WPARAM wParam
                 return TRUE;
             }
 
-            // Anmelden & Passkey buttons: sleek modern Fluent styling (NO retro dashed focus box!)
+            // Anmelden & Passkey buttons: Styleguide Pill-Design (.mod-pill-btn)
             bool isPrimary = (pdis->CtlID == IDC_NL_BTNLOGIN);
             COLORREF btnBgColor = isPrimary ? (isSelected ? RGB(29, 78, 216) : RGB(37, 99, 235))
-                                            : (isSelected ? RGB(22, 27, 34) : RGB(33, 38, 45));
+                                            : (isSelected ? (pThis->m_isDarkMode ? RGB(22, 27, 34) : RGB(226, 232, 240))
+                                                          : (pThis->m_isDarkMode ? RGB(33, 38, 48) : RGB(241, 245, 249)));
             HBRUSH hBr = CreateSolidBrush(btnBgColor);
-            HPEN hPen = isPrimary ? pThis->m_hPenCardBorder : pThis->m_hPenInputBorder;
+            HPEN hPen = isPrimary ? CreatePen(PS_SOLID, 1, isSelected ? RGB(29, 78, 216) : RGB(37, 99, 235))
+                                  : pThis->m_hPenInputBorder;
 
             HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
             HBRUSH hOldBr = (HBRUSH)SelectObject(hdc, hBr);
 
-            RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, 8, 8);
+            // True pill-shaped buttons (radius 20px) per Styleguide
+            RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, 20, 20);
 
             SelectObject(hdc, hOldBr);
             SelectObject(hdc, hOldPen);
             DeleteObject(hBr);
+            if (isPrimary) DeleteObject(hPen);
 
             SetBkMode(hdc, TRANSPARENT);
             SetTextColor(hdc, isPrimary ? RGB(255, 255, 255) : (pThis->m_isDarkMode ? RGB(241, 245, 249) : RGB(30, 41, 59)));

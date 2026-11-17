@@ -72,9 +72,11 @@ def get_vapid_keys():
     except Exception as e:
         logging.error(f"VAPID Private Key Konvertierung fehlgeschlagen: {e}")
 
+    from app.utils.main_mail_config import get_main_mail_config
+    main_cfg = get_main_mail_config()
     claim_email = (
         current_app.config.get('VAPID_CLAIM_EMAIL')
-        or current_app.config.get('MAIL_DEFAULT_SENDER')
+        or main_cfg.get('default_sender')
         or 'admin@localhost'
     )
     if isinstance(claim_email, str) and '<' in claim_email and '>' in claim_email:
@@ -258,20 +260,38 @@ def notify_user(
     send_push: bool = True,
 ) -> bool:
     """
-    Einheitlicher Benachrichtigungsweg: In-App-Log + optional Web-Push.
+    Einheitlicher Benachrichtigungsweg mit 2-Kanal-Trennung (In-App & Web-Push)
+    und globaler Snooze/Pausierungsprüfung.
     """
-    upsert_notification_log(
-        user_id=user_id,
-        title=title,
-        body=body,
-        url=url,
-        notification_type=notification_type,
-        dedup_key=dedup_key,
-        source_id=source_id,
-        icon=icon,
-    )
+    user = User.query.get(user_id)
+    if not user or not user.is_active or not user.notifications_enabled:
+        return False
+
+    settings = get_or_create_notification_settings(user_id)
+    if settings.is_paused():
+        logging.debug(f"Benachrichtigung für Benutzer {user_id} übersprungen: bis {settings.notifications_paused_until} pausiert")
+        return False
+
+    portal_allowed = settings.is_portal_enabled(notification_type)
+    push_allowed = send_push and settings.is_push_enabled(notification_type)
+
+    if not portal_allowed and not push_allowed:
+        return False
+
+    if portal_allowed:
+        upsert_notification_log(
+            user_id=user_id,
+            title=title,
+            body=body,
+            url=url,
+            notification_type=notification_type,
+            dedup_key=dedup_key,
+            source_id=source_id,
+            icon=icon,
+        )
+
     push_ok = False
-    if send_push:
+    if push_allowed:
         push_ok = send_push_notification(
             user_id=user_id,
             title=title,
@@ -281,14 +301,18 @@ def notify_user(
             data=data,
             dedup_key=push_dedup_key or dedup_key,
         )
+
     try:
         db.session.commit()
     except Exception as e:
         logging.error(f"Fehler beim Speichern der Benachrichtigung: {e}")
         db.session.rollback()
         return False
-    emit_notification_badge(user_id)
-    return push_ok or True
+
+    if portal_allowed:
+        emit_notification_badge(user_id)
+
+    return push_ok or portal_allowed
 
 
 def send_push_notification(
@@ -312,6 +336,10 @@ def send_push_notification(
 
     user = User.query.get(user_id)
     if not user or not user.notifications_enabled:
+        return False
+
+    settings = get_or_create_notification_settings(user_id)
+    if settings and settings.is_paused():
         return False
 
     subscriptions = PushSubscription.query.filter_by(user_id=user_id, is_active=True).all()
@@ -704,6 +732,19 @@ def send_email_notification(email_id: int) -> int:
         logging.error(f"Fehler beim Laden der E-Mail: {e}")
         return 0
 
+    folder_upper = (email.folder or '').strip().upper()
+    is_inbox = folder_upper == 'INBOX' or folder_upper.endswith('/INBOX') or folder_upper.endswith('.INBOX')
+    if email.is_sent or email.is_read or email.is_deleted_imap or not is_inbox:
+        return 0
+
+    mailbox_obj = None
+    if getattr(email, 'mailbox_id', None) is not None:
+        try:
+            from app.models.email import Mailbox
+            mailbox_obj = Mailbox.query.get(email.mailbox_id)
+        except Exception:
+            mailbox_obj = None
+
     try:
         users = User.query.join(NotificationSettings).filter(
             NotificationSettings.email_notifications_enabled == True
@@ -712,19 +753,23 @@ def send_email_notification(email_id: int) -> int:
         logging.error(f"Fehler beim Laden der Benutzer: {e}")
         return 0
 
+    from app.utils.access_control import has_module_access
+    from app.utils.email_counts import count_unread_emails
+    from app.utils.multi_mailboxes import is_email_multi_enabled, user_has_mailbox_access
+
+    multi_enabled = is_email_multi_enabled()
     sent_count = 0
     for user in users:
         if not user.notifications_enabled or not user.email_notifications:
             continue
 
-        from app.utils.access_control import has_module_access
         if not has_module_access(user, 'module_email'):
             continue
 
-        unread_count = EmailMessage.query.filter(
-            EmailMessage.is_read == False,
-            EmailMessage.is_sent == False,
-        ).count()
+        if mailbox_obj is not None and multi_enabled and not user_has_mailbox_access(user, mailbox_obj, 'read'):
+            continue
+
+        unread_count = count_unread_emails(user=user)
         if unread_count == 0:
             continue
 
@@ -1042,6 +1087,213 @@ def send_booking_message_notification(booking_request, message=None) -> int:
                 'booking_message_id': message_id,
                 'type': 'booking_message',
             },
+        ):
+            sent_count += 1
+
+    return sent_count
+
+
+def send_comment_notification(
+    comment,
+    event_kind: str = 'mention',
+    target_user_id: Optional[int] = None,
+    actor=None,
+) -> bool:
+    """Sendet Benachrichtigung für Kommentare (Mentions oder Antworten)."""
+    if not comment or not target_user_id:
+        return False
+
+    target_user = User.query.get(target_user_id)
+    if not target_user or not target_user.is_active or not target_user.notifications_enabled:
+        return False
+
+    settings = get_or_create_notification_settings(target_user_id)
+    if event_kind == 'mention' and not getattr(settings, 'comment_mention_notifications', True):
+        return False
+    if event_kind == 'reply' and not getattr(settings, 'comment_reply_notifications', True):
+        return False
+
+    actor_name = actor.full_name if actor else (comment.author.full_name if getattr(comment, 'author', None) else "Jemand")
+    comment_obj = comment.get_content_object() if hasattr(comment, 'get_content_object') else None
+    content_name = ""
+    if comment_obj:
+        content_name = getattr(comment_obj, 'name', None) or getattr(comment_obj, 'title', None) or "Inhalt"
+
+    if event_kind == 'mention':
+        title = _user_translate(target_user, 'notifications.comment.mention_title')
+        body = _user_translate(target_user, 'notifications.comment.mention_body', actor=actor_name, item=content_name)
+    else:
+        title = _user_translate(target_user, 'notifications.comment.reply_title')
+        body = _user_translate(target_user, 'notifications.comment.reply_body', actor=actor_name, item=content_name)
+
+    url = comment.get_content_url() if hasattr(comment, 'get_content_url') else "/"
+    dedup_key = f"comment:{comment.id}:{event_kind}:{target_user_id}"
+
+    return notify_user(
+        target_user_id,
+        title=title,
+        body=body,
+        url=url,
+        notification_type='comment',
+        dedup_key=dedup_key,
+        source_id=comment.id,
+        data={
+            'comment_id': comment.id,
+            'content_type': getattr(comment, 'content_type', None),
+            'content_id': getattr(comment, 'content_id', None),
+            'type': 'comment',
+            'event_kind': event_kind,
+        },
+    )
+
+
+def send_survey_notification(
+    survey,
+    event_kind: str = 'new',
+    target_user_id: Optional[int] = None,
+) -> int:
+    """Sendet Benachrichtigungen für neue Umfragen oder Antworten."""
+    if not survey:
+        return 0
+
+    from app.utils.common import is_module_enabled
+    if not is_module_enabled('module_surveys'):
+        return 0
+
+    from app.utils.access_control import has_module_access
+
+    survey_title = getattr(survey, 'title', 'Neue Umfrage')
+    url = f"/surveys/{survey.id}"
+
+    if event_kind == 'response':
+        recipient_id = target_user_id or getattr(survey, 'created_by', None)
+        if not recipient_id:
+            return 0
+        user = User.query.get(recipient_id)
+        if not user or not user.is_active or not user.notifications_enabled:
+            return 0
+        settings = get_or_create_notification_settings(user.id)
+        if not getattr(settings, 'survey_response_notifications', True):
+            return 0
+
+        title = _user_translate(user, 'notifications.survey.response_title')
+        body = _user_translate(user, 'notifications.survey.response_body', title=survey_title)
+        dedup_key = f"survey_response:{survey.id}:{int(datetime.utcnow().timestamp() * 1000)}"
+
+        return 1 if notify_user(
+            user.id,
+            title=title,
+            body=body,
+            url=url,
+            notification_type='survey',
+            dedup_key=dedup_key,
+            source_id=survey.id,
+            data={'survey_id': survey.id, 'type': 'survey', 'event_kind': 'response'},
+        ) else 0
+
+    # Neue Umfrage: An alle aktiven Nutzer mit Modulzugang
+    sent_count = 0
+    creator_id = getattr(survey, 'created_by', None)
+    users = User.query.filter_by(is_active=True).all()
+    for user in users:
+        if user.id == creator_id:
+            continue
+        if getattr(user, 'is_guest', False) or not user.notifications_enabled:
+            continue
+        if not has_module_access(user, 'module_surveys'):
+            continue
+        settings = get_or_create_notification_settings(user.id)
+        if not getattr(settings, 'survey_new_notifications', True):
+            continue
+
+        title = _user_translate(user, 'notifications.survey.new_title')
+        body = _user_translate(user, 'notifications.survey.new_body', title=survey_title)
+        dedup_key = f"survey_new:{survey.id}:{user.id}"
+
+        if notify_user(
+            user.id,
+            title=title,
+            body=body,
+            url=url,
+            notification_type='survey',
+            dedup_key=dedup_key,
+            source_id=survey.id,
+            data={'survey_id': survey.id, 'type': 'survey', 'event_kind': 'new'},
+        ):
+            sent_count += 1
+
+    return sent_count
+
+
+def send_room_booking_notification(
+    booking_request,
+    event_kind: str = 'new',
+    target_user_id: Optional[int] = None,
+) -> int:
+    """Sendet Benachrichtigungen für Raumbuchungen (neu oder Statusänderung)."""
+    if not booking_request:
+        return 0
+
+    from app.utils.common import is_module_enabled
+    if not is_module_enabled('module_booking'):
+        return 0
+
+    event_label = getattr(booking_request, 'event_name', None) or f"#{booking_request.id}"
+    applicant = getattr(booking_request, 'applicant_name', None) or getattr(booking_request, 'email', '') or ""
+    url = f"/booking/request/{booking_request.id}"
+
+    if event_kind == 'status' and target_user_id:
+        user = User.query.get(target_user_id)
+        if not user or not user.is_active or not user.notifications_enabled:
+            return 0
+        settings = get_or_create_notification_settings(user.id)
+        if not getattr(settings, 'room_booking_status_notifications', True):
+            return 0
+
+        title = _user_translate(user, 'notifications.room_booking.status_title')
+        body = _user_translate(user, 'notifications.room_booking.status_body', event=event_label)
+        dedup_key = f"room_booking_status:{booking_request.id}:{user.id}:{datetime.utcnow().timestamp()}"
+
+        return 1 if notify_user(
+            user.id,
+            title=title,
+            body=body,
+            url=url,
+            notification_type='room_booking',
+            dedup_key=dedup_key,
+            source_id=booking_request.id,
+            data={'booking_request_id': booking_request.id, 'type': 'room_booking', 'event_kind': 'status'},
+        ) else 0
+
+    # Neue Raumbuchung: An berechtigte Buchungsmanager
+    sent_count = 0
+    from app.utils.access_control import has_module_access
+    users = User.query.filter_by(is_active=True).all()
+    creator_id = getattr(booking_request, 'booked_by_user_id', None)
+    for user in users:
+        if creator_id and user.id == creator_id:
+            continue
+        if getattr(user, 'is_guest', False) or not user.notifications_enabled:
+            continue
+        if not has_module_access(user, 'module_booking'):
+            continue
+        settings = get_or_create_notification_settings(user.id)
+        if not getattr(settings, 'room_booking_new_notifications', True):
+            continue
+
+        title = _user_translate(user, 'notifications.room_booking.new_title')
+        body = _user_translate(user, 'notifications.room_booking.new_body', event=event_label, applicant=applicant)
+        dedup_key = f"room_booking_new:{booking_request.id}:{user.id}"
+
+        if notify_user(
+            user.id,
+            title=title,
+            body=body,
+            url=url,
+            notification_type='room_booking',
+            dedup_key=dedup_key,
+            source_id=booking_request.id,
+            data={'booking_request_id': booking_request.id, 'type': 'room_booking', 'event_kind': 'new'},
         ):
             sent_count += 1
 

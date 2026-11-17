@@ -20,7 +20,11 @@ bool WebDavManager::EnsureWebClientServiceRunning() {
     SC_HANDLE hSCM = OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT);
     if (!hSCM) return false;
 
-    SC_HANDLE hService = OpenServiceW(hSCM, L"WebClient", SERVICE_QUERY_STATUS | SERVICE_START);
+    // First attempt query status only (works for standard users)
+    SC_HANDLE hService = OpenServiceW(hSCM, L"WebClient", SERVICE_QUERY_STATUS);
+    if (!hService) {
+        hService = OpenServiceW(hSCM, L"WebClient", SERVICE_QUERY_STATUS | SERVICE_START);
+    }
     if (!hService) {
         CloseServiceHandle(hSCM);
         return false;
@@ -34,7 +38,9 @@ bool WebDavManager::EnsureWebClientServiceRunning() {
         if (ssp.dwCurrentState == SERVICE_RUNNING) {
             isRunning = true;
         } else if (ssp.dwCurrentState == SERVICE_STOPPED || ssp.dwCurrentState == SERVICE_STOP_PENDING) {
-            if (StartServiceW(hService, 0, nullptr)) {
+            CloseServiceHandle(hService);
+            hService = OpenServiceW(hSCM, L"WebClient", SERVICE_START | SERVICE_QUERY_STATUS);
+            if (hService && StartServiceW(hService, 0, nullptr)) {
                 // Wait briefly for startup
                 for (int i = 0; i < 20; ++i) {
                     Sleep(250);
@@ -49,7 +55,7 @@ bool WebDavManager::EnsureWebClientServiceRunning() {
         }
     }
 
-    CloseServiceHandle(hService);
+    if (hService) CloseServiceHandle(hService);
     CloseServiceHandle(hSCM);
     return isRunning;
 }
@@ -110,7 +116,7 @@ std::wstring WebDavManager::FormatWebDavUncPath(const std::wstring& serverUrl) {
         }
     }
 
-    unc += L"\\webdav";
+    unc += L"\\DavWWWRoot\\webdav";
     return unc;
 }
 
@@ -140,6 +146,10 @@ bool WebDavManager::MountDrive(
     // Try unmounting if old connection lingers on this letter
     UnmountDrive(outAssignedLetter, true);
 
+    std::wstring directUrl = serverUrl;
+    while (!directUrl.empty() && directUrl.back() == L'/') directUrl.pop_back();
+    directUrl += L"/webdav";
+
     NETRESOURCEW nr = { 0 };
     nr.dwType = RESOURCETYPE_DISK;
     nr.lpLocalName = const_cast<LPWSTR>(localName.c_str());
@@ -153,12 +163,20 @@ bool WebDavManager::MountDrive(
         CONNECT_TEMPORARY
     );
 
+    // If credential conflict (ERROR_SESSION_CREDENTIAL_CONFLICT / 1219), cancel old share connection & retry
+    if (res == ERROR_SESSION_CREDENTIAL_CONFLICT) {
+        WNetCancelConnection2W(remoteUnc.c_str(), 0, TRUE);
+        WNetCancelConnection2W(directUrl.c_str(), 0, TRUE);
+        res = WNetAddConnection2W(
+            &nr,
+            password.empty() ? nullptr : password.c_str(),
+            username.empty() ? nullptr : username.c_str(),
+            CONNECT_TEMPORARY
+        );
+    }
+
     // If UNC format failed, attempt direct HTTP URL format (supported by modern Windows WebClient)
     if (res != NO_ERROR) {
-        std::wstring directUrl = serverUrl;
-        while (!directUrl.empty() && directUrl.back() == L'/') directUrl.pop_back();
-        directUrl += L"/webdav";
-
         nr.lpRemoteName = const_cast<LPWSTR>(directUrl.c_str());
         res = WNetAddConnection2W(
             &nr,
@@ -166,6 +184,31 @@ bool WebDavManager::MountDrive(
             username.empty() ? nullptr : username.c_str(),
             CONNECT_TEMPORARY
         );
+        if (res == ERROR_SESSION_CREDENTIAL_CONFLICT) {
+            WNetCancelConnection2W(directUrl.c_str(), 0, TRUE);
+            res = WNetAddConnection2W(
+                &nr,
+                password.empty() ? nullptr : password.c_str(),
+                username.empty() ? nullptr : username.c_str(),
+                CONNECT_TEMPORARY
+            );
+        }
+    }
+
+    // Fallback: If DavWWWRoot UNC failed, try without DavWWWRoot UNC
+    if (res != NO_ERROR) {
+        std::wstring fallbackUnc = remoteUnc;
+        size_t dpos = fallbackUnc.find(L"\\DavWWWRoot");
+        if (dpos != std::wstring::npos) {
+            fallbackUnc.erase(dpos, 11);
+            nr.lpRemoteName = const_cast<LPWSTR>(fallbackUnc.c_str());
+            res = WNetAddConnection2W(
+                &nr,
+                password.empty() ? nullptr : password.c_str(),
+                username.empty() ? nullptr : username.c_str(),
+                CONNECT_TEMPORARY
+            );
+        }
     }
 
     if (res == NO_ERROR) {
@@ -179,16 +222,19 @@ bool WebDavManager::MountDrive(
     switch (res) {
         case ERROR_ACCESS_DENIED:
         case ERROR_LOGON_FAILURE:
-            outErrorMessage = L"Zugriff verweigert. WebDAV-Zugangsdaten ungültig.";
+            outErrorMessage = L"Zugriff verweigert. WebDAV-Zugangsdaten ungültig oder abgelaufen.";
             break;
         case ERROR_BAD_NET_NAME:
-            outErrorMessage = L"WebDAV-Server nicht erreichbar oder WebClient-Dienst nicht gestartet.";
+            outErrorMessage = L"WebDAV-Server nicht erreichbar oder Windows WebClient-Dienst nicht aktiv.";
             break;
         case ERROR_ALREADY_ASSIGNED:
             outErrorMessage = L"Laufwerksbuchstabe wird bereits verwendet.";
             break;
+        case ERROR_SESSION_CREDENTIAL_CONFLICT:
+            outErrorMessage = L"Bereits eine andere Verbindung mit abweichenden Zugangsdaten vorhanden. Bitte Windows Explorer schließen und erneut versuchen.";
+            break;
         default:
-            outErrorMessage = L"Netzlaufwerk-Fehler Code: " + std::to_wstring(res);
+            outErrorMessage = L"Netzlaufwerk-Verbindung fehlgeschlagen (Fehlercode: " + std::to_wstring(res) + L").";
             break;
     }
 

@@ -7,31 +7,61 @@ class NotificationSettings(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    
+
+    # Global Snooze / Pause
+    notifications_paused_until = db.Column(db.DateTime, nullable=True)
+
+    # Legacy / Master flags for backwards compatibility
     chat_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
-    
     file_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
     file_new_notifications = db.Column(db.Boolean, default=True, nullable=False)
     file_modified_notifications = db.Column(db.Boolean, default=True, nullable=False)
-    
     email_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
-    
     calendar_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
     calendar_all_events = db.Column(db.Boolean, default=False, nullable=False)
     calendar_participating_only = db.Column(db.Boolean, default=True, nullable=False)
     calendar_not_participating = db.Column(db.Boolean, default=False, nullable=False)
     calendar_no_response = db.Column(db.Boolean, default=False, nullable=False)
-
     booking_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
     booking_message_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
-
     inventory_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
-
     kanban_notifications_enabled = db.Column(db.Boolean, default=True, nullable=False)
     kanban_upload_notifications = db.Column(db.Boolean, default=True, nullable=False)
     kanban_change_notifications = db.Column(db.Boolean, default=True, nullable=False)
     kanban_checklist_notifications = db.Column(db.Boolean, default=True, nullable=False)
-    
+
+    # In-App / Portal Channel flags
+    chat_portal_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    kanban_portal_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    email_portal_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    comment_portal_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    inventory_portal_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    booking_portal_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    room_booking_portal_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    survey_portal_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    calendar_portal_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    file_portal_enabled = db.Column(db.Boolean, default=True, nullable=False)
+
+    # WebPush Channel flags
+    chat_push_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    kanban_push_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    email_push_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    comment_push_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    inventory_push_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    booking_push_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    room_booking_push_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    survey_push_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    calendar_push_enabled = db.Column(db.Boolean, default=True, nullable=False)
+    file_push_enabled = db.Column(db.Boolean, default=True, nullable=False)
+
+    # Specific Sub-Toggles
+    comment_mention_notifications = db.Column(db.Boolean, default=True, nullable=False)
+    comment_reply_notifications = db.Column(db.Boolean, default=True, nullable=False)
+    survey_new_notifications = db.Column(db.Boolean, default=True, nullable=False)
+    survey_response_notifications = db.Column(db.Boolean, default=True, nullable=False)
+    room_booking_new_notifications = db.Column(db.Boolean, default=True, nullable=False)
+    room_booking_status_notifications = db.Column(db.Boolean, default=True, nullable=False)
+
     reminder_times = db.Column(db.Text, nullable=True)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -41,6 +71,68 @@ class NotificationSettings(db.Model):
     
     def __repr__(self):
         return f'<NotificationSettings user={self.user_id}>'
+
+    def is_paused(self) -> bool:
+        """Prüft, ob Benachrichtigungen aktuell zeitgesteuert pausiert sind."""
+        if self.notifications_paused_until:
+            return datetime.utcnow() < self.notifications_paused_until
+        return False
+
+    def pause(self, minutes: int):
+        """Pausiert alle Benachrichtigungen für die angegebene Minutenzahl."""
+        if minutes > 0:
+            from datetime import timedelta
+            self.notifications_paused_until = datetime.utcnow() + timedelta(minutes=minutes)
+        else:
+            self.notifications_paused_until = None
+
+    def unpause(self):
+        """Beendet die Pausierung von Benachrichtigungen."""
+        self.notifications_paused_until = None
+
+    def is_portal_enabled(self, module_type: str) -> bool:
+        """Prüft, ob In-App-Benachrichtigungen für diesen Modultyp aktiv sind."""
+        key = (module_type or '').lower().strip()
+        mapping = {
+            'chat': 'chat_portal_enabled',
+            'kanban': 'kanban_portal_enabled',
+            'email': 'email_portal_enabled',
+            'comment': 'comment_portal_enabled',
+            'comment_mention': 'comment_portal_enabled',
+            'inventory': 'inventory_portal_enabled',
+            'booking': 'booking_portal_enabled',
+            'booking_message': 'booking_portal_enabled',
+            'room_booking': 'room_booking_portal_enabled',
+            'survey': 'survey_portal_enabled',
+            'calendar': 'calendar_portal_enabled',
+            'file': 'file_portal_enabled',
+        }
+        attr = mapping.get(key)
+        if attr:
+            return bool(getattr(self, attr, True))
+        return True
+
+    def is_push_enabled(self, module_type: str) -> bool:
+        """Prüft, ob WebPush-Benachrichtigungen für diesen Modultyp aktiv sind."""
+        key = (module_type or '').lower().strip()
+        mapping = {
+            'chat': 'chat_push_enabled',
+            'kanban': 'kanban_push_enabled',
+            'email': 'email_push_enabled',
+            'comment': 'comment_push_enabled',
+            'comment_mention': 'comment_push_enabled',
+            'inventory': 'inventory_push_enabled',
+            'booking': 'booking_push_enabled',
+            'booking_message': 'booking_push_enabled',
+            'room_booking': 'room_booking_push_enabled',
+            'survey': 'survey_push_enabled',
+            'calendar': 'calendar_push_enabled',
+            'file': 'file_push_enabled',
+        }
+        attr = mapping.get(key)
+        if attr:
+            return bool(getattr(self, attr, True))
+        return True
     
     def get_reminder_times(self):
         """Gibt die Erinnerungszeiten als Liste zurück."""

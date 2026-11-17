@@ -147,47 +147,46 @@ def dropbox_settings(folder_id):
         return redirect(url_for('files.browse_folder', folder_id=folder_id))
 
     if not folder.is_dropbox:
+        if request.method == 'GET':
+            return jsonify({'success': False, 'error': 'Dieser Ordner ist kein Briefkasten.'}), 404
         flash('Dieser Ordner ist kein Briefkasten.', 'danger')
         return redirect(url_for('files.browse_folder', folder_id=folder_id))
     
     if request.method == 'POST':
-        action = request.form.get('action')
-        
-        if action == 'set_password':
-            password = request.form.get('password', '').strip()
-            if password:
-                folder.dropbox_password_hash = generate_password_hash(password)
-                db.session.commit()
+        from app.utils.public_share import apply_dropbox_settings_action
+
+        action = (request.form.get('action') or '').strip().lower()
+        ok, err_msg = apply_dropbox_settings_action(
+            folder,
+            action,
+            password=request.form.get('password', ''),
+        )
+        if ok:
+            db.session.commit()
+            if action == 'set_password':
                 flash('Passwort wurde gesetzt.', 'success')
-            else:
-                flash('Bitte geben Sie ein Passwort ein.', 'danger')
-        
-        elif action == 'remove_password':
-            folder.dropbox_password_hash = None
-            db.session.commit()
-            flash('Passwort wurde entfernt.', 'success')
-        
-        elif action == 'regenerate_token':
-            # Generate new token
-            token = secrets.token_urlsafe(32)
-            while Folder.query.filter_by(dropbox_token=token).first():
-                token = secrets.token_urlsafe(32)
-            folder.dropbox_token = token
-            db.session.commit()
-            flash('Link wurde neu generiert.', 'success')
-        
+            elif action == 'remove_password':
+                flash('Passwort wurde entfernt.', 'success')
+            elif action == 'regenerate_token':
+                flash('Link wurde neu generiert.', 'success')
+        elif err_msg:
+            flash(err_msg, 'danger')
+
         # Redirect back to folder view
         return redirect(url_for('files.browse_folder', folder_id=folder_id))
     
     # GET: Return JSON for AJAX call
-    dropbox_url = url_for('files.dropbox_upload', token=folder.dropbox_token, _external=True)
+    share = get_share_for_mode('folder', folder.id, 'dropbox')
+    active_token = (share.token if share else None) or folder.dropbox_token
+    has_pw = (share.password_hash is not None) if share else (folder.dropbox_password_hash is not None)
+    dropbox_url = url_for('files.dropbox_upload', token=active_token, _external=True)
     return jsonify({
         'success': True,
         'folder': {
             'id': folder.id,
             'name': folder.name,
             'dropbox_url': dropbox_url,
-            'has_password': folder.dropbox_password_hash is not None
+            'has_password': has_pw,
         }
     })
 
@@ -248,7 +247,7 @@ def _get_dropbox_session_uploads(token, folder_id):
 def dropbox_upload(token):
     """Öffentliche Upload-Seite für Briefkasten (ohne Login)."""
     share, folder = resolve_dropbox_folder(token)
-    if not folder:
+    if not folder or getattr(folder, 'deleted_at', None) is not None:
         abort(404)
 
     bot_ctx = _mailbox_bot_template_context(token)
@@ -348,7 +347,7 @@ def dropbox_upload(token):
 def dropbox_upload_file(token):
     """Öffentlicher Upload-Endpoint für Briefkasten (ohne Login)."""
     share, folder = resolve_dropbox_folder(token)
-    if not folder:
+    if not folder or getattr(folder, 'deleted_at', None) is not None:
         abort(404)
 
     if not _validate_mailbox_bot(token):
@@ -376,8 +375,10 @@ def dropbox_upload_file(token):
                         'success': False,
                         'error': f'Zu viele Fehlversuche. Bitte in {remaining} Sekunden erneut versuchen.',
                     }), 429
-                flash('Ungültiges Passwort.', 'danger')
-                return redirect(url_for('files.dropbox_upload', token=token))
+                return jsonify({
+                    'success': False,
+                    'error': 'Ungültiges Passwort.',
+                }), 403
             clear_share_auth_failures('dropbox', token)
             session[f'dropbox_auth_{token}'] = True
             if share:

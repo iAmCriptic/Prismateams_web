@@ -23,11 +23,12 @@ GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo'
 
 GOOGLE_REGISTER_SESSION_KEY = 'google_register'
 
-# Login/Link/Register: Identität + Gmail XOAUTH2 für optionales Auto-Postfach
+# Login/Link/Register: Identität + Gmail XOAUTH2 + Drive Readonly (z. B. Kanban-Links)
 GOOGLE_LOGIN_SCOPES = (
     'openid email profile '
     'https://mail.google.com/ '
-    'https://www.googleapis.com/auth/userinfo.email'
+    'https://www.googleapis.com/auth/userinfo.email '
+    'https://www.googleapis.com/auth/drive.readonly'
 )
 
 
@@ -274,3 +275,46 @@ def ensure_gmail_mailbox_for_user(user, token_result: dict):
     apply_oauth_tokens_to_mailbox(mb, token_result)
     db.session.add(mb)
     return mb
+
+
+def ensure_google_drive_connection_for_user(user, token_result: dict):
+    """Legt/aktualisiert die Google-Drive-Verbindung aus dem Google-Login-Token."""
+    if not user or not getattr(user, 'id', None) or not token_result.get('access_token'):
+        return None
+    try:
+        from app.models.cloud_import import CloudImportConnection
+        from app.utils.cloud_import.base import decrypt_credentials, encrypt_credentials
+
+        payload = {
+            'access_token': token_result['access_token'],
+            'refresh_token': token_result.get('refresh_token'),
+            'expires_at': token_result.get('expires_at'),
+            'scope': 'https://www.googleapis.com/auth/drive.readonly',
+        }
+        existing = (
+            CloudImportConnection.query
+            .filter_by(user_id=user.id, provider='google_drive')
+            .order_by(CloudImportConnection.id.desc())
+            .first()
+        )
+        email = (token_result.get('email') or '').strip()
+        display = f'Google Drive ({email})' if email else 'Google Drive'
+        if existing:
+            if not payload.get('refresh_token'):
+                old = decrypt_credentials(existing.credentials_enc)
+                if old.get('refresh_token'):
+                    payload['refresh_token'] = old['refresh_token']
+            existing.credentials_enc = encrypt_credentials(payload)
+            existing.display_name = display
+            return existing
+        conn = CloudImportConnection(
+            user_id=user.id,
+            provider='google_drive',
+            display_name=display,
+            credentials_enc=encrypt_credentials(payload),
+        )
+        db.session.add(conn)
+        return conn
+    except Exception as exc:
+        logger.warning('Google-Drive-Verbindung konnte nicht gespeichert werden (user=%s): %s', getattr(user, 'id', None), exc)
+        return None

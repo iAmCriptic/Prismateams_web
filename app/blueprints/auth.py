@@ -944,16 +944,16 @@ def _google_callback_cloud_import(code, state, err):
     if err:
         msg = request.args.get('error_description') or err
         flash(translate('settings.cloud_import.flash.google_oauth_error', error=msg), 'danger')
-        return redirect(url_for('settings.cloud_import'))
+        return redirect(url_for('settings.imports', source='google_drive'))
     if not code:
         flash(translate('settings.cloud_import.flash.google_oauth_error', error='no_code'), 'danger')
-        return redirect(url_for('settings.cloud_import'))
+        return redirect(url_for('settings.imports', source='google_drive'))
     try:
         handle_google_drive_callback(code, state)
         flash(translate('settings.cloud_import.flash.google_connected'), 'success')
     except Exception as e:
         flash(translate('settings.cloud_import.flash.google_oauth_error', error=str(e)), 'danger')
-    return redirect(url_for('settings.cloud_import'))
+    return redirect(url_for('settings.imports', source='google_drive'))
 
 
 def _google_callback_mailbox(code, state, err):
@@ -1011,6 +1011,7 @@ def _google_callback_auth(code, state, err):
     from app.utils.google_login import (
         exchange_google_login_code,
         ensure_gmail_mailbox_for_user,
+        ensure_google_drive_connection_for_user,
         store_google_register_prefill,
         clear_google_register_prefill,
         save_google_profile_picture,
@@ -1056,6 +1057,7 @@ def _google_callback_auth(code, state, err):
             if picture_url and not current_user.profile_picture:
                 save_google_profile_picture(current_user, picture_url)
             ensure_gmail_mailbox_for_user(current_user, result)
+            ensure_google_drive_connection_for_user(current_user, result)
             db.session.commit()
         except Exception as exc:
             db.session.rollback()
@@ -1110,6 +1112,7 @@ def _google_callback_auth(code, state, err):
 
     try:
         ensure_gmail_mailbox_for_user(user, result)
+        ensure_google_drive_connection_for_user(user, result)
         if google_email:
             user.google_email = google_email
         db.session.commit()
@@ -1472,14 +1475,15 @@ def test_email():
         flash(translate('auth.flash.admin_only'), 'danger')
         return redirect(url_for('dashboard.index'))
     
-    from flask import current_app
     from app.utils.email_sender import send_smtp_test_email
+    from app.utils.main_mail_config import get_main_mail_config
 
-    mail_server = current_app.config.get('MAIL_SERVER')
-    mail_username = current_app.config.get('MAIL_USERNAME')
-    mail_password = current_app.config.get('MAIL_PASSWORD')
-    mail_port = current_app.config.get('MAIL_PORT', 587)
-    mail_use_tls = current_app.config.get('MAIL_USE_TLS', True)
+    cfg = get_main_mail_config()
+    mail_server = cfg.get('smtp_server')
+    mail_username = cfg.get('smtp_username')
+    mail_password = cfg.get('smtp_password')
+    mail_port = cfg.get('smtp_port', 587)
+    mail_use_tls = cfg.get('smtp_use_tls', True)
 
     config_info = {
         'MAIL_SERVER': mail_server,

@@ -64,16 +64,21 @@ def configure_core(app, config_name, basedir):
         )
 
     if app.config.get('TWO_FACTOR_EMAIL_RECOVERY_ENABLED'):
-        mail_ok = all([
-            app.config.get('MAIL_SERVER'),
-            app.config.get('MAIL_USERNAME'),
-            app.config.get('MAIL_PASSWORD'),
-        ])
+        try:
+            with app.app_context():
+                from app.utils.main_mail_config import is_main_mail_configured
+                mail_ok = is_main_mail_configured()
+        except Exception:
+            mail_ok = all([
+                app.config.get('MAIL_SERVER'),
+                app.config.get('MAIL_USERNAME'),
+                app.config.get('MAIL_PASSWORD'),
+            ])
         if not mail_ok:
             logging.getLogger(__name__).warning(
-                "2FA-E-Mail-Recovery ist aktiv, aber MAIL_SERVER/MAIL_USERNAME/MAIL_PASSWORD "
-                "fehlen — Wiederherstellungscodes können nicht zugestellt werden. "
-                "MAIL_* setzen oder TWO_FACTOR_EMAIL_RECOVERY_ENABLED=false."
+                "2FA-E-Mail-Recovery ist aktiv, aber das Hauptpostfach ist noch nicht "
+                "konfiguriert — Wiederherstellungscodes können nicht zugestellt werden. "
+                "Hauptpostfach im Setup/Admin-Bereich einrichten oder TWO_FACTOR_EMAIL_RECOVERY_ENABLED=false."
             )
 
     public_base = (app.config.get('PUBLIC_BASE_URL') or '').strip().lower()

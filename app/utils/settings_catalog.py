@@ -110,27 +110,23 @@ def build_settings_catalog(user) -> list[dict]:
         'über about version prismateams',
     ))
 
-    if is_module_enabled('module_files'):
-        catalog.append(_entry(
-            translate('settings.cloud_import.title'),
-            'settings.cloud_import',
-            'user',
-            'cloud import nextcloud google drive umzug sync dateien transfer',
-        ))
-
+    has_cloud_import = is_module_enabled('module_files')
+    has_kanban_import = False
     if is_module_enabled('module_kanban'):
         try:
             from app.utils.kanban_access import allowed_import_board_targets
             from app.utils.access_control import has_module_access
-            if has_module_access(user, 'module_kanban') and allowed_import_board_targets(user):
-                catalog.append(_entry(
-                    translate('settings.kanban_import.nav'),
-                    'settings.kanban_import',
-                    'user',
-                    'kanban board import json csv zip trello',
-                ))
+            has_kanban_import = bool(has_module_access(user, 'module_kanban') and allowed_import_board_targets(user))
         except Exception:
-            pass
+            has_kanban_import = False
+
+    if has_cloud_import or has_kanban_import:
+        catalog.append(_entry(
+            translate('settings.imports.nav'),
+            'settings.imports',
+            'user',
+            'importe import cloud nextcloud google drive umzug sync dateien transfer kanban board json csv zip trello',
+        ))
 
     if is_module_enabled('module_email') and is_email_multi_enabled():
         catalog.append(_entry(

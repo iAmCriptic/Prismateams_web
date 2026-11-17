@@ -282,14 +282,17 @@ def _handle_share_settings_update(resource_type, resource):
     if action == 'update' and share:
         clear_pw = request.form.get('clear_password') in ('1', 'true', 'on')
         enabled = request.form.get('enabled') in ('1', 'true', 'on')
-        update_share_link(
-            share,
-            password=request.form.get('password'),
-            clear_password=clear_pw,
-            expires_at_raw=request.form.get('expires_at', ''),
-            label=request.form.get('label'),
-            enabled=enabled,
-        )
+        try:
+            update_share_link(
+                share,
+                password=request.form.get('password'),
+                clear_password=clear_pw,
+                expires_at_raw=request.form.get('expires_at', ''),
+                label=request.form.get('label'),
+                enabled=enabled,
+            )
+        except ValueError:
+            flash('Ungültiges Ablaufdatum.', 'danger')
         return
 
     # Legacy actions
@@ -485,8 +488,18 @@ def public_share(token):
             flash('Der angeforderte Unterordner ist nicht Teil dieser Freigabe.', 'warning')
             return redirect(url_for('files.public_share', token=token))
 
-    folder_files = File.query.filter_by(folder_id=active_folder.id, is_current=True).order_by(File.name).all()
-    subfolders = Folder.query.filter_by(parent_id=active_folder.id).order_by(Folder.name).all()
+    folder_files = (
+        File.query.filter_by(folder_id=active_folder.id, is_current=True)
+        .filter(File.deleted_at.is_(None))
+        .order_by(File.name)
+        .all()
+    )
+    subfolders = (
+        Folder.query.filter_by(parent_id=active_folder.id)
+        .filter(Folder.deleted_at.is_(None))
+        .order_by(Folder.name)
+        .all()
+    )
     breadcrumb_folders = _build_public_share_breadcrumb(item, active_folder, token)
     can_edit = share_mode == 'edit'
 
@@ -639,15 +652,16 @@ def public_share_folder_file_download(token, file_id):
     share = get_share_by_token(token) or abort(404)
     if share.resource_type != 'folder':
         abort(404)
-    shared_root = resolve_resource(share) or abort(404)
-    file = File.query.filter_by(id=file_id, is_current=True).first_or_404()
-    if not _is_descendant_folder(file.folder, shared_root):
-        abort(404)
-
     item, guest_name, _access_share = _check_share_access(token)
     if not item:
         flash('Zugriff verweigert.', 'danger')
         return redirect(url_for('files.public_share', token=token))
+    shared_root = resolve_resource(share)
+    if not shared_root or getattr(shared_root, 'deleted_at', None) is not None:
+        abort(404)
+    file = File.query.filter_by(id=file_id, is_current=True).filter(File.deleted_at.is_(None)).first_or_404()
+    if not _is_descendant_folder(file.folder, shared_root):
+        abort(404)
 
     log_share_access(share, 'download', request, guest_name=guest_name)
     db.session.commit()
@@ -661,15 +675,16 @@ def public_share_folder_file_view(token, file_id):
     share = get_share_by_token(token) or abort(404)
     if share.resource_type != 'folder':
         abort(404)
-    shared_root = resolve_resource(share) or abort(404)
-    file = File.query.filter_by(id=file_id, is_current=True).first_or_404()
-    if not _is_descendant_folder(file.folder, shared_root):
-        abort(404)
-
     item, guest_name, _access_share = _check_share_access(token)
     if not item:
         flash('Zugriff verweigert.', 'danger')
         return redirect(url_for('files.public_share', token=token))
+    shared_root = resolve_resource(share)
+    if not shared_root or getattr(shared_root, 'deleted_at', None) is not None:
+        abort(404)
+    file = File.query.filter_by(id=file_id, is_current=True).filter(File.deleted_at.is_(None)).first_or_404()
+    if not _is_descendant_folder(file.folder, shared_root):
+        abort(404)
 
     file_ext = _file_extension(file.original_name)
     back_url = url_for('files.public_share', token=token, folder_id=file.folder_id)
@@ -743,15 +758,17 @@ def public_share_folder_file_pdf(token, file_id):
     share = get_share_by_token(token) or abort(404)
     if share.resource_type != 'folder':
         abort(404)
-    shared_root = resolve_resource(share) or abort(404)
-    file = File.query.filter_by(id=file_id, is_current=True).first_or_404()
+    item, guest_name, _access_share = _check_share_access(token)
+    if not item:
+        abort(404)
+    shared_root = resolve_resource(share)
+    if not shared_root or getattr(shared_root, 'deleted_at', None) is not None:
+        abort(404)
+    file = File.query.filter_by(id=file_id, is_current=True).filter(File.deleted_at.is_(None)).first_or_404()
     if not _is_descendant_folder(file.folder, shared_root):
         abort(404)
     file_ext = _file_extension(file.original_name)
     if file_ext != '.pdf':
-        abort(404)
-    item, guest_name, _access_share = _check_share_access(token)
-    if not item:
         abort(404)
     file_path = file.file_path if os.path.isabs(file.file_path) else os.path.join(os.getcwd(), file.file_path)
     if not os.path.exists(file_path):
@@ -767,14 +784,16 @@ def public_share_folder_file_media(token, file_id):
     share = get_share_by_token(token) or abort(404)
     if share.resource_type != 'folder':
         abort(404)
-    shared_root = resolve_resource(share) or abort(404)
-    file = File.query.filter_by(id=file_id, is_current=True).first_or_404()
+    item, guest_name, _access_share = _check_share_access(token)
+    if not item:
+        abort(404)
+    shared_root = resolve_resource(share)
+    if not shared_root or getattr(shared_root, 'deleted_at', None) is not None:
+        abort(404)
+    file = File.query.filter_by(id=file_id, is_current=True).filter(File.deleted_at.is_(None)).first_or_404()
     if not _is_descendant_folder(file.folder, shared_root):
         abort(404)
     if not media_kind(_file_extension(file.original_name)):
-        abort(404)
-    item, guest_name, _access_share = _check_share_access(token)
-    if not item:
         abort(404)
     log_share_access(share, 'view_media', request, guest_name=guest_name)
     db.session.commit()
@@ -787,14 +806,16 @@ def public_share_folder_file_thumb(token, file_id):
     share = get_share_by_token(token) or abort(404)
     if share.resource_type != 'folder':
         abort(404)
-    shared_root = resolve_resource(share) or abort(404)
-    file = File.query.filter_by(id=file_id, is_current=True).first_or_404()
+    item, _guest_name, _access_share = _check_share_access(token)
+    if not item:
+        abort(404)
+    shared_root = resolve_resource(share)
+    if not shared_root or getattr(shared_root, 'deleted_at', None) is not None:
+        abort(404)
+    file = File.query.filter_by(id=file_id, is_current=True).filter(File.deleted_at.is_(None)).first_or_404()
     if not _is_descendant_folder(file.folder, shared_root):
         abort(404)
     if media_kind(_file_extension(file.original_name)) != 'image':
-        abort(404)
-    item, _guest_name, _access_share = _check_share_access(token)
-    if not item:
         abort(404)
     return _send_image_preview(file)
 
@@ -822,32 +843,6 @@ def public_share_upload(token):
             flash('Ungültiger Zielordner für Upload.', 'danger')
             return redirect(url_for('files.public_share', token=token))
         shared_folder = target_folder
-    if share.password_hash and not session.get(f'share_auth_{token}'):
-        from app.utils.share_auth_lockout import (
-            clear_share_auth_failures,
-            register_share_auth_failure,
-            share_auth_locked,
-        )
-        locked, remaining = share_auth_locked('share', token)
-        if locked:
-            flash(
-                f'Zu viele Fehlversuche. Bitte in {remaining} Sekunden erneut versuchen.',
-                'danger',
-            )
-            return redirect(url_for('files.public_share', token=token))
-        password = request.form.get('password', '')
-        if not check_password_hash(share.password_hash, password):
-            locked_now, remaining = register_share_auth_failure('share', token)
-            if locked_now:
-                flash(
-                    f'Zu viele Fehlversuche. Bitte in {remaining} Sekunden erneut versuchen.',
-                    'danger',
-                )
-            else:
-                flash('Ungültiges Passwort.', 'danger')
-            return redirect(url_for('files.public_share', token=token))
-        clear_share_auth_failures('share', token)
-        session[f'share_auth_{token}'] = True
 
     uploader_name = request.form.get('uploader_name', '').strip() or guest_name or 'Anonym'
     if 'file' in request.files:
@@ -859,12 +854,28 @@ def public_share_upload(token):
             original_name = secure_filename(f.filename)
             if not original_name or not is_allowed_upload_filename(original_name):
                 continue
+            f.seek(0, 2)
+            file_size = f.tell()
+            f.seek(0)
+            if file_size > get_global_max_file_size():
+                flash(f'Datei "{original_name}" überschreitet die maximale Dateigröße.', 'danger')
+                continue
+            if getattr(shared_folder, 'created_by', None):
+                ok_quota, _code, quota_err = check_upload_allowed(shared_folder.created_by, file_size)
+                if not ok_quota:
+                    flash(quota_err or 'Speicherkontingent des Empfängers überschritten.', 'danger')
+                    continue
             name = original_name
-            existing = File.query.filter_by(name=name, folder_id=shared_folder.id, is_current=True).first()
-            if existing:
-                date_str = datetime.utcnow().strftime('%Y-%m-%d')
-                base, ext = os.path.splitext(original_name)
-                name = f"{base}_V{date_str}{ext}"
+            date_str = datetime.utcnow().strftime('%Y-%m-%d')
+            base, ext = os.path.splitext(original_name)
+            suffix = 1
+            while (
+                File.query.filter_by(name=name, folder_id=shared_folder.id, is_current=True)
+                .filter(File.deleted_at.is_(None))
+                .first()
+            ):
+                name = f"{base}_V{date_str}{ext}" if suffix == 1 else f"{base}_V{date_str}_{suffix}{ext}"
+                suffix += 1
             anonymous_user = User.query.filter_by(email='anonymous@system.local').first()
             if not anonymous_user:
                 anonymous_user = User(
@@ -933,8 +944,6 @@ def public_share_create_folder(token):
         )
         db.session.add(anonymous_user)
         db.session.flush()
-    elif uploader_name:
-        anonymous_user.first_name = uploader_name
 
     new_folder = Folder(
         name=folder_name,

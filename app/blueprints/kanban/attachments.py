@@ -99,6 +99,12 @@ def _fetch_url_title(raw_url: str, timeout: float = 3.5) -> str | None:
 
     try:
         import requests
+        from urllib.parse import urljoin
+        from app.utils.link_preview import is_public_http_url
+
+        if not is_public_http_url(raw_url):
+            raise ValueError('Blocked non-public URL')
+
         headers = {
             'User-Agent': (
                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
@@ -107,22 +113,43 @@ def _fetch_url_title(raw_url: str, timeout: float = 3.5) -> str | None:
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7',
         }
-        resp = requests.get(raw_url, headers=headers, timeout=timeout, stream=True, allow_redirects=True)
-        content_type = resp.headers.get('Content-Type', '').lower()
-        if 'html' in content_type or not content_type:
-            chunk = next(resp.iter_content(chunk_size=65536), b'')
-            encoding = resp.encoding or 'utf-8'
-            try:
-                html_text = chunk.decode(encoding, errors='replace')
-            except Exception:
-                html_text = chunk.decode('utf-8', errors='replace')
+        current_url = raw_url
+        resp = None
+        for _ in range(5):
+            resp = requests.get(current_url, headers=headers, timeout=timeout, stream=True, allow_redirects=False)
+            if resp.status_code in (301, 302, 303, 307, 308):
+                loc = resp.headers.get('Location')
+                resp.close()
+                if not loc:
+                    break
+                next_url = urljoin(current_url, loc)
+                if not is_public_http_url(next_url):
+                    raise ValueError('Blocked redirect to non-public URL')
+                current_url = next_url
+                continue
+            break
+        if resp is None or resp.status_code >= 400:
+            if resp is not None:
+                resp.close()
+            raise ValueError('HTTP error')
+        try:
+            content_type = resp.headers.get('Content-Type', '').lower()
+            if 'html' in content_type or not content_type:
+                chunk = next(resp.iter_content(chunk_size=65536), b'')
+                encoding = resp.encoding or 'utf-8'
+                try:
+                    html_text = chunk.decode(encoding, errors='replace')
+                except Exception:
+                    html_text = chunk.decode('utf-8', errors='replace')
 
-            m = re.search(r'<title[^>]*>(.*?)</title>', html_text, re.IGNORECASE | re.DOTALL)
-            if m:
-                title = html.unescape(m.group(1)).strip()
-                title = re.sub(r'\s+', ' ', title).strip()
-                if title:
-                    return title[:250]
+                m = re.search(r'<title[^>]*>(.*?)</title>', html_text, re.IGNORECASE | re.DOTALL)
+                if m:
+                    title = html.unescape(m.group(1)).strip()
+                    title = re.sub(r'\s+', ' ', title).strip()
+                    if title:
+                        return title[:250]
+        finally:
+            resp.close()
     except Exception:
         pass
 
@@ -153,17 +180,78 @@ def api_fetch_url_title():
     return jsonify({'title': title or ''})
 
 
+@kanban_bp.route('/api/portal-files', methods=['GET'])
+@login_required
+def api_portal_files():
+    from app.models.file import File
+    from app.utils.private_files import can_view_file
+
+    q = (request.args.get('q') or '').strip()
+    query = File.query.filter(File.deleted_at.is_(None))
+    if q:
+        query = query.filter(File.name.ilike(f'%{q}%'))
+    candidates = query.order_by(File.updated_at.desc(), File.id.desc()).limit(200).all()
+    results = []
+    is_admin = bool(getattr(current_user, 'is_admin', False))
+    for f in candidates:
+        if not (is_admin or can_view_file(f, current_user)):
+            continue
+        folder_name = f.folder.name if f.folder else None
+        results.append({
+            'id': f.id,
+            'name': f.name,
+            'space': f.space,
+            'folder_name': folder_name,
+        })
+        if len(results) >= 50:
+            break
+    return jsonify({'success': True, 'files': results})
+
+
 @kanban_bp.route('/api/cards/<int:card_id>/attachments', methods=['POST'])
 @login_or_share_required
 def api_upload_attachment(card_id):
-    card = KanbanCard.query.get_or_404(card_id)
+    card, err = _require_card_edit(card_id)
+    if err:
+        return err
     board = card.list.board
-    if not _can_edit_board_ctx(board):
-        return jsonify({'error': 'Forbidden'}), 403
 
     # Link attachment (JSON)
     if request.is_json or (request.content_type or '').startswith('application/json'):
         data = request.get_json(silent=True) or {}
+        if data.get('portal_file_id') is not None:
+            if not current_user or not getattr(current_user, 'is_authenticated', False):
+                return jsonify({'error': 'Forbidden'}), 403
+            from app.models.file import File
+            from app.utils.private_files import can_view_file
+            try:
+                file_id = int(data.get('portal_file_id'))
+            except (TypeError, ValueError):
+                return jsonify({'error': 'Invalid portal_file_id'}), 400
+            file_obj = File.query.filter_by(id=file_id, deleted_at=None).first_or_404()
+            if not (getattr(current_user, 'is_admin', False) or can_view_file(file_obj, current_user)):
+                return jsonify({'error': 'Forbidden'}), 403
+            title = (file_obj.name or f'Datei #{file_obj.id}')[:255]
+            att = KanbanAttachment(
+                card_id=card.id,
+                filename='portal-file',
+                original_filename=title,
+                mime_type='text/uri-list',
+                file_size=file_obj.size,
+                storage_path='',
+                url=f'portal-file://{file_obj.id}',
+                uploaded_by=_actor_user_id(board),
+            )
+            db.session.add(att)
+            _log_activity(board.id, 'attachment_added', title, card.id)
+            db.session.commit()
+            payload = _serialize_card_detail(card, share_token=_share_token_from_request())
+            _emit_board(board.id, 'card_updated', payload)
+            return jsonify({
+                'success': True,
+                'card': payload,
+                'attachment': _serialize_attachment(att, share_token=_share_token_from_request()),
+            }), 201
         raw_url = (data.get('url') or '').strip()
         if not raw_url:
             return jsonify({'error': 'URL required'}), 400
@@ -554,8 +642,10 @@ def onlyoffice_forcesave(attachment_id):
 def preview_attachment(attachment_id):
     att = KanbanAttachment.query.get_or_404(attachment_id)
     board = att.card.list.board
-    if not can_view_board(current_user, board):
-        return jsonify({'error': 'Forbidden'}), 403
+    if board.closed_at and not can_manage_board(current_user, board):
+        abort(404)
+    if not can_view_board(current_user, board, allow_closed=True):
+        abort(404)
     if att.url and not att.storage_path:
         return redirect(att.url)
     if not att.storage_path or not os.path.isfile(att.storage_path):
@@ -572,13 +662,16 @@ def _get_share_attachment(token: str, attachment_id: int):
         return None, (jsonify({'error': 'Forbidden'}), 403)
     if share.password_hash and not _share_guest_ok(token):
         return None, (jsonify({'error': 'Forbidden'}), 403)
-    att = KanbanAttachment.query.get_or_404(attachment_id)
     try:
         share_board_id = int(share.resource_id)
     except (TypeError, ValueError):
         return None, (jsonify({'error': 'Forbidden'}), 403)
-    if att.card.list.board_id != share_board_id:
-        return None, (jsonify({'error': 'Forbidden'}), 403)
+    board = db.session.get(KanbanBoard, share_board_id)
+    if not board or board.closed_at:
+        return None, (jsonify({'error': 'Not found'}), 404)
+    att = db.session.get(KanbanAttachment, attachment_id)
+    if not att or not att.card or not att.card.list or att.card.list.board_id != share_board_id:
+        return None, (jsonify({'error': 'Not found'}), 404)
     return att, None
 
 
@@ -620,11 +713,13 @@ def share_download_attachment(token, attachment_id):
 @kanban_bp.route('/api/attachments/<int:attachment_id>', methods=['DELETE'])
 @login_or_share_required
 def api_delete_attachment(attachment_id):
-    att = KanbanAttachment.query.get_or_404(attachment_id)
-    card = att.card
+    att = db.session.get(KanbanAttachment, attachment_id)
+    if not att or not att.card:
+        return jsonify({'error': 'Not found'}), 404
+    card, err = _require_card_edit(att.card_id)
+    if err:
+        return err
     board = card.list.board
-    if not _can_edit_board_ctx(board):
-        return jsonify({'error': 'Forbidden'}), 403
     if card.cover_attachment_id == att.id:
         card.cover_attachment_id = None
     att_name = att.original_filename or att.filename or att.url or 'Anhang'

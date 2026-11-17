@@ -7,7 +7,6 @@ from flask import (
     get_flashed_messages,
     jsonify,
     redirect,
-    render_template,
     request,
     url_for,
 )
@@ -20,6 +19,7 @@ from app.models.file import File
 from app.utils.dashboard_events import emit_dashboard_update
 from app.utils.file_storage_limits import check_upload_allowed, format_bytes_de
 from app.utils.notifications import send_file_notification
+from app.utils.private_files import sanitize_files_item_name
 from app.utils.upload_policy import is_allowed_upload_filename
 
 from app.blueprints.files.helpers import (
@@ -31,6 +31,7 @@ from app.blueprints.files.helpers import (
 )
 from app.blueprints.files.upload_path import (
     apply_conflict_or_create,
+    can_overwrite_existing_file,
     ensure_nested_upload_folder_path,
 )
 
@@ -149,7 +150,7 @@ def handle_folder_upload(folder_id, conflict_strategy, files_view, team_id, max_
             continue
 
         file_path_parts = file_storage.filename.replace("\\", "/").split("/")
-        file_name = secure_filename(file_path_parts[-1])
+        file_name = sanitize_files_item_name(file_path_parts[-1])
         if not file_name or not is_allowed_upload_filename(file_name):
             skipped_count += 1
             skipped_files.append(file_storage.filename)
@@ -167,14 +168,15 @@ def handle_folder_upload(folder_id, conflict_strategy, files_view, team_id, max_
             )
 
         try:
-            status, grew = apply_conflict_or_create(
-                file_storage=file_storage,
-                file_name=file_name,
-                folder_id=target_folder_id,
-                conflict_strategy=conflict_strategy,
-                user_id=current_user.id,
-                files_cache=files_by_folder_cache,
-            )
+            with db.session.begin_nested():
+                status, grew = apply_conflict_or_create(
+                    file_storage=file_storage,
+                    file_name=file_name,
+                    folder_id=target_folder_id,
+                    conflict_strategy=conflict_strategy,
+                    user_id=current_user.id,
+                    files_cache=files_by_folder_cache,
+                )
             if status == "uploaded":
                 uploaded_count += 1
                 if grew:
@@ -215,21 +217,23 @@ def handle_multi_file_upload(uploaded_files, folder_id, conflict_strategy, max_s
             skipped_files.append(uploaded_file.filename)
             continue
 
-        original_name = secure_filename(uploaded_file.filename)
+        raw_base = (uploaded_file.filename or "").replace("\\", "/").split("/")[-1]
+        original_name = sanitize_files_item_name(raw_base)
         if not original_name or not is_allowed_upload_filename(original_name):
             skipped_count += 1
             skipped_files.append(uploaded_file.filename)
             continue
 
         try:
-            status, grew = apply_conflict_or_create(
-                file_storage=uploaded_file,
-                file_name=original_name,
-                folder_id=folder_id,
-                conflict_strategy=conflict_strategy,
-                user_id=current_user.id,
-                files_cache=files_cache,
-            )
+            with db.session.begin_nested():
+                status, grew = apply_conflict_or_create(
+                    file_storage=uploaded_file,
+                    file_name=original_name,
+                    folder_id=folder_id,
+                    conflict_strategy=conflict_strategy,
+                    user_id=current_user.id,
+                    files_cache=files_cache,
+                )
             if status == "uploaded":
                 uploaded_count += 1
                 if grew:
@@ -259,7 +263,8 @@ def handle_single_file_upload(file_storage, folder_id, conflict_strategy, max_si
         flash(err_msg or f"Datei ist zu groß (max. {format_bytes_de(max_size)}).", "danger")
         return finish_upload(_safe_referrer_or(url_for("files.index")))
 
-    original_name = secure_filename(file_storage.filename)
+    raw_base = (file_storage.filename or "").replace("\\", "/").split("/")[-1]
+    original_name = sanitize_files_item_name(raw_base)
     if not original_name:
         flash("Ungültiger Dateiname.", "danger")
         return finish_upload(_safe_referrer_or(url_for("files.index")))
@@ -267,14 +272,22 @@ def handle_single_file_upload(file_storage, folder_id, conflict_strategy, max_si
         flash("Dieser Dateityp ist nicht erlaubt.", "danger")
         return finish_upload(_safe_referrer_or(url_for("files.index")))
 
-    existing_file = File.query.filter_by(
-        name=original_name,
-        folder_id=folder_id,
-        is_current=True,
-    ).first()
+    existing_file = (
+        File.query.filter_by(
+            name=original_name,
+            folder_id=folder_id,
+            is_current=True,
+        )
+        .filter(File.deleted_at.is_(None))
+        .first()
+    )
 
     if existing_file:
         if conflict_strategy == "version":
+            ok, err_msg = can_overwrite_existing_file(existing_file, current_user.id)
+            if not ok:
+                flash(err_msg, "danger")
+                return finish_upload(_files_context_url(folder_id=folder_id))
             version_number = _create_new_file_version(
                 existing_file, file_storage, current_user.id
             )
@@ -319,15 +332,12 @@ def handle_single_file_upload(file_storage, folder_id, conflict_strategy, max_si
                     ),
                     409,
                 )
-            flash(
-                f'Datei "{original_name}" existiert bereits. Möchten Sie sie überschreiben?',
-                "warning",
-            )
-            return render_template(
-                "files/confirm_overwrite.html",
-                filename=original_name,
-                folder_id=folder_id,
-            )
+            return finish_upload(_files_context_url(folder_id=folder_id))
+
+        ok, err_msg = can_overwrite_existing_file(existing_file, current_user.id)
+        if not ok:
+            flash(err_msg, "danger")
+            return finish_upload(_files_context_url(folder_id=folder_id))
 
         version_number = _create_new_file_version(
             existing_file, file_storage, current_user.id

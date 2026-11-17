@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from flask import url_for
+from sqlalchemy.exc import IntegrityError
 
 from app import db
 from app.models.file import FileEditLock
@@ -81,7 +82,18 @@ def acquire(
             lock.session_key = key
         lock.refresh(ttl_seconds=ttl)
 
-    db.session.flush()
+    try:
+        with db.session.begin_nested():
+            db.session.flush()
+    except IntegrityError:
+        blocker = get_active_lock(file_id)
+        if blocker and blocker.locked_by == user_id:
+            if session_key:
+                blocker.session_key = key
+            blocker.refresh(ttl_seconds=ttl)
+            db.session.flush()
+            return blocker, None
+        return None, blocker
     return lock, None
 
 

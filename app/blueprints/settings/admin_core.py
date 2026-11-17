@@ -486,15 +486,8 @@ def admin_system():
     search_indexing_enabled = is_search_indexing_enabled()
     session_record_retention_days = get_session_record_retention_days()
     share_access_log_retention_days = get_share_access_log_retention_days()
-    session_cookie_secure = bool(current_app.config.get('SESSION_COOKIE_SECURE'))
-    remember_cookie_secure = bool(current_app.config.get('REMEMBER_COOKIE_SECURE'))
-    flask_env = (os.environ.get('FLASK_ENV') or ('development' if current_app.debug else 'production')).strip()
-    redis_runtime_status = (current_app.config.get('REDIS_RUNTIME_STATUS') or 'disabled').strip()
-    redis_runtime_detail = current_app.config.get('REDIS_RUNTIME_DETAIL') or ''
-    redis_runtime_url = current_app.config.get('REDIS_RUNTIME_URL') or current_app.config.get('REDIS_URL') or ''
-    session_backend = current_app.config.get('SESSION_BACKEND') or ''
-    rate_limit_storage = current_app.config.get('RATELIMIT_STORAGE_URI') or ''
     from app.models.team import is_team_invite_portal_user_allowed
+    from app.utils.main_mail_config import get_main_mail_config, is_main_mail_configured
     team_invite_allow_portal_user = is_team_invite_portal_user_allowed()
     
     return render_template('settings/admin_system.html', 
@@ -513,14 +506,8 @@ def admin_system():
                          search_indexing_enabled=search_indexing_enabled,
                          session_record_retention_days=session_record_retention_days,
                          share_access_log_retention_days=share_access_log_retention_days,
-                         session_cookie_secure=session_cookie_secure,
-                         remember_cookie_secure=remember_cookie_secure,
-                         flask_env=flask_env,
-                         redis_runtime_status=redis_runtime_status,
-                         redis_runtime_detail=redis_runtime_detail,
-                         redis_runtime_url=redis_runtime_url,
-                         session_backend=session_backend,
-                         rate_limit_storage=rate_limit_storage,
+                         main_mail_cfg=get_main_mail_config(),
+                         main_mail_configured=is_main_mail_configured(),
                          timezone_choices=get_timezone_choices())
 
 
@@ -1403,25 +1390,167 @@ def admin_kanban_settings():
 @settings_bp.route('/kanban-import')
 @login_required
 def kanban_import():
-    """User-facing Kanban board import (JSON/CSV/ZIP)."""
+    """Legacy route: redirect to unified imports wizard."""
+    return redirect(url_for('settings.imports', source='kanban'))
+
+
+def _require_kanban_import_access():
+    from app.utils.access_control import has_module_access
     from app.utils.common import is_module_enabled
     from app.utils.kanban_access import allowed_import_board_targets
-    from app.utils.access_control import has_module_access
 
     if not is_module_enabled('module_kanban') or not has_module_access(current_user, 'module_kanban'):
-        flash(translate('settings.kanban_import.unavailable'), 'warning')
-        return redirect(url_for('settings.index'))
+        return jsonify({'error': translate('settings.kanban_import.unavailable')}), 403
+    if not allowed_import_board_targets(current_user):
+        return jsonify({'error': translate('settings.kanban_import.no_targets')}), 403
+    return None
 
-    targets = allowed_import_board_targets(current_user)
-    if not targets:
-        flash(translate('settings.kanban_import.no_targets'), 'warning')
-        return redirect(url_for('settings.index'))
 
-    return render_template(
-        'settings/kanban_import.html',
-        import_targets=targets,
-        kanban_import_url=url_for('kanban.api_import_board'),
+@settings_bp.route('/kanban-import/trello/callback')
+@login_required
+def kanban_import_trello_callback():
+    """Popup callback page that forwards Trello's #token=... fragment to opener."""
+    return (
+        '<!doctype html><html><head><meta charset="utf-8"><title>Trello</title></head><body>'
+        '<script>'
+        '(function(){'
+        'var h=window.location.hash||"";'
+        'var m=h.match(/token=([^&]+)/);'
+        'var tok=m?decodeURIComponent(m[1]):"";'
+        'if(window.opener&&tok){try{window.opener.postMessage({type:"prismateams_trello_token",token:tok},window.location.origin);}catch(e){}}'
+        'window.close();'
+        '})();'
+        '</script></body></html>',
+        200,
+        {'Content-Type': 'text/html; charset=utf-8'},
     )
+
+
+@settings_bp.route('/kanban-import/trello/connect', methods=['POST'])
+@login_required
+def kanban_import_trello_connect():
+    err = _require_kanban_import_access()
+    if err:
+        return err
+    from app.utils.trello_client import (
+        TrelloApiError,
+        save_trello_session_auth,
+        validate_trello_credentials,
+    )
+
+    data = request.get_json(silent=True) or {}
+    api_key = (data.get('api_key') or '').strip()
+    token = (data.get('token') or '').strip()
+    try:
+        profile = validate_trello_credentials(api_key, token)
+    except TrelloApiError as exc:
+        status = 401 if exc.code == 'unauthorized' else 400
+        return jsonify({'error': translate('settings.kanban_import.trello_auth_failed'), 'code': exc.code}), status
+    save_trello_session_auth(api_key, token, profile)
+    return jsonify({'success': True, 'profile': profile})
+
+
+@settings_bp.route('/kanban-import/trello/disconnect', methods=['POST'])
+@login_required
+def kanban_import_trello_disconnect():
+    err = _require_kanban_import_access()
+    if err:
+        return err
+    from app.utils.trello_client import clear_trello_session_auth
+
+    clear_trello_session_auth()
+    return jsonify({'success': True})
+
+
+@settings_bp.route('/kanban-import/trello/boards', methods=['GET'])
+@login_required
+def kanban_import_trello_boards():
+    err = _require_kanban_import_access()
+    if err:
+        return err
+    from app.utils.trello_client import (
+        TrelloApiError,
+        get_trello_session_auth,
+        list_trello_boards,
+    )
+
+    auth = get_trello_session_auth()
+    if not auth:
+        return jsonify({'error': translate('settings.kanban_import.trello_not_connected'), 'code': 'not_connected'}), 401
+    try:
+        boards = list_trello_boards(auth[0], auth[1])
+    except TrelloApiError as exc:
+        status = 401 if exc.code == 'unauthorized' else 502
+        return jsonify({'error': translate('settings.kanban_import.trello_fetch_failed'), 'code': exc.code}), status
+    return jsonify({'success': True, 'boards': boards})
+
+
+@settings_bp.route('/kanban-import/trello/import', methods=['POST'])
+@login_required
+def kanban_import_trello_import():
+    err = _require_kanban_import_access()
+    if err:
+        return err
+    from app.blueprints.kanban.helpers import _log_activity, _serialize_board
+    from app.utils.kanban_access import KanbanImportPermissionError, VISIBILITY_PRIVATE
+    from app.utils.kanban_import import KanbanImportError, import_trello_board_dict
+    from app.utils.trello_client import (
+        TrelloApiError,
+        fetch_trello_board_json,
+        get_trello_session_auth,
+    )
+
+    auth = get_trello_session_auth()
+    if not auth:
+        return jsonify({'error': translate('settings.kanban_import.trello_not_connected'), 'code': 'not_connected'}), 401
+
+    data = request.get_json(silent=True) or {}
+    board_ids = data.get('board_ids') or []
+    if isinstance(board_ids, str):
+        board_ids = [board_ids]
+    board_ids = [str(bid).strip() for bid in board_ids if str(bid).strip()]
+    if not board_ids:
+        return jsonify({'error': translate('settings.kanban_import.trello_select_board'), 'code': 'no_boards'}), 400
+
+    visibility = (data.get('visibility') or VISIBILITY_PRIVATE).strip().lower()
+    raw_team_id = data.get('team_id')
+    team_id = int(raw_team_id) if raw_team_id not in (None, '', 'null') else None
+
+    imported_boards = []
+    errors = []
+    for bid in board_ids:
+        try:
+            board_json = fetch_trello_board_json(auth[0], auth[1], bid)
+            board = import_trello_board_dict(
+                board_json,
+                user=current_user,
+                visibility=visibility,
+                team_id=team_id,
+                trello_auth=auth,
+            )
+            _log_activity(board.id, 'board_imported', board.title, user_id=current_user.id)
+            db.session.commit()
+            imported_boards.append(_serialize_board(board))
+        except KanbanImportPermissionError as exc:
+            db.session.rollback()
+            return jsonify({'error': translate('kanban.import.error_forbidden'), 'code': str(exc) or 'forbidden'}), 403
+        except (TrelloApiError, KanbanImportError) as exc:
+            db.session.rollback()
+            errors.append({'file': bid, 'code': getattr(exc, 'code', None) or str(exc) or 'failed'})
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('Direct Trello board import failed for %s', bid)
+            errors.append({'file': bid, 'code': 'failed'})
+
+    if not imported_boards and errors:
+        return jsonify({'error': translate('settings.kanban_import.failed'), 'errors': errors}), 400
+
+    return jsonify({
+        'success': True,
+        'boards': imported_boards,
+        'board': imported_boards[0] if imported_boards else None,
+        'errors': errors,
+    }), 201
 
 
 VISIBILITY_SETTINGS_MODULES = {

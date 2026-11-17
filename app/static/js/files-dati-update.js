@@ -809,11 +809,20 @@
     }
 
     function escapeHtml(str) {
-        return String(str || '')
+        return String(str ?? '')
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;');
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function safeHref(url) {
+        const raw = String(url ?? '').trim();
+        if (!raw) return '#';
+        if (raw.startsWith('/') && !raw.startsWith('//')) return escapeHtml(raw);
+        if (/^https?:\/\//i.test(raw)) return escapeHtml(raw);
+        return '#';
     }
 
     function formatExpires(iso) {
@@ -1153,7 +1162,7 @@
         if (!list) return;
         const i18n = (window.FILES_I18N && window.FILES_I18N.acl) || {};
         if (!entries || !entries.length) {
-            list.innerHTML = `<div class="text-muted small">${i18n.empty || 'Keine internen Freigaben.'}</div>`;
+            list.innerHTML = `<div class="text-muted small">${escapeHtml(i18n.empty || 'Keine internen Freigaben.')}</div>`;
             return;
         }
         list.innerHTML = entries.map(e => {
@@ -1166,8 +1175,8 @@
             const perm = e.permission === 'edit' ? (i18n.permission_edit || 'edit') : (i18n.permission_view || 'view');
             const gid = e.share_all ? 'all' : (isTeam ? ('team:' + e.grantee_team_id) : String(e.grantee_user_id));
             return `<div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                <span>${label} <span class="badge bg-secondary">${perm}</span></span>
-                <button type="button" class="btn btn-sm btn-outline-danger" data-acl-remove="${gid}">${i18n.remove || 'Entfernen'}</button>
+                <span>${escapeHtml(label)} <span class="badge bg-secondary">${escapeHtml(perm)}</span></span>
+                <button type="button" class="btn btn-sm btn-outline-danger" data-acl-remove="${escapeHtml(gid)}">${escapeHtml(i18n.remove || 'Entfernen')}</button>
             </div>`;
         }).join('');
         list.querySelectorAll('[data-acl-remove]').forEach(btn => {
@@ -1181,11 +1190,18 @@
                 } else {
                     body = { grantee_user_id: Number(raw) };
                 }
-                await fetch(`/files/api/resource-acl/${aclState.type}/${aclState.id}`, {
+                const delRes = await fetch(`/files/api/resource-acl/${aclState.type}/${aclState.id}`, {
                     method: 'DELETE',
                     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                     body: JSON.stringify(body)
                 });
+                const delData = await delRes.json().catch(() => ({}));
+                if (!delRes.ok || !delData.success) {
+                    if (typeof window.showAppBanner === 'function') {
+                        window.showAppBanner(delData.error || 'Fehler beim Entfernen', 'danger');
+                    }
+                    return;
+                }
                 openInternalShare(aclState.type, aclState.id);
             });
         });
@@ -1220,7 +1236,7 @@
             const select = document.getElementById('aclUserSelect');
             if (select) {
                 select.innerHTML = (data.users || []).map(u =>
-                    `<option value="${u.id}">${u.full_name || u.username || ('#' + u.id)}</option>`
+                    `<option value="${escapeHtml(u.id)}">${escapeHtml(u.full_name || u.username || ('#' + u.id))}</option>`
                 ).join('') || '<option value="">—</option>';
             }
             const teamSelect = document.getElementById('aclTeamSelect');
@@ -1231,7 +1247,7 @@
             }
             if (teamSelect) {
                 teamSelect.innerHTML = teams.map(t =>
-                    `<option value="${t.id}">${t.name || ('#' + t.id)}</option>`
+                    `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name || ('#' + t.id))}</option>`
                 ).join('') || '<option value="">—</option>';
             }
             renderAclEntries(data.entries || []);
@@ -1272,11 +1288,18 @@
         if (shareAllBtn) {
             shareAllBtn.addEventListener('click', async () => {
                 const perm = document.getElementById('aclPermSelect')?.value || 'view';
-                await fetch(`/files/api/resource-acl/${aclState.type}/${aclState.id}`, {
+                const res = await fetch(`/files/api/resource-acl/${aclState.type}/${aclState.id}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
                     body: JSON.stringify({ share_all: true, permission: perm })
                 });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok || !data.success) {
+                    if (typeof window.showAppBanner === 'function') {
+                        window.showAppBanner(data.error || 'Fehler bei Freigabe', 'danger');
+                    }
+                    return;
+                }
                 openInternalShare(aclState.type, aclState.id);
             });
         }
@@ -1460,16 +1483,17 @@
             if (!list) return;
             const dismiss = id === 'filesFavoritesNavMobile';
             if (!items.length) {
-                list.innerHTML = `<div class="files-favorites-empty text-muted small px-3">${emptyText}</div>`;
+                list.innerHTML = `<div class="files-favorites-empty text-muted small px-3">${escapeHtml(emptyText)}</div>`;
                 return;
             }
             list.innerHTML = items.map((fav) => {
-                const colorClass = fav.color ? '' : ' text-warning';
-                const colorStyle = fav.color ? ` style="color: ${fav.color};"` : '';
+                const safeColor = /^#[0-9a-f]{6}$/i.test(String(fav.color || '').trim()) ? String(fav.color).trim() : '';
+                const colorClass = safeColor ? '' : ' text-warning';
+                const colorStyle = safeColor ? ` style="color: ${escapeHtml(safeColor)};"` : '';
                 const dismissAttr = dismiss ? ' data-files-dismiss-offcanvas="1"' : '';
-                const name = (fav.name || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                const url = fav.url || '#';
-                return `<a class="nav-link mod-nav-link files-favorite-link" href="${url}" data-folder-id="${fav.id}"${dismissAttr}>` +
+                const name = escapeHtml(fav.name || '');
+                const url = safeHref(fav.url);
+                return `<a class="nav-link mod-nav-link files-favorite-link" href="${url}" data-folder-id="${escapeHtml(fav.id)}"${dismissAttr}>` +
                     `<i class="bi bi-folder-fill me-2 folder-color-icon${colorClass}"${colorStyle}></i>` +
                     `<span class="files-favorite-name text-truncate">${name}</span></a>`;
             }).join('');

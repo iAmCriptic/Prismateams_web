@@ -178,11 +178,7 @@ print_summary() {
 
     echo "Nächste Schritte"
     echo "================"
-    if [ -z "${MAIL_SERVER:-}" ]; then
-        echo "1. Optional E-Mail in ${INSTALL_DIR}/.env konfigurieren"
-    else
-        echo "1. E-Mail-Einstellungen wurden gesetzt"
-    fi
+    echo "1. Haupt-E-Mail direkt im Browser-Setup (oder später unter Einstellungen -> E-Mail-Modul) einrichten"
     if ! is_yes "${SETUP_WEBSERVER:-n}"; then
         echo "2. Webserver manuell einrichten (docs/INSTALLATION.md)"
     else

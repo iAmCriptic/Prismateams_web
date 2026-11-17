@@ -25,8 +25,8 @@
 {% include 'partials/vendor_bootstrap_css.html' %}
     <style>
         :root {
-            --accent-color: {{ accent_color|default('#0d6efd') }};
-            --accent-style: {{ accent_style|default('linear-gradient(45deg, #0d6efd, #0d6efd)') }};
+            --accent-color: {{ accent_color|default('var(--bs-primary)') }};
+            --accent-style: {{ accent_style|default('var(--bs-primary)') }};
             --mod-radius-pill: 1.5rem;
         }
 
@@ -41,20 +41,8 @@
             height: 100%;
             overflow: hidden;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background: #fff;
-            color: #212529;
-        }
-
-        html[data-bs-theme="dark"],
-        html[data-bs-theme="dark"] body {
-            background: #1a1a1a;
-            color: #e9ecef;
-        }
-
-        html[data-oled-mode="true"],
-        html[data-oled-mode="true"] body {
-            background: #000;
-            color: #f5f5f5;
+            background: var(--bs-body-bg);
+            color: var(--bs-body-color);
         }
 
         .onlyoffice-editor-container {
@@ -66,35 +54,17 @@
             height: 100dvh;
             display: flex;
             flex-direction: column;
-            background: #fff;
-        }
-
-        html[data-bs-theme="dark"] .onlyoffice-editor-container {
-            background: #1a1a1a;
-        }
-
-        html[data-oled-mode="true"] .onlyoffice-editor-container {
-            background: #000;
+            background: var(--bs-body-bg);
         }
 
         /* Kopfleiste wie Markdown-Viewer: Logo + Dateiname | Download + Schließen */
         .onlyoffice-viewer-header {
             flex: 0 0 auto;
             background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--bs-secondary-bg));
-            border-bottom: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.25));
+            border-bottom: 1px solid var(--bs-border-color-translucent, var(--bs-border-color));
             padding: 0.65rem 1rem;
             z-index: 1000;
             box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
-        }
-
-        html[data-bs-theme="dark"] .onlyoffice-viewer-header {
-            background: #121212;
-            border-bottom-color: rgba(255, 255, 255, 0.12);
-        }
-
-        html[data-oled-mode="true"] .onlyoffice-viewer-header {
-            background: #000;
-            border-bottom-color: #1a1a1a;
         }
 
         .onlyoffice-viewer-header-inner {
@@ -130,8 +100,8 @@
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            background: var(--accent-style, var(--accent-color, #0d6efd));
-            color: #fff;
+            background: var(--accent-style, var(--accent-color, var(--bs-primary)));
+            color: var(--bs-white);
             font-weight: 700;
             font-size: 0.95rem;
         }
@@ -190,25 +160,13 @@
         }
 
         .onlyoffice-mobile-banner {
-            background: #fff3cd;
-            color: #664d03;
-            border-bottom: 1px solid #ffecb5;
+            background: var(--bs-warning-bg-subtle);
+            color: var(--bs-warning-text-emphasis);
+            border-bottom: 1px solid var(--bs-warning-border-subtle);
             padding: 0.5rem 1rem;
             font-size: 0.85rem;
             flex-shrink: 0;
             z-index: 10002;
-        }
-
-        html[data-bs-theme="dark"] .onlyoffice-mobile-banner {
-            background: color-mix(in srgb, #ffc107 18%, #1a1a1a);
-            color: #ffe08a;
-            border-bottom-color: rgba(255, 193, 7, 0.35);
-        }
-
-        html[data-oled-mode="true"] .onlyoffice-mobile-banner {
-            background: color-mix(in srgb, #ffc107 14%, #000);
-            color: #ffe49a;
-            border-bottom-color: #1a1a1a;
         }
 
         @media (max-width: 576px) {
@@ -345,7 +303,7 @@ function showEuroOfficeApiError(title, detail) {
     const detailText = detail ? String(detail) : '';
     editorDiv.innerHTML =
         '<div class="onlyoffice-error-panel" role="alert" style="padding:2rem;text-align:center;max-width:36rem;margin:2rem auto;">' +
-        '<h3 style="color:#dc3545;margin-bottom:0.75rem;">' + heading + '</h3>' +
+        '<h3 class="text-danger mb-3">' + heading + '</h3>' +
         '<p style="margin-bottom:0.75rem;">' + hint + '</p>' +
         (detailText ? '<p class="text-muted small" style="margin-bottom:0.75rem;">' + detailText + '</p>' : '') +
         '<p class="small text-muted" style="margin-bottom:1.25rem;">API: {{ onlyoffice_api_url }}</p>' +
@@ -379,26 +337,26 @@ document.addEventListener('DOMContentLoaded', function() {
     // Build editor configuration
     const config = {
         document: {
-            fileType: "{{ file_type }}",
-            key: "{{ document_key }}",
-            title: "{{ file.name }}",
-            url: "{{ document_url }}"
+            fileType: {{ file_type|tojson }},
+            key: {{ document_key|tojson }},
+            title: {{ file.name|tojson }},
+            url: {{ document_url|tojson }}
         },
-        documentType: "{{ document_type }}",
+        documentType: {{ document_type|tojson }},
         type: "desktop",
         editorConfig: {
-            callbackUrl: "{{ callback_url }}",
+            callbackUrl: {{ callback_url|tojson }},
             mode: "edit",
-            lang: "{{ onlyoffice_lang }}",
+            lang: {{ onlyoffice_lang|tojson }},
             coEditing: {
                 mode: "fast",
                 change: true
             },
             user: {
-                id: "{{ guest_mode and share_token or current_user.id }}",
-                name: "{{ guest_mode and guest_name or current_user.full_name }}"
+                id: {{ (guest_mode and share_token or current_user.id)|string|tojson }},
+                name: {{ (guest_mode and guest_name or current_user.full_name)|tojson }}
                 {% if user_image %},
-                image: "{{ user_image }}"
+                image: {{ user_image|tojson }}
                 {% endif %}
             },
             customization: {
@@ -547,8 +505,10 @@ window.addEventListener('beforeunload', function(e) {
     }
     if (FORCESAVE_URL && DOCUMENT_KEY) {
         try {
+            const csrfToken = (window.PrismateamsCsrf && window.PrismateamsCsrf.getToken()) || '';
             navigator.sendBeacon(FORCESAVE_URL, new Blob([JSON.stringify({
-                key: DOCUMENT_KEY
+                key: DOCUMENT_KEY,
+                csrf_token: csrfToken
             })], { type: 'application/json' }));
         } catch (err) {
             requestForceSave();

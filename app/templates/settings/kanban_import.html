@@ -41,6 +41,18 @@
                 <p class="sp-dropzone-meta">{{ _('settings.kanban_import.drop_meta') }}</p>
                 <input type="file" id="settingsKanbanFile" name="file" class="d-none" accept=".json,.csv,.zip,application/json,text/csv,application/zip">
               </label>
+              <div class="sp-file-preview" id="settingsKanbanPreview" hidden aria-live="polite">
+                <div class="sp-file-preview-icon">
+                  <i class="bi bi-file-earmark" id="settingsKanbanPreviewIcon" aria-hidden="true"></i>
+                </div>
+                <div class="sp-file-preview-meta">
+                  <div class="sp-file-preview-name" id="settingsKanbanPreviewName"></div>
+                  <div class="sp-file-preview-info" id="settingsKanbanPreviewInfo"></div>
+                </div>
+                <button type="button" class="btn btn-sm btn-link text-secondary p-1" id="settingsKanbanPreviewClear" aria-label="{{ _('settings.kanban_import.remove_file') }}" title="{{ _('settings.kanban_import.remove_file') }}">
+                  <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
+              </div>
             </div>
           </div>
           <div class="sp-row">
@@ -51,9 +63,111 @@
             </div>
           </div>
           <div class="px-3 pb-3">
+            <div class="sp-upload-progress" id="settingsKanbanProgress" hidden>
+              <div class="sp-upload-progress-head">
+                <span id="settingsKanbanProgressLabel">{{ _('settings.kanban_import.uploading') }}</span>
+                <span id="settingsKanbanProgressPct">0%</span>
+              </div>
+              <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="settingsKanbanProgressTrack">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" id="settingsKanbanProgressBar" style="width: 0%"></div>
+              </div>
+            </div>
             <div class="sp-import-results" id="settingsKanbanResults" hidden></div>
           </div>
         </form>
+      </div>
+    </section>
+
+    <section class="sp-group mt-4" id="trello-api-import" data-settings-search-id="trello-api-import">
+      <div class="sp-group-head">
+        <h2 class="sp-group-title">
+          <i class="bi bi-cloud-download" aria-hidden="true"></i>{{ _('settings.kanban_import.trello_title') }}
+          <span class="badge rounded-pill text-bg-secondary ms-2">{{ _('settings.kanban_import.optional_badge') }}</span>
+        </h2>
+        {{ sp_info(_('settings.kanban_import.trello_info')) }}
+      </div>
+      <div class="sp-group-body p-3">
+        <p class="text-muted small mb-3">{{ _('settings.kanban_import.trello_lead') }}</p>
+
+        <details class="sp-trello-guide mb-3">
+          <summary>
+            <i class="bi bi-question-circle" aria-hidden="true"></i>
+            <span>{{ _('settings.kanban_import.trello_guide_title') }}</span>
+          </summary>
+          <p class="mb-2 text-muted">{{ _('settings.kanban_import.trello_guide_intro') }}</p>
+          <ol class="text-muted">
+            <li>
+              {{ _('settings.kanban_import.trello_guide_step1') }}
+              <a href="https://trello.com/power-ups/admin" target="_blank" rel="noopener noreferrer">trello.com/power-ups/admin</a>
+            </li>
+            <li>{{ _('settings.kanban_import.trello_guide_step2') }}</li>
+            <li>{{ _('settings.kanban_import.trello_guide_step3') }}</li>
+          </ol>
+        </details>
+
+        <div id="trelloConnectBox" {% if trello_profile %}hidden{% endif %}>
+          <div class="row g-2 mb-2">
+            <div class="col-12 col-md-6">
+              <label class="form-label small fw-semibold" for="trelloApiKeyInput">{{ _('settings.kanban_import.trello_api_key') }}</label>
+              <input type="text" class="form-control" id="trelloApiKeyInput" autocomplete="off" spellcheck="false" placeholder="{{ _('settings.kanban_import.trello_api_key_ph') }}">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label small fw-semibold" for="trelloTokenInput">{{ _('settings.kanban_import.trello_token') }}</label>
+              <input type="password" class="form-control" id="trelloTokenInput" autocomplete="off" spellcheck="false" placeholder="{{ _('settings.kanban_import.trello_token_ph') }}">
+            </div>
+          </div>
+          <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+            <button type="button" class="btn btn-accent rounded-pill mod-pill-btn" id="trelloAuthorizeBtn">
+              <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {{ _('settings.kanban_import.trello_login_btn') }}
+            </button>
+            <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" id="trelloManualConnectBtn">
+              <i class="bi bi-key" aria-hidden="true"></i> {{ _('settings.kanban_import.trello_connect_btn') }}
+            </button>
+            <a href="#" class="small ms-auto d-none" id="trelloManualTokenLink" target="_blank" rel="noopener noreferrer">
+              {{ _('settings.kanban_import.trello_open_token_link') }}
+            </a>
+          </div>
+        </div>
+
+        <div id="trelloConnectedBox" {% if not trello_profile %}hidden{% endif %}>
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <div class="d-flex align-items-center gap-2">
+              <i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i>
+              <span class="fw-semibold" id="trelloAccountLabel">
+                {% if trello_profile %}{{ trello_profile.full_name }} (@{{ trello_profile.username }}){% endif %}
+              </span>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted" id="trelloRefreshBoardsBtn">
+                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {{ _('settings.kanban_import.trello_refresh_btn') }}
+              </button>
+              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted text-danger" id="trelloDisconnectBtn">
+                <i class="bi bi-plug" aria-hidden="true"></i> {{ _('settings.kanban_import.trello_disconnect_btn') }}
+              </button>
+            </div>
+          </div>
+
+          <div class="sp-trello-board-list mb-3" id="trelloBoardList"></div>
+
+          <div class="row g-2 align-items-end">
+            <div class="col-12 col-sm-auto">
+              <label class="form-label small fw-semibold mb-1" for="trelloImportVisibility">{{ _('settings.kanban_import.trello_target_label') }}</label>
+              <select class="form-select" id="trelloImportVisibility" style="min-width:14rem">
+                {% for t in import_targets %}
+                <option value="{% if t.visibility == 'team' %}team:{{ t.team_id }}{% else %}{{ t.visibility }}{% endif %}">
+                  {% if t.team_name %}{{ _(t.label_key) }}: {{ t.team_name }}{% else %}{{ _(t.label_key) }}{% endif %}
+                </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-sm-auto">
+              <button type="button" class="btn btn-accent rounded-pill mod-pill-btn" id="trelloDirectImportBtn" disabled>
+                <i class="bi bi-cloud-download" aria-hidden="true"></i> {{ _('settings.kanban_import.trello_import_selected') }}
+              </button>
+            </div>
+          </div>
+          <div class="sp-import-results" id="trelloImportResults" hidden></div>
+        </div>
       </div>
     </section>
   </div>
@@ -65,7 +179,9 @@
     </div>
     <div class="sp-sidepanel-card sp-sidepanel-card--muted">
       <h2 class="sp-sidepanel-title"><i class="bi bi-file-earmark-zip" aria-hidden="true"></i>{{ _('settings.kanban_import.formats_title') }}</h2>
-      <p class="sp-sidepanel-lead mb-0">{{ _('settings.kanban_import.formats_body') }}</p>
+      <p class="sp-sidepanel-lead">{{ _('settings.kanban_import.formats_body') }}</p>
+      <h2 class="sp-sidepanel-title mt-3"><i class="bi bi-cloud-download" aria-hidden="true"></i>{{ _('settings.kanban_import.trello_side_title') }}</h2>
+      <p class="sp-sidepanel-lead mb-0">{{ _('settings.kanban_import.trello_side_body') }}</p>
     </div>
   </aside>
 </div>
@@ -77,9 +193,80 @@
   var form = document.getElementById('settingsKanbanImportForm');
   var fileInput = document.getElementById('settingsKanbanFile');
   var dropzone = document.getElementById('settingsKanbanDropzone');
+  var preview = document.getElementById('settingsKanbanPreview');
+  var previewIcon = document.getElementById('settingsKanbanPreviewIcon');
+  var previewName = document.getElementById('settingsKanbanPreviewName');
+  var previewInfo = document.getElementById('settingsKanbanPreviewInfo');
+  var previewClear = document.getElementById('settingsKanbanPreviewClear');
+  var progressWrap = document.getElementById('settingsKanbanProgress');
+  var progressLabel = document.getElementById('settingsKanbanProgressLabel');
+  var progressPct = document.getElementById('settingsKanbanProgressPct');
+  var progressTrack = document.getElementById('settingsKanbanProgressTrack');
+  var progressBar = document.getElementById('settingsKanbanProgressBar');
   var results = document.getElementById('settingsKanbanResults');
   var btn = document.getElementById('settingsKanbanSubmit');
   var url = {{ kanban_import_url|tojson }};
+  var i18nSelected = {{ _('settings.kanban_import.selected_file')|tojson }};
+  var i18nUploading = {{ _('settings.kanban_import.uploading')|tojson }};
+  var i18nProcessing = {{ _('settings.kanban_import.processing')|tojson }};
+  var selectedFile = null;
+
+  function formatBytes(bytes) {
+    if (!bytes && bytes !== 0) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  }
+
+  function fileIconClass(filename) {
+    var lower = (filename || '').toLowerCase();
+    if (lower.endsWith('.json')) return 'bi bi-filetype-json';
+    if (lower.endsWith('.csv')) return 'bi bi-filetype-csv';
+    if (lower.endsWith('.zip')) return 'bi bi-file-earmark-zip';
+    return 'bi bi-file-earmark';
+  }
+
+  function updateFilePreview(file) {
+    selectedFile = file || null;
+    if (!selectedFile) {
+      preview.hidden = true;
+      dropzone.classList.remove('has-file');
+      previewName.textContent = '';
+      previewInfo.textContent = '';
+      return;
+    }
+    var ext = (selectedFile.name.split('.').pop() || '').toUpperCase();
+    previewIcon.className = fileIconClass(selectedFile.name);
+    previewName.textContent = selectedFile.name;
+    previewInfo.textContent = [i18nSelected, ext || null, formatBytes(selectedFile.size)].filter(Boolean).join(' · ');
+    preview.hidden = false;
+    dropzone.classList.add('has-file');
+  }
+
+  function setProgress(pct, label) {
+    var clamped = Math.max(0, Math.min(100, Math.round(pct)));
+    progressWrap.hidden = false;
+    progressLabel.textContent = label || i18nUploading;
+    progressPct.textContent = clamped + '%';
+    progressBar.style.width = clamped + '%';
+    progressTrack.setAttribute('aria-valuenow', String(clamped));
+  }
+
+  function hideProgress() {
+    progressWrap.hidden = true;
+    progressBar.style.width = '0%';
+    progressPct.textContent = '0%';
+    progressTrack.setAttribute('aria-valuenow', '0');
+  }
+
+  fileInput.addEventListener('change', function () {
+    updateFilePreview(fileInput.files && fileInput.files[0] ? fileInput.files[0] : null);
+  });
+
+  previewClear.addEventListener('click', function () {
+    fileInput.value = '';
+    updateFilePreview(null);
+  });
 
   function showResults(boards, errors) {
     results.hidden = false;
@@ -121,18 +308,22 @@
   });
   dropzone.addEventListener('drop', function (e) {
     if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
-      fileInput.files = e.dataTransfer.files;
+      try {
+        fileInput.files = e.dataTransfer.files;
+      } catch (_) {}
+      updateFilePreview(e.dataTransfer.files[0]);
     }
   });
 
-  form.addEventListener('submit', async function (e) {
+  form.addEventListener('submit', function (e) {
     e.preventDefault();
-    if (!fileInput.files || !fileInput.files.length) {
+    var file = selectedFile || (fileInput.files && fileInput.files[0]);
+    if (!file) {
       if (window.SettingsToast) SettingsToast.show({{ _('settings.kanban_import.need_file')|tojson }}, 'error');
       return;
     }
     var fd = new FormData();
-    fd.append('file', fileInput.files[0]);
+    fd.append('file', file);
     var visVal = document.getElementById('settingsKanbanVisibility').value;
     if (visVal.indexOf('team:') === 0) {
       fd.append('visibility', 'team');
@@ -141,11 +332,35 @@
       fd.append('visibility', visVal);
     }
     btn.disabled = true;
+    results.hidden = true;
+    setProgress(0, i18nUploading);
     if (window.SettingsToast) SettingsToast.show({{ _('settings.autosave.saving')|tojson }}, 'saving');
-    try {
-      var res = await fetch(url, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' }, body: fd });
-      var data = await res.json().catch(function () { return {}; });
-      if (data.success) {
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+
+    xhr.upload.addEventListener('progress', function (ev) {
+      if (ev.lengthComputable && ev.total > 0) {
+        var pct = (ev.loaded / ev.total) * 100;
+        setProgress(pct, pct >= 100 ? i18nProcessing : i18nUploading);
+      }
+    });
+
+    xhr.upload.addEventListener('load', function () {
+      setProgress(100, i18nProcessing);
+    });
+
+    xhr.addEventListener('load', function () {
+      btn.disabled = false;
+      hideProgress();
+      var data = {};
+      try {
+        data = JSON.parse(xhr.responseText || '{}');
+      } catch (_) {
+        data = {};
+      }
+      if (xhr.status >= 200 && xhr.status < 300 && data.success) {
         var boards = data.boards || (data.board ? [data.board] : []);
         showResults(boards, data.errors || []);
         if (window.SettingsToast) {
@@ -159,12 +374,263 @@
       } else {
         if (window.SettingsToast) SettingsToast.show(data.error || {{ _('settings.kanban_import.failed')|tojson }}, 'error');
       }
-    } catch (err) {
-      if (window.SettingsToast) SettingsToast.show({{ _('settings.kanban_import.failed')|tojson }}, 'error');
-    } finally {
+    });
+
+    xhr.addEventListener('error', function () {
       btn.disabled = false;
+      hideProgress();
+      if (window.SettingsToast) SettingsToast.show({{ _('settings.kanban_import.failed')|tojson }}, 'error');
+    });
+
+    xhr.addEventListener('abort', function () {
+      btn.disabled = false;
+      hideProgress();
+    });
+
+    xhr.send(fd);
+  });
+
+  // ── Optional Trello API integration ────────────────────────────────────
+  var connectBox = document.getElementById('trelloConnectBox');
+  var connectedBox = document.getElementById('trelloConnectedBox');
+  var apiKeyInput = document.getElementById('trelloApiKeyInput');
+  var tokenInput = document.getElementById('trelloTokenInput');
+  var authorizeBtn = document.getElementById('trelloAuthorizeBtn');
+  var manualConnectBtn = document.getElementById('trelloManualConnectBtn');
+  var manualTokenLink = document.getElementById('trelloManualTokenLink');
+  var accountLabel = document.getElementById('trelloAccountLabel');
+  var refreshBoardsBtn = document.getElementById('trelloRefreshBoardsBtn');
+  var disconnectBtn = document.getElementById('trelloDisconnectBtn');
+  var boardListEl = document.getElementById('trelloBoardList');
+  var directImportBtn = document.getElementById('trelloDirectImportBtn');
+  var trelloResults = document.getElementById('trelloImportResults');
+  var trelloCallbackUrl = {{ trello_callback_url|tojson }};
+  var trelloConnectUrl = {{ url_for('settings.kanban_import_trello_connect')|tojson }};
+  var trelloDisconnectUrl = {{ url_for('settings.kanban_import_trello_disconnect')|tojson }};
+  var trelloBoardsUrl = {{ url_for('settings.kanban_import_trello_boards')|tojson }};
+  var trelloImportUrl = {{ url_for('settings.kanban_import_trello_import')|tojson }};
+  var i18nNeedKey = {{ _('settings.kanban_import.trello_need_key')|tojson }};
+  var i18nNeedKeyToken = {{ _('settings.kanban_import.trello_need_key_token')|tojson }};
+  var i18nConnected = {{ _('settings.kanban_import.trello_connected_toast')|tojson }};
+  var i18nDisconnected = {{ _('settings.kanban_import.trello_disconnected_toast')|tojson }};
+  var i18nNoBoards = {{ _('settings.kanban_import.trello_no_boards')|tojson }};
+  var i18nLoadingBoards = {{ _('settings.kanban_import.trello_loading_boards')|tojson }};
+
+  function buildTrelloTokenUrl(apiKey, withCallback) {
+    var base = 'https://trello.com/1/authorize?expiration=1day&name=Prismateams&scope=read&response_type=token&key=' + encodeURIComponent(apiKey);
+    if (withCallback && trelloCallbackUrl) {
+      base += '&callback_method=fragment&return_url=' + encodeURIComponent(trelloCallbackUrl);
+    }
+    return base;
+  }
+
+  function updateManualTokenLink() {
+    var key = (apiKeyInput && apiKeyInput.value || '').trim();
+    if (!manualTokenLink) return;
+    if (key) {
+      manualTokenLink.href = buildTrelloTokenUrl(key, false);
+      manualTokenLink.classList.remove('d-none');
+    } else {
+      manualTokenLink.classList.add('d-none');
+    }
+  }
+  if (apiKeyInput) apiKeyInput.addEventListener('input', updateManualTokenLink);
+
+  function renderTrelloBoards(boards) {
+    if (!boardListEl) return;
+    boardListEl.innerHTML = '';
+    if (!boards || !boards.length) {
+      var empty = document.createElement('p');
+      empty.className = 'text-muted small mb-0';
+      empty.textContent = i18nNoBoards;
+      boardListEl.appendChild(empty);
+      if (directImportBtn) directImportBtn.disabled = true;
+      return;
+    }
+    boards.forEach(function (b) {
+      var label = document.createElement('label');
+      label.className = 'sp-trello-board-item';
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'form-check-input mt-0';
+      cb.value = b.id;
+      cb.addEventListener('change', syncImportBtn);
+      var meta = document.createElement('div');
+      meta.className = 'min-width-0 flex-grow-1';
+      var title = document.createElement('div');
+      title.className = 'sp-trello-board-item-title';
+      title.textContent = b.name;
+      meta.appendChild(title);
+      if (b.desc) {
+        var desc = document.createElement('div');
+        desc.className = 'sp-trello-board-item-desc';
+        desc.textContent = b.desc;
+        meta.appendChild(desc);
+      }
+      label.appendChild(cb);
+      label.appendChild(meta);
+      boardListEl.appendChild(label);
+    });
+    syncImportBtn();
+  }
+
+  function syncImportBtn() {
+    if (!directImportBtn || !boardListEl) return;
+    var checked = boardListEl.querySelectorAll('input[type="checkbox"]:checked').length;
+    directImportBtn.disabled = checked === 0;
+  }
+
+  async function loadTrelloBoards() {
+    if (!boardListEl) return;
+    boardListEl.innerHTML = '<div class="text-muted small">' + i18nLoadingBoards + '</div>';
+    if (directImportBtn) directImportBtn.disabled = true;
+    try {
+      var res = await fetch(trelloBoardsUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      var data = await res.json().catch(function () { return {}; });
+      if (res.ok && data.success) {
+        renderTrelloBoards(data.boards || []);
+      } else {
+        boardListEl.innerHTML = '';
+        if (window.SettingsToast) SettingsToast.show(data.error || {{ _('settings.kanban_import.failed')|tojson }}, 'error');
+      }
+    } catch (_) {
+      boardListEl.innerHTML = '';
+    }
+  }
+
+  async function connectTrello(apiKey, token) {
+    if (!apiKey || !token) {
+      if (window.SettingsToast) SettingsToast.show(i18nNeedKeyToken, 'error');
+      return;
+    }
+    try {
+      var res = await fetch(trelloConnectUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ api_key: apiKey, token: token }),
+      });
+      var data = await res.json().catch(function () { return {}; });
+      if (res.ok && data.success && data.profile) {
+        if (accountLabel) {
+          accountLabel.textContent = (data.profile.full_name || '') + (data.profile.username ? ' (@' + data.profile.username + ')' : '');
+        }
+        if (connectBox) connectBox.hidden = true;
+        if (connectedBox) connectedBox.hidden = false;
+        if (window.SettingsToast) SettingsToast.show(i18nConnected, 'success');
+        loadTrelloBoards();
+      } else {
+        if (window.SettingsToast) SettingsToast.show(data.error || {{ _('settings.kanban_import.failed')|tojson }}, 'error');
+      }
+    } catch (_) {
+      if (window.SettingsToast) SettingsToast.show({{ _('settings.kanban_import.failed')|tojson }}, 'error');
+    }
+  }
+
+  if (authorizeBtn) {
+    authorizeBtn.addEventListener('click', function () {
+      var key = (apiKeyInput && apiKeyInput.value || '').trim();
+      if (!key) {
+        if (window.SettingsToast) SettingsToast.show(i18nNeedKey, 'error');
+        if (apiKeyInput) apiKeyInput.focus();
+        return;
+      }
+      window.open(buildTrelloTokenUrl(key, true), 'trelloAuthorize', 'width=620,height=720,noopener=no');
+    });
+  }
+
+  window.addEventListener('message', function (ev) {
+    if (ev.origin !== window.location.origin) return;
+    if (ev.data && ev.data.type === 'prismateams_trello_token' && ev.data.token) {
+      var key = (apiKeyInput && apiKeyInput.value || '').trim();
+      if (tokenInput) tokenInput.value = ev.data.token;
+      connectTrello(key, ev.data.token);
     }
   });
+
+  if (manualConnectBtn) {
+    manualConnectBtn.addEventListener('click', function () {
+      var key = (apiKeyInput && apiKeyInput.value || '').trim();
+      var tok = (tokenInput && tokenInput.value || '').trim();
+      connectTrello(key, tok);
+    });
+  }
+
+  if (refreshBoardsBtn) {
+    refreshBoardsBtn.addEventListener('click', loadTrelloBoards);
+  }
+
+  if (disconnectBtn) {
+    disconnectBtn.addEventListener('click', async function () {
+      try {
+        await fetch(trelloDisconnectUrl, { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+      } catch (_) {}
+      if (connectedBox) connectedBox.hidden = true;
+      if (connectBox) connectBox.hidden = false;
+      if (boardListEl) boardListEl.innerHTML = '';
+      if (trelloResults) trelloResults.hidden = true;
+      if (window.SettingsToast) SettingsToast.show(i18nDisconnected, 'success');
+    });
+  }
+
+  if (directImportBtn) {
+    directImportBtn.addEventListener('click', async function () {
+      var ids = Array.prototype.slice.call(boardListEl.querySelectorAll('input[type="checkbox"]:checked')).map(function (c) { return c.value; });
+      if (!ids.length) return;
+      var visSelect = document.getElementById('trelloImportVisibility') || document.getElementById('settingsKanbanVisibility');
+      var visVal = visSelect ? visSelect.value : 'private';
+      var payload = { board_ids: ids, visibility: visVal.indexOf('team:') === 0 ? 'team' : visVal };
+      if (visVal.indexOf('team:') === 0) payload.team_id = visVal.slice(5);
+      directImportBtn.disabled = true;
+      if (window.SettingsToast) SettingsToast.show({{ _('settings.autosave.saving')|tojson }}, 'saving');
+      try {
+        var res = await fetch(trelloImportUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+          body: JSON.stringify(payload),
+        });
+        var data = await res.json().catch(function () { return {}; });
+        if (res.ok && data.success) {
+          var boards = data.boards || [];
+          if (trelloResults) {
+            trelloResults.hidden = false;
+            trelloResults.innerHTML = '';
+            boards.forEach(function (b) {
+              var row = document.createElement('div');
+              row.className = 'sp-import-result is-ok';
+              row.innerHTML = '<i class="bi bi-check-circle"></i><span></span>';
+              row.querySelector('span').textContent = b.title || b.name || ('#' + b.id);
+              if (b.url) {
+                var a = document.createElement('a');
+                a.href = b.url;
+                a.className = 'ms-auto';
+                a.textContent = {{ _('settings.kanban_import.open')|tojson }};
+                row.appendChild(a);
+              }
+              trelloResults.appendChild(row);
+            });
+          }
+          if (window.SettingsToast) {
+            SettingsToast.show(
+              boards.length === 1
+                ? {{ _('settings.kanban_import.done_one')|tojson }}
+                : ({{ _('settings.kanban_import.done_many')|tojson }}).replace('{count}', String(boards.length)),
+              'success'
+            );
+          }
+        } else {
+          if (window.SettingsToast) SettingsToast.show(data.error || {{ _('settings.kanban_import.failed')|tojson }}, 'error');
+        }
+      } catch (_) {
+        if (window.SettingsToast) SettingsToast.show({{ _('settings.kanban_import.failed')|tojson }}, 'error');
+      } finally {
+        syncImportBtn();
+      }
+    });
+  }
+
+  if (connectedBox && !connectedBox.hidden) {
+    loadTrelloBoards();
+  }
 })();
 </script>
 {% endblock %}

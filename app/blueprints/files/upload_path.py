@@ -4,7 +4,35 @@ from werkzeug.utils import secure_filename
 
 from app import db
 from app.models.file import File, Folder
-from app.utils.private_files import resolve_space_for_parent, resolve_team_id_for_parent
+from app.utils import file_edit_lock as file_edit_lock_util
+from app.utils.file_occupancy import webdav_occupancy_for_file
+from app.utils.private_files import (
+    can_edit_file,
+    is_private_folders_enabled,
+    is_team_folders_enabled,
+    resolve_space_for_parent,
+    resolve_team_id_for_parent,
+    sanitize_files_item_name,
+)
+
+
+def can_overwrite_existing_file(existing_file, user_id):
+    """Verify edit permission, Markdown edit-lock, and WebDAV occupancy before overwriting."""
+    from app.models.user import User
+
+    user = User.query.get(user_id)
+    if (
+        (is_private_folders_enabled() or is_team_folders_enabled())
+        and not (user and getattr(user, "is_admin", False))
+        and not can_edit_file(existing_file, user)
+    ):
+        return False, "Keine Bearbeitungsberechtigung für diese Datei."
+    lock = file_edit_lock_util.get_active_lock(existing_file.id)
+    if lock and lock.locked_by != user_id:
+        return False, "Datei wird gerade von einem anderen Nutzer bearbeitet."
+    if webdav_occupancy_for_file(existing_file.id):
+        return False, "Datei ist derzeit per Netzlaufwerk (WebDAV) gesperrt."
+    return True, None
 
 
 def child_folders_by_name(parent_id, cache):
@@ -22,7 +50,7 @@ def child_folders_by_name(parent_id, cache):
 def current_files_by_name(folder_id, cache):
     """Prefetch current files in one folder into ``cache[folder_id]`` (name→File)."""
     if folder_id not in cache:
-        query = File.query.filter_by(is_current=True)
+        query = File.query.filter_by(is_current=True).filter(File.deleted_at.is_(None))
         if folder_id is None:
             query = query.filter(File.folder_id.is_(None))
         else:
@@ -42,7 +70,7 @@ def ensure_nested_upload_folder_path(
     current_parent_id = root_folder_id
     parent_obj_cache = {}
     for folder_name in path_parts:
-        folder_name_clean = secure_filename(folder_name)
+        folder_name_clean = sanitize_files_item_name(folder_name)
         if not folder_name_clean:
             continue
         siblings = child_folders_by_name(current_parent_id, cache)
@@ -108,6 +136,9 @@ def apply_conflict_or_create(
     existing = occupied.get(file_name)
     if existing:
         if conflict_strategy == "version":
+            ok, _err = can_overwrite_existing_file(existing, user_id)
+            if not ok:
+                return "skipped", False
             _create_new_file_version(existing, file_storage, user_id)
             return "uploaded", True
         if conflict_strategy == "separate":

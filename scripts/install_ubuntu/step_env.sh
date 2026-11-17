@@ -250,18 +250,8 @@ step_env() {
         log_info "Media Downloader: Browser-Download + FFmpeg-Konvertierung (siehe docs/INSTALLATION.md)"
     fi
 
-    # Mail
-    set_env_var "MAIL_SERVER" "${MAIL_SERVER:-}" .env
-    set_env_var "MAIL_PORT" "${MAIL_PORT:-587}" .env
-    set_env_var "MAIL_USE_TLS" "${MAIL_USE_TLS:-True}" .env
-    set_env_var "MAIL_USE_SSL" "${MAIL_USE_SSL:-False}" .env
-    set_env_var "MAIL_USERNAME" "${MAIL_USERNAME:-}" .env
-    set_env_var "MAIL_PASSWORD" "${MAIL_PASSWORD:-}" .env
-    set_env_var "MAIL_DEFAULT_SENDER" "${MAIL_DEFAULT_SENDER:-}" .env
-    set_env_var "MAIL_SENDER_NAME" "${MAIL_SENDER_NAME:-}" .env
-    set_env_var "IMAP_SERVER" "${IMAP_SERVER:-}" .env
-    set_env_var "IMAP_PORT" "${IMAP_PORT:-993}" .env
-    set_env_var "IMAP_USE_SSL" "${IMAP_USE_SSL:-True}" .env
+    # Haupt-E-Mail wird im Browser-Setup bzw. in den Admin-Einstellungen konfiguriert
+    # (Legacy MAIL_*/IMAP_* werden nur noch übernommen, falls über ENV_FILE explizit gesetzt)
 
     # Optional: zusätzliche Overrides aus ENV_FILE mergen (nach auto-Werten)
     if [ "$ENV_MODE" = "file" ] && [ -n "$ENV_FILE" ] && [ -f "$ENV_FILE" ]; then

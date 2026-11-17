@@ -2,6 +2,7 @@
   function qs(sel, root) { return (root || document).querySelector(sel); }
   function qsa(sel, root) { return Array.from((root || document).querySelectorAll(sel)); }
 
+  var idxI18n = window.KANBAN_INDEX_I18N || {};
   var _inlineRenameActive = null;
   var bgMap = {};
   (window.KANBAN_BACKGROUNDS || []).forEach(function (b) {
@@ -115,19 +116,19 @@
     input.type = 'text';
     input.className = 'form-control form-control-sm mod-pill-input';
     input.value = currentName || '';
-    input.setAttribute('aria-label', 'Umbenennen');
+    input.setAttribute('aria-label', idxI18n.rename || 'Umbenennen');
 
     var saveBtn = document.createElement('button');
     saveBtn.type = 'button';
     saveBtn.className = 'btn btn-sm btn-accent mod-pill-btn';
     saveBtn.innerHTML = '<i class="bi bi-check"></i>';
-    saveBtn.title = 'Speichern';
+    saveBtn.title = idxI18n.save || 'Speichern';
 
     var cancelBtn = document.createElement('button');
     cancelBtn.type = 'button';
     cancelBtn.className = 'btn btn-sm btn-secondary mod-pill-btn';
     cancelBtn.innerHTML = '<i class="bi bi-x"></i>';
-    cancelBtn.title = 'Abbrechen';
+    cancelBtn.title = idxI18n.cancel || 'Abbrechen';
 
     wrap.appendChild(input);
     wrap.appendChild(saveBtn);
@@ -153,8 +154,9 @@
         cancelInlineRename();
         updateBoardTitles(id, title);
       }).catch(function () {
-        if (typeof window.showAppBanner === 'function') window.showAppBanner('Fehler beim Umbenennen', 'danger');
-        else alert('Fehler beim Umbenennen');
+        var msg = idxI18n.renameFailed || 'Fehler beim Umbenennen';
+        if (typeof window.showAppBanner === 'function') window.showAppBanner(msg, 'danger');
+        else alert(msg);
       });
     }
 
@@ -185,7 +187,12 @@
           img.src = coverUrl;
           img.hidden = false;
         } else {
-          el.insertAdjacentHTML('afterbegin', '<img src="' + coverUrl + '" alt="" class="kanban-grid-cover__img" data-board-cover-img="' + id + '">');
+          var newImg = document.createElement('img');
+          newImg.src = coverUrl;
+          newImg.alt = '';
+          newImg.className = 'kanban-grid-cover__img';
+          newImg.setAttribute('data-board-cover-img', String(id));
+          el.insertBefore(newImg, el.firstChild);
         }
         if (icon) icon.remove();
       } else if (coverUrl === null || coverUrl === '') {
@@ -251,8 +258,12 @@
     var id = btn.getAttribute('data-kanban-close');
     if (!id) return;
     var ok = typeof window.ptConfirm === 'function'
-      ? await window.ptConfirm('Board schließen?', { danger: true, confirmLabel: 'Schließen', title: 'Board schließen' })
-      : window.confirm('Board schließen?');
+      ? await window.ptConfirm(idxI18n.closeConfirm || 'Board schließen?', {
+          danger: true,
+          confirmLabel: idxI18n.closeBtn || 'Schließen',
+          title: idxI18n.closeConfirm || 'Board schließen'
+        })
+      : window.confirm(idxI18n.closeConfirm || 'Board schließen?');
     if (!ok) return;
     closeOpenDropdowns();
     try {
@@ -362,7 +373,7 @@
 
     function syncCreateMode() {
       var mode = (form.querySelector('input[name="create_mode"]:checked') || {}).value || 'empty';
-      if (templateWrap) templateWrap.style.display = mode === 'template' ? '' : 'none';
+      if (templateWrap) templateWrap.hidden = mode !== 'template';
       if (templateSelect) {
         templateSelect.required = mode === 'template';
         if (mode !== 'template') {
@@ -403,8 +414,9 @@
         delete payload.template_id;
       }
       if (mode === 'template' && !payload.template_id) {
-        if (typeof window.showAppBanner === 'function') window.showAppBanner('Bitte eine Vorlage wählen', 'warning');
-        else alert('Bitte eine Vorlage wählen');
+        var warn = idxI18n.chooseTemplate || 'Bitte eine Vorlage wählen';
+        if (typeof window.showAppBanner === 'function') window.showAppBanner(warn, 'warning');
+        else alert(warn);
         return;
       }
       var submitBtn = form.querySelector('[type="submit"]');
@@ -470,8 +482,8 @@
             cover.appendChild(badge);
           }
           if (badge) {
-            badge.innerHTML = '<i class="bi bi-bell-fill" style="font-size: 0.65rem;"></i>' + count;
-            badge.title = count + (count > 1 ? ' neue Benachrichtigungen' : ' neue Benachrichtigung');
+            badge.innerHTML = '<i class="bi bi-bell-fill kanban-unread-badge-sm" aria-hidden="true"></i>' + count;
+            badge.title = count + ' ' + (count > 1 ? (idxI18n.unreadMany || 'neue Benachrichtigungen') : (idxI18n.unreadOne || 'neue Benachrichtigung'));
             badge.style.display = '';
           }
         } else if (badge) {
@@ -571,6 +583,18 @@
         applySearch(val);
       });
       input.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter') {
+          var hasMore = !!document.querySelector('[data-lazy-has-more="1"]');
+          if (hasMore) {
+            e.preventDefault();
+            var url = new URL(window.location.href);
+            var q = (input.value || '').trim();
+            if (q) url.searchParams.set('q', q);
+            else url.searchParams.delete('q');
+            window.location.href = url.toString();
+          }
+          return;
+        }
         if (e.key === 'Escape' && input.value) {
           e.preventDefault();
           inputs.forEach(function (inp) { inp.value = ''; });
@@ -592,5 +616,142 @@
     if (inputs[0] && inputs[0].value) {
       applySearch(inputs[0].value);
     }
+  })();
+
+  // Board zwischen Bereichen verschieben (Modal + Drag & Drop, inkl. Berechtigungsanpassung)
+  function moveBoardToArea(boardId, visibility, teamId) {
+    if (!boardId || !visibility) return Promise.resolve();
+    return fetch('/kanban/api/boards/' + boardId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({
+        visibility: visibility,
+        team_id: visibility === 'team' ? (teamId ? Number(teamId) : null) : null
+      })
+    }).then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok || (!data.success && data.error)) {
+          throw new Error((data && data.error) || (idxI18n.moveFailed || 'Verschieben fehlgeschlagen'));
+        }
+        location.reload();
+      });
+    }).catch(function (err) {
+      var msg = (err && err.message) || (idxI18n.moveFailed || 'Verschieben fehlgeschlagen');
+      if (typeof window.showAppBanner === 'function') window.showAppBanner(msg, 'danger');
+      else alert(msg);
+    });
+  }
+
+  window.kanbanOpenMove = function (btn) {
+    closeOpenDropdowns();
+    var boardId = btn && btn.getAttribute('data-kanban-move');
+    if (!boardId) return;
+    var title = btn.getAttribute('data-kanban-title') || '';
+    var vis = btn.getAttribute('data-kanban-vis') || 'private';
+    var teamId = btn.getAttribute('data-kanban-team-id') || '';
+
+    var idInput = qs('#kanbanMoveBoardId');
+    var nameEl = qs('#kanbanMoveBoardName');
+    var selectEl = qs('#kanbanMoveBoardTarget');
+    if (idInput) idInput.value = boardId;
+    if (nameEl) nameEl.textContent = title;
+    if (selectEl) {
+      var val = vis === 'team' && teamId ? ('team:' + teamId) : vis;
+      selectEl.value = val;
+      selectEl.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    var modalEl = qs('#kanbanMoveBoardModal');
+    if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+      window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+  };
+
+  var moveSaveBtn = qs('#kanbanMoveBoardSave');
+  if (moveSaveBtn) {
+    moveSaveBtn.addEventListener('click', function () {
+      var boardId = (qs('#kanbanMoveBoardId') || {}).value;
+      var rawTarget = (qs('#kanbanMoveBoardTarget') || {}).value || '';
+      if (!boardId || !rawTarget) return;
+      var vis = rawTarget;
+      var teamId = null;
+      if (rawTarget.indexOf('team:') === 0) {
+        vis = 'team';
+        teamId = Number(rawTarget.slice(5));
+      }
+      moveSaveBtn.disabled = true;
+      moveBoardToArea(boardId, vis, teamId).finally(function () {
+        moveSaveBtn.disabled = false;
+      });
+    });
+  }
+
+  (function initBoardSectionDragDrop() {
+    var dragState = null;
+
+    document.addEventListener('dragstart', function (e) {
+      var item = e.target && e.target.closest ? e.target.closest('[data-board-id][data-board-manage="1"]') : null;
+      if (!item) return;
+      if (e.target.closest('.dropdown, button, input')) {
+        e.preventDefault();
+        return;
+      }
+      dragState = {
+        boardId: item.getAttribute('data-board-id'),
+        vis: item.getAttribute('data-board-vis') || '',
+        teamId: item.getAttribute('data-board-team-id') || ''
+      };
+      item.classList.add('is-dragging');
+      document.body.classList.add('kanban-board-dragging');
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', dragState.boardId);
+      }
+    });
+
+    document.addEventListener('dragend', function () {
+      dragState = null;
+      document.body.classList.remove('kanban-board-dragging');
+      qsa('.is-dragging').forEach(function (el) { el.classList.remove('is-dragging'); });
+      qsa('.kanban-section.is-drop-target').forEach(function (sec) { sec.classList.remove('is-drop-target'); });
+    });
+
+    qsa('.kanban-section[data-drop-visibility]').forEach(function (sec) {
+      function isDifferentTarget() {
+        if (!dragState) return false;
+        var targetVis = sec.getAttribute('data-drop-visibility') || '';
+        var targetTeam = sec.getAttribute('data-drop-team-id') || '';
+        return targetVis !== dragState.vis || targetTeam !== dragState.teamId;
+      }
+
+      sec.addEventListener('dragover', function (e) {
+        if (!isDifferentTarget()) return;
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+        sec.classList.add('is-drop-target');
+      });
+
+      sec.addEventListener('dragenter', function (e) {
+        if (!isDifferentTarget()) return;
+        e.preventDefault();
+        sec.classList.add('is-drop-target');
+      });
+
+      sec.addEventListener('dragleave', function (e) {
+        if (e.relatedTarget && sec.contains(e.relatedTarget)) return;
+        sec.classList.remove('is-drop-target');
+      });
+
+      sec.addEventListener('drop', function (e) {
+        if (!isDifferentTarget()) return;
+        e.preventDefault();
+        sec.classList.remove('is-drop-target');
+        var targetVis = sec.getAttribute('data-drop-visibility') || '';
+        var targetTeam = sec.getAttribute('data-drop-team-id') || '';
+        var bId = dragState.boardId;
+        dragState = null;
+        document.body.classList.remove('kanban-board-dragging');
+        moveBoardToArea(bId, targetVis, targetTeam || null);
+      });
+    });
   })();
 })();

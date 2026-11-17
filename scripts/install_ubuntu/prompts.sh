@@ -246,76 +246,7 @@ gather_information() {
     prompt_or_default TIMEZONE "Zeitzone" "Europe/Berlin"
     prompt_or_default VAPID_CLAIM_EMAIL "VAPID Claim E-Mail" "admin@example.com"
 
-    # E-Mail (optional, außer manual-Modus verlangt)
-    MAIL_SERVER="${MAIL_SERVER:-}"
-    MAIL_PORT="${MAIL_PORT:-587}"
-    MAIL_USE_TLS="${MAIL_USE_TLS:-True}"
-    MAIL_USE_SSL="${MAIL_USE_SSL:-False}"
-    MAIL_USERNAME="${MAIL_USERNAME:-}"
-    MAIL_PASSWORD="${MAIL_PASSWORD:-}"
-    MAIL_DEFAULT_SENDER="${MAIL_DEFAULT_SENDER:-}"
-    MAIL_SENDER_NAME="${MAIL_SENDER_NAME:-}"
-    IMAP_SERVER="${IMAP_SERVER:-}"
-    IMAP_PORT="${IMAP_PORT:-993}"
-    IMAP_USE_SSL="${IMAP_USE_SSL:-True}"
-
-    if [ "$ENV_MODE" = "manual" ] && ! is_yes "$NON_INTERACTIVE"; then
-        log_info ""
-        log_info "=== E-Mail-Konfiguration (optional) ==="
-        read -r -p "SMTP-Server (leer = überspringen): " MAIL_SERVER
-        if [ -n "$MAIL_SERVER" ]; then
-            read -r -p "SMTP-Port [587]: " MAIL_PORT
-            MAIL_PORT=${MAIL_PORT:-587}
-            read -r -p "TLS verwenden? (j/n) [j]: " _tls
-            _tls=${_tls:-j}
-            if is_yes "$_tls"; then MAIL_USE_TLS="True"; else MAIL_USE_TLS="False"; fi
-            read -r -p "SSL verwenden? (j/n) [n]: " _ssl
-            _ssl=${_ssl:-n}
-            if is_yes "$_ssl"; then MAIL_USE_SSL="True"; else MAIL_USE_SSL="False"; fi
-            read -r -p "E-Mail-Benutzername: " MAIL_USERNAME
-            read -r -sp "E-Mail-Passwort: " MAIL_PASSWORD
-            echo
-            read -r -p "Standard-Absender [${MAIL_USERNAME}]: " MAIL_DEFAULT_SENDER
-            MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER:-$MAIL_USERNAME}
-            read -r -p "Absender-Name (optional): " MAIL_SENDER_NAME
-            read -r -p "IMAP-Server (leer = überspringen): " IMAP_SERVER
-            if [ -n "$IMAP_SERVER" ]; then
-                read -r -p "IMAP-Port [993]: " IMAP_PORT
-                IMAP_PORT=${IMAP_PORT:-993}
-                read -r -p "IMAP SSL? (j/n) [j]: " _imaps
-                _imaps=${_imaps:-j}
-                if is_yes "$_imaps"; then IMAP_USE_SSL="True"; else IMAP_USE_SSL="False"; fi
-            fi
-        fi
-    elif [ "$ENV_MODE" = "auto" ] && ! is_yes "$NON_INTERACTIVE"; then
-        log_info ""
-        log_info "=== E-Mail-Konfiguration (optional) ==="
-        read -r -p "SMTP-Server (leer = überspringen): " MAIL_SERVER
-        if [ -n "$MAIL_SERVER" ]; then
-            read -r -p "SMTP-Port [587]: " MAIL_PORT
-            MAIL_PORT=${MAIL_PORT:-587}
-            read -r -p "TLS verwenden? (j/n) [j]: " _tls
-            _tls=${_tls:-j}
-            if is_yes "$_tls"; then MAIL_USE_TLS="True"; else MAIL_USE_TLS="False"; fi
-            read -r -p "SSL verwenden? (j/n) [n]: " _ssl
-            _ssl=${_ssl:-n}
-            if is_yes "$_ssl"; then MAIL_USE_SSL="True"; else MAIL_USE_SSL="False"; fi
-            read -r -p "E-Mail-Benutzername: " MAIL_USERNAME
-            read -r -sp "E-Mail-Passwort: " MAIL_PASSWORD
-            echo
-            read -r -p "Standard-Absender [${MAIL_USERNAME}]: " MAIL_DEFAULT_SENDER
-            MAIL_DEFAULT_SENDER=${MAIL_DEFAULT_SENDER:-$MAIL_USERNAME}
-            read -r -p "Absender-Name (optional): " MAIL_SENDER_NAME
-            read -r -p "IMAP-Server (leer = überspringen): " IMAP_SERVER
-            if [ -n "$IMAP_SERVER" ]; then
-                read -r -p "IMAP-Port [993]: " IMAP_PORT
-                IMAP_PORT=${IMAP_PORT:-993}
-                read -r -p "IMAP SSL? (j/n) [j]: " _imaps
-                _imaps=${_imaps:-j}
-                if is_yes "$_imaps"; then IMAP_USE_SSL="True"; else IMAP_USE_SSL="False"; fi
-            fi
-        fi
-    fi
+    # E-Mail wird nach der Installation im Browser-Setup bzw. in den Admin-Einstellungen konfiguriert.
 
     # QA F08: Euro-Office/MiroTalk nicht unbemerkt auf 2-GB-/small-Hosts
     enforce_small_vps_sidecar_policy

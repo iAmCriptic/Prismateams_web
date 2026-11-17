@@ -1,0 +1,156 @@
+{# Wiederverwendbarer Browser-Wizard für die Haupt-E-Mail (Setup & Admin-Einstellungen) #}
+{% set cfg = mail_cfg or {} %}
+{% set current_provider = cfg.get('provider') or 'custom' %}
+{% set smtp_sec = 'ssl' if cfg.get('smtp_use_ssl') else ('tls' if cfg.get('smtp_use_tls', True) else 'none') %}
+{% set pw_placeholder = '••••••••' if cfg.get('has_smtp_password') else '' %}
+
+<div class="main-mail-wizard"
+     id="mainMailWizard"
+     data-autodiscover-url="{{ autodiscover_url }}"
+     data-test-smtp-url="{{ test_smtp_url }}"
+     data-test-imap-url="{{ test_imap_url }}"
+     data-presets='{{ provider_presets|tojson }}'
+     data-i18n-detecting="{{ _('settings.mailboxes.autodiscover_detecting') }}"
+     data-i18n-testing="{{ _('settings.admin.email_module.test.status_running') }}"
+     data-i18n-incomplete="{{ _('settings.mailboxes.autodiscover_incomplete') }}"
+     data-i18n-error="{{ _('common.error') }}">
+
+    <input type="hidden" name="provider" id="main_mail_provider" value="{{ current_provider }}">
+
+    <div class="mb-3">
+        <label class="form-label fw-semibold">{{ _('settings.admin.main_mailbox.provider_label') }}</label>
+        <div class="row g-2" role="radiogroup" aria-label="{{ _('settings.admin.main_mailbox.provider_label') }}">
+            {% for key, icon, label_key in [
+                ('google', 'bi-google', 'settings.mailboxes.provider_google'),
+                ('microsoft', 'bi-microsoft', 'settings.mailboxes.provider_microsoft'),
+                ('infomaniak', 'bi-envelope-check', 'settings.admin.main_mailbox.provider_infomaniak'),
+                ('ionos', 'bi-globe', 'settings.admin.main_mailbox.provider_ionos'),
+                ('custom', 'bi-sliders', 'settings.mailboxes.provider_custom')
+            ] %}
+            <div class="col-6 col-md">
+                <button type="button"
+                        class="btn btn-outline-secondary w-100 h-100 d-flex flex-column align-items-center justify-content-center py-2 gap-1 main-mail-provider-btn{% if current_provider == key %} active{% endif %}"
+                        data-provider="{{ key }}">
+                    <i class="bi {{ icon }}" aria-hidden="true"></i>
+                    <span class="small">{{ _(label_key) }}</span>
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <label class="form-label" for="main_mail_email">{{ _('settings.admin.main_mailbox.email_label') }}</label>
+            <input type="email"
+                   class="form-control mod-pill-input"
+                   id="main_mail_email"
+                   name="smtp_username"
+                   value="{{ cfg.get('smtp_username') or '' }}"
+                   placeholder="team@example.com"
+                   autocomplete="username">
+            <div class="form-text">{{ _('settings.admin.main_mailbox.email_help') }}</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="main_mail_password">{{ _('settings.admin.main_mailbox.password_label') }}</label>
+            <input type="password"
+                   class="form-control mod-pill-input"
+                   id="main_mail_password"
+                   name="smtp_password"
+                   value="{{ pw_placeholder }}"
+                   placeholder="{{ _('settings.admin.main_mailbox.password_placeholder') }}"
+                   autocomplete="new-password">
+            <div class="form-text">{{ _('settings.admin.main_mailbox.password_help') }}</div>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label" for="main_mail_sender_name">{{ _('settings.admin.main_mailbox.sender_name_label') }}</label>
+            <input type="text"
+                   class="form-control mod-pill-input"
+                   id="main_mail_sender_name"
+                   name="sender_name"
+                   value="{{ cfg.get('sender_name') or '' }}"
+                   placeholder="{{ _('settings.admin.main_mailbox.sender_name_placeholder') }}">
+        </div>
+        <div class="col-md-6 d-flex align-items-end">
+            <button type="button"
+                    class="btn btn-outline-primary mod-pill-btn w-100"
+                    id="mainMailAutodiscoverBtn">
+                <i class="bi bi-magic me-1" aria-hidden="true"></i>
+                <span>{{ _('settings.admin.main_mailbox.autodiscover_btn') }}</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="mainMailWizardAlert" class="alert d-none mb-3" role="status" aria-live="polite"></div>
+
+    <details class="border rounded-3 p-3 mb-3" id="mainMailAdvancedDetails"{% if cfg.get('smtp_server') or current_provider == 'custom' %} open{% endif %}>
+        <summary class="fw-semibold cursor-pointer">
+            <i class="bi bi-gear me-1" aria-hidden="true"></i>
+            {{ _('settings.admin.main_mailbox.advanced_toggle') }}
+        </summary>
+
+        <div class="mt-3">
+            <h4 class="h6 fw-semibold mb-2">
+                <i class="bi bi-send me-1" aria-hidden="true"></i>{{ _('settings.mailboxes.wizard_step_smtp') }}
+            </h4>
+            <div class="row g-2 mb-3">
+                <div class="col-md-5">
+                    <label class="form-label small" for="main_mail_smtp_server">{{ _('settings.mailboxes.smtp_server') }}</label>
+                    <input type="text" class="form-control form-control-sm mod-pill-input" id="main_mail_smtp_server" name="smtp_server" value="{{ cfg.get('smtp_server') or '' }}" placeholder="smtp.example.com">
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small" for="main_mail_smtp_port">{{ _('settings.mailboxes.smtp_port') }}</label>
+                    <input type="number" class="form-control form-control-sm mod-pill-input" id="main_mail_smtp_port" name="smtp_port" value="{{ cfg.get('smtp_port') or 587 }}" min="1" max="65535">
+                </div>
+                <div class="col-6 col-md-4">
+                    <label class="form-label small" for="main_mail_smtp_security">{{ _('settings.admin.main_mailbox.security_label') }}</label>
+                    <select class="form-select form-select-sm mod-pill-input" id="main_mail_smtp_security" name="smtp_security">
+                        <option value="tls" {% if smtp_sec == 'tls' %}selected{% endif %}>STARTTLS (587)</option>
+                        <option value="ssl" {% if smtp_sec == 'ssl' %}selected{% endif %}>SSL/TLS (465)</option>
+                        <option value="none" {% if smtp_sec == 'none' %}selected{% endif %}>{{ _('settings.admin.main_mailbox.security_none') }}</option>
+                    </select>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label small" for="main_mail_default_sender">{{ _('settings.admin.main_mailbox.default_sender_label') }}</label>
+                    <input type="email" class="form-control form-control-sm mod-pill-input" id="main_mail_default_sender" name="default_sender" value="{{ cfg.get('default_sender') or '' }}" placeholder="{{ _('settings.admin.main_mailbox.default_sender_placeholder') }}">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn w-100" id="mainMailTestSmtpBtn">
+                        <i class="bi bi-play-fill me-1" aria-hidden="true"></i>{{ _('settings.admin.main_mailbox.test_smtp_btn') }}
+                    </button>
+                </div>
+            </div>
+
+            <hr class="my-3">
+
+            <h4 class="h6 fw-semibold mb-2">
+                <i class="bi bi-inbox me-1" aria-hidden="true"></i>{{ _('settings.mailboxes.wizard_step_imap') }}
+            </h4>
+            <div class="row g-2">
+                <div class="col-md-5">
+                    <label class="form-label small" for="main_mail_imap_server">{{ _('settings.mailboxes.imap_server') }}</label>
+                    <input type="text" class="form-control form-control-sm mod-pill-input" id="main_mail_imap_server" name="imap_server" value="{{ cfg.get('imap_server') or '' }}" placeholder="imap.example.com">
+                </div>
+                <div class="col-6 col-md-3">
+                    <label class="form-label small" for="main_mail_imap_port">{{ _('settings.mailboxes.imap_port') }}</label>
+                    <input type="number" class="form-control form-control-sm mod-pill-input" id="main_mail_imap_port" name="imap_port" value="{{ cfg.get('imap_port') or 993 }}" min="1" max="65535">
+                </div>
+                <div class="col-6 col-md-4 d-flex align-items-end pb-1">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="main_mail_imap_ssl" name="imap_use_ssl" value="true" {% if cfg.get('imap_use_ssl', True) %}checked{% endif %}>
+                        <label class="form-check-label small" for="main_mail_imap_ssl">SSL/TLS</label>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label small" for="main_mail_imap_username">{{ _('settings.admin.main_mailbox.imap_username_label') }}</label>
+                    <input type="text" class="form-control form-control-sm mod-pill-input" id="main_mail_imap_username" name="imap_username" value="{{ cfg.get('imap_username') or '' }}" placeholder="{{ _('settings.admin.main_mailbox.imap_username_placeholder') }}">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
+                    <button type="button" class="btn btn-sm btn-outline-secondary mod-pill-btn w-100" id="mainMailTestImapBtn">
+                        <i class="bi bi-play-fill me-1" aria-hidden="true"></i>{{ _('settings.admin.main_mailbox.test_imap_btn') }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </details>
+</div>

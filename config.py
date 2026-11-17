@@ -3,8 +3,8 @@ from datetime import timedelta
 from dotenv import load_dotenv
 
 # About-Seite (Release / Build)
-ABOUT_RELEASE_VERSION = 'v3.5.1 - Early Alpha'
-ABOUT_BUILD_NUMBER = 'B351.07112026.01'
+ABOUT_RELEASE_VERSION = 'v3.5.0 - RK2'
+ABOUT_BUILD_NUMBER = 'B350.17112026.01'
 
 load_dotenv()
 
@@ -297,12 +297,20 @@ config = {
 
 def get_formatted_sender():
     """Gibt den formatierten Absender zurück: 'Name <email@example.com>' oder nur 'email@example.com'."""
+    try:
+        from flask import has_app_context
+        if has_app_context():
+            from app.utils.main_mail_config import get_formatted_main_sender
+            return get_formatted_main_sender()
+    except Exception:
+        pass
+
     sender_name = os.environ.get('MAIL_SENDER_NAME', '').strip()
     sender_email = os.environ.get('MAIL_DEFAULT_SENDER') or os.environ.get('MAIL_USERNAME')
-    
+
     if not sender_email:
         return None
-    
+
     if sender_name:
         return f"{sender_name} <{sender_email}>"
     else:

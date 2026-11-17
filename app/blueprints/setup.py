@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app, jsonify
 from flask_login import login_user, current_user, login_required
 from app import db
 from app.models.user import User
@@ -144,14 +144,16 @@ def _has_admin_user():
 
 
 def _setup_unlocked_steps():
-    """Welche Steps per Icon erreichbar sind (1–4). Bis Abschluss alle erreichten Steps editierbar."""
+    """Welche Steps per Icon erreichbar sind (1–5). Bis Abschluss alle erreichten Steps editierbar."""
     unlocked = {1}
     if _has_portal_org():
         unlocked.add(2)
     if _has_admin_user():
-        unlocked.update({1, 2, 3, 4})
+        unlocked.update({1, 2, 3, 4, 5})
     elif session.get('setup_reg_completed'):
         unlocked.add(4)
+        if session.get('setup_mail_completed'):
+            unlocked.add(5)
     return unlocked
 
 
@@ -243,10 +245,12 @@ def setup():
 
     # Expliziter Step-Parameter: freie Navigation bis Abschluss
     step = request.args.get('step', type=int)
-    if step in (1, 2, 3, 4) and step in _setup_unlocked_steps():
+    if step in (1, 2, 3, 4, 5) and step in _setup_unlocked_steps():
         return redirect(url_for(f'setup.setup_step{step}'))
 
     if _has_admin_user() and current_user.is_authenticated:
+        if session.get('setup_mail_completed'):
+            return redirect(url_for('setup.setup_step5'))
         if session.get('setup_reg_completed'):
             return redirect(url_for('setup.setup_step4'))
         return redirect(url_for('setup.setup_step3'))
@@ -736,8 +740,106 @@ def setup_step3():
 @setup_bp.route('/setup/step4', methods=['GET', 'POST'])
 @login_required
 def setup_step4():
-    """Schritt 4: Module aktivieren + Setup abschließen."""
+    """Schritt 4: Haupt-E-Mail (System-E-Mail) im Browser einrichten."""
     blocked = _require_step_access(4)
+    if blocked:
+        return blocked
+
+    from app.utils.main_mail_config import (
+        get_main_mail_config,
+        parse_main_mail_form,
+        save_main_mail_config,
+    )
+    from app.utils.multi_mailboxes import MAILBOX_PROVIDER_PRESETS
+
+    if request.method == 'POST':
+        if request.form.get('action') == 'skip':
+            session['setup_mail_completed'] = True
+            return redirect(url_for('setup.setup_step5'))
+
+        parsed = parse_main_mail_form(request.form)
+        existing = get_main_mail_config()
+        has_pw = bool(parsed['smtp_password'] or existing.get('has_smtp_password'))
+        if not parsed['smtp_server'] or not parsed['smtp_username'] or not has_pw:
+            flash(translate('setup.email.flash_incomplete'), 'danger')
+            return render_template(
+                'setup/step4_email.html',
+                **_setup_template_kwargs(
+                    4,
+                    mail_cfg={**existing, **parsed},
+                    provider_presets=MAILBOX_PROVIDER_PRESETS,
+                ),
+            )
+
+        try:
+            save_main_mail_config(parsed, commit=True)
+            session['setup_mail_completed'] = True
+            flash(translate('setup.email.flash_saved'), 'success')
+            return redirect(url_for('setup.setup_step5'))
+        except Exception as e:
+            db.session.rollback()
+            logging.error(f'Error saving setup step4 mail: {e}', exc_info=True)
+            flash(f'Fehler beim Speichern: {str(e)}', 'danger')
+            return render_template(
+                'setup/step4_email.html',
+                **_setup_template_kwargs(
+                    4,
+                    mail_cfg={**existing, **parsed},
+                    provider_presets=MAILBOX_PROVIDER_PRESETS,
+                ),
+            )
+
+    return render_template(
+        'setup/step4_email.html',
+        **_setup_template_kwargs(
+            4,
+            mail_cfg=get_main_mail_config(),
+            provider_presets=MAILBOX_PROVIDER_PRESETS,
+        ),
+    )
+
+
+@setup_bp.route('/setup/mail/autodiscover', methods=['POST'])
+@login_required
+def setup_mail_autodiscover():
+    """Autodiscover für das Hauptpostfach während des Setups (JSON)."""
+    if not is_setup_needed():
+        return jsonify({'success': False, 'message': 'Setup bereits abgeschlossen'}), 403
+    from app.utils.main_mail_config import main_mail_autodiscover_response
+
+    data = request.get_json(silent=True) or {}
+    return jsonify(main_mail_autodiscover_response(data))
+
+
+@setup_bp.route('/setup/mail/test-smtp', methods=['POST'])
+@login_required
+def setup_mail_test_smtp():
+    """SMTP-Live-Test während des Setups (JSON)."""
+    if not is_setup_needed():
+        return jsonify({'success': False, 'message': 'Setup bereits abgeschlossen'}), 403
+    from app.utils.main_mail_config import main_mail_test_smtp_response
+
+    data = request.get_json(silent=True) or {}
+    return jsonify(main_mail_test_smtp_response(data))
+
+
+@setup_bp.route('/setup/mail/test-imap', methods=['POST'])
+@login_required
+def setup_mail_test_imap():
+    """IMAP-Live-Test während des Setups (JSON)."""
+    if not is_setup_needed():
+        return jsonify({'success': False, 'message': 'Setup bereits abgeschlossen'}), 403
+    from app.utils.main_mail_config import main_mail_test_imap_response
+
+    data = request.get_json(silent=True) or {}
+    return jsonify(main_mail_test_imap_response(data))
+
+
+@setup_bp.route('/setup/step5', methods=['GET', 'POST'])
+@login_required
+def setup_step5():
+    """Schritt 5: Module aktivieren + Setup abschließen."""
+    blocked = _require_step_access(5)
     if blocked:
         return blocked
 
@@ -759,7 +861,8 @@ def setup_step4():
                 'setup_portal_name', 'setup_portal_logo', 'setup_default_accent_color',
                 'setup_color_gradient', 'setup_whitelist_entries', 'setup_modules',
                 'setup_bot_protection', 'setup_default_roles', 'setup_in_progress',
-                'setup_reg_completed', 'setup_admin_email', 'setup_default_language',
+                'setup_reg_completed', 'setup_mail_completed', 'setup_admin_email',
+                'setup_default_language',
             ):
                 session.pop(key, None)
 
@@ -767,7 +870,7 @@ def setup_step4():
             return redirect(url_for('dashboard.index'))
         except Exception as e:
             db.session.rollback()
-            logging.error(f'Error finishing setup step4: {e}', exc_info=True)
+            logging.error(f'Error finishing setup step5: {e}', exc_info=True)
             flash(f'Fehler beim Setup: {str(e)}', 'danger')
 
     saved = session.get('setup_modules') or _default_modules_dict()
@@ -787,7 +890,7 @@ def setup_step4():
 
     return render_template(
         'setup/step4.html',
-        **_setup_template_kwargs(4, modules=modules_for_ui),
+        **_setup_template_kwargs(5, modules=modules_for_ui),
     )
 
 

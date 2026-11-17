@@ -273,7 +273,7 @@ def _generate_unique_filename_in_folder(filename, folder_id):
     candidate = filename
     suffix = 1
 
-    while File.query.filter_by(name=candidate, folder_id=folder_id, is_current=True).first():
+    while File.query.filter_by(name=candidate, folder_id=folder_id, is_current=True).filter(File.deleted_at.is_(None)).first():
         candidate = f"{base} ({suffix}){extension}"
         suffix += 1
 
@@ -287,14 +287,8 @@ def _create_new_file_version(existing_file, uploaded_file, user_id):
 
     version_number = existing_file.version_number + 1
 
-    old_version = FileVersion(
-        file_id=existing_file.id,
-        version_number=existing_file.version_number,
-        file_path=os.path.abspath(existing_file.file_path),
-        file_size=existing_file.file_size,
-        uploaded_by=existing_file.uploaded_by
-    )
-    db.session.add(old_version)
+    filepath = _unique_disk_filepath(existing_file.name or existing_file.original_name)
+    uploaded_file.save(filepath)
 
     versions = FileVersion.query.filter_by(file_id=existing_file.id).order_by(
         FileVersion.version_number.desc()
@@ -306,12 +300,14 @@ def _create_new_file_version(existing_file, uploaded_file, user_id):
             os.remove(oldest.file_path)
         db.session.delete(oldest)
 
-    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-    safe_name = _disk_safe_upload_basename(existing_file.name or existing_file.original_name)
-    filename = f"{timestamp}_{safe_name}"
-    filepath = os.path.join('uploads', 'files', filename)
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    uploaded_file.save(filepath)
+    old_version = FileVersion(
+        file_id=existing_file.id,
+        version_number=existing_file.version_number,
+        file_path=os.path.abspath(existing_file.file_path),
+        file_size=existing_file.file_size,
+        uploaded_by=existing_file.uploaded_by
+    )
+    db.session.add(old_version)
 
     absolute_filepath = os.path.abspath(filepath)
     existing_file.file_path = absolute_filepath
@@ -448,7 +444,10 @@ def _normalize_share_mode(raw_mode):
 def _parse_share_expires(raw_value):
     if not raw_value or not str(raw_value).strip():
         return None
-    return datetime.fromisoformat(str(raw_value).strip())
+    try:
+        return datetime.fromisoformat(str(raw_value).strip())
+    except ValueError:
+        return None
 
 
 def _share_bot_session_key(token):
@@ -501,7 +500,7 @@ def _get_public_share_context(token):
     if not share or share_is_expired(share):
         return None, None
     item = resolve_resource(share)
-    if not item:
+    if not item or getattr(item, 'deleted_at', None) is not None:
         return None, None
     return share, item
 
@@ -667,6 +666,16 @@ def _disk_safe_upload_basename(original_name: str) -> str:
     return safe
 
 
+def _unique_disk_filepath(original_name: str) -> str:
+    """Build a collision-free path under uploads/files using timestamp + random hex."""
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    safe_name = _disk_safe_upload_basename(original_name)
+    filename = f"{timestamp}_{secrets.token_hex(6)}_{safe_name}"
+    filepath = os.path.join('uploads', 'files', filename)
+    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    return filepath
+
+
 def _process_file_upload(file, original_name, folder_id, user_id, space='public', team_id=None):
     """Helper function to process a single file upload."""
     if not is_allowed_upload_filename(original_name):
@@ -677,12 +686,7 @@ def _process_file_upload(file, original_name, folder_id, user_id, space='public'
     if not is_allowed_upload_filename(safe_name):
         raise ValueError('disallowed_extension')
 
-    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-    filename = f"{timestamp}_{safe_name}"
-    filepath = os.path.join('uploads', 'files', filename)
-    
-    # Ensure directory exists
-    os.makedirs(os.path.dirname(filepath), exist_ok=True)
+    filepath = _unique_disk_filepath(display_name)
     
     file.save(filepath)
     
@@ -751,8 +755,12 @@ def _check_share_access(token):
 
 def _is_descendant_folder(candidate_folder, root_folder):
     """Prüft, ob candidate_folder innerhalb root_folder liegt (inkl. root)."""
+    if not candidate_folder or not root_folder or getattr(root_folder, 'deleted_at', None) is not None:
+        return False
     current = candidate_folder
     while current:
+        if getattr(current, 'deleted_at', None) is not None:
+            return False
         if current.id == root_folder.id:
             return True
         if not current.parent_id:
@@ -763,7 +771,9 @@ def _is_descendant_folder(candidate_folder, root_folder):
 
 def _resolve_shared_file(item, file_id):
     """Datei unter Freigabe auflösen (direkt oder in Ordner inkl. Unterordner)."""
-    file = File.query.filter_by(id=file_id, is_current=True).first()
+    if not item or getattr(item, 'deleted_at', None) is not None:
+        return None
+    file = File.query.filter_by(id=file_id, is_current=True).filter(File.deleted_at.is_(None)).first()
     if not file:
         return None
     if isinstance(item, File):
@@ -802,8 +812,20 @@ def _build_public_share_breadcrumb(root_folder, current_folder, token):
 def _build_share_gate_preview_context(share, item):
     """Vorschau-Kontext für vorgeschaltete Freigabe-Seiten (Name/Passwort)."""
     if share.resource_type == 'folder':
-        preview_subfolders = Folder.query.filter_by(parent_id=item.id).order_by(Folder.name).limit(12).all()
-        preview_files = File.query.filter_by(folder_id=item.id, is_current=True).order_by(File.name).limit(24).all()
+        preview_subfolders = (
+            Folder.query.filter_by(parent_id=item.id)
+            .filter(Folder.deleted_at.is_(None))
+            .order_by(Folder.name)
+            .limit(12)
+            .all()
+        )
+        preview_files = (
+            File.query.filter_by(folder_id=item.id, is_current=True)
+            .filter(File.deleted_at.is_(None))
+            .order_by(File.name)
+            .limit(24)
+            .all()
+        )
         return {
             'preview_item_type': 'folder',
             'preview_folder': item,

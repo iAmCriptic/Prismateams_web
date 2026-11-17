@@ -302,6 +302,15 @@ def edit_file(file_id):
                 return redirect(url_for('files.edit_file', file_id=file.id))
 
         content = request.form.get('content', '')
+        ok_quota, _code, quota_err = check_upload_allowed(
+            current_user.id, len(content.encode('utf-8'))
+        )
+        if not ok_quota:
+            msg = quota_err or 'Speicherkontingent oder maximale Dateigröße überschritten.'
+            if wants_json:
+                return jsonify({'success': False, 'error': msg}), 400
+            flash(msg, 'danger')
+            return redirect(url_for('files.edit_file', file_id=file.id))
         
         # Save current version to history
         version = FileVersion(
@@ -405,6 +414,14 @@ def edit_file(file_id):
 def preview_file(file_id):
     """Vorschau fuer Editor mit demselben Interpreter wie /view."""
     file = File.query.get_or_404(file_id)
+    if file.deleted_at is not None:
+        return jsonify({'error': 'Datei nicht gefunden'}), 404
+    if _is_guest_user():
+        from app.utils.access_control import guest_has_file_access
+        if not guest_has_file_access(current_user, file):
+            return jsonify({'error': 'Kein Zugriff'}), 403
+    elif not can_view_file(file, current_user) and not getattr(current_user, 'is_admin', False):
+        return jsonify({'error': 'Kein Zugriff'}), 403
     viewable_extensions = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
     file_ext = os.path.splitext(file.original_name)[1].lower()
 

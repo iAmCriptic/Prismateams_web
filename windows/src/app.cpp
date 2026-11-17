@@ -198,25 +198,33 @@ void App::OpenNativeSettings() {
     NativeSettingsWindow::Show(m_hWndMain, m_hInstance, m_isDarkMode);
 }
 
+void App::ShowTrayNotification(const std::wstring& title, const std::wstring& message) {
+    if (m_trayIcon) {
+        m_trayIcon->ShowNotification(title, message);
+    }
+}
+
 void App::OnLoginSuccess() {
     m_isAuthenticated = true;
 
-    // Auto mount WebDAV drive
-    auto creds = AuthManager::Instance().FetchWebDavCredentials();
-    if (creds.success) {
-        wchar_t assigned = L'P';
-        std::wstring err;
-        WebDavManager::Instance().MountDrive(
-            AuthManager::Instance().GetServerUrl(),
-            creds.username,
-            creds.password,
-            SettingsManager::Instance().Get().driveLetter,
-            assigned,
-            err
-        );
-        if (m_trayIcon && WebDavManager::Instance().IsMounted()) {
-            std::wstring msg = L"Netzlaufwerk " + std::wstring(1, assigned) + L": erfolgreich eingebunden.";
-            m_trayIcon->ShowNotification(L"Prismateams", msg);
+    // Auto mount WebDAV drive if enabled in settings
+    if (SettingsManager::Instance().Get().autoMountDrive) {
+        auto creds = AuthManager::Instance().FetchWebDavCredentials();
+        if (creds.success) {
+            wchar_t assigned = L'P';
+            std::wstring err;
+            WebDavManager::Instance().MountDrive(
+                AuthManager::Instance().GetServerUrl(),
+                creds.username,
+                creds.password,
+                SettingsManager::Instance().Get().driveLetter,
+                assigned,
+                err
+            );
+            if (m_trayIcon && WebDavManager::Instance().IsMounted()) {
+                std::wstring msg = L"Netzlaufwerk " + std::wstring(1, assigned) + L": erfolgreich eingebunden.";
+                m_trayIcon->ShowNotification(L"Prismateams", msg);
+            }
         }
     }
 

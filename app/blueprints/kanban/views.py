@@ -102,14 +102,14 @@ def index():
 
     teams = _user_kanban_teams(current_user)
     allowed = set(get_allowed_visibilities(current_user))
-    q = (request.args.get('q') or '').strip()
+    search_query = (request.args.get('q') or '').strip()
     base = (
         accessible_boards_query(current_user, include_closed=False)
         .options(joinedload(KanbanBoard.team))
         .order_by(KanbanBoard.updated_at.desc())
     )
-    if q:
-        base = base.filter(KanbanBoard.title.ilike(f"%{q}%"))
+    if search_query:
+        base = base.filter(KanbanBoard.title.ilike(f"%{search_query}%"))
 
     def vis_query(vis):
         return base.filter(KanbanBoard.visibility == vis)
@@ -162,10 +162,10 @@ def index():
 
     if VISIBILITY_TEAM in allowed and section in ('all', 'team'):
         if section == 'team':
-            q = vis_query(VISIBILITY_TEAM)
+            team_query = vis_query(VISIBILITY_TEAM)
             if filter_team_id:
-                q = q.filter(KanbanBoard.team_id == filter_team_id)
-            items, pag = paginate_list(q)
+                team_query = team_query.filter(KanbanBoard.team_id == filter_team_id)
+            items, pag = paginate_list(team_query)
             selected_team_boards = items
             list_has_more = pag.has_next
             list_page = pag.page
@@ -186,8 +186,8 @@ def index():
             display_teams = sorted(all_teams_map.values(), key=lambda t: t.name.lower())
 
             for team in display_teams:
-                q = vis_query(VISIBILITY_TEAM).filter(KanbanBoard.team_id == team.id)
-                items, pag = paginate_list(q, page=1)
+                team_query = vis_query(VISIBILITY_TEAM).filter(KanbanBoard.team_id == team.id)
+                items, pag = paginate_list(team_query, page=1)
                 if items:
                     team_board_groups.append({
                         'team': team,
@@ -257,7 +257,7 @@ def index():
         unread_counts_by_board=unread_counts_by_board,
         section_filter=section,
         filter_team_id=filter_team_id,
-        search_query=q,
+        search_query=search_query,
         active_nav=active_nav,
         list_has_more=list_has_more,
         list_page=list_page,

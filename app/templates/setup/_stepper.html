@@ -1,11 +1,12 @@
 {# Shared setup chrome: brand + icon stepper + live gradient bg #}
-{% set unlocked = setup_unlocked if setup_unlocked is defined else [1, 2, 3, 4] %}
+{% set unlocked = setup_unlocked if setup_unlocked is defined else [1, 2, 3, 4, 5] %}
 {% set current = setup_step or 1 %}
 {% set steps = [
-  {'n': 1, 'icon': 'bi-building', 'label': 'Organisation', 'endpoint': 'setup.setup_step1'},
-  {'n': 2, 'icon': 'bi-person-plus', 'label': 'Admin', 'endpoint': 'setup.setup_step2'},
-  {'n': 3, 'icon': 'bi-shield-check', 'label': 'Registrierung', 'endpoint': 'setup.setup_step3'},
-  {'n': 4, 'icon': 'bi-grid-3x3-gap', 'label': 'Module', 'endpoint': 'setup.setup_step4'},
+  {'n': 1, 'icon': 'bi-building', 'label': _('setup.step.org'), 'endpoint': 'setup.setup_step1'},
+  {'n': 2, 'icon': 'bi-person-plus', 'label': _('setup.step.admin'), 'endpoint': 'setup.setup_step2'},
+  {'n': 3, 'icon': 'bi-shield-check', 'label': _('setup.step.registration'), 'endpoint': 'setup.setup_step3'},
+  {'n': 4, 'icon': 'bi-envelope-at', 'label': _('setup.step.email'), 'endpoint': 'setup.setup_step4'},
+  {'n': 5, 'icon': 'bi-grid-3x3-gap', 'label': _('setup.step.modules'), 'endpoint': 'setup.setup_step5'},
 ] %}
 {% set bg = setup_bg or 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' %}
 <style>

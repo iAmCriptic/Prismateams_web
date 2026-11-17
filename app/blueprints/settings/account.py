@@ -237,40 +237,71 @@ def auth_brand_image(filename):
 @login_required
 def notifications():
     """Benachrichtigungseinstellungen."""
+    from app.utils.common import is_module_enabled
+
     if request.method == 'POST':
         # Hole oder erstelle Benachrichtigungseinstellungen
         settings = get_or_create_notification_settings(current_user.id)
         
-        # Chat-Benachrichtigungen
-        settings.chat_notifications_enabled = 'chat_notifications_enabled' in request.form
-        
-        # Datei-Benachrichtigungen
-        settings.file_notifications_enabled = 'file_notifications_enabled' in request.form
+        # Master-Schalter
+        if 'master_notifications_enabled' in request.form:
+            current_user.notifications_enabled = True
+        elif 'has_master_switch' in request.form:
+            current_user.notifications_enabled = False
+
+        # In-App / Portal Kanäle
+        settings.chat_portal_enabled = 'chat_portal_enabled' in request.form
+        settings.kanban_portal_enabled = 'kanban_portal_enabled' in request.form
+        settings.email_portal_enabled = 'email_portal_enabled' in request.form
+        settings.comment_portal_enabled = 'comment_portal_enabled' in request.form
+        settings.inventory_portal_enabled = 'inventory_portal_enabled' in request.form
+        settings.booking_portal_enabled = 'booking_portal_enabled' in request.form
+        settings.room_booking_portal_enabled = 'room_booking_portal_enabled' in request.form
+        settings.survey_portal_enabled = 'survey_portal_enabled' in request.form
+        settings.calendar_portal_enabled = 'calendar_portal_enabled' in request.form
+        settings.file_portal_enabled = 'file_portal_enabled' in request.form
+
+        # WebPush Kanäle
+        settings.chat_push_enabled = 'chat_push_enabled' in request.form
+        settings.kanban_push_enabled = 'kanban_push_enabled' in request.form
+        settings.email_push_enabled = 'email_push_enabled' in request.form
+        settings.comment_push_enabled = 'comment_push_enabled' in request.form
+        settings.inventory_push_enabled = 'inventory_push_enabled' in request.form
+        settings.booking_push_enabled = 'booking_push_enabled' in request.form
+        settings.room_booking_push_enabled = 'room_booking_push_enabled' in request.form
+        settings.survey_push_enabled = 'survey_push_enabled' in request.form
+        settings.calendar_push_enabled = 'calendar_push_enabled' in request.form
+        settings.file_push_enabled = 'file_push_enabled' in request.form
+
+        # Spezifische Sub-Toggles
         settings.file_new_notifications = 'file_new_notifications' in request.form
         settings.file_modified_notifications = 'file_modified_notifications' in request.form
-        
-        # E-Mail-Benachrichtigungen
-        settings.email_notifications_enabled = 'email_notifications_enabled' in request.form
 
-        # Buchungsanfragen
         settings.booking_notifications_enabled = 'booking_notifications_enabled' in request.form
         settings.booking_message_notifications_enabled = 'booking_message_notifications_enabled' in request.form
 
-        from app.utils.common import is_module_enabled
+        settings.comment_mention_notifications = 'comment_mention_notifications' in request.form
+        settings.comment_reply_notifications = 'comment_reply_notifications' in request.form
 
-        # Lager / Ausleihen
-        if is_module_enabled('module_inventory'):
-            settings.inventory_notifications_enabled = 'inventory_notifications_enabled' in request.form
+        settings.survey_new_notifications = 'survey_new_notifications' in request.form
+        settings.survey_response_notifications = 'survey_response_notifications' in request.form
 
-        # Kanban-Benachrichtigungen
-        if is_module_enabled('module_kanban'):
-            settings.kanban_notifications_enabled = 'kanban_notifications_enabled' in request.form
-            settings.kanban_upload_notifications = 'kanban_upload_notifications' in request.form
-            settings.kanban_change_notifications = 'kanban_change_notifications' in request.form
-            settings.kanban_checklist_notifications = 'kanban_checklist_notifications' in request.form
-        
+        settings.room_booking_new_notifications = 'room_booking_new_notifications' in request.form
+        settings.room_booking_status_notifications = 'room_booking_status_notifications' in request.form
+
+        settings.kanban_upload_notifications = 'kanban_upload_notifications' in request.form
+        settings.kanban_change_notifications = 'kanban_change_notifications' in request.form
+        settings.kanban_checklist_notifications = 'kanban_checklist_notifications' in request.form
+
+        # Legacy / Master-Flags konsistent synchronisieren
+        settings.chat_notifications_enabled = settings.chat_portal_enabled or settings.chat_push_enabled
+        settings.email_notifications_enabled = settings.email_portal_enabled or settings.email_push_enabled
+        settings.kanban_notifications_enabled = settings.kanban_portal_enabled or settings.kanban_push_enabled
+        settings.file_notifications_enabled = settings.file_portal_enabled or settings.file_push_enabled
+        settings.inventory_notifications_enabled = settings.inventory_portal_enabled or settings.inventory_push_enabled
+
         # Kalender-Benachrichtigungen
-        settings.calendar_notifications_enabled = 'calendar_notifications_enabled' in request.form
+        settings.calendar_notifications_enabled = settings.calendar_portal_enabled or settings.calendar_push_enabled
         settings.calendar_all_events = request.form.get('calendar_event_filter') == 'all'
         settings.calendar_participating_only = 'calendar_participating_only' in request.form
         settings.calendar_not_participating = 'calendar_not_participating' in request.form
@@ -302,7 +333,7 @@ def notifications():
     
     # Hole alle Chats des Benutzers
     memberships = ChatMember.query.filter_by(user_id=current_user.id).all()
-    user_chats = [membership.chat for membership in memberships]
+    user_chats = [membership.chat for membership in memberships if membership.chat]
     
     # Hole Chat-spezifische Einstellungen
     chat_notification_settings = {}
@@ -313,16 +344,55 @@ def notifications():
         ).first()
         chat_notification_settings[chat.id] = chat_setting.notifications_enabled if chat_setting else True
 
-    from app.utils.common import is_module_enabled
-
     return render_template(
         'settings/notifications.html',
         settings=settings,
+        is_paused=settings.is_paused(),
+        notifications_paused_until=settings.notifications_paused_until,
         user_chats=user_chats,
         chat_notification_settings=chat_notification_settings,
         inventory_module_enabled=is_module_enabled('module_inventory'),
         kanban_module_enabled=is_module_enabled('module_kanban'),
+        chat_module_enabled=is_module_enabled('module_chat'),
+        email_module_enabled=is_module_enabled('module_email'),
+        booking_module_enabled=is_module_enabled('module_booking'),
+        calendar_module_enabled=is_module_enabled('module_calendar'),
+        files_module_enabled=is_module_enabled('module_files'),
+        surveys_module_enabled=is_module_enabled('module_surveys'),
     )
+
+
+@settings_bp.route('/notifications/snooze', methods=['POST'])
+@login_required
+def snooze_notifications():
+    """Pausiert Benachrichtigungen zeitgesteuert (Snooze / Do Not Disturb)."""
+    settings = get_or_create_notification_settings(current_user.id)
+    data = request.get_json(silent=True) or request.form
+    minutes = 0
+    try:
+        minutes = int(data.get('minutes', 0))
+    except (ValueError, TypeError):
+        minutes = 0
+
+    if minutes > 0:
+        settings.pause(minutes)
+        db.session.commit()
+        msg = translate('settings.notifications.snooze.activated_msg')
+    else:
+        settings.unpause()
+        db.session.commit()
+        msg = translate('settings.notifications.snooze.resumed_msg')
+
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({
+            'success': True,
+            'is_paused': settings.is_paused(),
+            'paused_until': settings.notifications_paused_until.isoformat() + 'Z' if settings.notifications_paused_until else None,
+            'message': msg,
+        })
+
+    flash(msg, 'success')
+    return redirect(url_for('settings.notifications'))
 
 
 @settings_bp.route('/appearance', methods=['GET', 'POST'])

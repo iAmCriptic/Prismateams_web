@@ -200,8 +200,21 @@ class EmailFolder(db.Model):
         if imap_name in display_names:
             return display_names[imap_name]
 
+        # INBOX.- / INBOX/-Präfix (z. B. Dovecot/Courier: INBOX.Drafts, INBOX.Sent, INBOX.Trash, INBOX.Spam)
+        stripped = (imap_name or '').strip()
+        upper = stripped.upper()
+        for sep in ('.', '/', '\\'):
+            if upper.startswith(f'INBOX{sep}'):
+                stripped = stripped[len('INBOX') + 1:]
+                break
+        if stripped in display_names:
+            return display_names[stripped]
+        lower_map = {k.lower(): v for k, v in display_names.items()}
+        if stripped.lower() in lower_map:
+            return lower_map[stripped.lower()]
+
         # Modified UTF-7 Leaf (z. B. [Gmail]/Entw&APw-rfe → Entwürfe)
-        leaf = (imap_name or '').replace('\\', '/').rsplit('/', 1)[-1]
+        leaf = stripped.replace('\\', '/').rsplit('/', 1)[-1]
         if '&' in leaf:
             import base64
             import re

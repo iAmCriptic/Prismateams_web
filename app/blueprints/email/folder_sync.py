@@ -30,12 +30,18 @@ from app.blueprints.email.imap_client import (
 def _empty_stats():
     return {
         "new_emails": 0,
+        "new_unread_inbox_ids": [],
         "updated_emails": 0,
         "moved_emails": 0,
         "deleted_emails": 0,
         "skipped_emails": 0,
         "errors": 0,
     }
+
+
+def _is_inbox_folder(folder_name: str) -> bool:
+    name = (folder_name or '').strip().strip('"').upper()
+    return name == 'INBOX' or name.endswith('/INBOX') or name.endswith('.INBOX')
 
 
 @dataclass
@@ -869,6 +875,8 @@ def upsert_folder_emails(mail_conn, folder_name, mailbox_id, fetched: FolderFetc
             try:
                 db.session.commit()
                 stats['new_emails'] += 1
+                if _is_inbox_folder(folder_name) and not is_sent_folder_flag and not is_read_status:
+                    stats['new_unread_inbox_ids'].append(email_entry.id)
                 try:
                     from app.blueprints.email.auto_reply import maybe_send_auto_reply
                     maybe_send_auto_reply(
@@ -911,6 +919,8 @@ def upsert_folder_emails(mail_conn, folder_name, mailbox_id, fetched: FolderFetc
                             continue
                     db.session.commit()
                     stats['new_emails'] += 1
+                    if _is_inbox_folder(folder_name) and not is_sent_folder_flag and not is_read_status:
+                        stats['new_unread_inbox_ids'].append(email_entry.id)
                     logging.debug("Database reconnection successful")
                     try:
                         from app.blueprints.email.auto_reply import maybe_send_auto_reply
@@ -1012,11 +1022,9 @@ def sync_emails_from_folder(folder_name, mail_conn=None, mailbox=None):
         except Exception as e:
             logging.error(f"Fehler beim Senden der Dashboard-Updates für E-Mails: {e}")
 
-        if stats['new_emails'] > 0:
+        if stats['new_unread_inbox_ids']:
             try:
-                last_email = EmailMessage.query.filter_by(is_sent=False).order_by(EmailMessage.id.desc()).first()
-                if last_email:
-                    send_email_notification(last_email.id)
+                send_email_notification(stats['new_unread_inbox_ids'][-1])
             except Exception as e:
                 logging.error(f"Fehler beim Senden der E-Mail-Benachrichtigung: {e}")
 

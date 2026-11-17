@@ -1235,6 +1235,11 @@ def hard_delete_file_disk_and_db(file_obj, os_module):
         purge_thumbnails_for_file(file_obj.id)
     except Exception:
         pass
+    try:
+        from app.utils.files_trash_retention import _delete_shares_and_acls
+        _delete_shares_and_acls('file', file_obj.id)
+    except Exception:
+        pass
     db.session.delete(file_obj)
 
 
@@ -1243,6 +1248,11 @@ def hard_delete_folder_recursive(folder, os_module):
         hard_delete_file_disk_and_db(file_obj, os_module)
     for sub in list(folder.subfolders):
         hard_delete_folder_recursive(sub, os_module)
+    try:
+        from app.utils.files_trash_retention import _delete_shares_and_acls
+        _delete_shares_and_acls('folder', folder.id)
+    except Exception:
+        pass
     db.session.delete(folder)
 
 

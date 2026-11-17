@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import re
 import uuid
 from datetime import datetime
 from functools import wraps
@@ -201,6 +202,9 @@ def _get_valid_share_for_board(board_id: int) -> PublicShare | None:
     if share_is_expired(share):
         return None
     if share.password_hash and not _share_guest_ok(token):
+        return None
+    board = db.session.get(KanbanBoard, int(share.resource_id))
+    if not board or board.closed_at:
         return None
     return share
 
@@ -445,6 +449,65 @@ def _attachment_url(att: KanbanAttachment) -> str:
     return url_for('kanban.download_attachment', attachment_id=att.id)
 
 
+_GOOGLE_SHEET_META_CACHE: dict[tuple[int, str], tuple[float, bool, str | None]] = {}
+
+
+def _resolve_google_spreadsheet_info(file_id: str) -> tuple[bool, str | None]:
+    """Check if current_user has Google Drive access to `file_id` and return (has_access, title)."""
+    import time
+    from flask_login import current_user
+    if not current_user or not getattr(current_user, 'is_authenticated', False):
+        return False, None
+    user_id = getattr(current_user, 'id', None)
+    if not user_id or not file_id:
+        return False, None
+
+    now = time.monotonic()
+    cache_key = (int(user_id), file_id)
+    cached = _GOOGLE_SHEET_META_CACHE.get(cache_key)
+    if cached and cached[0] > now:
+        return cached[1], cached[2]
+
+    try:
+        from app.models.cloud_import import CloudImportConnection
+        from app.utils.cloud_import.base import decrypt_credentials, encrypt_credentials
+        from app.utils.cloud_import.google_drive import build_google_drive_provider
+
+        conn = (
+            CloudImportConnection.query
+            .filter_by(user_id=user_id, provider='google_drive')
+            .order_by(CloudImportConnection.id.desc())
+            .first()
+        )
+        if not conn:
+            _GOOGLE_SHEET_META_CACHE[cache_key] = (now + 20.0, False, None)
+            return False, None
+
+        creds = decrypt_credentials(conn.credentials_enc)
+
+        def _on_refresh(new_token, new_exp):
+            try:
+                creds['access_token'] = new_token
+                if new_exp is not None:
+                    creds['expires_at'] = new_exp.isoformat()
+                conn.credentials_enc = encrypt_credentials(creds)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+        provider = build_google_drive_provider(creds, on_token_refresh=_on_refresh)
+        meta = provider._get_meta(file_id)
+        title = (meta or {}).get('name') or None
+        if title:
+            _GOOGLE_SHEET_META_CACHE[cache_key] = (now + 60.0, True, title)
+            return True, title
+    except Exception as exc:
+        current_app.logger.debug('Google Spreadsheet lookup failed for %s: %s', file_id, exc)
+
+    _GOOGLE_SHEET_META_CACHE[cache_key] = (now + 20.0, False, None)
+    return False, None
+
+
 def _serialize_attachment(att: KanbanAttachment, share_token: str | None = None) -> dict:
     is_link = bool(att.url)
     mime = att.mime_type or ''
@@ -452,31 +515,86 @@ def _serialize_attachment(att: KanbanAttachment, share_token: str | None = None)
     ext = (os.path.splitext(name)[1] or '').lower().lstrip('.')
     is_image = mime.startswith('image/') or ext in ('png', 'jpg', 'jpeg', 'gif', 'webp', 'svg')
     favicon_url = None
+    google_access = None
+    is_portal_file = False
+    portal_file_access = None
     if is_link:
         file_url = att.url
         # External image links can still act as card covers / previews
         preview_url = att.url if is_image else None
-        try:
-            from urllib.parse import urlparse
-            p_fav = urlparse((att.url or '').strip())
-            fav_host = (p_fav.hostname or '').strip().lower().rstrip('.')
-            if fav_host and fav_host not in {'localhost', '127.0.0.1', '::1'} and not fav_host.endswith('.local'):
-                favicon_url = f'https://www.google.com/s2/favicons?domain={fav_host}&sz=64'
-        except Exception:
-            favicon_url = None
-        # Clean up display name if it's currently a raw URL
-        if name.startswith(('http://', 'https://')):
+        raw_att_url = (att.url or '').strip()
+        portal_match = re.match(r'^portal-file://(\d+)$', raw_att_url)
+        if not portal_match:
             try:
-                from urllib.parse import urlparse, unquote
-                p = urlparse(name)
-                segments = [s for s in p.path.strip('/').split('/') if s]
-                if segments:
-                    clean_seg = unquote(segments[-1]).replace('_', ' ').replace('-', ' ').strip()
-                    name = f"{clean_seg} ({p.netloc})" if clean_seg else p.netloc
-                else:
-                    name = p.netloc or name
+                from urllib.parse import urlparse
+                p_url = urlparse(raw_att_url)
+                portal_match = re.match(
+                    r'^/files/(?:view|edit-onlyoffice|edit|download)/(\d+)(?:[/?#]|$)',
+                    p_url.path or '',
+                )
             except Exception:
-                pass
+                portal_match = None
+
+        if portal_match:
+            is_portal_file = True
+            portal_file_id = int(portal_match.group(1))
+            has_access = False
+            file_obj = None
+            if not share_token and current_user and getattr(current_user, 'is_authenticated', False):
+                from app.models.file import File
+                from app.utils.private_files import can_view_file
+                file_obj = File.query.filter_by(id=portal_file_id, deleted_at=None).first()
+                if file_obj and (getattr(current_user, 'is_admin', False) or can_view_file(file_obj, current_user)):
+                    has_access = True
+            if has_access and file_obj:
+                portal_file_access = True
+                name = file_obj.name or name
+                ext_f = (os.path.splitext(file_obj.name or '')[1] or '').lower().lstrip('.')
+                if is_onlyoffice_enabled() and ext_f and is_onlyoffice_file_type(ext_f):
+                    file_url = url_for('files.edit_onlyoffice', file_id=file_obj.id)
+                else:
+                    file_url = url_for('files.view_file', file_id=file_obj.id)
+            else:
+                portal_file_access = False
+                name = translate('kanban.card.google_access_required')
+                file_url = '#'
+        else:
+            try:
+                from urllib.parse import urlparse
+                p_fav = urlparse(raw_att_url)
+                fav_host = (p_fav.hostname or '').strip().lower().rstrip('.')
+                if fav_host and fav_host not in {'localhost', '127.0.0.1', '::1'} and not fav_host.endswith('.local'):
+                    favicon_url = f'https://www.google.com/s2/favicons?domain={fav_host}&sz=64'
+            except Exception:
+                favicon_url = None
+            sheet_match = re.match(
+                r'^https?://docs\.google\.com/spreadsheets/d/([a-zA-Z0-9_-]+)',
+                raw_att_url,
+            )
+            if sheet_match:
+                if share_token:
+                    google_access = False
+                    name = translate('kanban.card.google_access_required')
+                else:
+                    has_access, sheet_title = _resolve_google_spreadsheet_info(sheet_match.group(1))
+                    google_access = has_access
+                    if has_access and sheet_title:
+                        name = sheet_title
+                    else:
+                        name = translate('kanban.card.google_access_required')
+            # Clean up display name if it's currently a raw URL
+            elif name.startswith(('http://', 'https://')):
+                try:
+                    from urllib.parse import urlparse, unquote
+                    p = urlparse(name)
+                    segments = [s for s in p.path.strip('/').split('/') if s]
+                    if segments:
+                        clean_seg = unquote(segments[-1]).replace('_', ' ').replace('-', ' ').strip()
+                        name = f"{clean_seg} ({p.netloc})" if clean_seg else p.netloc
+                    else:
+                        name = p.netloc or name
+                except Exception:
+                    pass
     elif share_token:
         file_url = url_for('kanban.share_download_attachment', token=share_token, attachment_id=att.id)
         preview_url = url_for('kanban.share_preview_attachment', token=share_token, attachment_id=att.id)
@@ -493,6 +611,9 @@ def _serialize_attachment(att: KanbanAttachment, share_token: str | None = None)
         'preview_url': preview_url,
         'is_link': is_link,
         'favicon_url': favicon_url,
+        'google_access': google_access,
+        'is_portal_file': is_portal_file,
+        'portal_file_access': portal_file_access,
         'is_image': is_image and (not is_link or bool(preview_url)),
         'is_pdf': (not is_link) and (mime == 'application/pdf' or ext == 'pdf'),
         'is_office': (not is_link) and (is_onlyoffice_file_type(ext) if ext else False),
@@ -569,7 +690,10 @@ def _serialize_card_summary(
         'attachment_count': len(card.attachments),
         'comment_count': comment_count,
         'vote_count': len(card.votes),
-        'voted_by_me': bool(actor_id and any(v.user_id == actor_id for v in card.votes)),
+        'voted_by_me': bool(
+            getattr(current_user, 'is_authenticated', False)
+            and any(v.user_id == current_user.id for v in card.votes)
+        ),
     }
 
 
@@ -616,10 +740,14 @@ def _serialize_custom_field(field: KanbanCustomField) -> dict:
 
 
 def _serialize_card_detail(card: KanbanCard, share_token: str | None = None) -> dict:
+    from app.utils.markdown import process_markdown
+
     card = _reload_with_options(KanbanCard, card, *_card_detail_load_options())
     token = share_token if share_token is not None else _share_token_from_request()
     data = _serialize_card_summary(card, share_token=token)
+    raw_desc = (card.description or '').strip()
     data.update({
+        'description_html': process_markdown(card.description, wiki_mode=False) if raw_desc else '',
         'checklists': [
             {
                 'id': cl.id,
@@ -664,6 +792,7 @@ def _serialize_list(
         'title': lst.title,
         'position': lst.position,
         'archived': bool(lst.archived_at),
+        'default_custom_field_ids': lst.get_default_custom_field_ids(),
         'card_count': len(cards),
         'cards': [
             _serialize_card_summary(c, share_token=share_token, comment_counts=comment_counts)
@@ -812,6 +941,16 @@ def _require_card_edit(card_id: int):
     return card, None
 
 
+def _require_list_edit(list_id: int):
+    lst = db.session.get(KanbanList, list_id)
+    if not lst or not lst.board:
+        return None, (jsonify({'error': 'Not found'}), 404)
+    board, err = _require_board_edit(lst.board.id)
+    if err:
+        return None, err
+    return lst, None
+
+
 def _track_view(board: KanbanBoard):
     if not current_user.is_authenticated:
         return
@@ -832,9 +971,10 @@ def _user_kanban_teams(user):
     """Teams the user may assign boards to / see as sidebar folders (members only)."""
     if VISIBILITY_TEAM not in get_allowed_visibilities(user):
         return []
+    from app.utils.team_module_settings import is_team_section_enabled
     team_ids = [m.team_id for m in TeamMember.query.filter_by(user_id=user.id).all()]
     led_ids = [t.id for t in Team.query.filter_by(leader_id=user.id).all()]
-    all_ids = set(team_ids) | set(led_ids)
+    all_ids = {tid for tid in (set(team_ids) | set(led_ids)) if is_team_section_enabled(tid, 'kanban')}
     if not all_ids:
         return []
     return Team.query.filter(Team.id.in_(all_ids)).order_by(Team.name).all()
@@ -842,6 +982,28 @@ def _user_kanban_teams(user):
 
 def _user_may_use_team(user, team_id: int) -> bool:
     return any(t.id == team_id for t in _user_kanban_teams(user))
+
+
+def _parse_int(value) -> int | None:
+    """Parse an integer from request payload; return None if missing or invalid."""
+    if value is None or isinstance(value, bool):
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_int_list(raw) -> list[int]:
+    """Parse a list of integers from request payload, ignoring invalid entries."""
+    if not isinstance(raw, (list, tuple)):
+        return []
+    out: list[int] = []
+    for item in raw:
+        val = _parse_int(item)
+        if val is not None:
+            out.append(val)
+    return out
 
 
 __all__ = [
@@ -881,8 +1043,11 @@ __all__ = [
     '_require_board_manage',
     '_require_card_view',
     '_require_card_edit',
+    '_require_list_edit',
     '_track_view',
     '_share_guest_ok',
     '_user_kanban_teams',
     '_user_may_use_team',
+    '_parse_int',
+    '_parse_int_list',
 ]

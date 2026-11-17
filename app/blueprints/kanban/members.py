@@ -605,14 +605,16 @@ def api_filter_cards(board_id):
     # Accept query string or JSON body
     data = request.get_json(silent=True) or {}
     q = (data.get('q') if 'q' in data else request.args.get('q') or '').strip().lower()
-    label_ids = data.get('label_ids') or []
+    label_ids = _parse_int_list(data.get('label_ids'))
     if not label_ids and request.args.get('label_id'):
-        label_ids = [request.args.get('label_id', type=int)]
-    label_ids = [int(x) for x in label_ids if x is not None]
-    assignee_ids = data.get('assignee_ids') or []
+        lid = _parse_int(request.args.get('label_id'))
+        if lid is not None:
+            label_ids = [lid]
+    assignee_ids = _parse_int_list(data.get('assignee_ids'))
     if not assignee_ids and request.args.get('assignee_id'):
-        assignee_ids = [request.args.get('assignee_id', type=int)]
-    assignee_ids = [int(x) for x in assignee_ids if x is not None]
+        aid = _parse_int(request.args.get('assignee_id'))
+        if aid is not None:
+            assignee_ids = [aid]
 
     no_members = bool(data.get('no_members'))
     assigned_to_me = bool(data.get('assigned_to_me'))
