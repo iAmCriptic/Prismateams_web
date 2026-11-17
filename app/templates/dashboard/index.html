@@ -121,7 +121,7 @@
 {# Settings / Add-widget modal #}
 {% if not current_user.is_guest %}
 <div class="modal fade" id="dashboardWidgetModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered" id="dashboardWidgetModalDialog">
         <div class="modal-content dashboard-widget-modal">
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title" id="dashboardWidgetModalTitle">{{ _('dashboard.live.settings') }}</h5>
@@ -388,7 +388,7 @@ function revealDashboardCredential(id, username) {
         })
         .then(data => {
             dashboardCredentialCache[id] = { username, password: data.password };
-            if (usernameElement) usernameElement.textContent = `${userLabel}: ${username}`;
+            if (usernameElement) usernameElement.textContent = `${userLabel}: ${username || '—'}`;
             if (passwordElement) passwordElement.textContent = `${revealLabel}: ${data.password}`;
         })
         .catch(() => {

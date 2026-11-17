@@ -31,17 +31,19 @@ def _envelope_addr(addr):
 
 
 def _smtp_connect(timeout=20):
-    """Öffnet eine SMTP-Verbindung aus Flask-Config (mit Timeout)."""
-    server = current_app.config.get('MAIL_SERVER')
-    port = int(current_app.config.get('MAIL_PORT', 587) or 587)
-    use_ssl = bool(current_app.config.get('MAIL_USE_SSL', False))
-    use_tls = bool(current_app.config.get('MAIL_USE_TLS', True))
-    username = current_app.config.get('MAIL_USERNAME')
-    password = current_app.config.get('MAIL_PASSWORD')
+    """Öffnet eine SMTP-Verbindung aus Haupt-E-Mail-Config (mit Timeout)."""
+    from app.utils.main_mail_config import get_main_mail_config
+    cfg = get_main_mail_config()
+    server = cfg.get('smtp_server')
+    port = int(cfg.get('smtp_port') or 587)
+    use_ssl = bool(cfg.get('smtp_use_ssl', False))
+    use_tls = bool(cfg.get('smtp_use_tls', True))
+    username = cfg.get('smtp_username')
+    password = cfg.get('smtp_password')
     timeout = int(current_app.config.get('MAIL_TIMEOUT', timeout) or timeout)
 
     if not server:
-        raise RuntimeError('MAIL_SERVER ist nicht gesetzt')
+        raise RuntimeError('SMTP-Server ist nicht konfiguriert')
 
     if use_ssl:
         smtp = smtplib.SMTP_SSL(server, port, timeout=timeout)
@@ -499,10 +501,10 @@ def create_message_with_logo(subject, recipients, html_content, body_text=None, 
     Flask-Mail 0.10 baut MIME bei jedem Versand neu aus html/body/attachments —
     daher Content-ID und disposition='inline' am Attachment setzen (nicht msg.msg).
     """
-    from config import get_formatted_sender
+    from app.utils.main_mail_config import get_formatted_main_sender, get_main_mail_config
 
     if not sender:
-        sender = get_formatted_sender() or current_app.config.get('MAIL_USERNAME')
+        sender = get_formatted_main_sender() or get_main_mail_config().get('smtp_username')
 
     if isinstance(recipients, str):
         recipients_list = [r.strip() for r in recipients.split(',') if r.strip()]
@@ -561,11 +563,8 @@ def _portal_name():
         return current_app.config.get('APP_NAME', 'Prismateams')
 
 def _mail_configured():
-    return all([
-        current_app.config.get('MAIL_SERVER'),
-        current_app.config.get('MAIL_USERNAME'),
-        current_app.config.get('MAIL_PASSWORD'),
-    ])
+    from app.utils.main_mail_config import is_main_mail_configured
+    return is_main_mail_configured()
 
 def _attach_files_to_message(msg, attachments):
     """Hängt Dateianhänge an die Flask-Mail Attachment-Liste (Flask-Mail 0.10).

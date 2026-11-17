@@ -138,7 +138,15 @@ def create_folder():
         flash('Bitte geben Sie einen Ordnernamen ein.', 'danger')
         return redirect(_safe_referrer_or(url_for('files.index')))
     
-    parent_id = int(parent_id) if parent_id else None
+    parent_id_raw = request.form.get('parent_id')
+    if parent_id_raw in (None, '', 'null'):
+        parent_id = None
+    else:
+        try:
+            parent_id = int(parent_id_raw)
+        except (TypeError, ValueError):
+            flash('Ungültige Ordner-ID.', 'danger')
+            return redirect(_safe_referrer_or(url_for('files.index')))
     private_enabled = is_private_folders_enabled()
     team_enabled = is_team_folders_enabled()
     if (private_enabled or team_enabled) and files_view == 'trash':
@@ -190,6 +198,12 @@ def rename_file(file_id):
         return redirect(_safe_referrer_or(url_for('files.index')))
     
     file = File.query.get_or_404(file_id)
+    if file.deleted_at is not None:
+        flash('Datei nicht gefunden.', 'danger')
+        return redirect(_safe_referrer_or(url_for('files.index')))
+    if not can_edit_file(file, current_user):
+        flash('Keine Berechtigung zum Umbenennen dieser Datei.', 'danger')
+        return redirect(_safe_referrer_or(url_for('files.index')))
     new_name = sanitize_files_item_name(request.form.get('new_name', ''))
     
     if not new_name:
@@ -197,7 +211,7 @@ def rename_file(file_id):
         return redirect(_safe_referrer_or(url_for('files.index')))
     
     # Prüfe ob bereits eine Datei mit diesem Namen im selben Ordner existiert
-    existing_file = File.query.filter_by(
+    existing_file = File.query.filter(File.deleted_at.is_(None)).filter_by(
         name=new_name,
         folder_id=file.folder_id,
         is_current=True
@@ -224,6 +238,12 @@ def rename_folder(folder_id):
         return redirect(_safe_referrer_or(url_for('files.index')))
     
     folder = Folder.query.get_or_404(folder_id)
+    if folder.deleted_at is not None:
+        flash('Ordner nicht gefunden.', 'danger')
+        return redirect(_safe_referrer_or(url_for('files.index')))
+    if not can_edit_folder(folder, current_user):
+        flash('Keine Berechtigung zum Ändern dieses Ordners.', 'danger')
+        return redirect(_safe_referrer_or(url_for('files.index')))
     if getattr(folder, 'is_personal_root', False) or getattr(folder, 'is_team_root', False):
         flash('Dieser Stammordner kann nicht umbenannt werden.', 'danger')
         return redirect(_safe_referrer_or(url_for('files.index')))
@@ -233,6 +253,17 @@ def rename_folder(folder_id):
         flash('Neuer Ordnername darf nicht leer sein.', 'danger')
         return redirect(_safe_referrer_or(url_for('files.index')))
     
+    sibling_query = Folder.query.filter(
+        Folder.id != folder.id,
+        Folder.name == new_name,
+        Folder.parent_id == folder.parent_id if folder.parent_id is not None else Folder.parent_id.is_(None),
+        Folder.deleted_at.is_(None),
+    )
+    if folder.parent_id is None:
+        sibling_query = sibling_query.filter(Folder.space == (folder.space or 'public'))
+    if sibling_query.first():
+        flash(f'Ein Ordner mit dem Namen "{new_name}" existiert bereits in diesem Verzeichnis.', 'danger')
+        return redirect(_safe_referrer_or(url_for('files.index')))
     folder.name = new_name
     db.session.commit()
     flash('Ordner wurde umbenannt.', 'success')
@@ -251,6 +282,12 @@ def update_folder_color(folder_id):
         return redirect(_safe_referrer_or(url_for('files.index')))
 
     folder = Folder.query.get_or_404(folder_id)
+    if folder.deleted_at is not None:
+        flash('Ordner nicht gefunden.', 'danger')
+        return redirect(_safe_referrer_or(url_for('files.index')))
+    if not can_edit_folder(folder, current_user):
+        flash('Keine Berechtigung zum Ändern dieses Ordners.', 'danger')
+        return redirect(_safe_referrer_or(url_for('files.index')))
     raw_color = (request.form.get('color') or '').strip().lower()
     clear_color = (request.form.get('clear_color') or '').strip() == '1'
 
@@ -270,7 +307,11 @@ def update_folder_color(folder_id):
 def _is_folder_descendant(candidate_folder, ancestor_folder_id):
     """Check whether candidate_folder is a descendant of ancestor_folder_id."""
     current = candidate_folder
+    seen = set()
     while current:
+        if current.id in seen:
+            return False
+        seen.add(current.id)
         if current.id == ancestor_folder_id:
             return True
         current = current.parent
@@ -320,7 +361,7 @@ def move_item():
     target_folder = None
     if target_folder_id is not None:
         target_folder = Folder.query.get(target_folder_id)
-        if not target_folder:
+        if not target_folder or target_folder.deleted_at is not None:
             return jsonify({
                 'success': False,
                 'error': translate('files.index.errors.move_target_not_found')
@@ -336,7 +377,12 @@ def move_item():
             personal_root = ensure_personal_root(current_user.id)
             target_folder_id = personal_root.id
             target_folder = personal_root
-        elif files_view == 'team' and is_team_folders_enabled() and user_may_use_file_team(current_user, move_team_id):
+        elif files_view == 'team' and is_team_folders_enabled():
+            if not user_may_use_file_team(current_user, move_team_id):
+                return jsonify({
+                    'success': False,
+                    'error': translate('files.index.errors.move_not_allowed')
+                }), 403
             team_root = ensure_team_root(move_team_id, current_user.id)
             if team_root:
                 target_folder_id = team_root.id
@@ -374,6 +420,7 @@ def move_item():
             File.name == file.name,
             File.folder_id.is_(target_folder_id) if target_folder_id is None else File.folder_id == target_folder_id,
             File.is_current == True,
+            *([File.space == target_space] if target_folder_id is None else []),
             File.deleted_at.is_(None),
         ).first()
         if name_conflict:
@@ -504,7 +551,14 @@ def create_file():
     content = request.form.get('content', '')
     file_type = request.form.get('file_type', 'txt')
     folder_id = request.form.get('folder_id')
-    folder_id = int(folder_id) if folder_id else None
+    if folder_id in (None, '', 'null'):
+        folder_id = None
+    else:
+        try:
+            folder_id = int(folder_id)
+        except (TypeError, ValueError):
+            flash('Ungültige Ordner-ID.', 'danger')
+            return redirect(_safe_referrer_or(url_for('files.index')))
     files_view = normalize_view(
         request.form.get('view') or request.args.get('view') or session.get('files_last_view'),
         user=current_user
@@ -528,7 +582,7 @@ def create_file():
         filename += '.txt'
 
     # Check if file with same name exists in folder
-    existing_file = File.query.filter_by(
+    existing_file = File.query.filter(File.deleted_at.is_(None)).filter_by(
         name=filename,
         folder_id=folder_id,
         is_current=True
@@ -550,12 +604,18 @@ def create_file():
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
     safe_name = _disk_safe_upload_basename(filename)
     stored_filename = f"{timestamp}_{safe_name}"
-    filepath = os.path.join('uploads', 'files', stored_filename)
+    filepath = _unique_disk_filepath(filename)
 
     # Ensure directory exists
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
 
     # Write content to file
+    ok_quota, _code, quota_err = check_upload_allowed(
+        current_user.id, len((content or '').encode('utf-8'))
+    )
+    if not ok_quota:
+        flash(quota_err or 'Speicherkontingent oder maximale Dateigröße überschritten.', 'danger')
+        return redirect(_safe_referrer_or(url_for('files.index')))
     with open(filepath, 'w', encoding='utf-8') as f:
         f.write(content)
 
@@ -622,7 +682,14 @@ def create_office_file():
     allowed_types = get_allowed_create_types()
     file_type = (request.form.get('file_type') or create_types['document']).strip().lower()
     folder_id = request.form.get('folder_id')
-    folder_id = int(folder_id) if folder_id else None
+    if folder_id in (None, '', 'null'):
+        folder_id = None
+    else:
+        try:
+            folder_id = int(folder_id)
+        except (TypeError, ValueError):
+            flash('Ungültige Ordner-ID.', 'danger')
+            return redirect(_safe_referrer_or(url_for('files.index')))
     files_view = normalize_view(
         request.form.get('view') or request.args.get('view') or session.get('files_last_view'),
         user=current_user
@@ -649,7 +716,7 @@ def create_office_file():
         filename += f'.{file_type}'
     
     # Check if file with same name exists in folder
-    existing_file = File.query.filter_by(
+    existing_file = File.query.filter(File.deleted_at.is_(None)).filter_by(
         name=filename,
         folder_id=folder_id,
         is_current=True
@@ -671,12 +738,16 @@ def create_office_file():
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
     safe_name = _disk_safe_upload_basename(filename)
     stored_filename = f"{timestamp}_{safe_name}"
-    filepath = os.path.join('uploads', 'files', stored_filename)
+    filepath = _unique_disk_filepath(filename)
     
     # Ensure directory exists
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
     
     try:
+        ok_quota, _code, quota_err = check_upload_allowed(current_user.id, 0)
+        if not ok_quota:
+            flash(quota_err or 'Speicherkontingent überschritten.', 'danger')
+            return redirect(_safe_referrer_or(url_for('files.index')))
         mime_type = create_empty_document(filepath, file_type)
     except ImportError:
         flash(

@@ -120,10 +120,7 @@ def onlyoffice_document(file_id):
             parsed = urlparse(onlyoffice_url)
             origin = f"{parsed.scheme}://{parsed.netloc}"
         else:
-            # OnlyOffice läuft auf demselben Server - verwende Request-Origin
-            origin = request.headers.get('Origin', '*')
-            if origin == 'null' or not origin or origin == '*':
-                origin = f"{request.scheme}://{request.host}"
+            origin = f"{request.scheme}://{request.host}"
         
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
@@ -232,11 +229,7 @@ def onlyoffice_document(file_id):
         parsed = urlparse(onlyoffice_url)
         origin = f"{parsed.scheme}://{parsed.netloc}"
     else:
-        # OnlyOffice läuft auf demselben Server, aber über Proxy - verwende Request-Origin
-        origin = request.headers.get('Origin', '*')
-        if origin == 'null' or not origin or origin == '*':
-            # Fallback: verwende die aktuelle Request-URL als Origin
-            origin = f"{request.scheme}://{request.host}"
+        origin = f"{request.scheme}://{request.host}"
     
     response.headers['Access-Control-Allow-Origin'] = origin
     response.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
@@ -259,10 +252,7 @@ def share_onlyoffice_document(token, file_id):
             parsed = urlparse(onlyoffice_url)
             origin = f"{parsed.scheme}://{parsed.netloc}"
         else:
-            # OnlyOffice läuft auf demselben Server - verwende Request-Origin
-            origin = request.headers.get('Origin', '*')
-            if origin == 'null' or not origin or origin == '*':
-                origin = f"{request.scheme}://{request.host}"
+            origin = f"{request.scheme}://{request.host}"
         
         response.headers['Access-Control-Allow-Origin'] = origin
         response.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
@@ -369,11 +359,7 @@ def share_onlyoffice_document(token, file_id):
         parsed = urlparse(onlyoffice_url)
         origin = f"{parsed.scheme}://{parsed.netloc}"
     else:
-        # OnlyOffice läuft auf demselben Server, aber über Proxy - verwende Request-Origin
-        origin = request.headers.get('Origin', '*')
-        if origin == 'null' or not origin or origin == '*':
-            # Fallback: verwende die aktuelle Request-URL als Origin
-            origin = f"{request.scheme}://{request.host}"
+        origin = f"{request.scheme}://{request.host}"
     
     response.headers['Access-Control-Allow-Origin'] = origin
     response.headers['Access-Control-Allow-Methods'] = 'GET, HEAD, OPTIONS'
@@ -383,9 +369,9 @@ def share_onlyoffice_document(token, file_id):
     return response
 
 
-def _onlyoffice_forcesave_response(document_key):
+def _onlyoffice_forcesave_response(document_key, expected_file_id=None):
     """Ask the Document Server to persist the current editor state (status 6)."""
-    from app.utils.onlyoffice import send_onlyoffice_command
+    from app.utils.onlyoffice import onlyoffice_document_key_matches_resource, send_onlyoffice_command
 
     if not current_app.config.get('ONLYOFFICE_ENABLED', False):
         return jsonify({'error': 'ONLYOFFICE not enabled'}), 404
@@ -393,6 +379,8 @@ def _onlyoffice_forcesave_response(document_key):
     key = (document_key or '').strip()
     if not key or len(key) > 128:
         return jsonify({'success': False, 'error': 'invalid_key'}), 400
+    if expected_file_id is not None and not onlyoffice_document_key_matches_resource(key, 'file', expected_file_id):
+        return jsonify({'success': False, 'error': 'key_mismatch'}), 403
 
     ok, error_code, detail = send_onlyoffice_command('forcesave', key)
     logging.info(
@@ -409,6 +397,8 @@ def _onlyoffice_forcesave_response(document_key):
 def onlyoffice_forcesave(file_id):
     """Force-save an open OnlyOffice document for a logged-in user."""
     file = File.query.get_or_404(file_id)
+    if file.deleted_at is not None:
+        return jsonify({'success': False, 'error': 'Datei nicht gefunden'}), 404
     if _is_guest_user():
         from app.utils.access_control import GUEST_EDIT_MODES, guest_has_file_access
         if not guest_has_file_access(current_user, file, modes=GUEST_EDIT_MODES):
@@ -417,7 +407,7 @@ def onlyoffice_forcesave(file_id):
         return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
 
     payload = request.get_json(silent=True) or {}
-    return _onlyoffice_forcesave_response(payload.get('key'))
+    return _onlyoffice_forcesave_response(payload.get('key'), expected_file_id=file.id)
 
 
 @files_bp.route('/share/<token>/api/onlyoffice-forcesave/<int:file_id>', methods=['POST'])
@@ -439,7 +429,7 @@ def share_onlyoffice_forcesave(token, file_id):
             return jsonify({'success': False, 'error': 'File ID mismatch'}), 403
 
     payload = request.get_json(silent=True) or {}
-    return _onlyoffice_forcesave_response(payload.get('key'))
+    return _onlyoffice_forcesave_response(payload.get('key'), expected_file_id=file_id)
 
 
 @files_bp.route('/api/onlyoffice-save/<int:file_id>', methods=['POST'])
@@ -466,8 +456,12 @@ def onlyoffice_save(file_id):
         return jsonify({'error': 'No file in request'}), 400
     
     uploaded_file = request.files['file']
-    
-    # Save current version to history
+    uploaded_file.seek(0, 2)
+    upload_size = uploaded_file.tell()
+    uploaded_file.seek(0)
+    ok_quota, _code, quota_err = check_upload_allowed(current_user.id, upload_size)
+    if not ok_quota:
+        return jsonify({'error': quota_err or 'Speicherkontingent überschritten'}), 413
     version = FileVersion(
         file_id=file.id,
         version_number=file.version_number,
@@ -549,8 +543,15 @@ def share_onlyoffice_save(token, file_id):
         return jsonify({'error': 'No file in request'}), 400
     
     uploaded_file = request.files['file']
-    
-    # Get anonymous user for guest edits
+    uploaded_file.seek(0, 2)
+    upload_size = uploaded_file.tell()
+    uploaded_file.seek(0)
+    if upload_size > get_global_max_file_size():
+        return jsonify({'error': 'Maximale Dateigröße überschritten'}), 413
+    if getattr(file, 'uploaded_by', None):
+        ok_quota, _code, quota_err = check_upload_allowed(file.uploaded_by, upload_size)
+        if not ok_quota:
+            return jsonify({'error': quota_err or 'Speicherkontingent überschritten'}), 413
     anonymous_user = User.query.filter_by(email='anonymous@system.local').first()
     if not anonymous_user:
         anonymous_user = User(
@@ -804,9 +805,14 @@ def onlyoffice_callback():
                 return _onlyoffice_cors_response({'error': 'file not found'}, 404)
 
             try:
-                _onlyoffice_handle_save_callback(file, data)
+                saved = _onlyoffice_handle_save_callback(file, data)
             except Exception as e:
+                db.session.rollback()
                 logging.error('ONLYOFFICE callback: Error saving file: %s', e)
+                return _onlyoffice_cors_response({'error': 1}, 500)
+            if not saved:
+                logging.error('ONLYOFFICE callback: Save returned False for file %s', file_id)
+                return _onlyoffice_cors_response({'error': 1}, 500)
 
         return _onlyoffice_cors_response({'error': 0})[0]
     except Exception as e:
@@ -877,71 +883,70 @@ def share_onlyoffice_callback(token):
 
         if status in (2, 6):
             saved_file_url = data.get('url')
-            
-            if saved_file_url:
-                saved_content = _download_onlyoffice_saved_content(saved_file_url)
+            if not saved_file_url:
+                logging.error('ONLYOFFICE share callback: Missing url for status=%s file=%s', status, file.id)
+                return _onlyoffice_cors_response({'error': 1}, 500)
 
-                if saved_content:
-                    # Get anonymous user for guest edits
-                    anonymous_user = User.query.filter_by(email='anonymous@system.local').first()
-                    if not anonymous_user:
-                        anonymous_user = User(
-                            email='anonymous@system.local',
-                            first_name=guest_name,
-                            last_name='',
-                            password_hash='',
-                            is_active=True,
-                            is_admin=False,
-                            is_email_confirmed=True
-                        )
-                        db.session.add(anonymous_user)
-                        db.session.flush()
+            saved_content = _download_onlyoffice_saved_content(saved_file_url)
+            if saved_content is None:
+                logging.error('ONLYOFFICE share callback: Failed to download saved content for file=%s', file.id)
+                return _onlyoffice_cors_response({'error': 1}, 500)
 
-                    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-                    safe_name = _disk_safe_upload_basename(file.original_name)
-                    filename = f"{timestamp}_{safe_name}"
-                    filepath = os.path.join('uploads', 'files', filename)
-                    
-                    os.makedirs(os.path.dirname(filepath), exist_ok=True)
-                    
-                    with open(filepath, 'wb') as f:
-                        f.write(saved_content)
-                    
-                    absolute_filepath = os.path.abspath(filepath)
-                    
-                    version = FileVersion(
-                        file_id=file.id,
-                        version_number=file.version_number,
-                        file_path=os.path.abspath(file.file_path),
-                        file_size=file.file_size,
-                        uploaded_by=file.uploaded_by
-                    )
-                    db.session.add(version)
-                    
-                    versions = FileVersion.query.filter_by(file_id=file.id).order_by(
-                        FileVersion.version_number.desc()
-                    ).all()
-                    
-                    if len(versions) >= MAX_FILE_VERSIONS:
-                        oldest = versions[-1]
-                        if os.path.exists(oldest.file_path):
-                            os.remove(oldest.file_path)
-                        db.session.delete(oldest)
-                    
-                    file.file_path = absolute_filepath
-                    file.file_size = os.path.getsize(absolute_filepath)
-                    file.version_number += 1
-                    file.uploaded_by = anonymous_user.id
-                    file.updated_at = datetime.utcnow()
-                    
-                    db.session.commit()
-                    
-                    logging.info(
-                        "ONLYOFFICE: Shared file %s saved (version %s) by guest %s",
-                        file.id,
-                        file.version_number,
-                        guest_name,
-                    )
+            # Get anonymous user for guest edits
+            anonymous_user = User.query.filter_by(email='anonymous@system.local').first()
+            if not anonymous_user:
+                anonymous_user = User(
+                    email='anonymous@system.local',
+                    first_name=guest_name,
+                    last_name='',
+                    password_hash='',
+                    is_active=True,
+                    is_admin=False,
+                    is_email_confirmed=True
+                )
+                db.session.add(anonymous_user)
+                db.session.flush()
+
+            filepath = _unique_disk_filepath(file.original_name)
+
+            with open(filepath, 'wb') as f:
+                f.write(saved_content)
+
+            absolute_filepath = os.path.abspath(filepath)
+
+            version = FileVersion(
+                file_id=file.id,
+                version_number=file.version_number,
+                file_path=os.path.abspath(file.file_path),
+                file_size=file.file_size,
+                uploaded_by=file.uploaded_by
+            )
+            db.session.add(version)
+
+            versions = FileVersion.query.filter_by(file_id=file.id).order_by(
+                FileVersion.version_number.desc()
+            ).all()
+
+            if len(versions) >= MAX_FILE_VERSIONS:
+                oldest = versions[-1]
+                if os.path.exists(oldest.file_path):
+                    os.remove(oldest.file_path)
+                db.session.delete(oldest)
+
+            file.file_path = absolute_filepath
+            file.file_size = os.path.getsize(absolute_filepath)
+            file.version_number += 1
+            file.uploaded_by = anonymous_user.id
+            file.updated_at = datetime.utcnow()
+
+            db.session.commit()
+
+            logging.info(
+                "ONLYOFFICE: Shared file %s saved (version %s) by guest %s",
+                file.id,
+                file.version_number,
+                guest_name,
+            )
         
         return _onlyoffice_cors_response({'error': 0})[0]
         

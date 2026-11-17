@@ -244,18 +244,10 @@ def _main_account_addresses() -> set:
             imap.get('user'),
             smtp.get('user'),
             smtp.get('sender'),
-            current_app.config.get('MAIL_USERNAME'),
-            current_app.config.get('MAIL_DEFAULT_SENDER'),
         )
         return addrs
     except Exception:
-        try:
-            return _extract_email_addresses(
-                current_app.config.get('MAIL_USERNAME'),
-                current_app.config.get('MAIL_DEFAULT_SENDER'),
-            )
-        except Exception:
-            return set()
+        return set()
 
 
 def _email_belongs_to_main_account(msg, main_addrs: set) -> bool:
@@ -472,15 +464,19 @@ def _build_folder_tree(all_folders):
             custom_folders.append(folder)
 
     def standard_sort_key(f):
-        try:
-            return standard_folder_order.index(f.name)
-        except ValueError:
-            role = gmail_folder_role(f.name)
-            role_order = {
-                'Drafts': 1, 'Sent': 2, 'Archive': 3, 'Trash': 4,
-                'Spam': 5, 'Starred': 6, 'Important': 7, 'All Mail': 8,
-            }
-            return 50 + role_order.get(role or '', 40)
+        from app.blueprints.email.imap_client import strip_inbox_prefix
+        candidates = [f.name, strip_inbox_prefix(f.name)]
+        for cand in candidates:
+            try:
+                return standard_folder_order.index(cand)
+            except ValueError:
+                continue
+        role = gmail_folder_role(f.name)
+        role_order = {
+            'Drafts': 1, 'Sent': 2, 'Archive': 3, 'Trash': 4,
+            'Spam': 5, 'Starred': 6, 'Important': 7, 'All Mail': 8,
+        }
+        return 50 + role_order.get(role or '', 40)
 
     standard_folders.sort(key=standard_sort_key)
 
@@ -512,9 +508,14 @@ def _build_folder_tree(all_folders):
             'short_name': f.display_name,
         })
 
+    visited_custom = set()
+
     def walk_custom(parent_name, depth):
         children = custom_by_parent.get(parent_name, [])
         for child in children:
+            if child.name in visited_custom:
+                continue
+            visited_custom.add(child.name)
             ordered.append({
                 'folder': child,
                 'depth': depth,
@@ -522,21 +523,22 @@ def _build_folder_tree(all_folders):
             })
             walk_custom(child.name, depth + 1)
 
-    # Start with roots (parent None or parent that is a system folder not already nested).
+    # Start with root custom folders (parent_folder is None).
     walk_custom(None, 0)
-    # Also handle custom folders whose parent is a system folder (rare)
-    handled_names = {entry['folder'].name for entry in ordered}
+    # Also render custom folders whose parent is a standard folder (e.g. INBOX.Kunden)
+    # or a missing/non-selectable parent folder.
     for parent_name, children in custom_by_parent.items():
-        if parent_name and parent_name not in handled_names:
-            # Parent is a system folder – render these children as top-level for simplicity
-            for child in children:
-                if child.name not in handled_names:
-                    ordered.append({
-                        'folder': child,
-                        'depth': 0,
-                        'short_name': child.short_name or child.display_name,
-                    })
-                    walk_custom(child.name, 1)
+        if not parent_name:
+            continue
+        for child in children:
+            if child.name not in visited_custom:
+                visited_custom.add(child.name)
+                ordered.append({
+                    'folder': child,
+                    'depth': 0,
+                    'short_name': child.short_name or child.display_name,
+                })
+                walk_custom(child.name, 1)
     return ordered
 
 

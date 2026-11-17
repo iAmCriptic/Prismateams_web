@@ -1,0 +1,44 @@
+{% extends "settings/base_settings.html" %}
+
+{% block title %}{{ _('settings.admin.main_mailbox.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.admin.main_mailbox.heading') }}{% endblock %}
+
+{% block settings_content %}
+<div class="sp-page sp-page--fluid settings-admin-email">
+    <a href="{{ url_for('settings.admin_system') }}" class="mod-back-link">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        <span>{{ _('layout.nav.back') }}</span>
+    </a>
+
+    <header class="sp-page-header">
+        <h1 class="sp-page-title">
+            <i class="bi bi-envelope-at" aria-hidden="true"></i>
+            <span>{{ _('settings.admin.main_mailbox.heading') }}</span>
+        </h1>
+        <p class="sp-page-lead">{{ _('settings.admin.main_mailbox.lead') }}</p>
+    </header>
+
+    <form method="POST" class="sp-group p-3">
+        {% with
+            autodiscover_url=url_for('settings.admin_main_mailbox_autodiscover'),
+            test_smtp_url=url_for('settings.admin_main_mailbox_test_smtp'),
+            test_imap_url=url_for('settings.admin_main_mailbox_test_imap')
+        %}
+            {% include 'components/_main_mail_wizard.html' %}
+        {% endwith %}
+
+        <div class="d-flex justify-content-end gap-2 mt-3">
+            <a href="{{ url_for('settings.admin_system') }}" class="btn mod-pill-btn mod-pill-btn--outline-muted">
+                {{ _('common.cancel') }}
+            </a>
+            <button type="submit" class="btn btn-accent mod-pill-btn">
+                <i class="bi bi-check-lg me-1" aria-hidden="true"></i>{{ _('common.save') }}
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/main_mail_wizard.js') }}"></script>
+{% endblock %}

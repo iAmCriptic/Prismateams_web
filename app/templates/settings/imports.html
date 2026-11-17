@@ -1,0 +1,527 @@
+{% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
+
+{% block title %}{{ _('settings.imports.page_title') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('settings.imports.nav') }}{% endblock %}
+
+{% block settings_content %}
+<div class="sp-page sp-page--fluid settings-imports-wizard" id="importWizardRoot"
+     data-show-cloud="{{ '1' if show_cloud_import else '0' }}"
+     data-show-kanban="{{ '1' if show_kanban_import else '0' }}"
+     data-initial-source="{{ initial_source }}"
+     data-google-configured="{{ '1' if google_configured else '0' }}"
+     data-trello-connected="{{ '1' if trello_profile else '0' }}"
+     data-url-connect-nextcloud="{{ url_for('settings.cloud_import_connect_nextcloud') if show_cloud_import else '' }}"
+     data-url-connect-google="{{ url_for('settings.cloud_import_connect_google') if show_cloud_import else '' }}"
+     data-url-start-job="{{ url_for('settings.cloud_import_start_job') if show_cloud_import else '' }}"
+     data-url-list-jobs="{{ url_for('settings.cloud_import_list_jobs') if show_cloud_import else '' }}"
+     data-url-dest-folders="{{ url_for('settings.cloud_import_dest_folders') if show_cloud_import else '' }}"
+     data-browse-base="{{ url_for('settings.cloud_import_browse', connection_id=0) if show_cloud_import else '' }}"
+     data-delete-base="{{ url_for('settings.cloud_import_delete_connection', connection_id=0) if show_cloud_import else '' }}"
+     data-job-base="{{ url_for('settings.cloud_import_job_status', job_id=0) if show_cloud_import else '' }}"
+     data-cancel-base="{{ url_for('settings.cloud_import_cancel_job', job_id=0) if show_cloud_import else '' }}"
+     data-url-kanban-import="{{ kanban_import_url }}"
+     data-url-trello-callback="{{ trello_callback_url }}"
+     data-url-trello-connect="{{ url_for('settings.kanban_import_trello_connect') if show_kanban_import else '' }}"
+     data-url-trello-disconnect="{{ url_for('settings.kanban_import_trello_disconnect') if show_kanban_import else '' }}"
+     data-url-trello-boards="{{ url_for('settings.kanban_import_trello_boards') if show_kanban_import else '' }}"
+     data-url-trello-import="{{ url_for('settings.kanban_import_trello_import') if show_kanban_import else '' }}"
+     data-i18n-src-google="{{ _('settings.imports.source.google_drive.title') }}"
+     data-i18n-src-nextcloud="{{ _('settings.imports.source.nextcloud.title') }}"
+     data-i18n-src-kanban-trello="{{ _('settings.imports.source.kanban.mode_trello') }}"
+     data-i18n-src-kanban-file="{{ _('settings.imports.source.kanban.mode_file') }}"
+     data-i18n-items-count="{{ _('settings.imports.summary.items_count') }}"
+     data-i18n-boards-count="{{ _('settings.imports.summary.boards_count') }}"
+     data-i18n-delete-confirm="{{ _('settings.imports.delete_connection_confirm') }}"
+     data-i18n-need-key="{{ _('settings.kanban_import.trello_need_key') }}"
+     data-i18n-need-key-token="{{ _('settings.kanban_import.trello_need_key_token') }}"
+     data-i18n-trello-connected="{{ _('settings.kanban_import.trello_connected_toast') }}"
+     data-i18n-trello-disconnected="{{ _('settings.kanban_import.trello_disconnected_toast') }}"
+     data-i18n-trello-no-boards="{{ _('settings.kanban_import.trello_no_boards') }}"
+     data-i18n-trello-loading="{{ _('settings.kanban_import.trello_loading_boards') }}"
+     data-i18n-uploading="{{ _('settings.kanban_import.uploading') }}"
+     data-i18n-processing="{{ _('settings.kanban_import.processing') }}"
+     data-i18n-done-one="{{ _('settings.kanban_import.done_one') }}"
+     data-i18n-done-many="{{ _('settings.kanban_import.done_many') }}"
+     data-i18n-failed="{{ _('settings.kanban_import.failed') }}"
+     data-i18n-open="{{ _('settings.kanban_import.open') }}"
+     data-i18n-saving="{{ _('settings.autosave.saving') }}"
+     data-i18n-cloud-started="{{ _('settings.imports.cloud_job_started') }}"
+     data-i18n-cancel="{{ _('common.cancel') }}"
+     data-i18n-delete="{{ _('common.delete') }}"
+     data-i18n-root="{{ _('settings.cloud_import.dest_root') }}">
+
+  <header class="sp-page-header">
+    <h1 class="sp-page-title"><i class="bi bi-box-arrow-in-down" aria-hidden="true"></i><span>{{ _('settings.imports.heading') }}</span></h1>
+    <p class="sp-page-lead">{{ _('settings.imports.lead') }}</p>
+  </header>
+
+  <nav class="mailbox-wizard-steps" aria-label="{{ _('settings.imports.stepper_label') }}">
+    <button type="button" class="mailbox-wizard-step is-active" data-step-tab="1" aria-current="step">
+      <span class="mailbox-wizard-step-num">1</span>
+      <span>{{ _('settings.imports.steps.source') }}</span>
+    </button>
+    <button type="button" class="mailbox-wizard-step" data-step-tab="2">
+      <span class="mailbox-wizard-step-num">2</span>
+      <span>{{ _('settings.imports.steps.auth') }}</span>
+    </button>
+    <button type="button" class="mailbox-wizard-step" data-step-tab="3">
+      <span class="mailbox-wizard-step-num">3</span>
+      <span>{{ _('settings.imports.steps.select') }}</span>
+    </button>
+    <button type="button" class="mailbox-wizard-step" data-step-tab="4">
+      <span class="mailbox-wizard-step-num">4</span>
+      <span>{{ _('settings.imports.steps.target') }}</span>
+    </button>
+  </nav>
+
+  <section class="sp-group" aria-labelledby="imports-wizard-heading">
+
+    <!-- STEP 1: Choose Source -->
+    <div class="sp-group-body" id="wizardStep1" data-wizard-panel="1">
+      <div class="sp-group-head">
+        <h2 id="imports-wizard-heading" class="sp-group-title"><i class="bi bi-compass" aria-hidden="true"></i>{{ _('settings.imports.step1.title') }}</h2>
+        {{ sp_info(_('settings.imports.step1.hint')) }}
+      </div>
+      <div class="sp-import-source-grid">
+        {% if show_cloud_import %}
+        <button type="button" class="sp-import-source-card" data-source-choice="google_drive">
+          <span class="sp-import-source-icon"><i class="bi bi-google" aria-hidden="true"></i></span>
+          <span class="sp-import-source-title">{{ _('settings.imports.source.google_drive.title') }}</span>
+          <span class="sp-import-source-desc">{{ _('settings.imports.source.google_drive.desc') }}</span>
+        </button>
+        <button type="button" class="sp-import-source-card" data-source-choice="nextcloud">
+          <span class="sp-import-source-icon"><i class="bi bi-cloud" aria-hidden="true"></i></span>
+          <span class="sp-import-source-title">{{ _('settings.imports.source.nextcloud.title') }}</span>
+          <span class="sp-import-source-desc">{{ _('settings.imports.source.nextcloud.desc') }}</span>
+        </button>
+        {% endif %}
+        {% if show_kanban_import %}
+        <button type="button" class="sp-import-source-card" data-source-choice="kanban">
+          <span class="sp-import-source-icon"><i class="bi bi-kanban" aria-hidden="true"></i></span>
+          <span class="sp-import-source-title">{{ _('settings.imports.source.kanban.title') }}</span>
+          <span class="sp-import-source-desc">{{ _('settings.imports.source.kanban.desc') }}</span>
+        </button>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- STEP 2: Login / Credentials -->
+    <div class="sp-group-body d-none" id="wizardStep2" data-wizard-panel="2">
+      <div class="sp-group-head">
+        <h2 class="sp-group-title"><i class="bi bi-plug" aria-hidden="true"></i>{{ _('settings.imports.step2.title') }}</h2>
+      </div>
+
+      <!-- 2A: Google Drive Auth -->
+      {% if show_cloud_import %}
+      <div class="d-none" id="wizardAuthGoogle">
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-control" style="justify-content:flex-start">
+            {% if google_configured %}
+            <a href="{{ url_for('settings.cloud_import_connect_google') }}" class="btn btn-accent rounded-pill mod-pill-btn">
+              <i class="bi bi-google" aria-hidden="true"></i>
+              {{ _('settings.cloud_import.connect_google') }}
+            </a>
+            {% else %}
+            <button type="button" class="btn btn-outline-secondary rounded-pill mod-pill-btn" disabled>
+              <i class="bi bi-google" aria-hidden="true"></i>
+              {{ _('settings.cloud_import.connect_google') }}
+            </button>
+            <span class="text-muted small">{{ _('settings.cloud_import.flash.google_not_configured') }}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="px-3 pb-3">
+          <ul class="sp-conn-list cloud-import-conn-list" id="wizardGoogleConnections">
+            {% for c in connections if c.provider == 'google_drive' %}
+            <li class="sp-conn-row cloud-import-conn" data-connection-id="{{ c.id }}" data-provider="google_drive" data-display-name="{{ c.display_name or c.provider }}">
+              <button type="button" class="sp-conn-select cloud-import-select-conn">
+                <i class="bi bi-google" aria-hidden="true"></i>
+                <strong>{{ c.display_name or c.provider }}</strong>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-danger rounded-pill cloud-import-delete-conn" aria-label="{{ _('common.delete') }}">
+                <i class="bi bi-trash" aria-hidden="true"></i>
+              </button>
+            </li>
+            {% else %}
+            <li class="sp-conn-empty" id="wizardGoogleEmpty">{{ _('settings.cloud_import.no_connections') }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+
+      <!-- 2B: Nextcloud Auth -->
+      <div class="d-none" id="wizardAuthNextcloud">
+        <div class="px-3 pt-3">
+          <ul class="sp-conn-list cloud-import-conn-list" id="wizardNextcloudConnections">
+            {% for c in connections if c.provider == 'nextcloud' %}
+            <li class="sp-conn-row cloud-import-conn" data-connection-id="{{ c.id }}" data-provider="nextcloud" data-display-name="{{ c.display_name or c.provider }}">
+              <button type="button" class="sp-conn-select cloud-import-select-conn">
+                <i class="bi bi-cloud" aria-hidden="true"></i>
+                <strong>{{ c.display_name or c.provider }}</strong>
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-danger rounded-pill cloud-import-delete-conn" aria-label="{{ _('common.delete') }}">
+                <i class="bi bi-trash" aria-hidden="true"></i>
+              </button>
+            </li>
+            {% else %}
+            <li class="sp-conn-empty" id="wizardNextcloudEmpty">{{ _('settings.cloud_import.no_connections') }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-control" style="justify-content:flex-start">
+            <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" id="cloudImportShowNextcloud">
+              <i class="bi bi-plus-lg" aria-hidden="true"></i>
+              {{ _('settings.cloud_import.connect_nextcloud') }}
+            </button>
+          </div>
+        </div>
+
+        <div class="cloud-import-nextcloud-form{% if connections|selectattr('provider', 'equalto', 'nextcloud')|list|length > 0 %} d-none{% endif %}" id="cloudImportNextcloudForm">
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.cloud_import.nextcloud.server') }}</span></div>
+            <div class="sp-row-control" style="width:100%">
+              <input type="url" class="form-control" id="ncServer" placeholder="https://cloud.example.com" autocomplete="off">
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.cloud_import.nextcloud.username') }}</span></div>
+            <div class="sp-row-control">
+              <input type="text" class="form-control" id="ncUser" autocomplete="username" style="min-width:10rem">
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.cloud_import.nextcloud.app_password') }}</span></div>
+            <div class="sp-row-control">
+              <input type="password" class="form-control" id="ncPass" autocomplete="current-password" style="min-width:10rem">
+            </div>
+          </div>
+          <div class="sp-row sp-row--stack">
+            <p class="sp-row-meta mb-0 px-0">{{ _('settings.cloud_import.nextcloud.hint') }}</p>
+            <div class="sp-row-control" style="justify-content:flex-start">
+              <button type="button" class="btn btn-accent rounded-pill mod-pill-btn" id="cloudImportConnectNextcloudBtn">
+                <i class="bi bi-plug" aria-hidden="true"></i>
+                {{ _('settings.cloud_import.connect') }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- 2C: Kanban Auth / Mode -->
+      {% if show_kanban_import %}
+      <div class="d-none" id="wizardAuthKanban">
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.imports.source.kanban.mode_label') }}</span></div>
+          <div class="sp-row-control">
+            <div class="sp-seg sp-seg--wrap" role="radiogroup" aria-label="{{ _('settings.imports.source.kanban.mode_label') }}">
+              <button type="button" class="wizard-kanban-mode-btn active" data-kanban-mode="trello" aria-pressed="true">
+                <i class="bi bi-trello" aria-hidden="true"></i>
+                {{ _('settings.imports.source.kanban.mode_trello') }}
+              </button>
+              <button type="button" class="wizard-kanban-mode-btn" data-kanban-mode="file" aria-pressed="false">
+                <i class="bi bi-file-earmark-arrow-up" aria-hidden="true"></i>
+                {{ _('settings.imports.source.kanban.mode_file') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-3" id="wizardKanbanTrelloAuthBox">
+          <details class="sp-trello-guide mb-3">
+            <summary>
+              <i class="bi bi-question-circle" aria-hidden="true"></i>
+              <span>{{ _('settings.kanban_import.trello_guide_title') }}</span>
+            </summary>
+            <p class="mb-2 text-muted">{{ _('settings.kanban_import.trello_guide_intro') }}</p>
+            <ol class="text-muted">
+              <li>
+                {{ _('settings.kanban_import.trello_guide_step1') }}
+                <a href="https://trello.com/power-ups/admin" target="_blank" rel="noopener noreferrer">trello.com/power-ups/admin</a>
+              </li>
+              <li>{{ _('settings.kanban_import.trello_guide_step2') }}</li>
+              <li>{{ _('settings.kanban_import.trello_guide_step3') }}</li>
+            </ol>
+          </details>
+
+          <div id="trelloConnectBox" {% if trello_profile %}hidden{% endif %}>
+            <div class="row g-2 mb-2">
+              <div class="col-12 col-md-6">
+                <label class="form-label small fw-semibold" for="trelloApiKeyInput">{{ _('settings.kanban_import.trello_api_key') }}</label>
+                <input type="text" class="form-control" id="trelloApiKeyInput" autocomplete="off" spellcheck="false" placeholder="{{ _('settings.kanban_import.trello_api_key_ph') }}">
+              </div>
+              <div class="col-12 col-md-6">
+                <label class="form-label small fw-semibold" for="trelloTokenInput">{{ _('settings.kanban_import.trello_token') }}</label>
+                <input type="password" class="form-control" id="trelloTokenInput" autocomplete="off" spellcheck="false" placeholder="{{ _('settings.kanban_import.trello_token_ph') }}">
+              </div>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+              <button type="button" class="btn btn-accent rounded-pill mod-pill-btn" id="trelloAuthorizeBtn">
+                <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {{ _('settings.kanban_import.trello_login_btn') }}
+              </button>
+              <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" id="trelloManualConnectBtn">
+                <i class="bi bi-key" aria-hidden="true"></i> {{ _('settings.kanban_import.trello_connect_btn') }}
+              </button>
+              <a href="#" class="small ms-auto d-none" id="trelloManualTokenLink" target="_blank" rel="noopener noreferrer">
+                {{ _('settings.kanban_import.trello_open_token_link') }}
+              </a>
+            </div>
+          </div>
+
+          <div id="trelloConnectedBox" {% if not trello_profile %}hidden{% endif %}>
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+              <div class="d-flex align-items-center gap-2">
+                <i class="bi bi-check-circle-fill text-success" aria-hidden="true"></i>
+                <span class="fw-semibold" id="trelloAccountLabel">
+                  {% if trello_profile %}{{ trello_profile.full_name }} (@{{ trello_profile.username }}){% endif %}
+                </span>
+              </div>
+              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted text-danger" id="trelloDisconnectBtn">
+                <i class="bi bi-plug" aria-hidden="true"></i> {{ _('settings.kanban_import.trello_disconnect_btn') }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-3 d-none" id="wizardKanbanFileAuthHint">
+          <p class="text-muted small mb-0">{{ _('settings.imports.source.kanban.file_no_auth_hint') }}</p>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="alert alert-danger d-none mx-3 mb-3" id="wizardStep2Error" role="alert"></div>
+    </div>
+
+    <!-- STEP 3: Select Content -->
+    <div class="sp-group-body d-none" id="wizardStep3" data-wizard-panel="3">
+      <div class="sp-group-head">
+        <h2 class="sp-group-title"><i class="bi bi-folder2-open" aria-hidden="true"></i>{{ _('settings.imports.step3.title') }}</h2>
+      </div>
+
+      <!-- 3A: Cloud Browser (Google Drive / Nextcloud) -->
+      {% if show_cloud_import %}
+      <div class="d-none" id="wizardSelectCloud">
+        <div class="sp-row">
+          <div class="sp-row-control" style="justify-content:flex-start;gap:0.65rem;flex-wrap:wrap;width:100%">
+            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted" id="cloudImportBrowseUp" disabled>
+              <i class="bi bi-arrow-up" aria-hidden="true"></i> {{ _('layout.nav.back') }}
+            </button>
+            <code class="small text-muted mb-0" id="cloudImportBrowsePath">/</code>
+            <span class="text-muted small ms-auto" id="cloudImportSelectionHint"></span>
+          </div>
+        </div>
+        <div class="table-responsive px-3 pb-3">
+          <table class="table table-sm align-middle mb-0 sp-table">
+            <thead>
+              <tr>
+                <th style="width:2rem"></th>
+                <th>{{ _('settings.cloud_import.col.name') }}</th>
+                <th style="width:6rem">{{ _('settings.cloud_import.col.size') }}</th>
+              </tr>
+            </thead>
+            <tbody id="cloudImportBrowseBody"></tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- 3B: Trello Boards -->
+      {% if show_kanban_import %}
+      <div class="p-3 d-none" id="wizardSelectTrello">
+        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+          <span class="small text-muted">{{ _('settings.imports.source.kanban.select_boards_hint') }}</span>
+          <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted" id="trelloRefreshBoardsBtn">
+            <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {{ _('settings.kanban_import.trello_refresh_btn') }}
+          </button>
+        </div>
+        <div class="sp-trello-board-list" id="trelloBoardList"></div>
+      </div>
+
+      <!-- 3C: Kanban File Dropzone -->
+      <div class="p-3 d-none" id="wizardSelectKanbanFile">
+        <label class="sp-dropzone" id="settingsKanbanDropzone" for="settingsKanbanFile">
+          <i class="bi bi-cloud-arrow-up" aria-hidden="true"></i>
+          <p class="sp-dropzone-title">{{ _('settings.kanban_import.drop_title') }}</p>
+          <p class="sp-dropzone-meta">{{ _('settings.kanban_import.drop_meta') }}</p>
+          <input type="file" id="settingsKanbanFile" name="file" class="d-none" accept=".json,.csv,.zip,application/json,text/csv,application/zip">
+        </label>
+        <div class="sp-file-preview" id="settingsKanbanPreview" hidden aria-live="polite">
+          <div class="sp-file-preview-icon">
+            <i class="bi bi-file-earmark" id="settingsKanbanPreviewIcon" aria-hidden="true"></i>
+          </div>
+          <div class="sp-file-preview-meta">
+            <div class="sp-file-preview-name" id="settingsKanbanPreviewName"></div>
+            <div class="sp-file-preview-info" id="settingsKanbanPreviewInfo"></div>
+          </div>
+          <button type="button" class="btn btn-sm btn-link text-secondary p-1" id="settingsKanbanPreviewClear" aria-label="{{ _('settings.kanban_import.remove_file') }}" title="{{ _('settings.kanban_import.remove_file') }}">
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+          </button>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="alert alert-danger d-none mx-3 mb-3" id="wizardStep3Error" role="alert"></div>
+    </div>
+
+    <!-- STEP 4: Choose Target & Start -->
+    <div class="sp-group-body d-none" id="wizardStep4" data-wizard-panel="4">
+      <div class="sp-group-head">
+        <h2 class="sp-group-title"><i class="bi bi-hdd-stack" aria-hidden="true"></i>{{ _('settings.imports.step4.title') }}</h2>
+      </div>
+
+      <div class="px-3 pt-3">
+        <div class="sp-import-summary">
+          <div>
+            <div class="sp-import-summary-label">{{ _('settings.imports.summary.source') }}</div>
+            <div class="sp-import-summary-value" id="wizardSummarySource">—</div>
+          </div>
+          <div>
+            <div class="sp-import-summary-label">{{ _('settings.imports.summary.account') }}</div>
+            <div class="sp-import-summary-value" id="wizardSummaryAccount">—</div>
+          </div>
+          <div>
+            <div class="sp-import-summary-label">{{ _('settings.imports.summary.selection') }}</div>
+            <div class="sp-import-summary-value" id="wizardSummarySelection">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4A: Cloud Target -->
+      {% if show_cloud_import %}
+      <div class="d-none" id="wizardTargetCloud">
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.cloud_import.target_space') }}</span></div>
+          <div class="sp-row-control">
+            <div class="sp-seg sp-seg--wrap" role="radiogroup" aria-label="{{ _('settings.cloud_import.target_space') }}" id="cloudImportSpaceToggle">
+              {% for s in spaces %}
+              <button type="button"
+                      class="cloud-import-space-btn{% if loop.first %} active{% endif %}"
+                      data-space="{{ s.space }}"
+                      data-team-id="{{ s.team_id or '' }}"
+                      aria-pressed="{{ 'true' if loop.first else 'false' }}">
+                {% if s.space == 'team' and s.team_name %}
+                  {{ _('settings.cloud_import.space.team') }}: {{ s.team_name }}
+                {% else %}
+                  {{ _(s.label_key) }}
+                {% endif %}
+              </button>
+              {% else %}
+              <p class="text-muted mb-0">{{ _('settings.cloud_import.no_spaces') }}</p>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+        <div class="sp-row" id="cloudImportDestFolderWrap">
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.cloud_import.dest_folder') }}</span></div>
+          <div class="sp-row-control">
+            <select class="form-select" id="cloudImportDestFolder" style="min-width:14rem">
+              <option value="">{{ _('settings.cloud_import.dest_root') }}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- 4B: Kanban Target -->
+      {% if show_kanban_import %}
+      <div class="d-none" id="wizardTargetKanban">
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.kanban_import.visibility_label') }}</span>
+          </div>
+          <div class="sp-row-control">
+            <select class="form-select" id="wizardKanbanTarget" style="min-width:14rem">
+              {% for t in import_targets %}
+              <option value="{% if t.visibility == 'team' %}team:{{ t.team_id }}{% else %}{{ t.visibility }}{% endif %}">
+                {% if t.team_name %}{{ _(t.label_key) }}: {{ t.team_name }}{% else %}{{ _(t.label_key) }}{% endif %}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="px-3 pb-3">
+          <div class="sp-upload-progress" id="settingsKanbanProgress" hidden>
+            <div class="sp-upload-progress-head">
+              <span id="settingsKanbanProgressLabel">{{ _('settings.kanban_import.uploading') }}</span>
+              <span id="settingsKanbanProgressPct">0%</span>
+            </div>
+            <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="settingsKanbanProgressTrack">
+              <div class="progress-bar progress-bar-striped progress-bar-animated" id="settingsKanbanProgressBar" style="width: 0%"></div>
+            </div>
+          </div>
+          <div class="sp-import-results" id="wizardKanbanResults" hidden></div>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="alert alert-danger d-none mx-3 mb-3" id="wizardStep4Error" role="alert"></div>
+    </div>
+
+    <!-- Wizard Footer -->
+    <div class="sp-import-wizard-footer d-none" id="wizardFooter">
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" id="wizardPrevBtn">
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        {{ _('layout.nav.back') }}
+      </button>
+      <div class="sp-import-wizard-footer-end">
+        <button type="button" class="btn btn-accent rounded-pill mod-pill-btn" id="wizardNextBtn" disabled>
+          {{ _('settings.imports.next') }}
+          <i class="bi bi-arrow-right" aria-hidden="true"></i>
+        </button>
+        <button type="button" class="btn btn-accent rounded-pill mod-pill-btn d-none" id="wizardStartBtn" disabled>
+          <i class="bi bi-download" aria-hidden="true"></i>
+          {{ _('settings.imports.start_import') }}
+        </button>
+      </div>
+    </div>
+  </section>
+
+  {% if show_cloud_import %}
+  <section class="sp-group mt-4" aria-labelledby="cloud-import-jobs-heading" id="cloud-import-jobs">
+    <div class="sp-group-head">
+      <h2 id="cloud-import-jobs-heading" class="sp-group-title"><i class="bi bi-list-task" aria-hidden="true"></i>{{ _('settings.cloud_import.jobs') }}</h2>
+    </div>
+    <div class="sp-group-body">
+      <ul class="sp-conn-list" id="cloudImportJobs">
+        {% for j in jobs %}
+        <li class="sp-job-row cloud-import-job" data-job-id="{{ j.id }}" data-status="{{ j.status }}">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div>
+              <strong>{{ j.connection.display_name if j.connection else '—' }}</strong>
+              <span class="badge text-bg-secondary ms-1 cloud-import-job-status">{{ j.status }}</span>
+              <div class="small text-muted">
+                {{ j.target_space }}
+                · <span class="cloud-import-job-progress-text">{{ j.files_done or 0 }}/{{ j.files_total or 0 }}</span>
+              </div>
+              {% if j.error_message %}
+              <div class="small text-danger cloud-import-job-error">{{ j.error_message }}</div>
+              {% endif %}
+            </div>
+            {% if j.status in ('pending', 'running') %}
+            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill cloud-import-cancel-job">
+              {{ _('common.cancel') }}
+            </button>
+            {% endif %}
+          </div>
+          <div class="progress mt-2" style="height:6px">
+            <div class="progress-bar cloud-import-job-bar" role="progressbar"
+                 style="width: {% if j.files_total %}{{ ((j.files_done or 0) / j.files_total * 100)|round|int }}{% elif j.status == 'completed' %}100{% else %}0{% endif %}%"></div>
+          </div>
+        </li>
+        {% else %}
+        <li class="sp-conn-empty" id="cloudImportEmptyJobs">{{ _('settings.cloud_import.no_jobs') }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ super() }}
+<script src="{{ url_for('static', filename='js/imports_wizard.js') }}"></script>
+{% endblock %}

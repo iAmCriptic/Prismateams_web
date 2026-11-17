@@ -29,7 +29,7 @@
 
 {% macro board_actions_dropdown(b, manage) %}
 <div class="dropdown">
-  <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-label="Aktionen" onclick="event.stopPropagation();">
+  <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" aria-label="{{ _('common.actions') }}" onclick="event.stopPropagation();">
     <i class="bi bi-three-dots-vertical"></i>
   </button>
   <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
@@ -53,13 +53,19 @@
     <li>
       <button type="button" class="dropdown-item" data-kanban-rename="{{ b.id }}" data-kanban-title="{{ b.title|e }}"
               onclick="event.preventDefault(); event.stopPropagation(); window.kanbanStartRename && window.kanbanStartRename(this); return false;">
-        <i class="bi bi-pencil me-2"></i>Umbenennen
+        <i class="bi bi-pencil me-2"></i>{{ _('kanban.index.rename') }}
       </button>
     </li>
     <li>
       <button type="button" class="dropdown-item" data-kanban-color="{{ b.id }}" data-kanban-bg="{{ b.background or 'teal' }}" data-kanban-title="{{ b.title|e }}"
               onclick="event.preventDefault(); event.stopPropagation(); window.kanbanOpenColor && window.kanbanOpenColor(this); return false;">
-        <i class="bi bi-palette me-2"></i>Farbe ändern
+        <i class="bi bi-palette me-2"></i>{{ _('kanban.index.change_color') }}
+      </button>
+    </li>
+    <li>
+      <button type="button" class="dropdown-item" data-kanban-move="{{ b.id }}" data-kanban-title="{{ b.title|e }}" data-kanban-vis="{{ b.visibility }}" data-kanban-team-id="{{ b.team_id or '' }}"
+              onclick="event.preventDefault(); event.stopPropagation(); window.kanbanOpenMove && window.kanbanOpenMove(this); return false;">
+        <i class="bi bi-arrow-left-right me-2"></i>{{ _('kanban.index.move_board') }}
       </button>
     </li>
     <li><hr class="dropdown-divider"></li>
@@ -83,6 +89,11 @@
        role="link"
        tabindex="0"
        data-href="{{ board_url }}"
+       data-board-id="{{ b.id }}"
+       data-board-vis="{{ b.visibility }}"
+       data-board-team-id="{{ b.team_id or '' }}"
+       data-board-manage="{{ '1' if manage else '0' }}"
+       {% if manage %}draggable="true"{% endif %}
        onclick="location.href=this.dataset.href;">
     <div class="card-body d-flex flex-column">
       <div class="mod-grid-preview text-center mb-3 kanban-grid-cover position-relative" data-board-cover="{{ b.id }}" style="background: {{ board_bg(b) }};">
@@ -93,10 +104,11 @@
         <i class="bi bi-kanban text-white" aria-hidden="true"></i>
         {% endif %}
         {% if unread_cnt > 0 %}
-        <span class="position-absolute top-0 end-0 m-2 badge rounded-pill bg-danger shadow-sm kanban-board-unread-badge d-flex align-items-center gap-1"
+        {% set unread_label = unread_cnt ~ ' ' ~ (_('kanban.index.unread_many') if unread_cnt > 1 else _('kanban.index.unread_one')) %}
+        <span class="position-absolute top-0 end-0 m-2 badge rounded-pill bg-danger shadow-sm kanban-board-unread-badge kanban-unread-badge-sm d-flex align-items-center gap-1"
               data-board-unread-badge="{{ b.id }}"
-              title="{{ unread_cnt }} neue Benachrichtigung{{ 'en' if unread_cnt > 1 else '' }}">
-          <i class="bi bi-bell-fill" style="font-size: 0.65rem;"></i>{{ unread_cnt }}
+              title="{{ unread_label }}">
+          <i class="bi bi-bell-fill kanban-unread-badge-sm" aria-hidden="true"></i>{{ unread_cnt }}
         </span>
         {% endif %}
       </div>
@@ -105,7 +117,7 @@
           <div class="d-flex align-items-center gap-2 mb-1">
             <h6 class="mb-0 mod-item-name text-truncate" data-rename-target="board-{{ b.id }}" title="{{ b.title }}">{{ b.title }}</h6>
             {% if unread_cnt > 0 %}
-            <span class="badge rounded-pill bg-danger flex-shrink-0 d-md-none" style="font-size: 0.65rem;" title="{{ unread_cnt }} neue Benachrichtigung{{ 'en' if unread_cnt > 1 else '' }}">{{ unread_cnt }}</span>
+            <span class="badge rounded-pill bg-danger flex-shrink-0 d-md-none kanban-unread-badge-sm" title="{{ unread_cnt }} {{ _('kanban.index.unread_many') if unread_cnt > 1 else _('kanban.index.unread_one') }}">{{ unread_cnt }}</span>
             {% endif %}
           </div>
           <div class="small text-muted">{{ _('kanban.index.vis_' + b.visibility) }}{% if b.team %} · {{ b.team.name }}{% endif %}</div>
@@ -114,7 +126,7 @@
           {% if manage %}
           <div class="mod-grid-hover-actions">
             <a class="btn btn-sm btn-link" href="{{ board_url }}?share=1" title="{{ _('kanban.board.share') }}" onclick="event.stopPropagation(); return true;"><i class="bi bi-share"></i></a>
-            <button type="button" class="btn btn-sm btn-link" title="Umbenennen"
+            <button type="button" class="btn btn-sm btn-link" title="{{ _('kanban.index.rename') }}"
                     data-kanban-rename="{{ b.id }}" data-kanban-title="{{ b.title|e }}"
                     onclick="event.preventDefault(); event.stopPropagation(); window.kanbanStartRename && window.kanbanStartRename(this); return false;"><i class="bi bi-pencil"></i></button>
           </div>
@@ -130,14 +142,14 @@
 {% macro board_list_row(b) %}
 {% set manage = b.id in manageable_ids %}
 {% set unread_cnt = unread_counts_by_board.get(b.id, 0) if unread_counts_by_board else 0 %}
-<tr class="mod-list-row" data-lazy-item data-board-wrapper="{{ b.id }}" data-board-search-name="{{ b.title|e }}" data-board-search-team="{{ (b.team.name if b.team else '')|e }}">
+<tr class="mod-list-row" data-lazy-item data-board-wrapper="{{ b.id }}" data-board-search-name="{{ b.title|e }}" data-board-search-team="{{ (b.team.name if b.team else '')|e }}" data-board-id="{{ b.id }}" data-board-vis="{{ b.visibility }}" data-board-team-id="{{ b.team_id or '' }}" data-board-manage="{{ '1' if manage else '0' }}" {% if manage %}draggable="true"{% endif %}>
   <td class="mod-list-name-cell">
     <a class="mod-list-name text-decoration-none mod-item-name d-inline-flex align-items-center gap-2" data-rename-target="board-{{ b.id }}" href="{{ url_for('kanban.board', board_id=b.public_id or b.id) }}">
       <span class="kanban-list-swatch" data-board-swatch="{{ b.id }}" style="background: {{ board_bg(b) }};" aria-hidden="true"></span>
       <span class="mod-item-name-text text-truncate" title="{{ b.title }}">{{ b.title }}</span>
       {% if unread_cnt > 0 %}
-      <span class="badge rounded-pill bg-danger ms-1" style="font-size: 0.65rem;" title="{{ unread_cnt }} neue Benachrichtigung{{ 'en' if unread_cnt > 1 else '' }}">
-        <i class="bi bi-bell-fill me-1" style="font-size: 0.6rem;"></i>{{ unread_cnt }}
+      <span class="badge rounded-pill bg-danger ms-1 kanban-unread-badge-sm" title="{{ unread_cnt }} {{ _('kanban.index.unread_many') if unread_cnt > 1 else _('kanban.index.unread_one') }}">
+        <i class="bi bi-bell-fill me-1 kanban-unread-bell-xs" aria-hidden="true"></i>{{ unread_cnt }}
       </span>
       {% endif %}
     </a>
@@ -150,7 +162,7 @@
       <div class="mod-list-hover-actions">
         {% if manage %}
         <a class="btn btn-sm btn-link" href="{{ url_for('kanban.board', board_id=b.public_id or b.id) }}?share=1" title="{{ _('kanban.board.share') }}"><i class="bi bi-share"></i></a>
-        <button type="button" class="btn btn-sm btn-link" title="Umbenennen"
+        <button type="button" class="btn btn-sm btn-link" title="{{ _('kanban.index.rename') }}"
                 data-kanban-rename="{{ b.id }}" data-kanban-title="{{ b.title|e }}"
                 onclick="event.preventDefault(); event.stopPropagation(); window.kanbanStartRename && window.kanbanStartRename(this); return false;"><i class="bi bi-pencil"></i></button>
         {% endif %}
@@ -161,9 +173,10 @@
 </tr>
 {% endmacro %}
 
-{% macro section(title, boards, section_key, has_more=false, lazy_url=none, list_page=1) %}
-{% if boards %}
-<section class="kanban-section mb-4" data-kanban-section="{{ section_key }}" id="kanban-section-{{ section_key }}"
+{% macro section(title, boards, section_key, has_more=false, lazy_url=none, list_page=1, allow_empty_drop=false, visibility=none, team_id=none) %}
+{% if boards or allow_empty_drop %}
+<section class="kanban-section mb-4{% if not boards %} kanban-section--empty{% endif %}" data-kanban-section="{{ section_key }}" id="kanban-section-{{ section_key }}"
+  {%- if visibility %} data-drop-visibility="{{ visibility }}" data-drop-team-id="{{ team_id or '' }}"{% endif %}
   {%- if has_more %}
   data-lazy-more
   data-lazy-silent="1"
@@ -175,6 +188,7 @@
   {%- if lazy_url %} data-lazy-url="{{ lazy_url }}"{% endif %}
   {%- endif %}>
   <h2 class="kanban-section__title">{{ title }}</h2>
+  {% if boards %}
   <div class="row g-3" data-view-grid id="kanbanGrid-{{ section_key }}">
     {% for b in boards %}{{ board_grid_card(b) }}{% endfor %}
   </div>
@@ -185,8 +199,8 @@
           <th scope="col">{{ _('kanban.index.board_title') }}</th>
           <th class="d-none d-md-table-cell" scope="col">{{ _('kanban.index.visibility') }}</th>
           <th class="d-none d-md-table-cell" scope="col">{{ _('kanban.index.team_label') }}</th>
-          <th class="d-none d-lg-table-cell" scope="col">Aktualisiert</th>
-          <th class="text-end" scope="col" style="width:7rem;"></th>
+          <th class="d-none d-lg-table-cell" scope="col">{{ _('kanban.index.updated') }}</th>
+          <th class="text-end kanban-list-actions-col" scope="col"></th>
         </tr>
       </thead>
       <tbody id="kanbanList-{{ section_key }}">
@@ -195,6 +209,12 @@
     </table>
   </div>
   {% with list_has_more=has_more %}{% include 'partials/mod_lazy_more.html' %}{% endwith %}
+  {% else %}
+  <div class="kanban-section-drop-hint">
+    <i class="bi bi-arrow-down-circle"></i>
+    <span>{{ _('kanban.index.drop_here') }}</span>
+  </div>
+  {% endif %}
 </section>
 {% endif %}
 {% endmacro %}
@@ -241,17 +261,26 @@
     </div>
 
     {% set team_board_groups = team_board_groups|default([]) %}
-    {% set all_empty = not recent_boards and not private_boards and not team_board_groups and not public_boards %}
+    {% set all_empty = not recent_boards and not private_boards and not team_board_groups and not team_boards and not public_boards %}
     {% if all_empty %}
     <p class="text-muted">{{ _('kanban.index.empty') }}</p>
     {% else %}
       {% if not section_filter or section_filter == 'all' %}
         {{ section(_('kanban.index.recent'), recent_boards, 'recent') }}
-        {{ section(_('kanban.index.private'), private_boards, 'private', has_more=private_has_more|default(false), lazy_url=url_for('kanban.index', section='private'), list_page=1) }}
+        {{ section(_('kanban.index.private'), private_boards, 'private', has_more=private_has_more|default(false), lazy_url=url_for('kanban.index', section='private'), list_page=1, allow_empty_drop=('private' in allowed_visibilities), visibility='private') }}
+        {% set rendered_team_ids = [] %}
         {% for group in team_board_groups %}
-          {{ section(group.team.name if group.team else _('kanban.index.team'), group.boards, 'team-' ~ (group.team.id if group.team else 'none'), has_more=group.has_more|default(false), lazy_url=group.lazy_url, list_page=group.page|default(1)) }}
+          {% if group.team %}{% set _ = rendered_team_ids.append(group.team.id) %}{% endif %}
+          {{ section(group.team.name if group.team else _('kanban.index.team'), group.boards, 'team-' ~ (group.team.id if group.team else 'none'), has_more=group.has_more|default(false), lazy_url=group.lazy_url, list_page=group.page|default(1), visibility=('team' if group.team else none), team_id=(group.team.id if group.team else none)) }}
         {% endfor %}
-        {{ section(_('kanban.index.public'), public_boards, 'public', has_more=public_has_more|default(false), lazy_url=url_for('kanban.index', section='public'), list_page=1) }}
+        {% if 'team' in allowed_visibilities %}
+          {% for t in teams %}
+            {% if t.id not in rendered_team_ids %}
+              {{ section(t.name, [], 'team-' ~ t.id, allow_empty_drop=true, visibility='team', team_id=t.id) }}
+            {% endif %}
+          {% endfor %}
+        {% endif %}
+        {{ section(_('kanban.index.public'), public_boards, 'public', has_more=public_has_more|default(false), lazy_url=url_for('kanban.index', section='public'), list_page=1, allow_empty_drop=('public' in allowed_visibilities), visibility='public') }}
       {% elif section_filter == 'recent' %}
         {{ section(_('kanban.index.recent'), recent_boards, 'recent') }}
         {% if not recent_boards %}<p class="text-muted">{{ _('kanban.index.empty') }}</p>{% endif %}
@@ -328,7 +357,7 @@
               </label>
             </div>
           </div>
-          <div id="boardTemplateWrap" style="display:none;">
+          <div id="boardTemplateWrap" hidden>
             <label class="form-label" for="boardTemplate">{{ _('kanban.index.template') }}</label>
             <select class="form-select" id="boardTemplate" name="template_id" data-mod-pill-select>
               <option value="">{{ _('kanban.index.choose_template') }}</option>
@@ -397,8 +426,57 @@
   </div>
 </div>
 
+{# Board-Bereich & Berechtigungen ändern #}
+<div class="modal fade" id="kanbanMoveBoardModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content kanban-modal">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ _('kanban.index.move_board_title') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body d-grid gap-3">
+        <p class="small text-muted mb-0" id="kanbanMoveBoardName"></p>
+        <div>
+          <label class="form-label" for="kanbanMoveBoardTarget">{{ _('kanban.index.target_section') }}</label>
+          <select class="form-select" id="kanbanMoveBoardTarget" data-mod-pill-select>
+            {% if 'private' in allowed_visibilities %}
+            <option value="private">{{ _('kanban.index.vis_private') }}</option>
+            {% endif %}
+            {% if 'team' in allowed_visibilities %}
+            {% for t in teams %}
+            <option value="team:{{ t.id }}">{{ t.name }}</option>
+            {% endfor %}
+            {% endif %}
+            {% if 'public' in allowed_visibilities %}
+            <option value="public">{{ _('kanban.index.vis_public') }}</option>
+            {% endif %}
+          </select>
+        </div>
+        <p class="small text-muted mb-0">{{ _('kanban.index.move_board_hint') }}</p>
+        <input type="hidden" id="kanbanMoveBoardId" value="">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--new mod-pill-btn--accent" id="kanbanMoveBoardSave">{{ _('common.save') }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   window.KANBAN_BACKGROUNDS = {{ backgrounds | tojson }};
+  window.KANBAN_INDEX_I18N = {
+    rename: {{ _('kanban.index.rename') | tojson }},
+    save: {{ _('common.save') | tojson }},
+    cancel: {{ _('common.cancel') | tojson }},
+    renameFailed: {{ _('kanban.index.rename_failed') | tojson }},
+    closeConfirm: {{ _('kanban.index.close_confirm') | tojson }},
+    closeBtn: {{ _('kanban.index.close_btn') | tojson }},
+    errorGeneric: {{ _('common.unknown_error') | tojson }},
+    chooseTemplate: {{ _('kanban.index.choose_template_warn') | tojson }},
+    unreadOne: {{ _('kanban.index.unread_one') | tojson }},
+    unreadMany: {{ _('kanban.index.unread_many') | tojson }},
+    moveFailed: {{ _('kanban.index.move_failed') | tojson }}
+  };
 </script>
 <script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>

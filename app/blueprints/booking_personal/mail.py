@@ -86,9 +86,14 @@ def send_booking_personal_mail(event, entry, recipient_email, subject, body_text
         )
         _send_flask_message_via_smtp(msg, smtp_cfg)
     else:
+        from app.blueprints.email.compose import _send_flask_message_via_smtp
+        from app.utils.multi_mailboxes import get_main_smtp_config
+
+        smtp_cfg = get_main_smtp_config()
         msg = Message(
             subject=subject,
+            sender=smtp_cfg.get('sender') or smtp_cfg.get('user'),
             recipients=[recipient_email],
             body=body_text
         )
-        mail.send(msg)
+        _send_flask_message_via_smtp(msg, smtp_cfg)

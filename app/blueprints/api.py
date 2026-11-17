@@ -51,6 +51,7 @@ from app.blueprints.api_modules.files import register_files_routes
 from app.blueprints.api_modules.dashboard import register_dashboard_routes
 from app.blueprints.api_modules.notifications import register_notification_routes
 from app.blueprints.api_modules.push import register_push_routes
+from app.blueprints.api_modules.windows import register_windows_routes
 
 register_auth_routes(api_bp, require_api_auth, limiter)
 register_meta_routes(api_bp, require_api_auth)
@@ -61,6 +62,7 @@ register_files_routes(api_bp, require_api_auth)
 register_dashboard_routes(api_bp, require_api_auth)
 register_notification_routes(api_bp, require_api_auth)
 register_push_routes(api_bp, require_api_auth)
+register_windows_routes(api_bp, require_api_auth)
 
 
 @api_bp.route('/i18n/packs', methods=['GET'])

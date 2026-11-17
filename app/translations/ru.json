@@ -759,6 +759,51 @@
       "kanban_changes": {
         "title": "Изменения Kanban",
         "empty": "Нет недавних изменений"
+      },
+      "kanban_my_cards": {
+        "title": "My Kanban Cards",
+        "empty": "No open cards assigned to you.",
+        "overdue": "Overdue"
+      },
+      "booking_personal": {
+        "title": "Booking",
+        "empty": "No active booking events.",
+        "entries_count": "{count} entries"
+      },
+      "room_bookings_upcoming": {
+        "title": "Upcoming Room Bookings",
+        "empty": "No upcoming room bookings."
+      },
+      "events": {
+        "title": "Events",
+        "empty": "No upcoming events."
+      },
+      "surveys": {
+        "title": "Active Surveys",
+        "empty": "No active surveys.",
+        "responses_count": "{count} responses"
+      },
+      "protocols": {
+        "title": "Protocols",
+        "empty": "No protocols available yet.",
+        "status": {
+          "draft": "Draft",
+          "finalized": "Finalized"
+        }
+      },
+      "meetings": {
+        "title": "Active Meetings",
+        "empty": "No meetings are currently active.",
+        "live": "Live",
+        "join_hint": "Click to join"
+      },
+      "duty_roster": {
+        "title": "My Duty Roster",
+        "empty": "No upcoming shifts scheduled."
+      },
+      "excalidraw": {
+        "title": "Excalidraw Boards",
+        "empty": "No boards available yet."
       }
     },
     "module_bar": {
@@ -784,7 +829,24 @@
       "no_settings": "У этого виджета нет дополнительных настроек.",
       "all_added": "Все доступные виджеты уже добавлены.",
       "save_error": "Не удалось сохранить.",
-      "more_items": "ещё +{count}"
+      "more_items": "ещё +{count}",
+      "categories": {
+        "planning": "Planning & Schedule",
+        "communication": "Communication",
+        "projects": "Projects & Knowledge",
+        "org": "Files & Organization"
+      },
+      "catalog_search": "Search widgets…",
+      "catalog_all": "All",
+      "catalog_categories": "Widget categories",
+      "catalog_empty": "No matching widgets found.",
+      "already_added": "Active",
+      "configurable_hint": "Configurable",
+      "quick_add": "Add directly",
+      "add_selected": "Add",
+      "resize_width": "Width",
+      "resize_height": "Height",
+      "resize_size": "Size"
     },
     "guest": {
       "use_modules": "Используйте панель модулей выше, чтобы открыть доступные разделы."
@@ -848,6 +910,42 @@
           "kanban_aenderungen": {
             "label": "Изменения Kanban",
             "description": "Показывает недавние обновления с доступных вам Kanban-досок."
+          },
+          "kanban_meine_karten": {
+            "label": "My Kanban Cards",
+            "description": "Open cards assigned to you with due dates and board filter."
+          },
+          "booking_personal": {
+            "label": "Booking",
+            "description": "Active booking events and entry counts at a glance."
+          },
+          "raumbuchung_kommende": {
+            "label": "Upcoming Room Bookings",
+            "description": "Confirmed room reservations and upcoming schedules."
+          },
+          "veranstaltungen": {
+            "label": "Events",
+            "description": "Upcoming events with dates and assigned rooms."
+          },
+          "umfragen": {
+            "label": "Active Surveys",
+            "description": "Running surveys with current response counts."
+          },
+          "protokolle": {
+            "label": "Protocols",
+            "description": "Latest meeting protocols and drafts."
+          },
+          "meetings": {
+            "label": "Active Meetings",
+            "description": "Ongoing video meetings with one-click join."
+          },
+          "dienstplan": {
+            "label": "My Duty Roster",
+            "description": "Your upcoming published shifts and duties."
+          },
+          "excalidraw": {
+            "label": "Excalidraw Boards",
+            "description": "Recently updated whiteboards and sketches."
           }
         },
         "add": "Добавить виджет",
@@ -1169,6 +1267,57 @@
       "page_title": "Уведомления — Настройки",
       "breadcrumb_settings": "Настройки",
       "breadcrumb_notifications": "Уведомления",
+      "channels": {
+        "portal": "В портале",
+        "push": "Push",
+        "portal_help": "Колокольчик в приложении, центр уведомлений и счётчики",
+        "push_help": "WebPush-уведомления в браузере и на смартфоне"
+      },
+      "master": {
+        "title": "Включить уведомления глобально",
+        "help": "Главный переключатель для всех уведомлений"
+      },
+      "snooze": {
+        "button": "Пауза",
+        "title": "Приостановить уведомления",
+        "help": "Отключить все уведомления на заданный период времени",
+        "active_banner": "Уведомления приостановлены до {time}",
+        "resume_btn": "Возобновить",
+        "activated_msg": "Уведомления приостановлены.",
+        "resumed_msg": "Уведомления возобновлены.",
+        "options": {
+          "30m": "30 минут",
+          "1h": "1 час",
+          "2h": "2 часа",
+          "4h": "4 часа",
+          "8h": "8 часов",
+          "tomorrow": "До завтра (08:00)"
+        }
+      },
+      "comments": {
+        "title": "Комментарии и упоминания",
+        "help": "Уведомления при упоминаниях и ответах",
+        "mentions": "@-упоминания",
+        "mentions_help": "Когда вас упоминают в комментарии через @",
+        "replies": "Ответы на ваши комментарии",
+        "replies_help": "Когда кто-то отвечает на ваш комментарий"
+      },
+      "surveys": {
+        "title": "Опросы",
+        "help": "Уведомления об опросах команды и ответах",
+        "new": "Новые опросы",
+        "new_help": "Когда опубликован новый опрос команды",
+        "responses": "Новые ответы",
+        "responses_help": "Когда кто-то проходит созданный вами опрос"
+      },
+      "room_booking": {
+        "title": "Бронирование помещений и ресурсов",
+        "help": "Уведомления о бронировании помещений",
+        "new": "Новые бронирования",
+        "new_help": "Когда создано новое бронирование помещения",
+        "status": "Изменения статуса и подтверждения",
+        "status_help": "Когда бронирование помещения подтверждено или изменено"
+      },
       "permissions": {
         "title": "Разрешения браузера",
         "description": "Эти разрешения нужны, чтобы приложение могло использовать все функции.",
@@ -2569,6 +2718,39 @@
         "credentials_public_hint": "Для учётных данных «Публичный» означает, что все пользователи модуля могут раскрывать пароли. Новые записи по умолчанию остаются «Личными».",
         "save": "Сохранить",
         "flash_saved": "Настройки видимости сохранены."
+      },
+      "main_mailbox": {
+        "page_title": "Main Mailbox Setup - Prismateams",
+        "heading": "Main Mailbox (System Email)",
+        "card_title": "Main Mailbox (System Email)",
+        "lead": "Configure the central system mailbox for outgoing portal emails and the main inbox directly in your browser.",
+        "status_configured": "Configured",
+        "status_missing": "Not configured",
+        "not_configured_hint": "No main email configured yet.",
+        "setup_btn": "Set up now",
+        "edit_btn": "Edit main mailbox",
+        "flash_saved": "Main mailbox settings saved.",
+        "provider_label": "Email provider",
+        "provider_infomaniak": "Infomaniak",
+        "provider_ionos": "IONOS",
+        "email_label": "Email address / username",
+        "email_help": "Used to authenticate with the mail server (SMTP/IMAP).",
+        "password_label": "Password / App password",
+        "password_placeholder": "Enter password or app password",
+        "password_help": "For providers with 2FA (e.g. Gmail), please use an app password. Stored encrypted.",
+        "sender_name_label": "Sender name (optional)",
+        "sender_name_placeholder": "e.g. Prismateams Portal",
+        "autodiscover_btn": "Auto-detect & test",
+        "advanced_toggle": "Advanced server settings (SMTP & IMAP)",
+        "security_label": "Encryption",
+        "security_none": "None",
+        "default_sender_label": "Default sender address (optional)",
+        "default_sender_placeholder": "Empty = use email address",
+        "test_smtp_btn": "Test SMTP",
+        "test_imap_btn": "Test IMAP",
+        "imap_username_label": "IMAP username (optional)",
+        "imap_username_placeholder": "Empty = same as email above",
+        "test_result_hint": "Review and adjust your main mailbox settings directly in your browser:"
       }
     },
     "mailboxes": {
@@ -2679,12 +2861,12 @@
       "wizard_step_provider": "Провайдер",
       "wizard_step_auth": "Вход",
       "wizard_provider_title": "Где ваш почтовый ящик?",
-      "wizard_provider_help": "Google и Microsoft через OAuth. Infomaniak, IONOS и Custom — IMAP/SMTP.",
+      "wizard_provider_help": "Google и Microsoft подключаются через OAuth. Для «Другой» настройки сервера определяются автоматически.",
       "provider_google": "Google",
       "provider_microsoft": "Microsoft",
       "provider_infomaniak": "Infomaniak",
       "provider_ionos": "IONOS",
-      "provider_custom": "Свой",
+      "provider_custom": "Другой",
       "account_email": "Адрес эл. почты",
       "account_email_help": "Используется как логин SMTP и IMAP.",
       "account_password": "Пароль",
@@ -2697,7 +2879,14 @@
       "oauth_hosts_hint": "Серверы и порты задаются автоматически.",
       "oauth_required": "Сначала подключите аккаунт через OAuth.",
       "oauth_unknown_provider": "Неизвестный OAuth-провайдер.",
-      "oauth_error": "OAuth ошибка: {error}"
+      "oauth_error": "OAuth ошибка: {error}",
+      "autodiscover_detecting": "Определение сервера…",
+      "autodiscover_manual_btn": "Настроить сервер вручную",
+      "autodiscover_detected_hint": "Определено автоматически: {imap} / {smtp}",
+      "autodiscover_incomplete": "Введите адрес электронной почты и пароль.",
+      "autodiscover_ok": "Настройки сервера определены автоматически ({imap} / {smtp}).",
+      "autodiscover_auth_failed": "Сервер найден, но вход не удался. Проверьте e-mail и пароль или настройте сервер вручную.",
+      "autodiscover_failed": "Не удалось автоматически определить настройки сервера. Настройте SMTP и IMAP вручную."
     },
     "integrations": {
       "page_title": "Интеграции",
@@ -2817,7 +3006,43 @@
       "tip_body": "ZIP с несколькими JSON/CSV создаёт несколько досок сразу.",
       "formats_title": "Форматы",
       "formats_body": "JSON и CSV для одной доски, ZIP для нескольких файлов.",
-      "visibility_label": "Видимость"
+      "visibility_label": "Видимость",
+      "selected_file": "Выбранный файл",
+      "remove_file": "Удалить файл",
+      "uploading": "Загрузка…",
+      "processing": "Импортируется…",
+      "optional_badge": "Необязательно",
+      "trello_title": "Импорт через API Trello",
+      "trello_info": "Необязательно: подключитесь к Trello для прямой загрузки досок, изображений и вложений.",
+      "trello_lead": "Необязательно: подключение к Trello позволяет загрузить список ваших досок и напрямую скачать защищённые изображения, вложения и фоны. Загрузка файлов (JSON, CSV, ZIP) всегда работает и без входа в Trello.",
+      "trello_guide_title": "Инструкция: как настроить подключение к Trello",
+      "trello_guide_intro": "Для импорта через API Trello нужен только API-ключ (в разделе «Trello Auth») и токен чтения со страницы подтверждения Trello. Поле «Secret» не требуется.",
+      "trello_guide_step1": "Откройте управление Power-Ups в Trello, перейдите в «Авторизация → Trello Auth» и скопируйте «API-ключ» (не «Secret»):",
+      "trello_guide_step2": "Вставьте API-ключ ниже и нажмите «Открыть ссылку токена вручную» (или «Войти через Trello»). Нажмите «Разрешить», скопируйте токен (начинается с ATTA…) и вставьте в поле «Токен Trello».",
+      "trello_guide_step3": "Выберите нужные доски, укажите цель импорта ниже (Личная, Команда или Публичная) и нажмите «Импортировать выбранные доски».",
+      "trello_api_key": "API-ключ Trello",
+      "trello_api_key_ph": "32-символьный API-ключ",
+      "trello_token": "Токен Trello",
+      "trello_token_ph": "Токен со страницы Trello (напр. ATTA…)",
+      "trello_login_btn": "Войти через Trello",
+      "trello_connect_btn": "Подключить с токеном",
+      "trello_open_token_link": "Открыть ссылку токена вручную",
+      "trello_refresh_btn": "Обновить",
+      "trello_disconnect_btn": "Отключить",
+      "trello_import_selected": "Импортировать выбранные доски",
+      "trello_side_title": "Вход в Trello (Необязательно)",
+      "trello_side_body": "При активном подключении к Trello даже при загрузке JSON или CSV будут скачаны защищённые изображения и вложения.",
+      "trello_need_key": "Сначала введите API-ключ Trello.",
+      "trello_need_key_token": "Введите API-ключ и токен.",
+      "trello_connected_toast": "Подключено к Trello",
+      "trello_disconnected_toast": "Отключено от Trello",
+      "trello_no_boards": "Открытые доски Trello не найдены.",
+      "trello_loading_boards": "Загрузка досок Trello…",
+      "trello_auth_failed": "Ошибка авторизации Trello. Проверьте API-ключ и токен.",
+      "trello_not_connected": "Нет подключения к Trello.",
+      "trello_fetch_failed": "Не удалось загрузить доски Trello.",
+      "trello_select_board": "Выберите хотя бы одну доску Trello.",
+      "trello_target_label": "Импортировать в (Цель / Видимость)"
     },
     "hub": {
       "quick_title": "Быстрый доступ",
@@ -2848,6 +3073,64 @@
         "erasure": "Удаление — самообслуживание в профиле (пароль, 2FA при наличии, письмо подтверждения)",
         "policy_link": "Политика конфиденциальности",
         "delete_link": "Удалить аккаунт"
+      }
+    },
+    "imports": {
+      "nav": "Импорт",
+      "page_title": "Импорт",
+      "heading": "Импорт",
+      "lead": "Пошаговый импорт файлов и досок Kanban из внешних источников.",
+      "short": "Drive, Nextcloud и Kanban",
+      "unavailable": "В данный момент модули импорта недоступны.",
+      "stepper_label": "Шаги импорта",
+      "next": "Далее",
+      "start_import": "Начать импорт",
+      "cloud_job_started": "Задача импорта запущена.",
+      "delete_connection_confirm": "Удалить это подключение?",
+      "steps": {
+        "source": "Источник",
+        "auth": "Доступ",
+        "select": "Выбор",
+        "target": "Цель и запуск"
+      },
+      "step1": {
+        "title": "1. Выберите источник",
+        "hint": "Выберите, откуда вы хотите импортировать данные."
+      },
+      "step2": {
+        "title": "2. Вход и подключение"
+      },
+      "step3": {
+        "title": "3. Выберите данные для импорта"
+      },
+      "step4": {
+        "title": "4. Выберите цель и запустите импорт"
+      },
+      "source": {
+        "google_drive": {
+          "title": "Google Drive",
+          "desc": "Импорт папок и файлов напрямую из вашего Google Drive."
+        },
+        "nextcloud": {
+          "title": "Nextcloud",
+          "desc": "Импорт папок и файлов по URL сервера и паролю приложения."
+        },
+        "kanban": {
+          "title": "Kanban",
+          "desc": "Импорт досок из Trello или через файл JSON, CSV или ZIP.",
+          "mode_label": "Способ импорта",
+          "mode_trello": "Аккаунт Trello (API)",
+          "mode_file": "Загрузка файла (JSON / CSV / ZIP)",
+          "file_no_auth_hint": "Для загрузки файла вход не требуется. Нажмите Далее, чтобы выбрать файл JSON, CSV или ZIP.",
+          "select_boards_hint": "Выберите доски Trello для импорта:"
+        }
+      },
+      "summary": {
+        "source": "Источник",
+        "account": "Аккаунт / Файл",
+        "selection": "Выбрано",
+        "items_count": "Выбрано элементов: {count}",
+        "boards_count": "Выбрано досок: {count}"
       }
     }
   },
@@ -3088,6 +3371,9 @@
       "webdav_connect_btn": "Подключить к системе",
       "webdav_hint": "Проводник (WebDAV)",
       "webdav_modal": {
+        "native_mount_title": "Сетевой диск Windows в 1 клик",
+        "native_mount_desc": "Подключить напрямую как локальный диск (P:) в проводнике Windows.",
+        "native_mount_action": "Подключить диск",
         "title": "Подключить файлы к системе",
         "intro": "Подключите файловое хранилище как сетевой диск. Частные, общедоступные и командные файлы появятся как обычные папки в файловом менеджере.",
         "url_label": "URL подключения",
@@ -3642,6 +3928,19 @@
         "forbidden_body": "У вас нет прав для просмотра этого файла.",
         "not_found_title": "Файл не найден",
         "not_found_body": "Связанный файл больше не существует."
+      },
+      "tools": {
+        "heading": "Заголовок",
+        "bold": "Жирный",
+        "italic": "Курсив",
+        "strikethrough": "Зачёркнутый",
+        "bullet_list": "Маркированный список",
+        "numbered_list": "Нумерованный список",
+        "task_list": "Список задач",
+        "link": "Вставить ссылку",
+        "inline_code": "Встроенный код",
+        "quote": "Цитата",
+        "hr": "Разделительная линия"
       }
     }
   },
@@ -6456,6 +6755,22 @@
       "hint": "Если у вас уже есть резервная копия, вы можете импортировать её сейчас. Недостающие данные можно создать при настройке. Этот шаг также можно пропустить.",
       "skip": "Пропустить",
       "back": "Назад к настройке"
+    },
+    "step": {
+      "org": "Organization",
+      "admin": "Admin",
+      "registration": "Registration",
+      "email": "Email",
+      "modules": "Modules"
+    },
+    "email": {
+      "page_title": "Setup – Main Email",
+      "heading": "Set up Main Email",
+      "lead": "Configure the system email address for notifications, password resets, and the main mailbox directly in your browser.",
+      "skip_btn": "Set up later",
+      "save_continue_btn": "Save & Continue",
+      "flash_saved": "Main email configuration saved.",
+      "flash_incomplete": "Please enter at least SMTP server, email address, and password."
     }
   },
   "media_downloader": {
@@ -6868,7 +7183,22 @@
       "copy": "Копировать",
       "copied": "Скопировано",
       "no_password": "—",
-      "delete_confirm": "Удалить эту ссылку для доступа?"
+      "delete_confirm": "Удалить эту ссылку для доступа?",
+      "tab_users": "Доступ для пользователей",
+      "tab_links": "Публичные ссылки",
+      "user_label": "Пользователь портала",
+      "user_select_ph": "Выберите пользователя…",
+      "role_label": "Роль / доступ",
+      "role_member_desc": "Участник (редактирование карточек)",
+      "role_admin_desc": "Администратор (управление доской)",
+      "add_user_btn": "Поделиться",
+      "col_user": "Пользователь",
+      "col_role": "Роль",
+      "col_permission": "Права",
+      "col_options": "Действия",
+      "users_loading": "Загрузка пользователей…",
+      "delete_link_confirm": "Удалить ссылку?",
+      "remove_user_confirm": "Удалить доступ для «{name}» на этой доске?"
     },
     "index": {
       "title": "Доски Kanban",
@@ -6898,7 +7228,22 @@
       "vis_team": "Команда",
       "vis_public": "Публичная",
       "search_placeholder": "Поиск досок…",
-      "no_search_results": "Подходящие доски не найдены"
+      "no_search_results": "Подходящие доски не найдены",
+      "move_board": "Изменить раздел",
+      "move_board_title": "Изменить раздел и права доски",
+      "move_board_hint": "При перемещении доски права доступа автоматически обновляются в соответствии с выбранным разделом.",
+      "target_section": "Целевой раздел",
+      "drop_here": "Перетащите доску сюда",
+      "rename": "Переименовать",
+      "change_color": "Изменить цвет",
+      "updated": "Обновлено",
+      "unread_one": "новое уведомление",
+      "unread_many": "новых уведомлений",
+      "close_confirm": "Закрыть доску?",
+      "close_btn": "Закрыть",
+      "choose_template_warn": "Выберите шаблон",
+      "move_failed": "Ошибка перемещения",
+      "rename_failed": "Ошибка переименования"
     },
     "board": {
       "add_list": "Добавить список",
@@ -6917,7 +7262,21 @@
       "background_image_set": "Фоновое изображение установлено",
       "background_image_optional": "Необязательно: загрузите своё изображение (отображается поверх цвета)",
       "search_placeholder": "Поиск карточек или колонок…",
-      "no_search_results": "Подходящие карточки или колонки не найдены"
+      "no_search_results": "Подходящие карточки или колонки не найдены",
+      "move_list_left": "Переместить влево",
+      "move_list_right": "Переместить вправо",
+      "list_default_fields": "Поля по умолчанию для новых карточек",
+      "list_default_fields_hint": "Выберите пользовательские поля, которые будут автоматически добавляться к новым карточкам в этом списке.",
+      "list_default_fields_empty": "На доске еще не созданы пользовательские поля.",
+      "members_title": "Участники доски",
+      "members_hint": "Показать участников и доступ",
+      "members_loading": "Загрузка участников…",
+      "manage_share": "Управление доступом и участниками",
+      "notifications": "Уведомления",
+      "notifications_unread_only": "Только непрочитанные",
+      "notifications_mark_all": "Отметить все как прочитанные",
+      "notifications_mark_all_short": "Прочитать все",
+      "notifications_loading": "Загрузка уведомлений…"
     },
     "custom_fields": {
       "title": "Пользовательские поля",
@@ -6985,7 +7344,25 @@
       "add_due": "Добавить срок",
       "assign_member": "Назначить человека",
       "change_assignee": "Изменить ответственного",
-      "clear_assignee": "Снять назначение"
+      "clear_assignee": "Снять назначение",
+      "show_more": "Показать больше",
+      "show_less": "Свернуть",
+      "markdown_toolbar": "Форматирование Markdown",
+      "hide_done_items": "Скрыть выполненные элементы",
+      "hide_pending_items": "Скрыть невыполненные элементы",
+      "google_access_required": "Необходимо запросить доступ",
+      "attach_portal_file": "Файл портала",
+      "portal_file_search": "Поиск файла…",
+      "portal_file_empty": "Файлы не найдены",
+      "poll_text": "Текст голосования",
+      "poll_ph": "За что голосовать?",
+      "vote_agree": "Согласен",
+      "vote_withdraw": "Отозвать",
+      "link_title_ph": "Название (необязательно / авто)",
+      "delete_confirm": "Удалить карточку?",
+      "delete_list_confirm": "Удалить список и все карточки?",
+      "delete_attachment_confirm": "Удалить вложение?",
+      "delete_poll_confirm": "Удалить голосование?"
     },
     "filter": {
       "keyword": "Ключевое слово",
@@ -7018,7 +7395,9 @@
       "title": "Закрытые доски",
       "reopen": "Открыть снова",
       "delete": "Удалить",
-      "empty": "Закрытых досок нет."
+      "empty": "Закрытых досок нет.",
+      "delete_confirm": "Удалить доску?",
+      "search_placeholder": "Поиск закрытых досок…"
     },
     "export": {
       "title": "Экспорт",

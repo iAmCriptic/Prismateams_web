@@ -1050,12 +1050,31 @@
 </div>
 </div>
 
+<!-- Side Menu für Datei-Details -->
+<div class="side-menu-backdrop" id="sideMenuBackdrop" onclick="closeFileDetails()"></div>
+<div class="side-menu" id="sideMenu">
+    <div class="side-menu-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0" id="sideMenuTitle">{{ _('files.index.modals.side_menu.title') }}</h5>
+            <button type="button" class="btn-close" onclick="closeFileDetails()"></button>
+        </div>
+    </div>
+    <div class="side-menu-content" id="sideMenuContent">
+        <!-- Inhalt wird dynamisch geladen -->
+    </div>
+</div>
+
+<!-- Datei/Ordner umbenennen läuft inline — keine Rename-Modals mehr -->
+
+</div></div><!-- /files-shell -->
+
+<!-- Modals außerhalb der Shell (sonst hinter Backdrop wegen Stacking-Context) -->
 <div class="modal fade" id="uploadModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">{{ _('files.index.modals.upload.title') }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.cancel') }}"></button>
             </div>
             <form method="POST" action="{{ url_for('files.upload_file') }}" enctype="multipart/form-data" id="uploadForm">
                 <div class="modal-body">
@@ -1089,7 +1108,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">{{ _('files.index.modals.new_folder.title') }}</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.cancel') }}"></button>
             </div>
             <form method="POST" action="{{ url_for('files.create_folder') }}">
                 <div class="modal-body">
@@ -1108,27 +1127,13 @@
     </div>
 </div>
 
-<!-- Side Menu für Datei-Details -->
-<div class="side-menu-backdrop" id="sideMenuBackdrop" onclick="closeFileDetails()"></div>
-<div class="side-menu" id="sideMenu">
-    <div class="side-menu-header">
-        <div class="d-flex justify-content-between align-items-center">
-            <h5 class="mb-0" id="sideMenuTitle">{{ _('files.index.modals.side_menu.title') }}</h5>
-            <button type="button" class="btn-close" onclick="closeFileDetails()"></button>
-        </div>
-    </div>
-    <div class="side-menu-content" id="sideMenuContent">
-        <!-- Inhalt wird dynamisch geladen -->
-    </div>
-</div>
-
 <!-- Briefkasten Einstellungen Modal -->
 <div class="modal fade" id="dropboxSettingsModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Briefkasten bearbeiten</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.cancel') }}"></button>
             </div>
             <div class="modal-body" id="dropboxSettingsContent">
                 <div class="text-center py-4">
@@ -1141,15 +1146,13 @@
     </div>
 </div>
 
-<!-- Datei/Ordner umbenennen läuft inline — keine Rename-Modals mehr -->
-
 <!-- Ordnerfarbe Modal -->
 <div class="modal fade" id="folderColorModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">Ordnerfarbe festlegen</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.cancel') }}"></button>
             </div>
             <form method="POST" id="folderColorForm">
                 <div class="modal-body">
@@ -1195,24 +1198,23 @@
     </div>
 </div>
 
-
 <!-- Internal ACL share modal -->
 <div class="modal fade" id="internalShareModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">{{ _('files.index.acl.title') }}</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.cancel') }}"></button>
       </div>
       <div class="modal-body">
         <div class="d-flex gap-2 mb-3 flex-wrap">
           <button type="button" class="btn btn-sm btn-outline-primary" id="aclShareAllBtn">{{ _('files.index.acl.share_all') }}</button>
         </div>
         <div class="mb-3">
-          <label class="form-label">{{ _('files.index.acl.share_user') }}</label>
+          <label for="aclUserSelect" class="form-label">{{ _('files.index.acl.share_user') }}</label>
           <div class="input-group">
             <select class="form-select" id="aclUserSelect"></select>
-            <select class="form-select" id="aclPermSelect" style="max-width:8rem">
+            <select class="form-select" id="aclPermSelect" aria-label="{{ _('files.index.acl.permission_view') }} / {{ _('files.index.acl.permission_edit') }}" style="max-width:8rem">
               <option value="view">{{ _('files.index.acl.permission_view') }}</option>
               <option value="edit">{{ _('files.index.acl.permission_edit') }}</option>
             </select>
@@ -1220,7 +1222,7 @@
           </div>
         </div>
         <div class="mb-3" id="aclTeamShareWrap" hidden>
-          <label class="form-label">{{ _('files.index.acl.share_team') }}</label>
+          <label for="aclTeamSelect" class="form-label">{{ _('files.index.acl.share_team') }}</label>
           <div class="input-group">
             <select class="form-select" id="aclTeamSelect"></select>
             <button type="button" class="btn btn-accent" id="aclShareTeamBtn">OK</button>
@@ -1231,8 +1233,6 @@
     </div>
   </div>
 </div>
-
-</div></div><!-- /files-shell -->
 
 <!-- Verschieben Modal: außerhalb der Shell (sonst hinter Backdrop wegen Stacking-Context) -->
 <div class="modal fade" id="filesMoveModal" tabindex="-1" aria-hidden="true">
@@ -1284,6 +1284,20 @@
                     </div>
                 </div>
                 {% endif %}
+
+                <div id="desktopAppMountSection" class="d-none mb-3">
+                    <div class="p-3 border rounded-3 bg-body-tertiary">
+                        <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-3">
+                            <div>
+                                <h6 class="mb-1 fw-bold text-accent"><i class="bi bi-windows me-2" aria-hidden="true"></i>{{ _('files.index.webdav_modal.native_mount_title') }}</h6>
+                                <p class="small text-secondary mb-0">{{ _('files.index.webdav_modal.native_mount_desc') }}</p>
+                            </div>
+                            <button type="button" class="btn btn-accent rounded-pill px-3 text-nowrap" id="desktopMountDriveBtn">
+                                <i class="bi bi-hdd-network me-1" aria-hidden="true"></i>{{ _('files.index.webdav_modal.native_mount_action') }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="mb-3">
                     <label class="form-label fw-semibold" for="webdavConnectUrl">{{ _('files.index.webdav_modal.url_label') }}</label>

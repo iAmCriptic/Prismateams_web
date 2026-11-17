@@ -104,6 +104,13 @@ def run_app_startup(app):
         run_startup_migrations=run_startup_migrations,
     )
 
+    try:
+        with app.app_context():
+            from app.utils.main_mail_config import migrate_main_mail_from_env_if_needed
+            migrate_main_mail_from_env_if_needed()
+    except Exception as mail_mig_err:
+        _log_startup(f"[WARNUNG] Haupt-E-Mail-Migration fehlgeschlagen: {mail_mig_err}")
+
     # Background-Jobs: ein Leader unter allen Gunicorn-Workern (QA G05)
     if is_main_process and not os.getenv('PRISMATEAMS_SKIP_BACKGROUND_JOBS'):
         try:

@@ -27,6 +27,7 @@
     const arrangeBtn = document.getElementById('dashboardArrangeBtn');
     const addBtn = document.getElementById('dashboardAddWidgetBtn');
     const modalEl = document.getElementById('dashboardWidgetModal');
+    const modalDialog = document.getElementById('dashboardWidgetModalDialog');
     const modalTitle = document.getElementById('dashboardWidgetModalTitle');
     const modalBody = document.getElementById('dashboardWidgetModalBody');
     const modalSave = document.getElementById('dashboardWidgetModalSave');
@@ -255,9 +256,9 @@
             if (el.querySelector('.dash-widget-resize')) return;
             el.insertAdjacentHTML(
                 'beforeend',
-                '<span class="dash-widget-resize dash-widget-resize--e" data-resize="e" title="Breite"></span>' +
-                '<span class="dash-widget-resize dash-widget-resize--s" data-resize="s" title="Höhe"></span>' +
-                '<span class="dash-widget-resize dash-widget-resize--se" data-resize="se" title="Größe"></span>'
+                `<span class="dash-widget-resize dash-widget-resize--e" data-resize="e" title="${escapeHtml(t('live.resize_width', 'Breite'))}"></span>` +
+                `<span class="dash-widget-resize dash-widget-resize--s" data-resize="s" title="${escapeHtml(t('live.resize_height', 'Höhe'))}"></span>` +
+                `<span class="dash-widget-resize dash-widget-resize--se" data-resize="se" title="${escapeHtml(t('live.resize_size', 'Größe'))}"></span>`
             );
         });
     }
@@ -554,7 +555,7 @@
             html += `<label class="form-label">${t('live.credentials_label', 'Passwörter')}</label>`;
             html += checkboxList('credential_ids', options.credentials || [], widget.credential_ids || [], 'id', 'name', 'visibility');
             html += `<p class="form-text">${t('live.credentials_hint', 'Keine Auswahl = Favoriten.')}</p>`;
-        } else if (type === 'kanban_aenderungen') {
+        } else if (type === 'kanban_aenderungen' || type === 'kanban_meine_karten') {
             html += `<label class="form-label">${t('live.boards_label', 'Boards')}</label>`;
             html += checkboxList('board_ids', options.boards || [], widget.board_ids || [], 'id', 'title', 'visibility');
             html += `<p class="form-text">${t('live.boards_hint', 'Keine Auswahl = alle Boards mit Zugriff.')}</p>`;
@@ -592,8 +593,11 @@
     async function bindContactSearch(initialIds) {
         const search = document.getElementById('dashContactSearch');
         const results = document.getElementById('dashContactResults');
+        const knownNames = options.contact_names || {};
         const names = {};
-        (initialIds || []).forEach((id) => { names[id] = `#${id}`; });
+        (initialIds || []).forEach((id) => {
+            names[id] = knownNames[String(id)] || `#${id}`;
+        });
         renderSelectedContacts(initialIds || [], names);
 
         if (!search || !results || !contactsSearchUrl) return;
@@ -652,38 +656,198 @@
         const widget = widgets.find((w) => w.id === widgetId) || cfg;
         modalMode = 'settings';
         activeWidgetId = widgetId;
+        if (modalDialog) modalDialog.classList.remove('modal-lg');
         if (modalBody) modalBody.innerHTML = buildSettingsForm(widget);
         const modal = openModal(t('live.settings', 'Widget-Einstellungen'));
         if (modal) modal.show();
         if (widget.type === 'kontakte') {
             bindContactSearch(widget.contact_ids || []);
         }
-        if (modalSave) modalSave.classList.toggle('d-none', false);
+        if (modalSave) {
+            modalSave.classList.remove('d-none');
+            modalSave.disabled = false;
+            modalSave.textContent = t('live.save', 'Speichern');
+        }
+    }
+
+    let selectedAddType = null;
+    let catalogCategory = 'all';
+    let catalogQuery = '';
+
+    async function addWidgetByType(type) {
+        if (!type) return;
+        const entry = { id: newId(), type, w: 1, h: 2, grid_v: 2 };
+        if (type === 'termine') entry.calendar_ids = [];
+        if (type === 'kontakte') entry.contact_ids = [];
+        if (type === 'emails') entry.mailbox_id = null;
+        if (type === 'passwoerter') entry.credential_ids = [];
+        if (type === 'kanban_aenderungen' || type === 'kanban_meine_karten') entry.board_ids = [];
+        widgets = [...collectWidgetsFromDom(), entry];
+        await saveConfig({ widgets });
+        window.location.reload();
+    }
+
+    function renderCatalogCards(usedOnce) {
+        if (!modalBody) return;
+        const gridEl = modalBody.querySelector('#dashWidgetCatalogGrid');
+        if (!gridEl) return;
+        const q = catalogQuery.trim().toLowerCase();
+        const allTypes = options.widget_types || [];
+        const filtered = allTypes.filter((wt) => {
+            if (catalogCategory !== 'all' && wt.category !== catalogCategory) return false;
+            if (!q) return true;
+            const hay = `${wt.label || ''} ${wt.description || ''} ${wt.category_label || ''} ${wt.type || ''}`.toLowerCase();
+            return hay.includes(q);
+        });
+        if (!filtered.length) {
+            gridEl.innerHTML = `<div class="dashboard-catalog-empty text-muted small">${escapeHtml(t('live.catalog_empty', 'Keine passenden Widgets gefunden.'))}</div>`;
+            return;
+        }
+        gridEl.innerHTML = filtered.map((wt) => {
+            const isAdded = !!(wt.once && usedOnce.has(wt.type));
+            const isSelected = !isAdded && selectedAddType === wt.type;
+            const icon = wt.icon || 'bi-grid';
+            return `<div class="dashboard-catalog-card${isSelected ? ' is-selected' : ''}${isAdded ? ' is-added' : ''}"
+                         role="button"
+                         tabindex="${isAdded ? '-1' : '0'}"
+                         aria-pressed="${isSelected ? 'true' : 'false'}"
+                         aria-disabled="${isAdded ? 'true' : 'false'}"
+                         data-widget-type="${escapeHtml(wt.type)}">
+                <div class="dashboard-catalog-card__icon" aria-hidden="true">
+                    <i class="bi ${escapeHtml(icon)}"></i>
+                </div>
+                <div class="dashboard-catalog-card__body">
+                    <div class="dashboard-catalog-card__top">
+                        <strong class="dashboard-catalog-card__title">${escapeHtml(wt.label || wt.type)}</strong>
+                        ${isAdded
+                            ? `<span class="dashboard-catalog-badge dashboard-catalog-badge--added"><i class="bi bi-check2" aria-hidden="true"></i> ${escapeHtml(t('live.already_added', 'Aktiv'))}</span>`
+                            : (wt.configurable
+                                ? `<span class="dashboard-catalog-badge dashboard-catalog-badge--cfg" title="${escapeHtml(t('live.configurable_hint', 'Konfigurierbar'))}"><i class="bi bi-sliders" aria-hidden="true"></i></span>`
+                                : '')}
+                    </div>
+                    <p class="dashboard-catalog-card__desc">${escapeHtml(wt.description || '')}</p>
+                    <div class="dashboard-catalog-card__meta">
+                        <span class="dashboard-catalog-cat">${escapeHtml(wt.category_label || '')}</span>
+                        ${!isAdded ? `<button type="button" class="dashboard-catalog-quick-add" data-quick-add="${escapeHtml(wt.type)}" title="${escapeHtml(t('live.quick_add', 'Direkt hinzufügen'))}" aria-label="${escapeHtml(t('live.quick_add', 'Direkt hinzufügen'))}"><i class="bi bi-plus-lg" aria-hidden="true"></i></button>` : ''}
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
     }
 
     function openAddWidget() {
         modalMode = 'add';
         activeWidgetId = null;
+        selectedAddType = null;
+        catalogCategory = 'all';
+        catalogQuery = '';
+        if (modalDialog) modalDialog.classList.add('modal-lg');
+
         const usedOnce = new Set(
-            widgets.filter((w) => (options.widget_types || []).find((t) => t.type === w.type && t.once))
+            widgets.filter((w) => (options.widget_types || []).find((wt) => wt.type === w.type && wt.once))
                 .map((w) => w.type)
         );
-        const types = (options.widget_types || []).filter((t) => !(t.once && usedOnce.has(t.type)));
+        const allTypes = options.widget_types || [];
+        const availableCount = allTypes.filter((wt) => !(wt.once && usedOnce.has(wt.type))).length;
+        const categories = options.categories || [];
+
         if (modalBody) {
-            if (!types.length) {
-                modalBody.innerHTML = `<p class="mb-0">${t('live.all_added', 'Alle verfügbaren Widgets sind bereits hinzugefügt.')}</p>`;
+            if (!allTypes.length || availableCount === 0) {
+                modalBody.innerHTML = `<p class="mb-0">${escapeHtml(t('live.all_added', 'Alle verfügbaren Widgets sind bereits hinzugefügt.'))}</p>`;
                 if (modalSave) modalSave.classList.add('d-none');
             } else {
-                modalBody.innerHTML = `<div class="dashboard-picker-list">${types.map((t) => `
-                    <label class="dashboard-picker-item">
-                        <input type="radio" name="add_widget_type" value="${escapeHtml(t.type)}">
-                        <span>
-                            <strong class="dashboard-picker-label d-block">${escapeHtml(t.label || t.type)}</strong>
-                            <span class="text-muted small">${escapeHtml(t.description || '')}</span>
-                        </span>
-                    </label>
-                `).join('')}</div>`;
-                if (modalSave) modalSave.classList.remove('d-none');
+                const catPills = [
+                    `<button type="button" class="mod-pill-btn mod-pill-btn--sm mod-pill-btn--accent is-active" data-catalog-cat="all">${escapeHtml(t('live.catalog_all', 'Alle'))}</button>`,
+                    ...categories.map((c) =>
+                        `<button type="button" class="mod-pill-btn mod-pill-btn--sm mod-pill-btn--outline" data-catalog-cat="${escapeHtml(c.key)}">${escapeHtml(c.label)}</button>`
+                    ),
+                ].join('');
+
+                modalBody.innerHTML = `
+                    <div class="dashboard-catalog-toolbar">
+                        <label class="mod-search-field dashboard-catalog-search" for="dashWidgetCatalogSearch">
+                            <i class="bi bi-search" aria-hidden="true"></i>
+                            <input type="search"
+                                   id="dashWidgetCatalogSearch"
+                                   class="mod-search-input"
+                                   placeholder="${escapeHtml(t('live.catalog_search', 'Widgets durchsuchen…'))}"
+                                   autocomplete="off"
+                                   spellcheck="false">
+                        </label>
+                        <div class="dashboard-catalog-filters" role="tablist" aria-label="${escapeHtml(t('live.catalog_categories', 'Kategorien'))}">
+                            ${catPills}
+                        </div>
+                    </div>
+                    <div class="dashboard-catalog-grid" id="dashWidgetCatalogGrid"></div>
+                `;
+                renderCatalogCards(usedOnce);
+
+                const searchInput = modalBody.querySelector('#dashWidgetCatalogSearch');
+                if (searchInput) {
+                    searchInput.addEventListener('input', () => {
+                        catalogQuery = searchInput.value || '';
+                        renderCatalogCards(usedOnce);
+                    });
+                }
+
+                modalBody.querySelectorAll('[data-catalog-cat]').forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        catalogCategory = btn.dataset.catalogCat || 'all';
+                        modalBody.querySelectorAll('[data-catalog-cat]').forEach((b) => {
+                            const active = b === btn;
+                            b.classList.toggle('is-active', active);
+                            b.classList.toggle('mod-pill-btn--accent', active);
+                            b.classList.toggle('mod-pill-btn--outline', !active);
+                        });
+                        renderCatalogCards(usedOnce);
+                    });
+                });
+
+                const gridEl = modalBody.querySelector('#dashWidgetCatalogGrid');
+                if (gridEl) {
+                    gridEl.addEventListener('click', async (e) => {
+                        const quickBtn = e.target.closest('[data-quick-add]');
+                        if (quickBtn) {
+                            e.stopPropagation();
+                            const wtype = quickBtn.dataset.quickAdd;
+                            quickBtn.disabled = true;
+                            try {
+                                await addWidgetByType(wtype);
+                            } catch (err) {
+                                console.error(err);
+                                quickBtn.disabled = false;
+                            }
+                            return;
+                        }
+                        const card = e.target.closest('.dashboard-catalog-card');
+                        if (!card || card.classList.contains('is-added')) return;
+                        selectedAddType = card.dataset.widgetType || null;
+                        gridEl.querySelectorAll('.dashboard-catalog-card').forEach((c) => {
+                            const sel = c === card;
+                            c.classList.toggle('is-selected', sel);
+                            c.setAttribute('aria-pressed', sel ? 'true' : 'false');
+                        });
+                        if (modalSave) modalSave.disabled = !selectedAddType;
+                    });
+
+                    gridEl.addEventListener('dblclick', async (e) => {
+                        const card = e.target.closest('.dashboard-catalog-card');
+                        if (!card || card.classList.contains('is-added')) return;
+                        const wtype = card.dataset.widgetType;
+                        if (!wtype) return;
+                        try {
+                            await addWidgetByType(wtype);
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    });
+                }
+
+                if (modalSave) {
+                    modalSave.classList.remove('d-none');
+                    modalSave.disabled = true;
+                    modalSave.textContent = t('live.add_selected', 'Hinzufügen');
+                }
             }
         }
         const modal = openModal(t('live.add_widget', 'Widget hinzufügen'));
@@ -707,7 +871,7 @@
                 .map((el) => parseInt(el.value, 10))
                 .filter((n) => !Number.isNaN(n))
                 .slice(0, 5);
-        } else if (type === 'kanban_aenderungen') {
+        } else if (type === 'kanban_aenderungen' || type === 'kanban_meine_karten') {
             next.board_ids = [...modalBody.querySelectorAll('input[name="board_ids"]:checked')]
                 .map((el) => parseInt(el.value, 10))
                 .filter((n) => !Number.isNaN(n));
@@ -718,18 +882,8 @@
     async function onModalSave() {
         try {
             if (modalMode === 'add') {
-                const checked = modalBody && modalBody.querySelector('input[name="add_widget_type"]:checked');
-                if (!checked) return;
-                const type = checked.value;
-                const entry = { id: newId(), type, w: 1, h: 2, grid_v: 2 };
-                if (type === 'termine') entry.calendar_ids = [];
-                if (type === 'kontakte') entry.contact_ids = [];
-                if (type === 'emails') entry.mailbox_id = null;
-                if (type === 'passwoerter') entry.credential_ids = [];
-                if (type === 'kanban_aenderungen') entry.board_ids = [];
-                widgets = [...collectWidgetsFromDom(), entry];
-                await saveConfig({ widgets });
-                window.location.reload();
+                if (!selectedAddType) return;
+                await addWidgetByType(selectedAddType);
                 return;
             }
             if (modalMode === 'settings' && activeWidgetId) {

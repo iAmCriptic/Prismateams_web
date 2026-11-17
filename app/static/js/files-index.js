@@ -6,6 +6,35 @@ const CURRENT_FOLDER_ID = window.CURRENT_FOLDER_ID ?? null;
 const FILES_SHARING_ENABLED = !!window.FILES_SHARING_ENABLED;
 const FILES_DROPBOX_ENABLED = !!window.FILES_DROPBOX_ENABLED;
 
+function escapeHtml(val) {
+    return String(val ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function safeHref(url) {
+    const raw = String(url ?? '').trim();
+    if (!raw) return '#';
+    if (raw.startsWith('/') && !raw.startsWith('//')) return escapeHtml(raw);
+    if (/^https?:\/\//i.test(raw)) return escapeHtml(raw);
+    return '#';
+}
+
+async function fetchJsonSafe(url) {
+    const res = await fetch(url, {
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+    });
+    const ct = (res.headers.get('content-type') || '').toLowerCase();
+    if (!res.ok || !ct.includes('application/json')) {
+        throw new Error(`HTTP ${res.status}`);
+    }
+    return res.json();
+}
+
 (function () {
     const modalEl = document.getElementById('webdavConnectModal');
     if (modalEl && modalEl.parentElement !== document.body) {
@@ -20,8 +49,27 @@ const FILES_DROPBOX_ENABLED = !!window.FILES_DROPBOX_ENABLED;
             }
             modalEl.style.zIndex = '11050';
             loadWebdavAppPasswords();
+            initDesktopAppMount();
         });
     }
+
+    function initDesktopAppMount() {
+        const desktopMountSection = document.getElementById('desktopAppMountSection');
+        const desktopMountBtn = document.getElementById('desktopMountDriveBtn');
+        if (window.prismateamsNative && desktopMountSection) {
+            desktopMountSection.classList.remove('d-none');
+            if (desktopMountBtn && !desktopMountBtn.dataset.bound) {
+                desktopMountBtn.dataset.bound = 'true';
+                desktopMountBtn.addEventListener('click', () => {
+                    if (window.prismateamsNative && window.prismateamsNative.mountDrive) {
+                        window.prismateamsNative.mountDrive();
+                    }
+                });
+            }
+        }
+    }
+    initDesktopAppMount();
+    document.addEventListener('prismateams-native-ready', initDesktopAppMount);
 
     async function copyField(inputEl, btnEl) {
         if (!inputEl) return;
@@ -449,6 +497,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     folder_id: CURRENT_FOLDER_ID,
+                    view: window.FILES_VIEW || '',
+                    team_id: window.FILES_TEAM_ID || null,
                     filenames: fileNames
                 })
             });
@@ -727,7 +777,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     const dndMimeType = 'application/x-prismateams-item';
-    const draggableItems = document.querySelectorAll('.files-draggable-item[data-item-type][data-item-id]');
     const dropZones = [
         ...Array.from(document.querySelectorAll('.files-drop-target')),
         document.getElementById('foldersListView'),
@@ -736,32 +785,42 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('listViewContainer')
     ].filter(Boolean);
 
-    draggableItems.forEach(item => {
-        item.addEventListener('dragstart', event => {
-            if (event.target.closest('.dropdown, a, form, input, textarea, [data-bs-toggle="dropdown"]')) {
-                event.preventDefault();
-                return;
-            }
-            const blockedBtn = event.target.closest('.btn');
-            if (blockedBtn && !blockedBtn.classList.contains('files-dnd-handle')) {
-                event.preventDefault();
-                return;
-            }
-            const itemType = item.dataset.itemType;
-            const itemId = item.dataset.itemId;
-            if (!itemType || !itemId) {
-                event.preventDefault();
-                return;
-            }
-            const payload = JSON.stringify({ item_type: itemType, item_id: parseInt(itemId, 10) });
-            event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.setData(dndMimeType, payload);
-            document.body.classList.add('files-dnd-dragging');
+    function bindDraggableItems(root) {
+        const scope = root && typeof root.querySelectorAll === 'function' ? root : document;
+        scope.querySelectorAll('.files-draggable-item[data-item-type][data-item-id]').forEach(item => {
+            if (item.dataset.dndBound === '1') return;
+            item.dataset.dndBound = '1';
+            item.addEventListener('dragstart', event => {
+                if (event.target.closest('.dropdown, a, form, input, textarea, [data-bs-toggle="dropdown"]')) {
+                    event.preventDefault();
+                    return;
+                }
+                const blockedBtn = event.target.closest('.btn');
+                if (blockedBtn && !blockedBtn.classList.contains('files-dnd-handle')) {
+                    event.preventDefault();
+                    return;
+                }
+                const itemType = item.dataset.itemType;
+                const itemId = item.dataset.itemId;
+                if (!itemType || !itemId) {
+                    event.preventDefault();
+                    return;
+                }
+                const payload = JSON.stringify({ item_type: itemType, item_id: parseInt(itemId, 10) });
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData(dndMimeType, payload);
+                document.body.classList.add('files-dnd-dragging');
+            });
+            item.addEventListener('dragend', () => {
+                clearDropHighlights();
+                document.body.classList.remove('files-dnd-dragging');
+            });
         });
-        item.addEventListener('dragend', () => {
-            clearDropHighlights();
-            document.body.classList.remove('files-dnd-dragging');
-        });
+    }
+
+    bindDraggableItems(document);
+    document.addEventListener('lazy-more:loaded', event => {
+        bindDraggableItems(event.target || document);
     });
 
     dropZones.forEach(zone => {
@@ -904,7 +963,8 @@ document.addEventListener('DOMContentLoaded', function() {
         isMenuOpen = false;
         
         // Bestimme aktuelle Ansicht
-        const isGridView = gridViewBtn.classList.contains('active');
+        const gridBtn = document.getElementById('gridViewBtn');
+        const isGridView = !!(gridBtn && gridBtn.classList.contains('active'));
         setFilesEmptyStateVisible(false);
         
         if (type === 'folder') {
@@ -1273,15 +1333,16 @@ document.addEventListener('DOMContentLoaded', function() {
 // Side Menu Funktionen
 function openFileDetails(fileId) {
     const sideMenu = document.getElementById('sideMenu');
+    const sideMenu = document.getElementById('sideMenu');
     const backdrop = document.getElementById('sideMenuBackdrop');
     const content = document.getElementById('sideMenuContent');
-    const title = document.getElementById('sideMenuTitle');
+    if (!sideMenu || !backdrop || !content) return;
     
     // Zeige Loading-Status
     content.innerHTML = `
         <div class="text-center py-4">
             <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">${(FILES_I18N.messages && FILES_I18N.messages.progress) || ''}</span>
+                <span class="visually-hidden">${escapeHtml((FILES_I18N.messages && FILES_I18N.messages.progress) || '')}</span>
             </div>
             <p class="mt-2 text-muted">Lade Datei-Details...</p>
         </div>
@@ -1293,8 +1354,7 @@ function openFileDetails(fileId) {
     document.body.style.overflow = 'hidden';
     
     // Lade echte Datei-Details
-    fetch(`/files/api/file-details/${fileId}`)
-        .then(response => response.json())
+    fetchJsonSafe(`/files/api/file-details/${fileId}`)
         .then(data => {
             if (data.success) {
                 const file = data.file;
@@ -1304,19 +1364,19 @@ function openFileDetails(fileId) {
                 const sideMenuLabels = FILES_I18N.modals.side_menu;
                 content.innerHTML = `
                     <div class="mb-4">
-                        <h6>${sideMenuLabels.info_title}</h6>
+                        <h6>${escapeHtml(sideMenuLabels.info_title)}</h6>
                         <div class="mod-details-card">
-                            <p><strong>${sideMenuLabels.info_labels.name}:</strong> ${file.name}</p>
-                            <p><strong>${sideMenuLabels.info_labels.size}:</strong> ${file.size}</p>
-                            <p><strong>${sideMenuLabels.info_labels.type}:</strong> ${file.type}</p>
-                            <p><strong>${sideMenuLabels.info_labels.uploader}:</strong> ${file.uploader}</p>
-                            <p><strong>${sideMenuLabels.info_labels.created}:</strong> ${file.created_at}</p>
-                            <p><strong>${sideMenuLabels.info_labels.version}:</strong> ${file.version}</p>
+                            <p><strong>${escapeHtml(sideMenuLabels.info_labels.name)}:</strong> ${escapeHtml(file.name)}</p>
+                            <p><strong>${escapeHtml(sideMenuLabels.info_labels.size)}:</strong> ${escapeHtml(file.size)}</p>
+                            <p><strong>${escapeHtml(sideMenuLabels.info_labels.type)}:</strong> ${escapeHtml(file.type)}</p>
+                            <p><strong>${escapeHtml(sideMenuLabels.info_labels.uploader)}:</strong> ${escapeHtml(file.uploader)}</p>
+                            <p><strong>${escapeHtml(sideMenuLabels.info_labels.created)}:</strong> ${escapeHtml(file.created_at)}</p>
+                            <p><strong>${escapeHtml(sideMenuLabels.info_labels.version)}:</strong> ${escapeHtml(file.version)}</p>
                         </div>
                     </div>
                     
                     <div class="mb-4">
-                        <h6>${sideMenuLabels.versions_title}</h6>
+                        <h6>${escapeHtml(sideMenuLabels.versions_title)}</h6>
                         <div id="versionsList">
                             ${versions.length > 0 ? `
                                 <div class="list-group list-group-flush">
@@ -1324,10 +1384,10 @@ function openFileDetails(fileId) {
                                         <div class="list-group-item d-flex justify-content-between align-items-center">
                                             <div>
                                                 <i class="bi bi-clock-history me-2"></i>
-                                                ${sideMenuLabels.version_label.replace('{number}', version.version_number)}${version.is_current ? sideMenuLabels.current_suffix : ''}
+                                                ${escapeHtml(sideMenuLabels.version_label.replace('{number}', version.version_number))}${version.is_current ? escapeHtml(sideMenuLabels.current_suffix) : ''}
                                             </div>
-                                            <a href="${version.download_url}" class="btn btn-sm btn-outline-primary mod-pill-btn">
-                                                <i class="bi bi-download"></i> ${sideMenuLabels.download_button}
+                                            <a href="${safeHref(version.download_url)}" class="btn btn-sm btn-outline-primary mod-pill-btn">
+                                                <i class="bi bi-download"></i> ${escapeHtml(sideMenuLabels.download_button)}
                                             </a>
                                         </div>
                                     `).join('')}
@@ -1335,26 +1395,26 @@ function openFileDetails(fileId) {
                             ` : `
                                 <div class="files-hint files-hint--info" role="status">
                                     <span class="files-hint__icon"><i class="bi bi-info-circle"></i></span>
-                                    <span class="files-hint__text">${sideMenuLabels.no_versions}</span>
+                                    <span class="files-hint__text">${escapeHtml(sideMenuLabels.no_versions)}</span>
                                 </div>
                             `}
                         </div>
                     </div>
                     
                     <div class="mb-4">
-                        <h6>${sideMenuLabels.actions_title}</h6>
+                        <h6>${escapeHtml(sideMenuLabels.actions_title)}</h6>
                         <div class="d-grid gap-2">
-                            <a href="${actions.download_url}" class="btn btn-outline-primary mod-pill-btn">
-                                <i class="bi bi-download"></i> ${sideMenuLabels.download}
+                            <a href="${safeHref(actions.download_url)}" class="btn btn-outline-primary mod-pill-btn">
+                                <i class="bi bi-download"></i> ${escapeHtml(sideMenuLabels.download)}
                             </a>
                             ${actions.view_url ? `
-                                <a href="${actions.view_url}" class="btn btn-outline-secondary mod-pill-btn">
-                                    <i class="bi bi-eye"></i> ${sideMenuLabels.view}
+                                <a href="${safeHref(actions.view_url)}" class="btn btn-outline-secondary mod-pill-btn">
+                                    <i class="bi bi-eye"></i> ${escapeHtml(sideMenuLabels.view)}
                                 </a>
                             ` : ''}
                             ${actions.edit_url ? `
-                                <a href="${actions.edit_url}" class="btn btn-outline-secondary mod-pill-btn">
-                                    <i class="bi bi-pencil"></i> ${sideMenuLabels.edit}
+                                <a href="${safeHref(actions.edit_url)}" class="btn btn-outline-secondary mod-pill-btn">
+                                    <i class="bi bi-pencil"></i> ${escapeHtml(sideMenuLabels.edit)}
                                 </a>
                             ` : ''}
                         </div>
@@ -1364,7 +1424,7 @@ function openFileDetails(fileId) {
                 content.innerHTML = `
                     <div class="files-hint files-hint--danger" role="alert">
                         <span class="files-hint__icon"><i class="bi bi-exclamation-triangle"></i></span>
-                        <span class="files-hint__text">${FILES_I18N.messages.file_details_error}</span>
+                        <span class="files-hint__text">${escapeHtml(FILES_I18N.messages.file_details_error)}</span>
                     </div>
                 `;
             }
@@ -1374,7 +1434,7 @@ function openFileDetails(fileId) {
             content.innerHTML = `
                 <div class="files-hint files-hint--danger" role="alert">
                     <span class="files-hint__icon"><i class="bi bi-exclamation-triangle"></i></span>
-                    <span class="files-hint__text">${FILES_I18N.messages.file_details_error}: ${error.message}</span>
+                    <span class="files-hint__text">${escapeHtml(FILES_I18N.messages.file_details_error)}: ${escapeHtml(error.message)}</span>
                 </div>
             `;
         });
@@ -1408,17 +1468,16 @@ function openDropboxSettings(folderId) {
     modal.show();
     
     // Load settings
-    fetch(`/files/folder/${folderId}/dropbox-settings`)
-        .then(response => response.json())
+    fetchJsonSafe(`/files/folder/${folderId}/dropbox-settings`)
         .then(data => {
             if (data.success) {
                 const folder = data.folder;
                 content.innerHTML = `
                     <div class="files-settings-section">
-                        <h6>${dropboxLabels.link_label}</h6>
+                        <h6>${escapeHtml(dropboxLabels.link_label)}</h6>
                         <div class="input-group">
-                            <input type="text" class="form-control" id="dropboxUrl" value="${folder.dropbox_url}" readonly>
-                            <button class="btn btn-outline-secondary" type="button" onclick="copyDropboxUrl()">
+                            <input type="text" class="form-control" id="dropboxUrl" value="${escapeHtml(folder.dropbox_url)}" readonly>
+                            <button class="btn btn-outline-secondary" type="button" onclick="copyDropboxUrl(this)">
                                 <i class="bi bi-clipboard"></i> ${dropboxLabels.copy_button}
                             </button>
                         </div>
@@ -1485,19 +1544,21 @@ function openDropboxSettings(folderId) {
             content.innerHTML = `
                 <div class="files-hint files-hint--danger" role="alert">
                     <span class="files-hint__icon"><i class="bi bi-exclamation-triangle"></i></span>
-                    <span class="files-hint__text">${FILES_I18N.messages.settings_error}: ${error.message}</span>
+                    <span class="files-hint__text">${escapeHtml(FILES_I18N.messages.settings_error)}: ${escapeHtml(error.message)}</span>
                 </div>
             `;
         });
 }
 
-function copyDropboxUrl() {
+function copyDropboxUrl(button) {
     const urlInput = document.getElementById('dropboxUrl');
+    if (!urlInput) return;
     urlInput.select();
     document.execCommand('copy');
+    if (!button) return;
     
     // Show feedback
-    const btn = event.target.closest('button');
+    const btn = button;
     const originalHTML = btn.innerHTML;
     btn.innerHTML = `<i class="bi bi-check"></i> ${FILES_I18N.modals.dropbox.copy_success}`;
     btn.classList.add('btn-success');
@@ -1793,14 +1854,14 @@ function closeActiveMenus() {
 
 function renderShareAccessLogsTable(logs, shareLabels) {
     if (!logs.length) {
-        return `<p class="text-muted small">${shareLabels.access_log_empty || 'Noch keine Zugriffe protokolliert.'}</p>`;
+        return `<p class="text-muted small">${escapeHtml(shareLabels.access_log_empty || 'Noch keine Zugriffe protokolliert.')}</p>`;
     }
     return `
         <div class="table-responsive" style="max-height:320px;overflow:auto;">
             <table class="table table-sm table-striped mb-0">
-                <thead><tr><th>${shareLabels.access_log_time || 'Zeit'}</th><th>${shareLabels.access_log_action || 'Aktion'}</th><th>IP</th><th>${shareLabels.access_log_guest || 'Gast'}</th></tr></thead>
+                <thead><tr><th>${escapeHtml(shareLabels.access_log_time || 'Zeit')}</th><th>${escapeHtml(shareLabels.access_log_action || 'Aktion')}</th><th>IP</th><th>${escapeHtml(shareLabels.access_log_guest || 'Gast')}</th></tr></thead>
                 <tbody>
-                    ${logs.map(log => `<tr><td>${(log.accessed_at || '').replace('T', ' ').substring(0, 16)}</td><td>${formatAccessLogAction(log.action)}</td><td>${log.ip_address || '–'}</td><td>${log.guest_name || '–'}</td></tr>`).join('')}
+                    ${logs.map(log => `<tr><td>${escapeHtml((log.accessed_at || '').replace('T', ' ').substring(0, 16))}</td><td>${escapeHtml(formatAccessLogAction(log.action))}</td><td>${escapeHtml(log.ip_address || '–')}</td><td>${escapeHtml(log.guest_name || '–')}</td></tr>`).join('')}
                 </tbody>
             </table>
         </div>`;
@@ -1834,14 +1895,23 @@ function openShareActivity(type, id) {
     closeActiveMenus();
     const shareLabels = FILES_I18N.modals.share;
     const endpoint = type === 'file' ? `/files/file/${id}/share-settings` : `/files/folder/${id}/share-settings`;
-    fetch(endpoint)
-        .then(r => r.json())
+    fetchJsonSafe(endpoint)
         .then(data => {
-            if (!data.success) { return; }
+            if (!data.success) {
+                if (typeof window.showAppBanner === 'function') {
+                    window.showAppBanner(data.error || FILES_I18N.messages.settings_error || 'Fehler', 'danger');
+                }
+                return;
+            }
             const logs = data.item?.access_logs || [];
             const title = `${shareLabels.access_log_title || 'Aktivitätsverlauf'}${data.item?.name ? ` – ${data.item.name}` : ''}`;
             const html = renderShareAccessLogsTable(logs, shareLabels);
             showSimpleModal(title, html);
+        })
+        .catch(() => {
+            if (typeof window.showAppBanner === 'function') {
+                window.showAppBanner(FILES_I18N.messages.settings_error || 'Fehler beim Laden.', 'danger');
+            }
         });
 }
 
@@ -1864,8 +1934,8 @@ function showSimpleModal(title, bodyHtml) {
         document.body.appendChild(tpl.firstElementChild);
         modal = document.getElementById('simpleModal');
     }
-    modal.querySelector('.modal-title').innerText = title;
+    modal.querySelector('.modal-title').textContent = title;
     modal.querySelector('.modal-body').innerHTML = bodyHtml;
-    const bsModal = new bootstrap.Modal(modal);
+    const bsModal = bootstrap.Modal.getOrCreateInstance(modal);
     bsModal.show();
 }

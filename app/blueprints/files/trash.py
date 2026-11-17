@@ -598,7 +598,13 @@ def resource_acl_api(resource_type, resource_id):
         grantee = payload.get('grantee_user_id', '__missing__')
         if grantee == '__missing__':
             return jsonify({'success': False, 'error': 'grantee_user_id fehlt.'}), 400
-        grantee_id = None if grantee in (None, '', 'all') else int(grantee)
+        if grantee in (None, '', 'all'):
+            grantee_id = None
+        else:
+            try:
+                grantee_id = int(grantee)
+            except (TypeError, ValueError):
+                return jsonify({'success': False, 'error': 'Ungültiger Benutzer.'}), 400
         remove_acl(resource_type, resource_id, grantee_id)
         db.session.commit()
         return jsonify({'success': True})
@@ -632,7 +638,12 @@ def resource_acl_api(resource_type, resource_id):
         grantee_user_id = payload.get('grantee_user_id')
         if not grantee_user_id:
             return jsonify({'success': False, 'error': 'Benutzer fehlt.'}), 400
-        grantee_user_id = int(grantee_user_id)
+        try:
+            grantee_user_id = int(grantee_user_id)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'Ungültiger Benutzer.'}), 400
+        if not User.query.get(grantee_user_id):
+            return jsonify({'success': False, 'error': 'Benutzer nicht gefunden.'}), 404
         if grantee_user_id == current_user.id:
             return jsonify({
                 'success': False,
@@ -678,6 +689,14 @@ def folder_favorite_api(folder_id):
 def get_file_details(file_id):
     """Get file details for the side menu."""
     file = File.query.get_or_404(file_id)
+    if file.deleted_at is not None:
+        return jsonify({'success': False, 'error': 'Datei nicht gefunden'}), 404
+    if getattr(current_user, 'is_guest', False):
+        from app.utils.access_control import guest_has_file_access
+        if not guest_has_file_access(current_user, file):
+            return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
+    elif not can_view_file(file, current_user) and not getattr(current_user, 'is_admin', False):
+        return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
     
     # Get file versions
     versions = FileVersion.query.filter_by(file_id=file.id).order_by(

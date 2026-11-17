@@ -32,11 +32,11 @@
 
         <div class="markdown-editor-toolbar-divider" aria-hidden="true"></div>
 
-        <button type="button" class="btn btn-outline-secondary mod-pill-btn" onclick="goBack()" id="backBtn">
-            <i class="bi bi-arrow-left"></i> Zurück
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" onclick="goBack()" id="backBtn">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i> {{ _('layout.nav.back') }}
         </button>
         <button type="button" class="btn btn-accent mod-pill-btn" onclick="saveFile()" id="saveBtn"{% if edit_locked %} disabled{% endif %}>
-            <i class="bi bi-check-lg"></i> Speichern
+            <i class="bi bi-check-lg" aria-hidden="true"></i> {{ _('common.save') }}
         </button>
 
         {% with unlocked=(not edit_locked), include_wikilink=false %}
@@ -127,10 +127,12 @@ function editLockSend(action, extra) {
 function releaseEditLock() {
     if (!EDIT_LOCK_ENABLED || !editSessionKey || EDIT_LOCKED) return;
     try {
+        const csrfToken = (window.PrismateamsCsrf && window.PrismateamsCsrf.getToken()) || '';
         navigator.sendBeacon(EDIT_LOCK_API, new Blob([JSON.stringify({
             action: 'leave',
             session_key: editSessionKey,
-            file_id: EDIT_FILE_ID
+            file_id: EDIT_FILE_ID,
+            csrf_token: csrfToken
         })], { type: 'application/json' }));
     } catch (e) {
         editLockSend('leave');

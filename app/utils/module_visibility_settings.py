@@ -65,3 +65,4 @@ def sync_legacy_visibility_keys(allow_private: bool, allow_team: bool, allow_pub
 
     upsert_setting('files_private_folders_enabled', str(allow_private).lower(), 'Dateien: Private Ordner')
     upsert_setting('files_team_folders_enabled', str(allow_team).lower(), 'Dateien: Team-Ordner')
+    upsert_setting('email_multi_enabled', str(allow_private or allow_team).lower(), 'Multi-Postfach aktiv')

@@ -308,6 +308,7 @@ async function boot() {
                 image: true,
             },
         },
+        validateEmbeddable: true,
         excalidrawAPI: (nextApi) => { api = nextApi; },
     }));
 

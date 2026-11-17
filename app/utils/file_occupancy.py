@@ -74,7 +74,7 @@ def webdav_path_for_file(file_obj: File) -> str | None:
     return '/' + '/'.join([PUBLIC] + list(reversed(parts)))
 
 
-def resolve_file_from_dav_path(path: str) -> File | None:
+def resolve_file_from_dav_path(path: str, *, user_id: int | None = None) -> File | None:
     """Resolve a WebDAV path to a File row (no ACL check — for lock/occupancy only)."""
     parts = _path_parts(path)
     if len(parts) < 2:
@@ -83,7 +83,7 @@ def resolve_file_from_dav_path(path: str) -> File | None:
     rest = parts[1:]
 
     if top == PRIVATE:
-        return _resolve_under_personal(rest)
+        return _resolve_under_personal(rest, user_id=user_id)
     if top == PUBLIC:
         return _resolve_under_public(rest)
     if top == TEAMS:
@@ -147,11 +147,14 @@ def _resolve_under_folder(root: Folder, rest: list[str], *, space_filter, team_i
     return None
 
 
-def _resolve_under_personal(rest: list[str]) -> File | None:
-    """Match Private/<…> against personal folder trees (any user)."""
+def _resolve_under_personal(rest: list[str], *, user_id: int | None = None) -> File | None:
+    """Match Private/<…> against personal folder trees (scoped to user_id when provided)."""
     if not rest:
         return None
-    roots = Folder.query.filter_by(is_personal_root=True, deleted_at=None).all()
+    q = Folder.query.filter_by(is_personal_root=True, deleted_at=None)
+    if user_id is not None:
+        q = q.filter_by(created_by=user_id)
+    roots = q.all()
     for root in roots:
         found = _resolve_under_folder(root, rest, space_filter=None, team_id=None)
         if found:
@@ -161,7 +164,7 @@ def _resolve_under_personal(rest: list[str]) -> File | None:
 
 def browser_occupancy_for_dav_path(path: str, *, exclude_user_id: int | None = None) -> Occupancy | None:
     """Occupancy from Euro-Office / Markdown that should block WebDAV LOCK/PUT."""
-    file_obj = resolve_file_from_dav_path(path)
+    file_obj = resolve_file_from_dav_path(path, user_id=exclude_user_id)
     if not file_obj:
         return None
     cleanup_stale_sessions()

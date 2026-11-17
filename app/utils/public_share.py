@@ -519,3 +519,54 @@ def serialize_share_settings(
         'access_logs': get_access_logs_for_resource(resource_type, resource_id),
         'can_add_dropbox': can_add_dropbox,
     }
+
+
+def apply_dropbox_settings_action(
+    folder: Folder,
+    action: str,
+    password: str = '',
+) -> tuple[bool, str | None]:
+    """Apply set_password / remove_password / regenerate_token to PublicShare(mode='dropbox') + legacy Folder."""
+    dropbox_shares = [s for s in get_shares_for_resource('folder', folder.id) if s.mode == 'dropbox']
+    primary_share = next((s for s in dropbox_shares if s.enabled), None) or (
+        dropbox_shares[0] if dropbox_shares else None
+    )
+
+    if action == 'set_password':
+        pw = (password or '').strip()
+        if not pw:
+            return False, 'Bitte geben Sie ein Passwort ein.'
+        pw_hash = generate_password_hash(pw)
+        if primary_share:
+            primary_share.password_hash = pw_hash
+        folder.dropbox_password_hash = pw_hash
+        sync_legacy_share_flags('folder', folder)
+        return True, None
+
+    if action == 'remove_password':
+        for s in dropbox_shares:
+            s.password_hash = None
+        folder.dropbox_password_hash = None
+        sync_legacy_share_flags('folder', folder)
+        return True, None
+
+    if action == 'regenerate_token':
+        token = generate_unique_share_token()
+        if primary_share:
+            primary_share.token = token
+        folder.dropbox_token = token
+        sync_legacy_share_flags('folder', folder)
+        return True, None
+
+    return False, 'Ungültige Aktion'
+
+
+def disable_dropbox_shares(folder: Folder) -> None:
+    """Disable all dropbox PublicShare rows and clear legacy flags on Folder."""
+    for share in get_shares_for_resource('folder', folder.id):
+        if share.mode == 'dropbox':
+            share.enabled = False
+    folder.is_dropbox = False
+    folder.dropbox_token = None
+    folder.dropbox_password_hash = None
+    sync_legacy_share_flags('folder', folder)

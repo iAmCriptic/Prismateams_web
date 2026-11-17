@@ -373,14 +373,17 @@ def register_request_hooks(app):
         # unsafe-inline bleibt bis Nonce-Migration (viele Template-Inline-Scripts).
         # MiroTalk-Join oft http://HOST:3010 → frame-src ergänzen.
         # Euro-Office / Excalidraw / Media-Downloader brauchen lokal noch unsafe-eval.
-        frame_src = ["'self'", 'https:', 'blob:'] + _csp_frame_src_extra(app)
+        frame_src = ["'self'", 'https:', 'http:', 'blob:'] + _csp_frame_src_extra(app)
         script_cdn = (
             "https://cdn.jsdelivr.net "
             "https://cdn.quilljs.com "
             "https://cdn.socket.io "
             "https://www.google.com "
             "https://www.gstatic.com "
-            "https://challenges.cloudflare.com"
+            "https://challenges.cloudflare.com "
+            "https://esm.sh "
+            "https://*.esm.sh "
+            "https://unpkg.com"
         )
         path = request.path or ''
         needs_eval = (
@@ -401,13 +404,13 @@ def register_request_hooks(app):
                 "object-src 'none'",
                 "frame-ancestors 'self'",
                 script_src,
-                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://fonts.googleapis.com",
-                "img-src 'self' data: blob: https:",
-                "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com",
-                "connect-src 'self' https: wss: ws: blob:",
+                "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.quilljs.com https://fonts.googleapis.com https://unpkg.com https://esm.sh https://*.esm.sh",
+                "img-src 'self' data: blob: https: http:",
+                "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com https://unpkg.com https://esm.sh https://*.esm.sh",
+                "connect-src 'self' https: http: wss: ws: blob:",
                 "frame-src " + " ".join(frame_src),
                 "media-src 'self' https: blob:",
-                "worker-src 'self' blob:",
+                "worker-src 'self' blob: https:",
             ]),
         )
         return response

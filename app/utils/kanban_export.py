@@ -276,7 +276,7 @@ def build_trello_board_dict(board: KanbanBoard) -> dict[str, Any]:
                         'state': state,
                         'due': _iso(it.due_date),
                         'dueReminder': None,
-                        'idMember': member_id_map.get(it.assignee_id) if it.assignee_id else None,
+                        'idMember': None,
                         'idChecklist': clid,
                     })
                 checklists_out.append({
@@ -293,11 +293,8 @@ def build_trello_board_dict(board: KanbanBoard) -> dict[str, Any]:
                 for cl in card.card_labels
                 if cl.label_id in label_id_map
             ]
-            id_members = [
-                member_id_map[a.user_id]
-                for a in card.assignees
-                if a.user_id in member_id_map
-            ]
+            # Card members/assignees are intentionally excluded from export
+            id_members = []
 
             # custom field items
             cf_items = []
@@ -385,6 +382,16 @@ def build_trello_board_dict(board: KanbanBoard) -> dict[str, Any]:
             })
 
     bg = board.background or 'teal'
+    bg_image = None
+    if board.cover_path:
+        raw_cover = board.cover_path.strip()
+        if raw_cover.startswith(('http://', 'https://')):
+            bg_image = raw_cover
+        elif has_request_context():
+            try:
+                bg_image = url_for('kanban.board_background', board_id=board.id, _external=True)
+            except Exception:
+                bg_image = None
     return {
         'id': board_tid,
         'name': board.title,
@@ -402,7 +409,7 @@ def build_trello_board_dict(board: KanbanBoard) -> dict[str, Any]:
             'cardCovers': True,
             'background': bg,
             'backgroundColor': None,
-            'backgroundImage': None,
+            'backgroundImage': bg_image,
         },
         'labelNames': label_names,
         'labels': labels_out,
@@ -452,19 +459,13 @@ def export_board_csv_bytes(board: KanbanBoard) -> tuple[bytes, str]:
         'Archived',
     ])
     for lst in sorted(board.lists, key=lambda x: x.position):
-        if lst.archived_at:
-            continue
         for card in sorted(lst.cards, key=lambda x: x.position):
-            if card.archived_at:
-                continue
             labels = ', '.join(
                 f"{cl.label.name}" if cl.label and cl.label.name else (cl.label.color if cl.label else '')
                 for cl in card.card_labels if cl.label
             )
-            members = ', '.join(
-                (a.user.full_name or a.user.email or '')
-                for a in card.assignees if a.user
-            )
+            # Card members/assignees are intentionally excluded from export
+            members = ''
             att_links = ' '.join(
                 filter(None, (_attachment_public_url(a) or a.url or '' for a in card.attachments))
             )
@@ -474,6 +475,7 @@ def export_board_csv_bytes(board: KanbanBoard) -> tuple[bytes, str]:
                     total += 1
                     if it.done:
                         done += 1
+            is_archived = bool(lst.archived_at or card.archived_at)
             writer.writerow([
                 card.title,
                 card.description or '',
@@ -487,7 +489,7 @@ def export_board_csv_bytes(board: KanbanBoard) -> tuple[bytes, str]:
                 att_links,
                 total,
                 done,
-                'true' if card.archived_at else 'false',
+                'true' if is_archived else 'false',
             ])
     raw = buf.getvalue().encode('utf-8-sig')
     safe = ''.join(c if c.isalnum() or c in ('-', '_') else '_' for c in (board.title or 'board'))[:60]

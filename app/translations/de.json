@@ -773,6 +773,51 @@
       "kanban_changes": {
         "title": "Kanban-Änderungen",
         "empty": "Keine aktuellen Änderungen"
+      },
+      "kanban_my_cards": {
+        "title": "Meine Kanban-Karten",
+        "empty": "Keine offenen Karten zugewiesen.",
+        "overdue": "Überfällig"
+      },
+      "booking_personal": {
+        "title": "Booking",
+        "empty": "Keine aktiven Booking-Events.",
+        "entries_count": "{count} Einträge"
+      },
+      "room_bookings_upcoming": {
+        "title": "Kommende Raumbuchungen",
+        "empty": "Keine kommenden Raumbuchungen."
+      },
+      "events": {
+        "title": "Veranstaltungen",
+        "empty": "Keine kommenden Veranstaltungen."
+      },
+      "surveys": {
+        "title": "Aktive Umfragen",
+        "empty": "Keine aktiven Umfragen.",
+        "responses_count": "{count} Antworten"
+      },
+      "protocols": {
+        "title": "Protokolle",
+        "empty": "Noch keine Protokolle vorhanden.",
+        "status": {
+          "draft": "Entwurf",
+          "finalized": "Abgeschlossen"
+        }
+      },
+      "meetings": {
+        "title": "Aktive Meetings",
+        "empty": "Aktuell laufen keine Meetings.",
+        "live": "Live",
+        "join_hint": "Klicken zum Beitreten"
+      },
+      "duty_roster": {
+        "title": "Mein Dienstplan",
+        "empty": "Keine kommenden Dienste eingetragen."
+      },
+      "excalidraw": {
+        "title": "Excalidraw-Boards",
+        "empty": "Noch keine Boards vorhanden."
       }
     },
     "module_bar": {
@@ -798,7 +843,24 @@
       "no_settings": "Für dieses Widget gibt es keine weiteren Einstellungen.",
       "all_added": "Alle verfügbaren Widgets sind bereits hinzugefügt.",
       "save_error": "Speichern fehlgeschlagen.",
-      "more_items": "+{count} weitere"
+      "more_items": "+{count} weitere",
+      "categories": {
+        "planning": "Planung & Termine",
+        "communication": "Kommunikation",
+        "projects": "Projekte & Wissen",
+        "org": "Dateien & Organisation"
+      },
+      "catalog_search": "Widgets durchsuchen…",
+      "catalog_all": "Alle",
+      "catalog_categories": "Widget-Kategorien",
+      "catalog_empty": "Keine passenden Widgets gefunden.",
+      "already_added": "Aktiv",
+      "configurable_hint": "Konfigurierbar",
+      "quick_add": "Direkt hinzufügen",
+      "add_selected": "Hinzufügen",
+      "resize_width": "Breite",
+      "resize_height": "Höhe",
+      "resize_size": "Größe"
     },
     "guest": {
       "use_modules": "Nutzen Sie die Modul-Leiste oben, um zu Ihren freigegebenen Bereichen zu gelangen."
@@ -862,6 +924,42 @@
           "kanban_aenderungen": {
             "label": "Kanban-Änderungen",
             "description": "Zeigt aktuelle Aktualisierungen von Kanban-Boards mit Zugriff."
+          },
+          "kanban_meine_karten": {
+            "label": "Meine Kanban-Karten",
+            "description": "Dir zugewiesene offene Karten mit Fälligkeit und Board-Filter."
+          },
+          "booking_personal": {
+            "label": "Booking",
+            "description": "Aktive Booking-Events und aktuelle Einträge im Überblick."
+          },
+          "raumbuchung_kommende": {
+            "label": "Kommende Raumbuchungen",
+            "description": "Bestätigte Raumbelegungen und Termine der nächsten Tage."
+          },
+          "veranstaltungen": {
+            "label": "Veranstaltungen",
+            "description": "Bevorstehende Events mit Datum und zugewiesenem Raum."
+          },
+          "umfragen": {
+            "label": "Aktive Umfragen",
+            "description": "Laufende Umfragen mit aktuellem Antwortstand."
+          },
+          "protokolle": {
+            "label": "Protokolle",
+            "description": "Die neuesten Sitzungsprotokolle und Entwürfe."
+          },
+          "meetings": {
+            "label": "Aktive Meetings",
+            "description": "Laufende Videokonferenzen mit direktem Beitritt."
+          },
+          "dienstplan": {
+            "label": "Mein Dienstplan",
+            "description": "Deine nächsten veröffentlichten Schichten und Dienste."
+          },
+          "excalidraw": {
+            "label": "Excalidraw-Boards",
+            "description": "Zuletzt bearbeitete Whiteboards und Skizzen."
           }
         },
         "add": "Widget hinzufügen",
@@ -1328,6 +1426,57 @@
       "subtitle": "Push, Module und Erinnerungen verwalten",
       "save_button": "Änderungen speichern",
       "flash_saved": "Benachrichtigungseinstellungen wurden gespeichert.",
+      "channels": {
+        "portal": "In-App",
+        "push": "Push",
+        "portal_help": "In-App Glocke, Benachrichtigungszentrum und Zähler",
+        "push_help": "WebPush-Benachrichtigungen auf Browser und Smartphone"
+      },
+      "master": {
+        "title": "Benachrichtigungen generell aktivieren",
+        "help": "Hauptschalter für alle Portal- und Push-Benachrichtigungen"
+      },
+      "snooze": {
+        "button": "Pausieren",
+        "title": "Benachrichtigungen pausieren",
+        "help": "Alle Benachrichtigungen für einen festgelegten Zeitraum stummschalten",
+        "active_banner": "Benachrichtigungen sind pausiert bis {time}",
+        "resume_btn": "Pausierung aufheben",
+        "activated_msg": "Benachrichtigungen wurden pausiert.",
+        "resumed_msg": "Benachrichtigungen wurden wieder aktiviert.",
+        "options": {
+          "30m": "30 Minuten",
+          "1h": "1 Stunde",
+          "2h": "2 Stunden",
+          "4h": "4 Stunden",
+          "8h": "8 Stunden",
+          "tomorrow": "Bis morgen (08:00 Uhr)"
+        }
+      },
+      "comments": {
+        "title": "Kommentare & Erwähnungen",
+        "help": "Benachrichtigungen bei Erwähnungen oder Antworten",
+        "mentions": "@-Erwähnungen",
+        "mentions_help": "Wenn Sie in einem Kommentar mit @ erwähnt werden",
+        "replies": "Antworten auf eigene Kommentare",
+        "replies_help": "Wenn jemand direkt auf Ihren Kommentar antwortet"
+      },
+      "surveys": {
+        "title": "Umfragen",
+        "help": "Benachrichtigungen zu Team-Umfragen und Rückmeldungen",
+        "new": "Neue Umfragen",
+        "new_help": "Wenn eine neue Team-Umfrage veröffentlicht wird",
+        "responses": "Neue Antworten",
+        "responses_help": "Wenn jemand an Ihrer erstellten Umfrage teilnimmt"
+      },
+      "room_booking": {
+        "title": "Raumbuchungen & Ressourcen",
+        "help": "Benachrichtigungen für interne Raumbuchungen",
+        "new": "Neue Raumbuchungen",
+        "new_help": "Wenn eine neue Raumreservierung eingetragen wird",
+        "status": "Statusänderungen & Bestätigungen",
+        "status_help": "Wenn eine Raumbuchung bestätigt oder aktualisiert wird"
+      },
       "push_status": {
         "checking": "Status wird geprüft…",
         "supported": "Dieser Browser unterstützt Push-Benachrichtigungen mit dieser Seite",
@@ -2602,6 +2751,39 @@
         "credentials_public_hint": "Bei Zugangsdaten bedeutet Public: alle Modulnutzer können Passwörter anzeigen. Standard für neue Einträge bleibt Privat.",
         "save": "Speichern",
         "flash_saved": "Sichtbarkeitseinstellungen gespeichert."
+      },
+      "main_mailbox": {
+        "page_title": "Hauptpostfach einrichten - Prismateams",
+        "heading": "Hauptpostfach (System-E-Mail)",
+        "card_title": "Hauptpostfach (System-E-Mail)",
+        "lead": "Konfigurieren Sie das zentrale System-Postfach für ausgehende Portal-E-Mails und das Hauptpostfach direkt im Browser.",
+        "status_configured": "Konfiguriert",
+        "status_missing": "Nicht konfiguriert",
+        "not_configured_hint": "Noch keine Haupt-E-Mail eingerichtet.",
+        "setup_btn": "Jetzt einrichten",
+        "edit_btn": "Hauptpostfach bearbeiten",
+        "flash_saved": "Hauptpostfach-Einstellungen gespeichert.",
+        "provider_label": "E-Mail-Anbieter",
+        "provider_infomaniak": "Infomaniak",
+        "provider_ionos": "IONOS",
+        "email_label": "E-Mail-Adresse / Benutzername",
+        "email_help": "Wird für die Anmeldung am Mailserver (SMTP/IMAP) verwendet.",
+        "password_label": "Passwort / App-Passwort",
+        "password_placeholder": "Passwort oder App-Passwort eingeben",
+        "password_help": "Bei Anbietern mit 2FA (z. B. Gmail) bitte ein App-Passwort verwenden. Wird verschlüsselt gespeichert.",
+        "sender_name_label": "Absendername (optional)",
+        "sender_name_placeholder": "z. B. Prismateams Portal",
+        "autodiscover_btn": "Automatisch erkennen & testen",
+        "advanced_toggle": "Erweiterte Server-Einstellungen (SMTP & IMAP)",
+        "security_label": "Verschlüsselung",
+        "security_none": "Keine",
+        "default_sender_label": "Standard-Absender-Adresse (optional)",
+        "default_sender_placeholder": "Leer = E-Mail-Adresse verwenden",
+        "test_smtp_btn": "SMTP testen",
+        "test_imap_btn": "IMAP testen",
+        "imap_username_label": "IMAP-Benutzername (optional)",
+        "imap_username_placeholder": "Leer = wie E-Mail-Adresse oben",
+        "test_result_hint": "Prüfen und passen Sie die Einstellungen des Hauptpostfachs direkt im Browser an:"
       }
     },
     "mailboxes": {
@@ -2712,12 +2894,12 @@
       "wizard_step_provider": "Anbieter",
       "wizard_step_auth": "Anmeldung",
       "wizard_provider_title": "Wo liegt dein Postfach?",
-      "wizard_provider_help": "Google und Microsoft verbinden sich per OAuth. Infomaniak, IONOS und Custom nutzen IMAP/SMTP.",
+      "wizard_provider_help": "Google und Microsoft verbinden sich per OAuth. Bei „Andere“ werden die Servereinstellungen automatisch erkannt.",
       "provider_google": "Google",
       "provider_microsoft": "Microsoft",
       "provider_infomaniak": "Infomaniak",
       "provider_ionos": "IONOS",
-      "provider_custom": "Benutzerdefiniert",
+      "provider_custom": "Andere",
       "account_email": "E-Mail-Adresse",
       "account_email_help": "Wird für SMTP und IMAP als Benutzername verwendet.",
       "account_password": "Passwort",
@@ -2730,7 +2912,14 @@
       "oauth_hosts_hint": "Server und Ports werden automatisch gesetzt (Gmail bzw. Outlook).",
       "oauth_required": "Bitte verbinde zuerst dein Konto per OAuth.",
       "oauth_unknown_provider": "Unbekannter OAuth-Anbieter.",
-      "oauth_error": "OAuth fehlgeschlagen: {error}"
+      "oauth_error": "OAuth fehlgeschlagen: {error}",
+      "autodiscover_detecting": "Erkenne Server…",
+      "autodiscover_manual_btn": "Servereinstellungen manuell einrichten",
+      "autodiscover_detected_hint": "Automatisch erkannt: {imap} / {smtp}",
+      "autodiscover_incomplete": "Bitte E-Mail-Adresse und Passwort eingeben.",
+      "autodiscover_ok": "Servereinstellungen automatisch erkannt ({imap} / {smtp}).",
+      "autodiscover_auth_failed": "Server gefunden, aber die Anmeldung ist fehlgeschlagen. Bitte prüfe E-Mail-Adresse und Passwort oder richte die Server manuell ein.",
+      "autodiscover_failed": "Servereinstellungen konnten nicht automatisch erkannt werden. Bitte richte SMTP und IMAP manuell ein."
     },
     "integrations": {
       "page_title": "Verknüpfungen",
@@ -2850,7 +3039,43 @@
       "tip_body": "ZIP mit mehreren JSON/CSV-Dateien erzeugt mehrere Boards auf einmal.",
       "formats_title": "Formate",
       "formats_body": "JSON und CSV für einzelne Boards, ZIP für mehrere Dateien.",
-      "visibility_label": "Sichtbarkeit"
+      "visibility_label": "Sichtbarkeit",
+      "selected_file": "Ausgewählte Datei",
+      "remove_file": "Auswahl aufheben",
+      "uploading": "Wird hochgeladen…",
+      "processing": "Wird importiert…",
+      "optional_badge": "Optional",
+      "trello_title": "Trello-API-Import",
+      "trello_info": "Optional: Direkt mit Trello verbinden, um Boards samt privaten Bildern und Anhängen herunterzuladen.",
+      "trello_lead": "Optional: Wenn du dich direkt mit Trello verbindest, kann der Server deine offenen Boards auflisten und auch geschützte Bilder, Anhänge und Board-Hintergründe direkt herunterladen. Der Datei-Upload oben (JSON, CSV, ZIP) funktioniert jederzeit auch ohne Trello-Login.",
+      "trello_guide_title": "Anleitung: So richtest du die optionale Trello-Verbindung ein",
+      "trello_guide_intro": "Für den Import über die Trello-API benötigst du nur den API-Schlüssel (unter „Trello Auth“) und ein Lese-Token von der Trello-Freigabeseite. Das Feld „Geheim“ (Secret) wird nicht benötigt.",
+      "trello_guide_step1": "Öffne die Trello Power-Up-Verwaltung, wähle oder erstelle ein Power-Up und gehe links auf „Autorisierung → Trello Auth“. Kopiere dort den „API-Schlüssel“ (nicht „Geheim“):",
+      "trello_guide_step2": "Trage den API-Schlüssel unten ein und klicke auf „Token-Link manuell öffnen“ (oder „Mit Trello anmelden“). Klicke bei Trello auf „Zulassen“, kopiere das angezeigte Token (beginnt mit ATTA…) und füge es im Feld „Trello Token“ ein.",
+      "trello_guide_step3": "Wähle die gewünschten Boards aus, lege darunter das Ziel fest (Privat, Team oder Öffentlich) und klicke auf „Ausgewählte Boards importieren“.",
+      "trello_api_key": "Trello API-Key",
+      "trello_api_key_ph": "32-stelliger API-Key",
+      "trello_token": "Trello Token",
+      "trello_token_ph": "Token von der Trello-Auth-Seite (z. B. ATTA…)",
+      "trello_login_btn": "Mit Trello anmelden",
+      "trello_connect_btn": "Mit Token verbinden",
+      "trello_open_token_link": "Token-Link manuell öffnen",
+      "trello_refresh_btn": "Aktualisieren",
+      "trello_disconnect_btn": "Trennen",
+      "trello_import_selected": "Ausgewählte Boards importieren",
+      "trello_side_title": "Trello-Login (Optional)",
+      "trello_side_body": "Mit aktiver Trello-Verbindung werden auch bei JSON- oder CSV-Uploads geschützte Trello-Bilder und Anhänge direkt auf den Server geladen.",
+      "trello_need_key": "Bitte zuerst den Trello API-Key eingeben.",
+      "trello_need_key_token": "Bitte API-Key und Token eingeben.",
+      "trello_connected_toast": "Mit Trello verbunden",
+      "trello_disconnected_toast": "Trello-Verbindung getrennt",
+      "trello_no_boards": "Keine offenen Trello-Boards gefunden.",
+      "trello_loading_boards": "Lade Trello-Boards…",
+      "trello_auth_failed": "Trello-Anmeldung fehlgeschlagen. Bitte API-Key und Token prüfen.",
+      "trello_not_connected": "Nicht mit Trello verbunden.",
+      "trello_fetch_failed": "Trello-Boards konnten nicht geladen werden.",
+      "trello_select_board": "Bitte mindestens ein Trello-Board auswählen.",
+      "trello_target_label": "Importieren nach (Ziel / Sichtbarkeit)"
     },
     "hub": {
       "quick_title": "Schnellzugriff",
@@ -2881,6 +3106,64 @@
         "erasure": "Löschung – Self-Service im Profil (Passwort, ggf. 2FA, Bestätigungs-E-Mail)",
         "policy_link": "Datenschutzerklärung",
         "delete_link": "Konto löschen"
+      }
+    },
+    "imports": {
+      "nav": "Importe",
+      "page_title": "Importe",
+      "heading": "Importe",
+      "lead": "Dateien und Kanban-Boards Schritt für Schritt aus externen Quellen übernehmen.",
+      "short": "Drive, Nextcloud & Kanban",
+      "unavailable": "Derzeit ist kein Import-Modul verfügbar.",
+      "stepper_label": "Import-Schritte",
+      "next": "Weiter",
+      "start_import": "Import starten",
+      "cloud_job_started": "Import-Auftrag gestartet.",
+      "delete_connection_confirm": "Verbindung wirklich entfernen?",
+      "steps": {
+        "source": "Quelle",
+        "auth": "Zugang",
+        "select": "Auswahl",
+        "target": "Ziel & Start"
+      },
+      "step1": {
+        "title": "1. Quelle auswählen",
+        "hint": "Wähle aus, woher du Daten importieren möchtest."
+      },
+      "step2": {
+        "title": "2. Anmelden & verbinden"
+      },
+      "step3": {
+        "title": "3. Inhalte zum Importieren auswählen"
+      },
+      "step4": {
+        "title": "4. Ziel festlegen & Import starten"
+      },
+      "source": {
+        "google_drive": {
+          "title": "Google Drive",
+          "desc": "Ordner und Dateien direkt aus deinem Google Drive übernehmen."
+        },
+        "nextcloud": {
+          "title": "Nextcloud",
+          "desc": "Ordner und Dateien per Server-URL und App-Passwort importieren."
+        },
+        "kanban": {
+          "title": "Kanban",
+          "desc": "Boards direkt aus Trello oder per JSON-, CSV- oder ZIP-Datei importieren.",
+          "mode_label": "Import-Methode",
+          "mode_trello": "Trello-Konto (API)",
+          "mode_file": "Datei-Upload (JSON / CSV / ZIP)",
+          "file_no_auth_hint": "Für den Datei-Upload ist keine Anmeldung erforderlich. Klicke auf Weiter, um deine JSON-, CSV- oder ZIP-Datei auszuwählen.",
+          "select_boards_hint": "Wähle die Trello-Boards aus, die du importieren möchtest:"
+        }
+      },
+      "summary": {
+        "source": "Quelle",
+        "account": "Konto / Datei",
+        "selection": "Auswahl",
+        "items_count": "{count} Element(e) ausgewählt",
+        "boards_count": "{count} Board(s) ausgewählt"
       }
     }
   },
@@ -3124,6 +3407,9 @@
       "webdav_connect_btn": "In System einbinden",
       "webdav_hint": "Explorer (WebDAV)",
       "webdav_modal": {
+        "native_mount_title": "1-Klick Windows Netzlaufwerk",
+        "native_mount_desc": "Direkt als lokales Netzlaufwerk (P:) in den Windows Explorer einbinden.",
+        "native_mount_action": "Netzlaufwerk verbinden",
         "title": "Dateien im System einbinden",
         "intro": "Verbinden Sie die Ablage als Netzlaufwerk. Danach erscheinen Private, Public und Teams wie normale Ordner im Dateimanager.",
         "url_label": "Verbindungs-URL",
@@ -4243,6 +4529,19 @@
         "forbidden_body": "Sie haben keine Berechtigung, diese Datei anzuzeigen.",
         "not_found_title": "Datei nicht gefunden",
         "not_found_body": "Die verlinkte Datei existiert nicht mehr."
+      },
+      "tools": {
+        "heading": "Überschrift",
+        "bold": "Fett",
+        "italic": "Kursiv",
+        "strikethrough": "Durchgestrichen",
+        "bullet_list": "Aufzählungsliste",
+        "numbered_list": "Nummerierte Liste",
+        "task_list": "Aufgabenliste",
+        "link": "Link einfügen",
+        "inline_code": "Inline-Code",
+        "quote": "Zitat",
+        "hr": "Trennlinie"
       }
     }
   },
@@ -6553,6 +6852,22 @@
       "hint": "Falls Sie bereits ein Backup haben, können Sie es jetzt importieren. Fehlende Daten legen Sie im Setup neu an. Sie können diesen Schritt auch überspringen.",
       "skip": "Überspringen",
       "back": "Zurück zum Setup"
+    },
+    "step": {
+      "org": "Organisation",
+      "admin": "Admin",
+      "registration": "Registrierung",
+      "email": "E-Mail",
+      "modules": "Module"
+    },
+    "email": {
+      "page_title": "Setup – Haupt-E-Mail",
+      "heading": "Haupt-E-Mail einrichten",
+      "lead": "Richten Sie die System-E-Mail-Adresse für Benachrichtigungen, Passwort-Resets und das Hauptpostfach direkt im Browser ein.",
+      "skip_btn": "Später einrichten",
+      "save_continue_btn": "Speichern & Weiter",
+      "flash_saved": "Haupt-E-Mail-Konfiguration gespeichert.",
+      "flash_incomplete": "Bitte geben Sie mindestens SMTP-Server, E-Mail-Adresse und Passwort an."
     }
   },
   "assessment": {
@@ -6920,6 +7235,24 @@
       "message_body": "{event} – {applicant}",
       "message_body_preview": "{event} – {applicant}: {preview}"
     },
+    "room_booking": {
+      "new_title": "Neue Raumbuchung",
+      "new_body": "Raumbuchung für {event} durch {applicant}",
+      "status_title": "Raumbuchung aktualisiert",
+      "status_body": "Status für Raumbuchung {event} wurde geändert"
+    },
+    "comment": {
+      "mention_title": "Neue Erwähnung",
+      "mention_body": "{actor} hat Sie in einem Kommentar zu „{item}“ erwähnt",
+      "reply_title": "Neue Antwort auf Ihren Kommentar",
+      "reply_body": "{actor} hat auf Ihren Kommentar zu „{item}“ geantwortet"
+    },
+    "survey": {
+      "new_title": "Neue Umfrage",
+      "new_body": "Neue Umfrage verfügbar: {title}",
+      "response_title": "Neue Umfrage-Antwort",
+      "response_body": "Jemand hat Ihre Umfrage „{title}“ beantwortet"
+    },
     "inventory": {
       "borrow_title": "Neue Ausleihe",
       "borrow_body": "{event} – {borrower} ({count} Artikel)"
@@ -6965,7 +7298,22 @@
       "copy": "Kopieren",
       "copied": "Kopiert",
       "no_password": "—",
-      "delete_confirm": "Freigabelink löschen?"
+      "delete_confirm": "Freigabelink löschen?",
+      "tab_users": "Portalsnutzer freigeben",
+      "tab_links": "Öffentliche Freigabelinks",
+      "user_label": "Portalsnutzer",
+      "user_select_ph": "Benutzer auswählen…",
+      "role_label": "Rolle / Zugriff",
+      "role_member_desc": "Mitglied (Karten bearbeiten)",
+      "role_admin_desc": "Administrator (Board verwalten)",
+      "add_user_btn": "Freigeben",
+      "col_user": "Portalsnutzer",
+      "col_role": "Rolle",
+      "col_permission": "Berechtigung",
+      "col_options": "Optionen",
+      "users_loading": "Lade Portalsnutzer…",
+      "delete_link_confirm": "Freigabelink löschen?",
+      "remove_user_confirm": "Freigabe für \"{name}\" auf diesem Board entfernen?"
     },
     "index": {
       "title": "Kanban Boards",
@@ -6995,7 +7343,22 @@
       "vis_team": "Team",
       "vis_public": "Öffentlich",
       "search_placeholder": "Boards suchen…",
-      "no_search_results": "Keine passenden Boards gefunden"
+      "no_search_results": "Keine passenden Boards gefunden",
+      "move_board": "Bereich ändern",
+      "move_board_title": "Board-Bereich & Berechtigungen ändern",
+      "move_board_hint": "Beim Verschieben werden die Zugriffsrechte automatisch an den gewählten Bereich angepasst.",
+      "target_section": "Zielbereich",
+      "drop_here": "Board hierher ziehen",
+      "rename": "Umbenennen",
+      "change_color": "Farbe ändern",
+      "updated": "Aktualisiert",
+      "unread_one": "neue Benachrichtigung",
+      "unread_many": "neue Benachrichtigungen",
+      "close_confirm": "Board schließen?",
+      "close_btn": "Schließen",
+      "choose_template_warn": "Bitte eine Vorlage wählen",
+      "move_failed": "Verschieben fehlgeschlagen",
+      "rename_failed": "Fehler beim Umbenennen"
     },
     "board": {
       "add_list": "Liste hinzufügen",
@@ -7014,7 +7377,21 @@
       "background_image_set": "Hintergrundbild ist gesetzt",
       "background_image_optional": "Optional: eigenes Bild hochladen (wird über der Farbe angezeigt)",
       "search_placeholder": "Karten oder Listen suchen…",
-      "no_search_results": "Keine passenden Karten oder Listen gefunden"
+      "no_search_results": "Keine passenden Karten oder Listen gefunden",
+      "move_list_left": "Nach links verschieben",
+      "move_list_right": "Nach rechts verschieben",
+      "list_default_fields": "Standard-Felder für neue Karten",
+      "list_default_fields_hint": "Wähle eigene Felder aus, die beim Erstellen neuer Karten in dieser Liste automatisch hinzugefügt werden.",
+      "list_default_fields_empty": "Noch keine eigenen Board-Felder definiert.",
+      "members_title": "Board-Mitglieder",
+      "members_hint": "Board-Mitglieder & Zugriff anzeigen",
+      "members_loading": "Lade Mitglieder…",
+      "manage_share": "Freigabe & Mitglieder verwalten",
+      "notifications": "Benachrichtigungen",
+      "notifications_unread_only": "Nur ungelesene",
+      "notifications_mark_all": "Alle als gelesen markieren",
+      "notifications_mark_all_short": "Alle als gelesen",
+      "notifications_loading": "Lade Benachrichtigungen…"
     },
     "custom_fields": {
       "title": "Benutzerdefinierte Felder",
@@ -7082,7 +7459,25 @@
       "add_due": "Fälligkeitsdatum hinzufügen",
       "assign_member": "Person zuweisen",
       "change_assignee": "Zuweisung ändern",
-      "clear_assignee": "Zuweisung entfernen"
+      "clear_assignee": "Zuweisung entfernen",
+      "show_more": "Mehr anzeigen",
+      "show_less": "Weniger anzeigen",
+      "markdown_toolbar": "Markdown-Formatierung",
+      "hide_done_items": "Erledigte Elemente ausblenden",
+      "hide_pending_items": "Unerledigte Elemente ausblenden",
+      "google_access_required": "Zugriff muss angefragt werden",
+      "attach_portal_file": "Portal-Datei",
+      "portal_file_search": "Datei suchen…",
+      "portal_file_empty": "Keine Dateien gefunden",
+      "poll_text": "Abstimmungstext",
+      "poll_ph": "Worum soll abgestimmt werden?",
+      "vote_agree": "Zustimmen",
+      "vote_withdraw": "Zurücknehmen",
+      "link_title_ph": "Titel (optional / automatisch)",
+      "delete_confirm": "Karte löschen?",
+      "delete_list_confirm": "Liste und alle Karten löschen?",
+      "delete_attachment_confirm": "Anhang löschen?",
+      "delete_poll_confirm": "Abstimmung entfernen?"
     },
     "filter": {
       "keyword": "Stichwort",
@@ -7115,7 +7510,9 @@
       "title": "Geschlossene Boards",
       "reopen": "Wieder öffnen",
       "delete": "Löschen",
-      "empty": "Keine geschlossenen Boards."
+      "empty": "Keine geschlossenen Boards.",
+      "delete_confirm": "Board löschen?",
+      "search_placeholder": "Geschlossene Boards suchen…"
     },
     "export": {
       "title": "Exportieren",

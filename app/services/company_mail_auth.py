@@ -133,14 +133,17 @@ def get_company_mail_server_config() -> dict:
     Ermittelt die Server-Einstellungen für Unternehmenspostfächer.
     Nutzt spezifische Einstellungen aus SystemSettings mit Fallback auf die globale App-Config.
     """
-    imap_server = _setting_str('company_mail_imap_server', '') or current_app.config.get('IMAP_SERVER') or ''
-    imap_port = _setting_int('company_mail_imap_port', 0) or int(current_app.config.get('IMAP_PORT', 993) or 993)
-    imap_use_ssl = _setting_bool('company_mail_imap_ssl', bool(current_app.config.get('IMAP_USE_SSL', True)))
+    from app.utils.main_mail_config import get_main_mail_config
+    main_cfg = get_main_mail_config()
+
+    imap_server = _setting_str('company_mail_imap_server', '') or main_cfg.get('imap_server') or ''
+    imap_port = _setting_int('company_mail_imap_port', 0) or int(main_cfg.get('imap_port') or 993)
+    imap_use_ssl = _setting_bool('company_mail_imap_ssl', bool(main_cfg.get('imap_use_ssl', True)))
     
-    smtp_server = _setting_str('company_mail_smtp_server', '') or current_app.config.get('MAIL_SERVER') or ''
-    smtp_port = _setting_int('company_mail_smtp_port', 0) or int(current_app.config.get('MAIL_PORT', 587) or 587)
-    smtp_use_tls = _setting_bool('company_mail_smtp_tls', bool(current_app.config.get('MAIL_USE_TLS', True)))
-    smtp_use_ssl = _setting_bool('company_mail_smtp_ssl', bool(current_app.config.get('MAIL_USE_SSL', False)))
+    smtp_server = _setting_str('company_mail_smtp_server', '') or main_cfg.get('smtp_server') or ''
+    smtp_port = _setting_int('company_mail_smtp_port', 0) or int(main_cfg.get('smtp_port') or 587)
+    smtp_use_tls = _setting_bool('company_mail_smtp_tls', bool(main_cfg.get('smtp_use_tls', True)))
+    smtp_use_ssl = _setting_bool('company_mail_smtp_ssl', bool(main_cfg.get('smtp_use_ssl', False)))
     
     return {
         'imap_server': imap_server.strip(),

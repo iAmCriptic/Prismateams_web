@@ -240,7 +240,11 @@
     }
 
     function positionLinkPopover(pop) {
-        const toolbarBtn = document.querySelector('.markdown-editor-toolbar [onclick*="\'link\'"], .markdown-editor-toolbar [onclick*=\"'link'\"], .markdown-editor-toolbar [data-md-action="link"]');
+        const toolbarBtn = document.querySelector([
+            '.markdown-editor-toolbar [onclick*="\'link\'"]',
+            ".markdown-editor-toolbar [onclick*='\"link\"']",
+            '.markdown-editor-toolbar [data-md-action="link"]'
+        ].join(', '));
         let rect = null;
         if (toolbarBtn) {
             rect = toolbarBtn.getBoundingClientRect();

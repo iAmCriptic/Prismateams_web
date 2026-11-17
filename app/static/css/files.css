@@ -529,8 +529,8 @@ body.files-dnd-dragging .files-space-drop {
 .files-upload-toast {
     pointer-events: auto;
     --files-toast-accent: var(--accent-color, var(--bs-primary));
-    background: #fff;
-    color: var(--bs-body-color, #212529);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
     border: 1px solid color-mix(in srgb, var(--files-toast-accent) 22%, transparent);
     border-radius: 1.35rem;
     box-shadow:
@@ -2081,8 +2081,8 @@ body:has(.dropbox-shell) .container-fluid {
     gap: 0.75rem;
     margin: 0 0 0.85rem;
     padding: 0.95rem 1.05rem;
-    background: #fff;
-    color: var(--bs-body-color, #212529);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
     border: 1px solid color-mix(in srgb, var(--files-hint-accent) 22%, transparent);
     border-radius: 1.35rem;
     box-shadow:
@@ -2581,9 +2581,9 @@ body:has(.dropbox-shell) .container-fluid {
 
 /* Dark Mode Dropdown Menu */
 [data-bs-theme="dark"] #newDropdownMenu {
-    background: #2d3748;
-    border-color: #4a5568;
-    color: #e2e8f0;
+    background: var(--bs-dropdown-bg, var(--bs-body-bg));
+    border-color: var(--bs-border-color);
+    color: var(--bs-body-color);
 }
 
 /* OLED Mode - Dropdown Menu (Neu-Menü) */

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('setup.email.page_title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/setup.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="setup-container">
+    <div class="setup-shell setup-shell--wide">
+        <div class="setup-panel">
+            {% include 'setup/_stepper.html' %}
+
+            <div class="setup-intro">
+                <h2><i class="bi bi-envelope-at"></i> {{ _('setup.email.heading') }}</h2>
+                <p>{{ _('setup.email.lead') }}</p>
+            </div>
+
+            <form method="POST" class="setup-panel__form">
+                {% with
+                    autodiscover_url=url_for('setup.setup_mail_autodiscover'),
+                    test_smtp_url=url_for('setup.setup_mail_test_smtp'),
+                    test_imap_url=url_for('setup.setup_mail_test_imap')
+                %}
+                    {% include 'components/_main_mail_wizard.html' %}
+                {% endwith %}
+
+                <div class="setup-actions">
+                    <a href="{{ url_for('setup.setup_step3') }}" class="btn setup-btn setup-btn--ghost">
+                        <i class="bi bi-arrow-left"></i> {{ _('layout.nav.back') }}
+                    </a>
+                    <div class="d-flex gap-2">
+                        <button type="submit" name="action" value="skip" class="btn setup-btn setup-btn--ghost" formnovalidate>
+                            {{ _('setup.email.skip_btn') }}
+                        </button>
+                        <button type="submit" name="action" value="save" class="btn setup-btn setup-btn--accent">
+                            <i class="bi bi-check-circle"></i> {{ _('setup.email.save_continue_btn') }}
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/main_mail_wizard.js') }}"></script>
+{% endblock %}

@@ -91,10 +91,13 @@ Gesendet von <user> (<email>)
     )
     ar_vars = _auto_reply_template_vars(None)
     company_server_cfg = get_company_mail_server_config()
+    from app.utils.main_mail_config import get_main_mail_config, is_main_mail_configured
 
     now = now_in_portal_timezone()
     return render_template(
         'settings/admin_email_module.html',
+        main_mail_cfg=get_main_mail_config(),
+        main_mail_configured=is_main_mail_configured(),
         footer_template=current_footer,
         storage_days=storage_days,
         sync_interval=sync_interval,
@@ -118,6 +121,80 @@ Gesendet von <user> (<email>)
         company_mail_smtp_tls=_setting_bool('company_mail_smtp_tls', True),
         company_mail_resolved_cfg=company_server_cfg,
     )
+
+
+@settings_bp.route('/admin/main-mailbox', methods=['GET', 'POST'])
+@login_required
+def admin_main_mailbox():
+    """Hauptpostfach (System-E-Mail) im Browser einrichten und bearbeiten (admin only)."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.utils.main_mail_config import (
+        get_main_mail_config,
+        parse_main_mail_form,
+        save_main_mail_config,
+    )
+    from app.utils.multi_mailboxes import MAILBOX_PROVIDER_PRESETS
+
+    if request.method == 'POST':
+        parsed = parse_main_mail_form(request.form)
+        existing = get_main_mail_config()
+        has_pw = bool(parsed['smtp_password'] or existing.get('has_smtp_password'))
+        if not parsed['smtp_server'] or not parsed['smtp_username'] or not has_pw:
+            flash(translate('setup.email.flash_incomplete'), 'danger')
+            return render_template(
+                'settings/admin_main_mailbox.html',
+                mail_cfg={**existing, **parsed},
+                provider_presets=MAILBOX_PROVIDER_PRESETS,
+            )
+
+        save_main_mail_config(parsed, commit=True)
+        flash(translate('settings.admin.main_mailbox.flash_saved'), 'success')
+        return redirect(url_for('settings.admin_system'))
+
+    return render_template(
+        'settings/admin_main_mailbox.html',
+        mail_cfg=get_main_mail_config(),
+        provider_presets=MAILBOX_PROVIDER_PRESETS,
+    )
+
+
+@settings_bp.route('/admin/main-mailbox/autodiscover', methods=['POST'])
+@login_required
+def admin_main_mailbox_autodiscover():
+    """Autodiscover für das Hauptpostfach (admin only, JSON)."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
+    from app.utils.main_mail_config import main_mail_autodiscover_response
+
+    data = request.get_json(silent=True) or {}
+    return jsonify(main_mail_autodiscover_response(data))
+
+
+@settings_bp.route('/admin/main-mailbox/test-smtp', methods=['POST'])
+@login_required
+def admin_main_mailbox_test_smtp():
+    """SMTP-Live-Test für das Hauptpostfach-Formular (admin only, JSON)."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
+    from app.utils.main_mail_config import main_mail_test_smtp_response
+
+    data = request.get_json(silent=True) or {}
+    return jsonify(main_mail_test_smtp_response(data))
+
+
+@settings_bp.route('/admin/main-mailbox/test-imap', methods=['POST'])
+@login_required
+def admin_main_mailbox_test_imap():
+    """IMAP-Live-Test für das Hauptpostfach-Formular (admin only, JSON)."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
+    from app.utils.main_mail_config import main_mail_test_imap_response
+
+    data = request.get_json(silent=True) or {}
+    return jsonify(main_mail_test_imap_response(data))
 
 
 @settings_bp.route('/admin/email-auto-reply', methods=['POST'])
@@ -190,9 +267,8 @@ def admin_email_settings():
             )
             db.session.add(sync_setting)
 
-        # Multi-Postfach-Einstellungen (optional im gleichen Formular)
-        if 'email_multi_enabled' in request.form or request.form.get('save_multi') == '1':
-            multi_enabled = request.form.get('email_multi_enabled') == 'on'
+        # Postfach-Optionen (optional im gleichen Formular)
+        if 'email_max_private_mailboxes' in request.form or request.form.get('save_multi') == '1':
             max_private_raw = request.form.get('email_max_private_mailboxes', '3').strip()
             try:
                 max_private = max(0, int(max_private_raw))
@@ -207,7 +283,6 @@ def admin_email_settings():
                 else:
                     db.session.add(SystemSettings(key=key, value=str(value), description=description))
 
-            _upsert_setting('email_multi_enabled', 'True' if multi_enabled else 'False', 'Multi-Postfach aktiv')
             _upsert_setting('email_max_private_mailboxes', str(max_private), 'Max. private Postfächer pro Nutzer')
             _upsert_setting(
                 'email_compose_html_design_default',
@@ -258,13 +333,14 @@ def admin_email_test_smtp():
     if not current_user.is_admin:
         return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
 
-    from flask import current_app
     from app.utils.email_sender import send_smtp_test_email
+    from app.utils.main_mail_config import get_main_mail_config
     import smtplib
 
-    mail_server = current_app.config.get('MAIL_SERVER')
-    mail_username = current_app.config.get('MAIL_USERNAME')
-    mail_password = current_app.config.get('MAIL_PASSWORD')
+    cfg = get_main_mail_config()
+    mail_server = cfg.get('smtp_server')
+    mail_username = cfg.get('smtp_username')
+    mail_password = cfg.get('smtp_password')
 
     if not mail_server or not mail_username or not mail_password:
         return jsonify({
@@ -310,11 +386,13 @@ def admin_email_test_imap():
         _is_placeholder_imap_config,
         probe_imap_connection,
     )
+    from app.utils.main_mail_config import get_main_mail_config
 
-    imap_server = current_app.config.get('IMAP_SERVER')
-    imap_port = int(current_app.config.get('IMAP_PORT', 993) or 993)
-    username = current_app.config.get('MAIL_USERNAME')
-    password = current_app.config.get('MAIL_PASSWORD')
+    cfg = get_main_mail_config()
+    imap_server = cfg.get('imap_server')
+    imap_port = int(cfg.get('imap_port') or 993)
+    username = cfg.get('imap_username') or cfg.get('smtp_username')
+    password = cfg.get('imap_password') or cfg.get('smtp_password')
     imap_timeout = int(current_app.config.get('MAIL_TIMEOUT', 20) or 20)
 
     if not all([imap_server, username, password]):
@@ -608,6 +686,37 @@ def mailbox_test_imap():
             'success': False,
             'message': translate('settings.mailboxes.test_fail', error=str(e)),
         })
+
+
+@settings_bp.route('/mailboxes/autodiscover', methods=['POST'])
+@login_required
+def mailbox_autodiscover():
+    """Automatische Erkennung & Prüfung der IMAP/SMTP-Servereinstellungen (JSON)."""
+    from app.utils.multi_mailboxes import is_email_multi_enabled
+    from app.utils.mailbox_autodiscover import autodiscover_and_verify
+
+    if not is_email_multi_enabled():
+        return jsonify({'success': False, 'message': translate('settings.mailboxes.flash_multi_disabled')}), 403
+
+    data = request.get_json(silent=True) or {}
+    email = (data.get('email') or '').strip()
+    password = (data.get('password') or '').strip()
+    if not email or '@' not in email or not password or password in ('••••••••', '********', '••••••••••••'):
+        return jsonify({
+            'success': False,
+            'message': translate('settings.mailboxes.autodiscover_incomplete'),
+        })
+
+    result = autodiscover_and_verify(email, password)
+    if result['success']:
+        imap_host = (result.get('imap') or {}).get('server', '')
+        smtp_host = (result.get('smtp') or {}).get('server', '')
+        result['message'] = translate('settings.mailboxes.autodiscover_ok', imap=imap_host, smtp=smtp_host)
+    elif result.get('auth_error'):
+        result['message'] = translate('settings.mailboxes.autodiscover_auth_failed')
+    else:
+        result['message'] = translate('settings.mailboxes.autodiscover_failed')
+    return jsonify(result)
 
 
 def _mailbox_wizard_context(**extra):

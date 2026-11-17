@@ -47,7 +47,8 @@ def ensure_booking_subject(subject: str, request_id: int) -> str:
 
 
 def generate_booking_message_id(request_id: int) -> str:
-    mail_user = (current_app.config.get('MAIL_USERNAME') or 'booking@localhost').strip()
+    from app.utils.main_mail_config import get_main_mail_config
+    mail_user = (get_main_mail_config().get('smtp_username') or 'booking@localhost').strip()
     domain = mail_user.split('@')[-1] if '@' in mail_user else 'localhost'
     return f'<booking-{request_id}-{uuid.uuid4().hex}@{domain}>'
 
@@ -103,7 +104,7 @@ def save_outbound_message(
     created_by: int | None = None,
 ):
     from app.models.booking import BookingRequestMessage
-    from config import get_formatted_sender
+    from app.utils.main_mail_config import get_formatted_main_sender, get_main_mail_config
 
     row = BookingRequestMessage(
         request_id=booking_request.id,
@@ -111,7 +112,7 @@ def save_outbound_message(
         subject=subject,
         body_text=body_text or '',
         body_html=body_html,
-        from_email=from_email or extract_email_address(get_formatted_sender() or current_app.config.get('MAIL_USERNAME')),
+        from_email=from_email or extract_email_address(get_formatted_main_sender() or get_main_mail_config().get('smtp_username')),
         to_email=booking_request.email,
         message_id=normalize_message_id(message_id),
         in_reply_to=normalize_message_id(in_reply_to),

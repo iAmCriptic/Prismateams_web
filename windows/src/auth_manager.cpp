@@ -360,9 +360,10 @@ WebDavCredentialsResult AuthManager::FetchWebDavCredentials() {
     std::wstring setCookie;
     DWORD statusCode = 0;
 
-    if (!SendHttpRequest(L"POST", L"/api/windows/webdav-credentials", "{}", L"", response, setCookie, statusCode)) {
-        result.errorMessage = L"Verbindung zum Server fehlgeschlagen.";
-        return result;
+    bool reqSuccess = SendHttpRequest(L"POST", L"/api/windows/webdav-credentials", "{}", L"", response, setCookie, statusCode);
+    if (!reqSuccess || statusCode == 404) {
+        // Fallback to /files/api/windows/webdav-credentials if /api/windows returned 404 or failed
+        SendHttpRequest(L"POST", L"/files/api/windows/webdav-credentials", "{}", L"", response, setCookie, statusCode);
     }
 
     if (statusCode == 200 && ExtractJsonBoolField(response, "success", false)) {
@@ -372,6 +373,15 @@ WebDavCredentialsResult AuthManager::FetchWebDavCredentials() {
 
         // Save WebDAV credentials in Vault
         CredentialVault::SaveCredentials(CredentialVault::TARGET_WEBDAV_PASS, result.username, result.password);
+        return result;
+    }
+
+    // Fallback: check stored credentials in Windows Credential Vault
+    std::wstring cachedUser, cachedPass;
+    if (CredentialVault::LoadCredentials(CredentialVault::TARGET_WEBDAV_PASS, cachedUser, cachedPass) && !cachedUser.empty() && !cachedPass.empty()) {
+        result.success = true;
+        result.username = cachedUser;
+        result.password = cachedPass;
         return result;
     }
 

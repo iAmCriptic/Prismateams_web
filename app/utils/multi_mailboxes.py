@@ -127,7 +127,11 @@ def _setting_int(key: str, default: int) -> int:
 
 
 def is_email_multi_enabled() -> bool:
-    return _setting_bool('email_multi_enabled', False)
+    from app.utils.module_visibility_settings import (
+        is_global_private_enabled,
+        is_global_team_enabled,
+    )
+    return bool(is_global_private_enabled() or is_global_team_enabled())
 
 
 def get_max_private_mailboxes() -> int:
@@ -384,23 +388,27 @@ def get_mailbox_for_user(user, mailbox_id: Optional[int], permission: str = 'rea
 
 
 def get_main_smtp_config() -> dict:
+    from app.utils.main_mail_config import get_main_mail_config
+    cfg = get_main_mail_config()
     return {
-        'server': current_app.config.get('MAIL_SERVER'),
-        'port': int(current_app.config.get('MAIL_PORT', 587) or 587),
-        'use_tls': current_app.config.get('MAIL_USE_TLS', True),
-        'use_ssl': current_app.config.get('MAIL_USE_SSL', False),
-        'user': current_app.config.get('MAIL_USERNAME'),
-        'password': current_app.config.get('MAIL_PASSWORD'),
-        'sender': current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME'),
+        'server': cfg.get('smtp_server') or None,
+        'port': int(cfg.get('smtp_port') or 587),
+        'use_tls': bool(cfg.get('smtp_use_tls', True)),
+        'use_ssl': bool(cfg.get('smtp_use_ssl', False)),
+        'user': cfg.get('smtp_username') or None,
+        'password': cfg.get('smtp_password') or None,
+        'sender': cfg.get('default_sender') or cfg.get('smtp_username') or None,
     }
 
 
 def get_mailbox_from_address(mailbox: Optional[Mailbox] = None) -> str:
     """Absender-Adresse für „Senden als“ (Hauptpostfach oder Multi-Mailbox)."""
     if mailbox is None:
+        from app.utils.main_mail_config import get_main_mail_config
+        cfg = get_main_mail_config()
         return (
-            current_app.config.get('MAIL_DEFAULT_SENDER')
-            or current_app.config.get('MAIL_USERNAME')
+            cfg.get('default_sender')
+            or cfg.get('smtp_username')
             or ''
         ).strip()
     return (
@@ -424,12 +432,14 @@ def format_send_as_label(mailbox: Optional[Mailbox] = None, fallback: str = '') 
 
 
 def get_main_imap_config() -> dict:
+    from app.utils.main_mail_config import get_main_mail_config
+    cfg = get_main_mail_config()
     return {
-        'server': current_app.config.get('IMAP_SERVER'),
-        'port': int(current_app.config.get('IMAP_PORT', 993) or 993),
-        'use_ssl': current_app.config.get('IMAP_USE_SSL', True),
-        'user': current_app.config.get('MAIL_USERNAME'),
-        'password': current_app.config.get('MAIL_PASSWORD'),
+        'server': cfg.get('imap_server') or None,
+        'port': int(cfg.get('imap_port') or 993),
+        'use_ssl': bool(cfg.get('imap_use_ssl', True)),
+        'user': cfg.get('imap_username') or cfg.get('smtp_username') or None,
+        'password': cfg.get('imap_password') or cfg.get('smtp_password') or None,
     }
 
 

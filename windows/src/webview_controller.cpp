@@ -2,6 +2,7 @@
 #include "settings.h"
 #include "webdav_manager.h"
 #include "auth_manager.h"
+#include "app.h"
 
 #include <shellapi.h>
 #include <sstream>
@@ -322,7 +323,7 @@ void WebViewController::InjectNativeBridgeScript() {
         L"                              '  <span class=\"sp-hub-tile-desc\">WebDAV (P:) verbinden &amp; Explorer</span>' +"
         L"                              '</span>' +"
         L"                              '<i class=\"bi bi-chevron-right sp-hub-tile-arrow\" aria-hidden=\"true\"></i>';"
-        L"        tileDrive.onclick = function(e) { e.preventDefault(); window.prismateamsNative.openSettings(); };"
+        L"        tileDrive.onclick = function(e) { e.preventDefault(); window.prismateamsNative.mountDrive(); };"
         L"        accountGrid.appendChild(tileApp);"
         L"        accountGrid.appendChild(tileDrive);"
         L"      }"
@@ -370,7 +371,7 @@ void WebViewController::HandleWebMessage(const std::wstring& message) {
         if (creds.success) {
             wchar_t assigned = L'P';
             std::wstring err;
-            WebDavManager::Instance().MountDrive(
+            bool ok = WebDavManager::Instance().MountDrive(
                 AuthManager::Instance().GetServerUrl(),
                 creds.username,
                 creds.password,
@@ -378,12 +379,38 @@ void WebViewController::HandleWebMessage(const std::wstring& message) {
                 assigned,
                 err
             );
-            if (WebDavManager::Instance().IsMounted()) {
+            if (ok) {
+                App::Instance().ShowTrayNotification(L"Prismateams", L"Netzlaufwerk " + std::wstring(1, assigned) + L": erfolgreich verbunden.");
                 WebDavManager::Instance().OpenInExplorer();
+            } else {
+                App::Instance().ShowTrayNotification(L"Netzlaufwerk", err.empty() ? L"Verbindung fehlgeschlagen." : err);
+                MessageBoxW(m_hWndParent, err.c_str(), L"Netzlaufwerk-Fehler", MB_ICONERROR | MB_OK);
             }
+        } else {
+            App::Instance().ShowTrayNotification(L"WebDAV-Fehler", creds.errorMessage);
+            MessageBoxW(m_hWndParent, creds.errorMessage.c_str(), L"WebDAV-Zugang", MB_ICONERROR | MB_OK);
         }
     } else if (message.find(L"\"open_explorer\"") != std::string::npos) {
-        WebDavManager::Instance().OpenInExplorer();
+        if (!WebDavManager::Instance().IsMounted()) {
+            auto creds = AuthManager::Instance().FetchWebDavCredentials();
+            if (creds.success) {
+                wchar_t assigned = L'P';
+                std::wstring err;
+                WebDavManager::Instance().MountDrive(
+                    AuthManager::Instance().GetServerUrl(),
+                    creds.username,
+                    creds.password,
+                    SettingsManager::Instance().Get().driveLetter,
+                    assigned,
+                    err
+                );
+            }
+        }
+        if (WebDavManager::Instance().IsMounted()) {
+            WebDavManager::Instance().OpenInExplorer();
+        } else {
+            MessageBoxW(m_hWndParent, L"Netzlaufwerk konnte nicht automatisch eingebunden werden.", L"Prismateams", MB_ICONWARNING | MB_OK);
+        }
     } else if (message.find(L"\"logout\"") != std::string::npos) {
         AuthManager::Instance().Logout();
         WebDavManager::Instance().UnmountCurrentDrive(true);

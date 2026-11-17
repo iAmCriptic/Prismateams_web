@@ -33,6 +33,43 @@
   const collapsedListIds = getCollapsedListIds();
   let currentCardId = null;
   let currentCardDetail = null;
+  const checklistFilterState = new Map();
+
+  function applyCoverAmbientColor(coverEl) {
+    if (!coverEl) return;
+    coverEl.style.backgroundColor = '';
+    const img = coverEl.querySelector('img');
+    if (!img) return;
+    const sample = () => {
+      try {
+        if (!img.naturalWidth || !img.naturalHeight) return;
+        const canvas = document.createElement('canvas');
+        canvas.width = 16;
+        canvas.height = 16;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.drawImage(img, 0, 0, 16, 16);
+        const data = ctx.getImageData(0, 0, 16, 16).data;
+        let r = 0, g = 0, b = 0, count = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          if (data[i + 3] < 32) continue;
+          r += data[i];
+          g += data[i + 1];
+          b += data[i + 2];
+          count += 1;
+        }
+        if (!count) return;
+        coverEl.style.backgroundColor = `rgb(${Math.round(r / count)}, ${Math.round(g / count)}, ${Math.round(b / count)})`;
+      } catch (_) {
+        /* ignore cross-origin or canvas errors */
+      }
+    };
+    if (img.complete && img.naturalWidth > 0) {
+      sample();
+    } else {
+      img.addEventListener('load', sample, { once: true });
+    }
+  }
   let checklistItemDueTarget = null;
   let checklistItemAssigneeTarget = null;
   let commentSystem = null;
@@ -198,6 +235,9 @@
 
   const cardModalEl = document.getElementById('kanbanCardModal');
   if (cardModalEl) {
+    cardModalEl.addEventListener('shown.bs.modal', () => {
+      syncCardDescriptionCollapse();
+    });
     cardModalEl.addEventListener('hide.bs.modal', () => {
       if (cardModalEl.contains(document.activeElement)) {
         try { document.activeElement.blur(); } catch (_) {}
@@ -228,7 +268,7 @@
         }
       }
       if (lastFocusedCardEl) {
-        try { lastFocusedCardEl.focus(); } catch (_) {}
+        try { lastFocusedCardEl.focus({ preventScroll: true }); } catch (_) {}
         lastFocusedCardEl = null;
       }
     });
@@ -750,6 +790,10 @@
             <i class="bi bi-three-dots"></i>
           </button>
           <ul class="dropdown-menu dropdown-menu-end shadow">
+            <li><button type="button" class="dropdown-item" data-list-move-left="${list.id}"><i class="bi bi-arrow-left me-2"></i>${esc(i18n.moveListLeft || 'Nach links verschieben')}</button></li>
+            <li><button type="button" class="dropdown-item" data-list-move-right="${list.id}"><i class="bi bi-arrow-right me-2"></i>${esc(i18n.moveListRight || 'Nach rechts verschieben')}</button></li>
+            <li><button type="button" class="dropdown-item" data-list-default-fields="${list.id}"><i class="bi bi-ui-checks-grid me-2"></i>${esc(i18n.listDefaultFields || 'Standard-Felder')}</button></li>
+            <li><hr class="dropdown-divider"></li>
             <li><button type="button" class="dropdown-item" data-list-rename="${list.id}">${esc(i18n.rename || 'Umbenennen')}</button></li>
             <li><button type="button" class="dropdown-item text-danger" data-list-delete="${list.id}">${esc(i18n.delete || 'Löschen')}</button></li>
           </ul>
@@ -771,7 +815,7 @@
       : '';
     return `<div class="kanban-list-col${isCollapsed ? ' is-collapsed' : ''}" data-list-id="${list.id}">
       <div class="kanban-list-col__head">
-        <span class="kanban-list-col__title text-truncate" data-list-title="${list.id}" title="${esc(list.title)}">${esc(list.title)}</span>
+        <span class="kanban-list-col__title text-truncate${canEdit ? ' is-editable' : ''}" data-list-title="${list.id}" title="${esc(list.title)}">${esc(list.title)}</span>
         <div class="d-flex align-items-center gap-1 flex-shrink-0">
           <span class="kanban-list-col__count">${(list.cards || []).length}</span>
           <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost kanban-list-collapse-btn p-0" data-list-collapse="${list.id}" title="Liste einklappen" aria-label="Liste einklappen">
@@ -834,9 +878,10 @@
           lastBoardSig = boardRenderSignature(board.lists);
         } catch (err) {
           notify(err.message || 'Verschieben fehlgeschlagen');
-          refreshBoard();
+          await refreshBoard();
+        } finally {
+          ignoreSSE = false;
         }
-        ignoreSSE = false;
       },
     };
   }
@@ -852,6 +897,8 @@
     if (!canEdit || !window.Sortable || listsSortable) return;
     listsSortable = Sortable.create(listsEl, {
       animation: 200,
+      direction: 'horizontal',
+      ghostClass: 'opacity-50',
       handle: '.kanban-list-col__head',
       draggable: '.kanban-list-col',
       filter: '.kanban-add-list-wrap',
@@ -865,14 +912,98 @@
           await api(`/kanban/api/boards/${boardId}/lists/reorder`, { method: 'POST', body: { order } });
           board.lists.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
           lastBoardSig = boardRenderSignature(board.lists);
+          syncListMoveButtons();
         } catch (err) {
           notify(err.message || 'Sortieren fehlgeschlagen');
-          refreshBoard();
+          await refreshBoard();
+        } finally {
+          ignoreSSE = false;
         }
-        ignoreSSE = false;
       },
     });
   }
+
+  function syncListMoveButtons() {
+    const cols = Array.from(listsEl.querySelectorAll('.kanban-list-col'));
+    cols.forEach((col, idx) => {
+      const leftBtn = col.querySelector('[data-list-move-left]');
+      const rightBtn = col.querySelector('[data-list-move-right]');
+      if (leftBtn) leftBtn.disabled = idx === 0;
+      if (rightBtn) rightBtn.disabled = idx === cols.length - 1;
+    });
+  }
+
+  async function moveListByOffset(listId, delta) {
+    if (!canEdit || !board.lists || board.lists.length < 2) return;
+    const idx = board.lists.findIndex((l) => l.id === listId);
+    const targetIdx = idx + delta;
+    if (idx < 0 || targetIdx < 0 || targetIdx >= board.lists.length) return;
+    const reordered = board.lists.slice();
+    const [moved] = reordered.splice(idx, 1);
+    reordered.splice(targetIdx, 0, moved);
+    const order = reordered.map((l) => l.id);
+    board.lists = reordered;
+    renderBoard();
+    ignoreSSE = true;
+    try {
+      await api(`/kanban/api/boards/${boardId}/lists/reorder`, { method: 'POST', body: { order } });
+      lastBoardSig = boardRenderSignature(board.lists);
+    } catch (err) {
+      notify(err.message || 'Sortieren fehlgeschlagen');
+      refreshBoard();
+    }
+    ignoreSSE = false;
+  }
+
+  let defaultFieldsTargetListId = null;
+  function openListDefaultFieldsModal(listId) {
+    if (!canEdit) return;
+    const list = findList(listId);
+    if (!list) return;
+    defaultFieldsTargetListId = listId;
+    const titleEl = document.getElementById('kanbanListDefaultFieldsTitle');
+    const bodyEl = document.getElementById('kanbanListDefaultFieldsBody');
+    if (titleEl) titleEl.textContent = `${i18n.listDefaultFields || 'Standard-Felder für neue Karten'} · ${list.title}`;
+    if (bodyEl) {
+      const fields = board.custom_fields || [];
+      const selected = new Set((list.default_custom_field_ids || []).map((x) => Number(x)));
+      if (!fields.length) {
+        bodyEl.innerHTML = `<p class="text-muted small mb-0">${esc(i18n.listDefaultFieldsEmpty || 'Noch keine eigenen Board-Felder definiert.')}</p>`;
+      } else {
+        bodyEl.innerHTML = fields.map((f) => `
+          <label class="form-check d-flex align-items-center gap-2 mb-0">
+            <input type="checkbox" class="form-check-input mt-0" value="${f.id}" ${selected.has(Number(f.id)) ? 'checked' : ''}>
+            <span>${esc(f.label)}</span>
+          </label>`).join('');
+      }
+    }
+    getModal('kanbanListDefaultFieldsModal')?.show();
+  }
+
+  document.getElementById('kanbanListDefaultFieldsSave')?.addEventListener('click', async () => {
+    if (!canEdit || !defaultFieldsTargetListId) return;
+    const bodyEl = document.getElementById('kanbanListDefaultFieldsBody');
+    const saveBtn = document.getElementById('kanbanListDefaultFieldsSave');
+    const fieldIds = bodyEl
+      ? Array.from(bodyEl.querySelectorAll('input[type="checkbox"]:checked')).map((cb) => Number(cb.value))
+      : [];
+    if (saveBtn) saveBtn.disabled = true;
+    try {
+      const r = await api(`/kanban/api/lists/${defaultFieldsTargetListId}`, {
+        method: 'PATCH',
+        body: { default_custom_field_ids: fieldIds },
+      });
+      if (r.list) {
+        const list = findList(defaultFieldsTargetListId);
+        if (list) list.default_custom_field_ids = r.list.default_custom_field_ids || [];
+      }
+      getModal('kanbanListDefaultFieldsModal')?.hide();
+    } catch (err) {
+      notify(err.message || 'Fehler');
+    } finally {
+      if (saveBtn) saveBtn.disabled = false;
+    }
+  });
 
   function pruneCardSortables() {
     cardSortables.forEach((inst, listId) => {
@@ -886,6 +1017,7 @@
     listsEl.querySelectorAll('[data-list-cards]').forEach((container) => ensureCardSortable(container));
     pruneCardSortables();
     ensureListsSortable();
+    syncListMoveButtons();
   }
 
   function patchCardNode(el, card) {
@@ -993,10 +1125,20 @@
   }
 
   function renderBoardFull() {
+    const scrollLeft = listsEl.scrollLeft;
+    const listScrolls = {};
+    listsEl.querySelectorAll('[data-list-cards]').forEach((el) => {
+      listScrolls[el.dataset.listCards] = el.scrollTop;
+    });
     destroySortables();
     listsEl.innerHTML = (board.lists || []).map(listHtml).join('') + addListColumnHtml();
     lastBoardSig = boardRenderSignature(board.lists);
     bindListInteractions();
+    listsEl.scrollLeft = scrollLeft;
+    Object.keys(listScrolls).forEach((id) => {
+      const el = listsEl.querySelector(`[data-list-cards="${id}"]`);
+      if (el) el.scrollTop = listScrolls[id];
+    });
   }
 
   function renderBoard() {
@@ -1014,7 +1156,14 @@
   }
 
   function upsertCardLocal(card) {
+    let oldListId = null;
+    let oldIndex = -1;
     for (const l of board.lists) {
+      const idx = (l.cards || []).findIndex((c) => c.id === card.id);
+      if (idx !== -1) {
+        oldListId = l.id;
+        oldIndex = idx;
+      }
       l.cards = (l.cards || []).filter((c) => c.id !== card.id);
     }
     const list = findList(card.list_id);
@@ -1039,7 +1188,12 @@
         vote_count: card.vote_count || 0,
         voted_by_me: !!card.voted_by_me,
       };
-      list.cards.splice(Math.min(card.position || 0, list.cards.length), 0, summary);
+      if (oldListId === card.list_id && oldIndex !== -1) {
+        list.cards.splice(Math.min(oldIndex, list.cards.length), 0, summary);
+      } else {
+        list.cards.push(summary);
+        list.cards.sort((a, b) => ((a.position ?? 0) - (b.position ?? 0)) || (a.id - b.id));
+      }
     }
     if (currentCardId === card.id) currentCardDetail = Object.assign({}, currentCardDetail || {}, card);
   }
@@ -1085,22 +1239,51 @@
     ignoreSSE = false;
   }
 
-  async function submitAddCard(listId, title) {
+  async function submitAddCard(listId, title, formEl) {
     ignoreSSE = true;
+    let newCardId = null;
     try {
       const data = await api(`/kanban/api/lists/${listId}/cards`, {
         method: 'POST',
         body: { title },
       });
       if (data.card) {
+        newCardId = data.card.id;
         const list = findList(listId);
         if (list) {
           list.cards = list.cards || [];
           list.cards.push(data.card);
         }
+
+        const col = listsEl.querySelector(`.kanban-list-col[data-list-id="${listId}"]`);
+        const form = formEl || (col && col.querySelector('.kanban-add-card-form')) || listsEl.querySelector(`.kanban-add-card-form[data-list-id="${listId}"]`);
+        const btn = (col && col.querySelector('.kanban-add-card-btn')) || listsEl.querySelector(`.kanban-add-card-btn[data-list-id="${listId}"]`);
+        if (form) {
+          if (document.activeElement && form.contains(document.activeElement)) {
+            try { document.activeElement.blur(); } catch (_) {}
+          }
+          form.reset();
+          const titleInput = form.querySelector('input[name="title"]');
+          if (titleInput) titleInput.value = '';
+          form.hidden = true;
+        }
+        if (btn) btn.hidden = false;
+
         renderBoard();
         const cardEl = listsEl.querySelector(`.kanban-card[data-card-id="${data.card.id}"]`);
         markAppear(cardEl);
+        lastFocusedCardEl = cardEl || null;
+
+        const postCol = listsEl.querySelector(`.kanban-list-col[data-list-id="${listId}"]`);
+        const postForm = (postCol && postCol.querySelector('.kanban-add-card-form')) || listsEl.querySelector(`.kanban-add-card-form[data-list-id="${listId}"]`);
+        const postBtn = (postCol && postCol.querySelector('.kanban-add-card-btn')) || listsEl.querySelector(`.kanban-add-card-btn[data-list-id="${listId}"]`);
+        if (postForm) {
+          postForm.reset();
+          const postInput = postForm.querySelector('input[name="title"]');
+          if (postInput) postInput.value = '';
+          postForm.hidden = true;
+        }
+        if (postBtn) postBtn.hidden = false;
       } else {
         notify('Karte konnte nicht erstellt werden');
       }
@@ -1108,6 +1291,9 @@
       notify(err.message || 'Karte konnte nicht erstellt werden');
     }
     ignoreSSE = false;
+    if (newCardId) {
+      await openCard(newCardId);
+    }
   }
 
   // Delegated error handling for failed cover images (hides empty cover)
@@ -1120,6 +1306,92 @@
 
   // Delegated clicks / submits on the board
   app.addEventListener('click', async (e) => {
+    const titleClickTarget = e.target.closest('[data-list-title]');
+    if (titleClickTarget && canEdit && listsEl.contains(titleClickTarget)) {
+      e.preventDefault();
+      e.stopPropagation();
+      const listId = Number(titleClickTarget.getAttribute('data-list-title'));
+      const list = findList(listId);
+      if (!list) return;
+
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.className = 'form-control form-control-sm kanban-list-title-input';
+      input.value = list.title || '';
+      input.maxLength = 200;
+      input.setAttribute('aria-label', i18n.listName || 'Listenname');
+
+      let finished = false;
+      const restoreSpan = (newTitle) => {
+        const span = document.createElement('span');
+        span.className = 'kanban-list-col__title text-truncate is-editable';
+        span.setAttribute('data-list-title', String(listId));
+        span.setAttribute('title', newTitle);
+        span.textContent = newTitle;
+        input.replaceWith(span);
+      };
+
+      const commit = async () => {
+        if (finished) return;
+        finished = true;
+        const nextTitle = (input.value || '').trim();
+        if (!nextTitle || nextTitle === (list.title || '')) {
+          restoreSpan(list.title || '');
+          return;
+        }
+        restoreSpan(nextTitle);
+        try {
+          const data = await api(`/kanban/api/lists/${listId}`, { method: 'PATCH', body: { title: nextTitle } });
+          if (data.list) {
+            list.title = data.list.title;
+            renderBoard();
+          }
+        } catch (err) {
+          notify(err.message || 'Fehler');
+          renderBoard();
+        }
+      };
+
+      input.addEventListener('keydown', (ke) => {
+        if (ke.key === 'Enter') {
+          ke.preventDefault();
+          input.blur();
+        } else if (ke.key === 'Escape') {
+          ke.preventDefault();
+          finished = true;
+          restoreSpan(list.title || '');
+        }
+      });
+      input.addEventListener('blur', commit);
+      input.addEventListener('click', (ce) => ce.stopPropagation());
+
+      titleClickTarget.replaceWith(input);
+      input.focus();
+      input.select();
+      return;
+    }
+
+    const defaultFieldsBtn = e.target.closest('[data-list-default-fields]');
+    if (defaultFieldsBtn) {
+      e.preventDefault();
+      openListDefaultFieldsModal(Number(defaultFieldsBtn.getAttribute('data-list-default-fields')));
+      return;
+    }
+
+    const moveLeftBtn = e.target.closest('[data-list-move-left]');
+    if (moveLeftBtn) {
+      e.preventDefault();
+      moveListByOffset(Number(moveLeftBtn.getAttribute('data-list-move-left')), -1);
+      return;
+    }
+
+    const moveRightBtn = e.target.closest('[data-list-move-right]');
+    if (moveRightBtn) {
+      e.preventDefault();
+      moveListByOffset(Number(moveRightBtn.getAttribute('data-list-move-right')), 1);
+      return;
+    }
+
     const collapseBtn = e.target.closest('[data-list-collapse]');
     if (collapseBtn) {
       e.preventDefault();
@@ -1189,7 +1461,12 @@
       const form = e.target.closest('.kanban-add-card-form');
       const footer = form && form.closest('.kanban-list-col__footer');
       const btn = footer && footer.querySelector('.kanban-add-card-btn');
-      if (form) form.hidden = true;
+      if (form) {
+        form.reset();
+        const input = form.querySelector('input[name="title"]');
+        if (input) input.value = '';
+        form.hidden = true;
+      }
       if (btn) btn.hidden = false;
       return;
     }
@@ -1222,7 +1499,7 @@
     if (deleteListBtn) {
       e.preventDefault();
       const listId = Number(deleteListBtn.getAttribute('data-list-delete'));
-      if (!(await askConfirm('Liste und alle Karten löschen?'))) return;
+      if (!(await askConfirm(i18n.deleteListConfirm || 'Liste und alle Karten löschen?'))) return;
       try {
         await api(`/kanban/api/lists/${listId}`, { method: 'DELETE' });
         board.lists = board.lists.filter((l) => l.id !== listId);
@@ -1234,6 +1511,23 @@
   });
 
   app.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      const cardForm = e.target.closest('.kanban-add-card-form');
+      if (cardForm) {
+        e.preventDefault();
+        const footer = cardForm.closest('.kanban-list-col__footer');
+        const btn = footer && footer.querySelector('.kanban-add-card-btn');
+        cardForm.reset();
+        const input = cardForm.querySelector('input[name="title"]');
+        if (input) input.value = '';
+        cardForm.hidden = true;
+        if (btn) {
+          btn.hidden = false;
+          btn.focus();
+        }
+        return;
+      }
+    }
     if (e.key === 'Enter' || e.key === ' ') {
       const expandTarget = e.target.closest('[data-list-expand]');
       if (expandTarget) {
@@ -1274,7 +1568,7 @@
       const title = (cardForm.querySelector('input[name="title"]') || {}).value;
       const name = (title || '').trim();
       if (!name) return;
-      await submitAddCard(Number(cardForm.dataset.listId), name);
+      await submitAddCard(Number(cardForm.dataset.listId), name, cardForm);
     }
   });
 
@@ -1295,7 +1589,9 @@
     const listMenu = document.getElementById('cardModalListMenu');
     const coverEl = document.getElementById('cardModalCover');
     titleEl.value = card.title || '';
-    descEl.value = card.description || '';
+    if (descEl) descEl.value = card.description || '';
+    renderCardDescriptionView(card);
+    exitDescriptionEdit();
     const currentList = findList(card.list_id);
     if (listHidden) listHidden.value = String(card.list_id || '');
     if (listBtn) listBtn.textContent = (currentList && currentList.title) || '—';
@@ -1327,6 +1623,7 @@
     coverEl.innerHTML = card.cover && card.cover.is_image
       ? `<img src="${esc(card.cover.preview_url || card.cover.url)}" alt="" loading="lazy" decoding="async">`
       : '';
+    applyCoverAmbientColor(coverEl);
     updateCompleteBtn(!!card.completed);
     renderPollSection(card);
     document.getElementById('cardClearCoverBtn')?.toggleAttribute('disabled', !card.cover);
@@ -1350,17 +1647,44 @@
       const done = (cl.items || []).filter((it) => it.done).length;
       const total = (cl.items || []).length;
       const pct = total ? Math.round((done / total) * 100) : 0;
+      const fState = checklistFilterState.get(cl.id) || { hideDone: false, hidePending: false };
       return `
       <div class="kanban-checklist" data-checklist-id="${cl.id}">
         <div class="kanban-checklist-head">
-          <input class="form-control form-control-sm kanban-pill-input kanban-checklist-title" data-checklist-id="${cl.id}" value="${esc(cl.title)}" maxlength="200" ${canEdit ? '' : 'readonly'}>
-          ${canEdit ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-del-checklist="${cl.id}">${esc(i18n.delete || 'Löschen')}</button>` : ''}
+          <input class="form-control form-control-sm kanban-checklist-title" data-checklist-id="${cl.id}" value="${esc(cl.title)}" data-orig-title="${esc(cl.title)}" maxlength="200" ${canEdit ? '' : 'readonly'}>
+          <div class="dropdown">
+            <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="${esc(i18n.more || 'Optionen')}">
+              <i class="bi bi-three-dots"></i>
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+              <li>
+                <button type="button" class="dropdown-item d-flex align-items-center justify-content-between gap-2" data-cl-toggle-done="${cl.id}">
+                  <span><i class="bi bi-check2-square me-2"></i>${esc(i18n.hideDoneItems || 'Erledigte Elemente ausblenden')}</span>
+                  <i class="bi bi-check2${fState.hideDone ? '' : ' invisible'}" data-cl-check-done="${cl.id}"></i>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="dropdown-item d-flex align-items-center justify-content-between gap-2" data-cl-toggle-pending="${cl.id}">
+                  <span><i class="bi bi-square me-2"></i>${esc(i18n.hidePendingItems || 'Unerledigte Elemente ausblenden')}</span>
+                  <i class="bi bi-check2${fState.hidePending ? '' : ' invisible'}" data-cl-check-pending="${cl.id}"></i>
+                </button>
+              </li>
+              ${canEdit ? `
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <button type="button" class="dropdown-item text-danger" data-del-checklist="${cl.id}">
+                  <i class="bi bi-trash me-2"></i>${esc(i18n.delete || 'Löschen')}
+                </button>
+              </li>` : ''}
+            </ul>
+          </div>
         </div>
         <div class="kanban-checklist-progress">
           <span>${pct}%</span>
           <div class="kanban-checklist-progress__bar${pct === 100 ? ' is-complete' : ''}"><div style="width:${pct}%"></div></div>
         </div>
         ${(cl.items || []).map((it) => {
+          const isHiddenByFilter = (it.done && fState.hideDone) || (!it.done && fState.hidePending);
           const dueState = getChecklistDueState(it.due_date, it.done);
           const dueText = it.due_date ? formatChecklistDue(it.due_date) : '';
           const dueTitle = it.due_date ? formatDueDisplay(it.due_date) : (i18n.addDue || 'Fälligkeitsdatum hinzufügen');
@@ -1402,10 +1726,10 @@
           }
 
           return `
-          <div class="kanban-checklist-item${it.done ? ' is-done' : ''}" data-item-id="${it.id}">
+          <div class="kanban-checklist-item${it.done ? ' is-done' : ''}${isHiddenByFilter ? ' is-filtered-hidden' : ''}" data-item-id="${it.id}" data-item-done="${it.done ? '1' : '0'}">
             <input type="checkbox" class="form-check-input kanban-checklist-item__check" data-item-id="${it.id}" ${it.done ? 'checked' : ''} ${canEdit ? '' : 'disabled'}>
             <div class="kanban-checklist-item__body">
-              <span class="kanban-checklist-item__text">${esc(it.text)}</span>
+              <span class="kanban-checklist-item__text${canEdit ? ' is-editable' : ''}" data-item-text="${it.id}">${esc(it.text)}</span>
             </div>
             <div class="kanban-checklist-item__meta">
               ${dueHtml}
@@ -1557,19 +1881,140 @@
       });
     });
     clRoot.querySelectorAll('.kanban-checklist-title').forEach((inp) => {
+      inp.addEventListener('keydown', (ke) => {
+        if (ke.key === 'Enter') {
+          ke.preventDefault();
+          inp.blur();
+        } else if (ke.key === 'Escape') {
+          ke.preventDefault();
+          inp.value = inp.dataset.origTitle || '';
+          inp.blur();
+        }
+      });
       inp.addEventListener('change', async () => {
         const title = inp.value.trim();
-        if (!title) return;
+        if (!title) {
+          inp.value = inp.dataset.origTitle || '';
+          return;
+        }
         try {
           const r = await api(`/kanban/api/checklists/${inp.dataset.checklistId}`, {
             method: 'PATCH', body: { title },
           });
+          inp.dataset.origTitle = title;
           if (r.card) upsertCardLocal(r.card);
         } catch (err) {
           notify(err.message || 'Fehler');
         }
       });
     });
+
+    function applyChecklistFilter(clId) {
+      const clEl = clRoot.querySelector(`.kanban-checklist[data-checklist-id="${clId}"]`);
+      if (!clEl) return;
+      const fState = checklistFilterState.get(clId) || { hideDone: false, hidePending: false };
+      clEl.querySelectorAll('.kanban-checklist-item').forEach((row) => {
+        const isDone = row.getAttribute('data-item-done') === '1';
+        const hidden = (isDone && fState.hideDone) || (!isDone && fState.hidePending);
+        row.classList.toggle('is-filtered-hidden', hidden);
+      });
+      const doneCheck = clEl.querySelector(`[data-cl-check-done="${clId}"]`);
+      if (doneCheck) doneCheck.classList.toggle('invisible', !fState.hideDone);
+      const pendingCheck = clEl.querySelector(`[data-cl-check-pending="${clId}"]`);
+      if (pendingCheck) pendingCheck.classList.toggle('invisible', !fState.hidePending);
+    }
+
+    clRoot.querySelectorAll('[data-cl-toggle-done]').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        const clId = Number(btn.getAttribute('data-cl-toggle-done'));
+        const fState = checklistFilterState.get(clId) || { hideDone: false, hidePending: false };
+        fState.hideDone = !fState.hideDone;
+        checklistFilterState.set(clId, fState);
+        applyChecklistFilter(clId);
+      });
+    });
+
+    clRoot.querySelectorAll('[data-cl-toggle-pending]').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        const clId = Number(btn.getAttribute('data-cl-toggle-pending'));
+        const fState = checklistFilterState.get(clId) || { hideDone: false, hidePending: false };
+        fState.hidePending = !fState.hidePending;
+        checklistFilterState.set(clId, fState);
+        applyChecklistFilter(clId);
+      });
+    });
+
+    if (canEdit) {
+      function attachChecklistItemEdit(span) {
+        span.addEventListener('click', () => {
+          const row = span.closest('.kanban-checklist-item');
+          const itemId = Number(span.getAttribute('data-item-text'));
+          if (!row || !itemId || row.classList.contains('is-editing')) return;
+          const origText = span.textContent || '';
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.className = 'kanban-checklist-item__input';
+          input.value = origText;
+          input.maxLength = 500;
+          row.classList.add('is-editing');
+          span.replaceWith(input);
+          input.focus();
+          input.select();
+
+          let doneEdit = false;
+          const restore = (txt) => {
+            row.classList.remove('is-editing');
+            const nextSpan = document.createElement('span');
+            nextSpan.className = 'kanban-checklist-item__text is-editable';
+            nextSpan.setAttribute('data-item-text', String(itemId));
+            nextSpan.textContent = txt;
+            input.replaceWith(nextSpan);
+            attachChecklistItemEdit(nextSpan);
+          };
+
+          const commitItem = async () => {
+            if (doneEdit) return;
+            doneEdit = true;
+            const nextText = (input.value || '').trim();
+            if (!nextText || nextText === origText) {
+              restore(origText);
+              return;
+            }
+            try {
+              const r = await api(`/kanban/api/checklist-items/${itemId}`, {
+                method: 'PATCH',
+                body: { text: nextText },
+              });
+              if (r.card) {
+                upsertCardLocal(r.card);
+                renderBoard();
+                openCard(cardId);
+              } else {
+                restore(nextText);
+              }
+            } catch (err) {
+              notify(err.message || 'Fehler');
+              restore(origText);
+            }
+          };
+
+          input.addEventListener('keydown', (ke) => {
+            if (ke.key === 'Enter') {
+              ke.preventDefault();
+              input.blur();
+            } else if (ke.key === 'Escape') {
+              ke.preventDefault();
+              doneEdit = true;
+              restore(origText);
+            }
+          });
+          input.addEventListener('blur', commitItem);
+        });
+      }
+      clRoot.querySelectorAll('.kanban-checklist-item__text.is-editable').forEach(attachChecklistItemEdit);
+    }
     clRoot.querySelectorAll('[data-del-checklist]').forEach((btn) => {
       btn.addEventListener('click', async () => {
         if (!(await askConfirm(i18n.delete || 'Löschen?'))) return;
@@ -1607,6 +2052,9 @@
     }
 
     function attachThumb(a) {
+      if (a.is_portal_file) {
+        return `<div class="kanban-attach-thumb kanban-attach-thumb--icon"><i class="bi bi-file-earmark-text"></i></div>`;
+      }
       if (a.is_link) {
         const fav = a.favicon_url || getFaviconUrl(a.external_url || a.url);
         if (fav) {
@@ -1626,11 +2074,15 @@
       const viewUrl = a.is_link ? a.url : (a.preview_url || a.url);
       const isCover = coverId && Number(coverId) === Number(a.id);
       const rawUrl = a.external_url || (a.is_link ? a.url : null);
-      const showSubUrl = a.is_link && rawUrl && rawUrl !== a.filename;
+      const showSubUrl = a.is_link && !a.is_portal_file && rawUrl && rawUrl !== a.filename;
+      const accessBlocked = a.google_access === false || a.portal_file_access === false;
+      const openDisabled = a.portal_file_access === false;
       return `<div class="kanban-attach-row${isCover ? ' is-cover' : ''}" data-att-id="${a.id}">
         ${attachThumb(a)}
         <div class="kanban-attach-row__info">
-          <a class="kanban-attach-row__name" href="${esc(viewUrl)}" target="_blank" rel="noopener">${esc(a.filename)}</a>
+          ${openDisabled
+            ? `<span class="kanban-attach-row__name text-warning"><i class="bi bi-lock-fill me-1"></i>${esc(a.filename)}</span>`
+            : `<a class="kanban-attach-row__name${accessBlocked ? ' text-warning' : ''}" href="${esc(viewUrl)}" target="_blank" rel="noopener">${accessBlocked ? '<i class="bi bi-lock-fill me-1"></i>' : ''}${esc(a.filename)}</a>`}
           ${showSubUrl ? `<div class="kanban-attach-row__url" title="${esc(rawUrl)}">${esc(rawUrl)}</div>` : ''}
           <div class="kanban-attach-row__meta">
             ${a.created_at ? `<span>${formatAddedAt(a.created_at)}</span>` : ''}
@@ -1638,7 +2090,7 @@
           </div>
         </div>
         <div class="kanban-attach-row__actions">
-          <a class="btn btn-sm mod-pill-btn mod-pill-btn--icon" href="${esc(viewUrl)}" target="_blank" rel="noopener" title="${esc(i18n.view || 'Ansehen')}"><i class="bi bi-box-arrow-up-right"></i></a>
+          ${openDisabled ? '' : `<a class="btn btn-sm mod-pill-btn mod-pill-btn--icon" href="${esc(viewUrl)}" target="_blank" rel="noopener" title="${esc(i18n.view || 'Ansehen')}"><i class="bi bi-box-arrow-up-right"></i></a>`}
           ${canEdit && a.is_image && !isCover ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-set-cover="${a.id}" title="${esc(i18n.setCover || 'Titelbild')}"><i class="bi bi-image"></i></button>` : ''}
           ${canEdit && isCover ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-clear-cover="1" title="${esc(i18n.removeCover || 'Titelbild entfernen')}"><i class="bi bi-image-fill text-warning"></i></button>` : ''}
           ${canEdit ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon mod-pill-btn--ghost" data-del-att="${a.id}" title="${esc(i18n.delete || 'Löschen')}"><i class="bi bi-trash"></i></button>` : ''}
@@ -1693,7 +2145,7 @@
     });
     attRoot.querySelectorAll('[data-del-att]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (!(await askConfirm('Anhang löschen?'))) return;
+        if (!(await askConfirm(i18n.deleteAttachmentConfirm || 'Anhang löschen?'))) return;
         try {
           await api(`/kanban/api/attachments/${btn.getAttribute('data-del-att')}`, { method: 'DELETE' });
           openCard(cardId);
@@ -1764,7 +2216,7 @@
     const votes = card.vote_count || 0;
     if (countEl) countEl.textContent = votes;
     if (pollCount) pollCount.textContent = votes;
-    if (pollVoteLabel) pollVoteLabel.textContent = card.voted_by_me ? 'Zurücknehmen' : 'Zustimmen';
+    if (pollVoteLabel) pollVoteLabel.textContent = card.voted_by_me ? (i18n.voteWithdraw || 'Zurücknehmen') : (i18n.voteAgree || 'Zustimmen');
     if (topVoteBtn) {
       topVoteBtn.classList.toggle('is-active', !!card.voted_by_me);
       topVoteBtn.title = card.poll_text
@@ -1796,6 +2248,8 @@
 
   async function toggleVote() {
     if (!currentCardId) return;
+    const currentUid = document.getElementById('current-user-id')?.dataset.userId;
+    if (!currentUid) return;
     const r = await api(`/kanban/api/cards/${currentCardId}/vote`, { method: 'POST', body: {} });
     if (r.card) {
       upsertCardLocal(r.card);
@@ -1838,7 +2292,7 @@
   });
 
   document.getElementById('cardPollClearBtn')?.addEventListener('click', async () => {
-    if (!(await askConfirm('Abstimmung entfernen?'))) return;
+    if (!(await askConfirm(i18n.deletePollConfirm || 'Abstimmung entfernen?'))) return;
     try {
       await savePollText('');
       getModal('kanbanPollModal')?.hide();
@@ -2010,7 +2464,7 @@
   });
 
   document.getElementById('cardDeleteBtn')?.addEventListener('click', async () => {
-    if (!currentCardId || !(await askConfirm('Karte löschen?'))) return;
+    if (!currentCardId || !(await askConfirm(i18n.deleteCardConfirm || 'Karte löschen?'))) return;
     try {
       await api(`/kanban/api/cards/${currentCardId}`, { method: 'DELETE' });
       ensureCardModal()?.hide();
@@ -2024,22 +2478,193 @@
     }
   });
 
+  document.getElementById('cardModalTitle')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      e.target.blur();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.target.value = (currentCardDetail && currentCardDetail.title) || '';
+      e.target.blur();
+    }
+  });
   document.getElementById('cardModalTitle')?.addEventListener('change', async (e) => {
     if (!canEdit || !currentCardId) return;
     try {
       const r = await api(`/kanban/api/cards/${currentCardId}`, { method: 'PATCH', body: { title: e.target.value } });
-      if (r.card) { upsertCardLocal(r.card); renderBoard(); }
+      if (r.card) {
+        if (currentCardDetail) currentCardDetail.title = r.card.title;
+        upsertCardLocal(r.card);
+        renderBoard();
+      }
     } catch (err) {
       notify(err.message || 'Fehler');
     }
   });
-  document.getElementById('cardModalDescription')?.addEventListener('change', async (e) => {
+  function syncCardDescriptionCollapse() {
+    const viewEl = document.getElementById('cardModalDescriptionView');
+    const toggleBtn = document.getElementById('cardDescToggleMore');
+    const toggleLabel = document.getElementById('cardDescToggleMoreLabel');
+    if (!viewEl || !toggleBtn || viewEl.hidden) return;
+    if (viewEl.classList.contains('is-expanded')) {
+      toggleBtn.hidden = false;
+      return;
+    }
+    if (viewEl.offsetParent === null && viewEl.clientHeight === 0 && viewEl.scrollHeight === 0) return;
+    if (viewEl.scrollHeight > 270) {
+      viewEl.classList.add('is-collapsed');
+      toggleBtn.hidden = false;
+      if (toggleLabel) toggleLabel.textContent = toggleBtn.dataset.showMore || 'Mehr anzeigen';
+      const icon = toggleBtn.querySelector('i');
+      if (icon) icon.className = 'bi bi-chevron-down me-1';
+    } else {
+      viewEl.classList.remove('is-collapsed');
+      toggleBtn.hidden = true;
+    }
+  }
+  const descViewElForObserver = document.getElementById('cardModalDescriptionView');
+  if (descViewElForObserver && typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(() => {
+      syncCardDescriptionCollapse();
+    }).observe(descViewElForObserver);
+  }
+  function renderCardDescriptionView(card) {
+    const viewEl = document.getElementById('cardModalDescriptionView');
+    const placeholderEl = document.getElementById('cardDescPlaceholder');
+    const editBtn = document.getElementById('cardDescEditBtn');
+    const toggleBtn = document.getElementById('cardDescToggleMore');
+    if (!viewEl) return;
+
+    const raw = (card && card.description) || '';
+    const html = (card && card.description_html) || '';
+    const hasContent = raw.trim().length > 0;
+
+    if (editBtn) editBtn.hidden = !canEdit || !hasContent;
+
+    if (!hasContent) {
+      viewEl.innerHTML = '';
+      viewEl.hidden = true;
+      viewEl.classList.remove('is-collapsed', 'is-expanded', 'is-editable');
+      if (toggleBtn) toggleBtn.hidden = true;
+      if (placeholderEl) placeholderEl.hidden = !canEdit;
+      return;
+    }
+
+    if (placeholderEl) placeholderEl.hidden = true;
+    viewEl.hidden = false;
+    viewEl.classList.remove('is-collapsed', 'is-expanded');
+    viewEl.classList.toggle('is-editable', !!canEdit);
+    if (html) {
+      viewEl.innerHTML = html;
+    } else {
+      viewEl.textContent = raw;
+    }
+    viewEl.querySelectorAll('a[href]').forEach((a) => {
+      a.setAttribute('target', '_blank');
+      a.setAttribute('rel', 'noopener noreferrer');
+    });
+
+    if (toggleBtn) {
+      toggleBtn.hidden = true;
+      requestAnimationFrame(syncCardDescriptionCollapse);
+    }
+  }
+
+  function enterDescriptionEdit() {
+    if (!canEdit) return;
+    const viewWrap = document.getElementById('cardDescViewWrap');
+    const editorWrap = document.getElementById('cardDescEditor');
+    const editBtn = document.getElementById('cardDescEditBtn');
+    const descEl = document.getElementById('cardModalDescription');
+    if (!editorWrap || !descEl) return;
+
+    descEl.value = (currentCardDetail && currentCardDetail.description) || '';
+    if (viewWrap) viewWrap.hidden = true;
+    if (editBtn) editBtn.hidden = true;
+    editorWrap.hidden = false;
+    if (window.MarkdownToolbar) {
+      window.MarkdownToolbar.init({
+        editorId: 'cardModalDescription',
+        i18n: window.MARKDOWN_EDITOR_I18N || {},
+      });
+    }
+    descEl.focus();
+  }
+
+  function exitDescriptionEdit() {
+    const viewWrap = document.getElementById('cardDescViewWrap');
+    const editorWrap = document.getElementById('cardDescEditor');
+    const editBtn = document.getElementById('cardDescEditBtn');
+    if (editorWrap) editorWrap.hidden = true;
+    if (viewWrap) viewWrap.hidden = false;
+    const hasContent = !!((currentCardDetail && currentCardDetail.description) || '').trim();
+    if (editBtn) editBtn.hidden = !canEdit || !hasContent;
+  }
+
+  async function saveDescription() {
     if (!canEdit || !currentCardId) return;
+    const descEl = document.getElementById('cardModalDescription');
+    const saveBtn = document.getElementById('cardDescSaveBtn');
+    if (!descEl) return;
+    const val = descEl.value;
+    if (saveBtn) saveBtn.disabled = true;
     try {
-      await api(`/kanban/api/cards/${currentCardId}`, { method: 'PATCH', body: { description: e.target.value } });
+      const r = await api(`/kanban/api/cards/${currentCardId}`, {
+        method: 'PATCH',
+        body: { description: val },
+      });
+      if (r.card) {
+        currentCardDetail = r.card;
+        upsertCardLocal(r.card);
+        renderCardDescriptionView(r.card);
+      }
+      exitDescriptionEdit();
     } catch (err) {
       notify(err.message || 'Fehler');
+    } finally {
+      if (saveBtn) saveBtn.disabled = false;
     }
+  }
+
+  document.getElementById('cardDescEditBtn')?.addEventListener('click', enterDescriptionEdit);
+  document.getElementById('cardDescPlaceholder')?.addEventListener('click', enterDescriptionEdit);
+  document.getElementById('cardModalDescriptionView')?.addEventListener('click', (e) => {
+    if (!canEdit) return;
+    if (e.target.closest('a[href]')) return;
+    const sel = window.getSelection();
+    if (sel && sel.toString().length > 0) return;
+    enterDescriptionEdit();
+  });
+  document.getElementById('cardDescCancelBtn')?.addEventListener('click', exitDescriptionEdit);
+  document.getElementById('cardDescSaveBtn')?.addEventListener('click', saveDescription);
+  document.getElementById('cardDescToggleMore')?.addEventListener('click', () => {
+    const viewEl = document.getElementById('cardModalDescriptionView');
+    const toggleBtn = document.getElementById('cardDescToggleMore');
+    const toggleLabel = document.getElementById('cardDescToggleMoreLabel');
+    if (!viewEl || !toggleBtn) return;
+    const collapsed = viewEl.classList.contains('is-collapsed');
+    viewEl.classList.toggle('is-collapsed', !collapsed);
+    viewEl.classList.toggle('is-expanded', collapsed);
+    if (toggleLabel) {
+      toggleLabel.textContent = collapsed
+        ? (toggleBtn.dataset.showLess || 'Weniger anzeigen')
+        : (toggleBtn.dataset.showMore || 'Mehr anzeigen');
+    }
+    const icon = toggleBtn.querySelector('i');
+    if (icon) icon.className = collapsed ? 'bi bi-chevron-up me-1' : 'bi bi-chevron-down me-1';
+  });
+  document.getElementById('cardModalDescription')?.addEventListener('keydown', (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      saveDescription();
+    }
+  });
+  document.querySelectorAll('#cardDescEditor .kanban-md-btn[data-md-action]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (window.MarkdownToolbar) {
+        window.MarkdownToolbar.formatText(btn.dataset.mdAction);
+      }
+    });
   });
 
   document.getElementById('cardAddChecklist')?.addEventListener('click', () => {
@@ -2079,6 +2704,68 @@
       notify(err.message || 'Fehler');
     }
   });
+
+  (function initPortalFileAttachPicker() {
+    const toggleBtn = document.getElementById('cardAttachPortalFileBtn');
+    const searchInput = document.getElementById('cardPortalFileSearch');
+    const listEl = document.getElementById('cardPortalFileList');
+    if (!toggleBtn || !listEl) return;
+
+    let searchTimer = null;
+
+    async function loadPortalFiles(q) {
+      try {
+        const res = await api(`/kanban/api/portal-files?q=${encodeURIComponent(q || '')}`);
+        const files = (res && res.files) || [];
+        if (!files.length) {
+          listEl.innerHTML = `<div class="small text-muted px-2 py-2">${esc(i18n.portalFileEmpty || 'Keine Dateien gefunden')}</div>`;
+          return;
+        }
+        listEl.innerHTML = files.map((f) => `
+          <button type="button" class="dropdown-item rounded d-flex align-items-center justify-content-between gap-2 text-truncate" data-portal-file-id="${f.id}">
+            <span class="text-truncate"><i class="bi bi-file-earmark-text me-2"></i>${esc(f.name)}</span>
+            ${f.folder_name ? `<small class="text-muted flex-shrink-0">${esc(f.folder_name)}</small>` : ''}
+          </button>`).join('');
+      } catch (err) {
+        listEl.innerHTML = `<div class="small text-danger px-2 py-2">${esc(err.message || 'Fehler')}</div>`;
+      }
+    }
+
+    toggleBtn.addEventListener('shown.bs.dropdown', () => {
+      if (searchInput) {
+        searchInput.value = '';
+        setTimeout(() => searchInput.focus(), 0);
+      }
+      loadPortalFiles('');
+    });
+
+    searchInput?.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => loadPortalFiles(searchInput.value.trim()), 180);
+    });
+
+    listEl.addEventListener('click', async (ev) => {
+      const btn = ev.target.closest('[data-portal-file-id]');
+      if (!btn || !currentCardId) return;
+      const fileId = Number(btn.getAttribute('data-portal-file-id'));
+      if (!fileId) return;
+      btn.disabled = true;
+      try {
+        await api(`/kanban/api/cards/${currentCardId}/attachments`, {
+          method: 'POST',
+          body: { portal_file_id: fileId },
+        });
+        if (window.bootstrap && bootstrap.Dropdown) {
+          bootstrap.Dropdown.getOrCreateInstance(toggleBtn).hide();
+        }
+        openCard(currentCardId);
+        refreshBoard();
+      } catch (err) {
+        notify(err.message || 'Fehler');
+        btn.disabled = false;
+      }
+    });
+  })();
 
   document.getElementById('kanbanDueClear')?.addEventListener('click', async () => {
     if (!currentCardId) return;
@@ -2390,7 +3077,8 @@
       btn.addEventListener('click', async () => {
         const userId = btn.getAttribute('data-del-member');
         const name = btn.getAttribute('data-member-name') || 'Benutzer';
-        if (!(await askConfirm(`Freigabe für "${name}" auf diesem Board entfernen?`))) return;
+        const msg = (i18n.removeShareUserConfirm || 'Freigabe für "{name}" auf diesem Board entfernen?').replace('{name}', name);
+        if (!(await askConfirm(msg))) return;
         try {
           await api(`/kanban/api/boards/${boardId}/members/${userId}`, { method: 'DELETE' });
           notify('Freigabe entfernt');
@@ -2496,7 +3184,7 @@
     });
     list.querySelectorAll('[data-del-share]').forEach((btn) => {
       btn.addEventListener('click', async () => {
-        if (!(await askConfirm('Freigabelink löschen?'))) return;
+        if (!(await askConfirm(i18n.deleteShareLinkConfirm || 'Freigabelink löschen?'))) return;
         try {
           await api(`/kanban/api/boards/${boardId}/shares/${btn.getAttribute('data-del-share')}`, { method: 'DELETE' });
           openShareModal();
@@ -3406,10 +4094,20 @@
       refreshBoard();
       return;
     }
+    if (event.includes('list_deleted') && data.id) {
+      board.lists = (board.lists || []).filter((l) => l.id !== data.id);
+      renderBoard();
+      return;
+    }
     if (event.includes('card_deleted') || (data.id && event.includes('deleted') && !data.list_id)) {
       for (const l of board.lists) {
         l.cards = (l.cards || []).filter((c) => c.id !== (data.id || data.card_id));
       }
+      renderBoard();
+      return;
+    }
+    if (event.includes('card_') && data.id && data.list_id) {
+      upsertCardLocal(data);
       renderBoard();
       return;
     }

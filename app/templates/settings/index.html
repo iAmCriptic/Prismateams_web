@@ -27,14 +27,11 @@
       <h2 id="hub-tools" class="sp-hub-section-title">{{ _('settings.sidebar.sections.tools') }}</h2>
       <div class="sp-hub-grid">
         {{ sp_hub_tile(url_for('settings.privacy'), 'bi-shield-check', _('settings.index.cards.privacy.title'), _('settings.index.cards.privacy.short')) }}
-        {% if is_module_enabled('module_files') %}
-        {{ sp_hub_tile(url_for('settings.cloud_import'), 'bi-cloud-arrow-down', _('settings.cloud_import.title'), _('settings.index.cards.cloud_import.short')) }}
+        {% if is_module_enabled('module_files') or (is_module_enabled('module_kanban') and kanban_import_targets) %}
+        {{ sp_hub_tile(url_for('settings.imports'), 'bi-box-arrow-in-down', _('settings.imports.nav'), _('settings.imports.short')) }}
         {% endif %}
         {% if is_module_enabled('module_email') and is_email_multi_enabled() %}
         {{ sp_hub_tile(url_for('settings.my_mailboxes'), 'bi-mailbox', _('settings.index.cards.my_mailboxes.title'), _('settings.index.cards.my_mailboxes.short')) }}
-        {% endif %}
-        {% if is_module_enabled('module_kanban') and kanban_import_targets %}
-        {{ sp_hub_tile(url_for('settings.kanban_import'), 'bi-kanban', _('settings.kanban_import.nav'), _('settings.kanban_import.short')) }}
         {% endif %}
       </div>
     </section>

@@ -5,6 +5,7 @@
 {% set microsoft_ready = microsoft_oauth_ready|default(false) %}
 {% set oauth_result = oauth_result|default(none) %}
 {% set initial_provider = (mailbox.provider if mailbox else (oauth_result.provider if oauth_result else 'custom')) %}
+{% set ui_provider = initial_provider if initial_provider in ('google', 'microsoft') else 'custom' %}
 {% block title %}{% if is_edit %}{{ _('settings.mailboxes.edit_title') }}{% else %}{{ _('settings.mailboxes.wizard_title') }}{% endif %}{% endblock %}
 {% block settings_mobile_title %}{% if is_edit %}{{ _('settings.mailboxes.edit_title') }}{% else %}{{ _('settings.mailboxes.wizard_title') }}{% endif %}{% endblock %}
 
@@ -15,6 +16,7 @@
 <div class="settings-admin-email settings-mailboxes-page" id="mailboxWizard"
      data-test-smtp-url="{{ url_for('settings.mailbox_test_smtp') }}"
      data-test-imap-url="{{ url_for('settings.mailbox_test_imap') }}"
+     data-autodiscover-url="{{ url_for('settings.mailbox_autodiscover') }}"
      data-oauth-start-url="{{ url_for('settings.mailbox_oauth_start', provider='PROVIDER') }}"
      data-google-ready="{{ '1' if google_ready else '0' }}"
      data-microsoft-ready="{{ '1' if microsoft_ready else '0' }}"
@@ -22,7 +24,13 @@
      data-oauth-email="{{ oauth_result.email if oauth_result else '' }}"
      data-initial-provider="{{ initial_provider }}"
      data-is-edit="{{ '1' if is_edit else '0' }}"
-     data-mailbox-auth-type="{{ mailbox.auth_type if mailbox else '' }}">
+     data-mailbox-auth-type="{{ mailbox.auth_type if mailbox else '' }}"
+     data-i18n-detecting="{{ _('settings.mailboxes.autodiscover_detecting') }}"
+     data-i18n-next="{{ _('settings.mailboxes.wizard_next') }}"
+     data-i18n-detected-hint="{{ _('settings.mailboxes.autodiscover_detected_hint') }}"
+     data-i18n-invalid-response="{{ _('common.error') }}"
+     data-i18n-ok="{{ _('common.ok') }}"
+     data-i18n-error="{{ _('common.error') }}">
     <a href="{{ cancel_url }}" class="mod-back-link">
         <i class="bi bi-arrow-left" aria-hidden="true"></i>
         <span>{{ _('layout.nav.back') }}</span>
@@ -75,11 +83,9 @@
                 {% for key, icon, label_key in [
                     ('google', 'bi-google', 'settings.mailboxes.provider_google'),
                     ('microsoft', 'bi-microsoft', 'settings.mailboxes.provider_microsoft'),
-                    ('infomaniak', 'bi-cloud', 'settings.mailboxes.provider_infomaniak'),
-                    ('ionos', 'bi-hdd-network', 'settings.mailboxes.provider_ionos'),
-                    ('custom', 'bi-sliders', 'settings.mailboxes.provider_custom')
+                    ('custom', 'bi-envelope-at', 'settings.mailboxes.provider_custom')
                 ] %}
-                <button type="button" class="mailbox-provider-card{% if initial_provider == key %} is-selected{% endif %}" data-provider="{{ key }}">
+                <button type="button" class="mailbox-provider-card{% if ui_provider == key %} is-selected{% endif %}" data-provider="{{ key }}">
                     <i class="bi {{ icon }}" aria-hidden="true"></i>
                     <span>{{ _(label_key) }}</span>
                 </button>
@@ -188,6 +194,20 @@
                     </div>
                 </div>
                 <div id="presetServerHint" class="form-text mb-2"></div>
+                <div id="autodiscoverFallbackBox" class="alert alert-permanent portal-msg portal-msg--warning mb-3" role="status" hidden>
+                    <div class="portal-msg__body">
+                        <div class="portal-msg__icon" aria-hidden="true"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                        <div class="portal-msg__content">
+                            <p class="portal-msg__text" id="autodiscoverFallbackMsg"></p>
+                            <div class="portal-msg__actions">
+                                <button type="button" class="btn btn-sm portal-msg__btn portal-msg__btn--secondary" id="btnOpenManualSetup">
+                                    <i class="bi bi-sliders" aria-hidden="true"></i>
+                                    {{ _('settings.mailboxes.autodiscover_manual_btn') }}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <input type="hidden" name="smtp_username" id="smtp_username" value="{{ mb.smtp_username if mb else '' }}">
                 <input type="hidden" name="imap_username" id="imap_username" value="{{ mb.imap_username if mb else '' }}">
                 <input type="hidden" name="smtp_password" id="smtp_password" value="">
@@ -368,8 +388,11 @@
   }
 
   function isCustom(p) {
-    return p === 'custom';
+    return p !== 'google' && p !== 'microsoft';
   }
+
+  let manualMode = root.dataset.isEdit === '1' && isCustom(currentProvider()) && !!(val('smtp_server') || val('imap_server'));
+  let autodiscoverDone = false;
 
   function syncCredFields() {
     const email = val('account_email');
@@ -384,16 +407,43 @@
     if (imapPw) imapPw.value = pw;
   }
 
+  function applyDetectedServers(data) {
+    if (data && data.imap) {
+      const imap = root.querySelector('#imap_server');
+      const imapPort = root.querySelector('#imap_port');
+      const imapSsl = root.querySelector('#imap_use_ssl');
+      const imapUser = root.querySelector('#imap_username');
+      if (imap && data.imap.server) imap.value = data.imap.server;
+      if (imapPort && data.imap.port) imapPort.value = data.imap.port;
+      if (imapSsl && typeof data.imap.use_ssl === 'boolean') imapSsl.checked = data.imap.use_ssl;
+      if (imapUser && data.imap.username) imapUser.value = data.imap.username;
+    }
+    if (data && data.smtp) {
+      const smtp = root.querySelector('#smtp_server');
+      const smtpPort = root.querySelector('#smtp_port');
+      const smtpTls = root.querySelector('#smtp_use_tls');
+      const smtpSsl = root.querySelector('#smtp_use_ssl');
+      const smtpUser = root.querySelector('#smtp_username');
+      if (smtp && data.smtp.server) smtp.value = data.smtp.server;
+      if (smtpPort && data.smtp.port) smtpPort.value = data.smtp.port;
+      if (smtpTls && typeof data.smtp.use_tls === 'boolean') smtpTls.checked = data.smtp.use_tls;
+      if (smtpSsl && typeof data.smtp.use_ssl === 'boolean') smtpSsl.checked = data.smtp.use_ssl;
+      if (smtpUser && data.smtp.username) smtpUser.value = data.smtp.username;
+    }
+  }
+
   function applyProviderUI() {
     const p = currentProvider();
     const preset = presets[p] || presets.custom;
     const oauthFlow = usesOAuthFlow(p);
     const passwordFallback = isOAuthProvider(p) && !providerOAuthReady(p);
+    const cardKey = (p === 'google' || p === 'microsoft') ? p : 'custom';
+    const showManualSteps = isCustom(p) && manualMode;
 
     if (authTypeInput) authTypeInput.value = oauthFlow ? 'oauth' : 'password';
 
     root.querySelectorAll('.mailbox-provider-card').forEach((card) => {
-      card.classList.toggle('is-selected', card.dataset.provider === p);
+      card.classList.toggle('is-selected', card.dataset.provider === cardKey);
     });
 
     const oauthPanel = root.querySelector('#oauthAuthPanel');
@@ -424,11 +474,11 @@
     if (fallbackBox) fallbackBox.hidden = !passwordFallback;
     if (fallbackHelp) fallbackHelp.hidden = !passwordFallback;
 
-    // SMTP/IMAP-Schritte nur bei Custom; Presets (inkl. Google/MS-Fallback) nutzen feste Hosts
+    // SMTP/IMAP-Schritte nur wenn bei "Andere" der manuelle Fallback aktiv ist
     steps.forEach((s) => {
       const key = s.dataset.stepKey;
       if (key === 'smtp' || key === 'imap') {
-        s.hidden = !isCustom(p);
+        s.hidden = !showManualSteps;
       }
     });
     // renumber visible steps
@@ -441,9 +491,9 @@
     });
 
     const authNext = root.querySelector('#btnAuthNext');
-    if (authNext) authNext.dataset.next = isCustom(p) ? '3' : '5';
+    if (authNext) authNext.dataset.next = showManualSteps ? '3' : '5';
     const finishBack = root.querySelector('#btnFinishBack');
-    if (finishBack) finishBack.dataset.prev = isCustom(p) ? '4' : '2';
+    if (finishBack) finishBack.dataset.prev = showManualSteps ? '4' : '2';
   }
 
   function goTo(step) {
@@ -464,12 +514,85 @@
   root.querySelectorAll('.mailbox-provider-card').forEach((card) => {
     card.addEventListener('click', () => {
       if (providerInput) providerInput.value = card.dataset.provider;
+      manualMode = false;
+      autodiscoverDone = false;
+      const fb = root.querySelector('#autodiscoverFallbackBox');
+      if (fb) fb.hidden = true;
       applyProviderUI();
     });
   });
 
+  ['#account_email', '#account_password'].forEach((sel) => {
+    root.querySelector(sel)?.addEventListener('input', () => {
+      autodiscoverDone = false;
+    });
+  });
+
+  root.querySelector('#btnOpenManualSetup')?.addEventListener('click', () => {
+    manualMode = true;
+    applyProviderUI();
+    goTo(3);
+  });
+
+  async function runAutodiscover(btn) {
+    const emailEl = root.querySelector('#account_email');
+    const pwEl = root.querySelector('#account_password');
+    const email = (emailEl?.value || '').trim();
+    const password = (pwEl?.value || '').trim();
+    const fb = root.querySelector('#autodiscoverFallbackBox');
+    const fbMsg = root.querySelector('#autodiscoverFallbackMsg');
+    if (fb) fb.hidden = true;
+
+    const origText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = root.dataset.i18nDetecting || origText;
+
+    try {
+      const res = await fetch(root.dataset.autodiscoverUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+          'X-CSRFToken': (document.querySelector('meta[name="csrf-token"]') || {}).content || '',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (_) {
+        data = { success: false, message: (root.dataset.i18nInvalidResponse || 'Error') + ' (' + res.status + ')' };
+      }
+      applyDetectedServers(data);
+
+      if (data.success) {
+        autodiscoverDone = true;
+        const hint = root.querySelector('#presetServerHint');
+        if (hint && data.imap?.server && data.smtp?.server) {
+          hint.textContent = (root.dataset.i18nDetectedHint || '').replace('{imap}', data.imap.server).replace('{smtp}', data.smtp.server);
+        }
+        goTo(5);
+      } else {
+        manualMode = true;
+        applyProviderUI();
+        if (fbMsg) fbMsg.textContent = data.message || (root.dataset.i18nError || 'Error');
+        if (fb) fb.hidden = false;
+      }
+    } catch (e) {
+      manualMode = true;
+      applyProviderUI();
+      if (fbMsg) fbMsg.textContent = String(e && e.message ? e.message : e);
+      if (fb) fb.hidden = false;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = root.dataset.i18nNext || origText;
+    }
+  }
+
   root.querySelectorAll('[data-next]').forEach((btn) => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const next = Number(btn.dataset.next);
       if (next === 1 && !currentProvider()) return;
       if (btn.closest('[data-step="1"]')) {
@@ -494,9 +617,23 @@
         } else {
           syncCredFields();
           const email = root.querySelector('#account_email');
-          if (email && !email.value.trim()) {
+          if (email && (!email.value.trim() || !email.checkValidity())) {
             email.reportValidity();
             return;
+          }
+          if (isCustom(p) && !manualMode && !autodiscoverDone) {
+            const editKeepServers = root.dataset.isEdit === '1' && !val('account_password') && val('smtp_server') && val('imap_server');
+            if (!editKeepServers) {
+              const pw = root.querySelector('#account_password');
+              if (pw && !pw.value.trim()) {
+                pw.setAttribute('required', 'required');
+                pw.reportValidity();
+                pw.removeAttribute('required');
+                return;
+              }
+              await runAutodiscover(btn);
+              return;
+            }
           }
         }
       }
@@ -562,8 +699,8 @@
         body: JSON.stringify(formPayload()),
       });
       let data = {};
-      try { data = await res.json(); } catch (_) { throw new Error(root.dataset.msgInvalidResponse + ' (' + res.status + ')'); }
-      resultEl.textContent = data.message || (data.success ? root.dataset.msgOk : root.dataset.msgError);
+      try { data = await res.json(); } catch (_) { throw new Error((root.dataset.i18nInvalidResponse || 'Error') + ' (' + res.status + ')'); }
+      resultEl.textContent = data.message || (data.success ? (root.dataset.i18nOk || 'OK') : (root.dataset.i18nError || 'Error'));
       resultEl.classList.add(data.success ? 'is-ok' : 'is-err');
     } catch (e) {
       resultEl.textContent = String(e && e.message ? e.message : e);

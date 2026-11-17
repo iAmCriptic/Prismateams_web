@@ -228,7 +228,7 @@ void NativeSettingsWindow::ToggleMount() {
         if (creds.success) {
             wchar_t assigned = L'P';
             std::wstring err;
-            WebDavManager::Instance().MountDrive(
+            bool ok = WebDavManager::Instance().MountDrive(
                 AuthManager::Instance().GetServerUrl(),
                 creds.username,
                 creds.password,
@@ -236,6 +236,11 @@ void NativeSettingsWindow::ToggleMount() {
                 assigned,
                 err
             );
+            if (!ok) {
+                MessageBoxW(m_hWnd, err.c_str(), L"Netzlaufwerk-Fehler", MB_ICONERROR | MB_OK);
+            }
+        } else {
+            MessageBoxW(m_hWnd, creds.errorMessage.c_str(), L"WebDAV-Fehler", MB_ICONERROR | MB_OK);
         }
     }
     UpdateDriveStatus();
@@ -432,7 +437,8 @@ LRESULT CALLBACK NativeSettingsWindow::WndProc(HWND hWnd, UINT message, WPARAM w
             HPEN hOldPen = (HPEN)SelectObject(hdc, hPen);
             HBRUSH hOldBr = (HBRUSH)SelectObject(hdc, hBr);
 
-            RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, 8, 8);
+            int pillRadius = (rc.bottom - rc.top) / 2;
+            RoundRect(hdc, rc.left, rc.top, rc.right, rc.bottom, pillRadius, pillRadius);
 
             SelectObject(hdc, hOldBr);
             SelectObject(hdc, hOldPen);

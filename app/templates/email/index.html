@@ -39,7 +39,7 @@
         {%- elif dn == 'Gesendet' or 'Sent' in n or n.endswith('/Gesendet') -%}<i class="bi bi-send"></i>
         {%- elif dn == 'Entwürfe' or 'Drafts' in n or 'Entw' in n -%}<i class="bi bi-file-earmark-text"></i>
         {%- elif dn == 'Papierkorb' or 'Trash' in n or 'Bin' in n or n.endswith('/Papierkorb') -%}<i class="bi bi-trash"></i>
-        {%- elif dn == 'Spam' or n.endswith('/Spam') or n.endswith('/Junk') -%}<i class="bi bi-shield-exclamation"></i>
+        {%- elif dn == 'Spam' or n.endswith('/Spam') or n.endswith('/Junk') or n.endswith('.Spam') or n.endswith('.Junk') -%}<i class="bi bi-shield-exclamation"></i>
         {%- elif dn == 'Archiv' or 'Archive' in n -%}<i class="bi bi-archive"></i>
         {%- elif dn == 'Markiert' or 'Starred' in n or n.endswith('/Markiert') -%}<i class="bi bi-star"></i>
         {%- elif dn == 'Wichtig' or 'Important' in n or n.endswith('/Wichtig') -%}<i class="bi bi-exclamation-circle"></i>

@@ -85,10 +85,10 @@ from app.blueprints.kanban.helpers import *  # noqa: F401,F403
 @kanban_bp.route('/api/lists/<int:list_id>/cards', methods=['POST'])
 @login_or_share_required
 def api_create_card(list_id):
-    lst = KanbanList.query.get_or_404(list_id)
+    lst, err = _require_list_edit(list_id)
+    if err:
+        return err
     board = lst.board
-    if not _can_edit_board_ctx(board):
-        return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
     title = (data.get('title') or '').strip()
     if not title:
@@ -102,8 +102,20 @@ def api_create_card(list_id):
         created_by=_actor_user_id(board),
     )
     db.session.add(card)
-    _log_activity(board.id, 'card_created', title, card_id=None)
     db.session.flush()
+    default_field_ids = lst.get_default_custom_field_ids()
+    if default_field_ids:
+        valid_fields = {
+            f.id
+            for f in KanbanCustomField.query.filter(
+                KanbanCustomField.board_id == board.id,
+                KanbanCustomField.card_id.is_(None),
+                KanbanCustomField.id.in_(default_field_ids),
+            ).all()
+        }
+        for fid in default_field_ids:
+            if fid in valid_fields:
+                db.session.add(KanbanCardFieldEnabled(card_id=card.id, field_id=fid))
     _log_activity(board.id, 'card_created', title, card_id=card.id)
     db.session.commit()
     payload = _serialize_card_summary(card, share_token=_share_token_from_request())
@@ -164,7 +176,7 @@ def api_card(card_id):
             card.due_date = None
         else:
             try:
-                new_due = datetime.fromisoformat(str(raw).replace('Z', ''))
+                new_due = datetime.fromisoformat(str(raw).replace('Z', '+00:00')).replace(tzinfo=None)
                 if new_due != card.due_date:
                     card.due_date = new_due
                     _log_activity(board.id, 'due_date_updated', detail=new_due.strftime('%d.%m.%Y, %H:%M'), card_id=card.id)
@@ -188,12 +200,17 @@ def api_card(card_id):
                 _log_activity(board.id, 'cover_removed', card_id=card.id)
             card.cover_attachment_id = None
         else:
-            att = KanbanAttachment.query.filter_by(id=int(cid), card_id=card.id).first()
+            parsed_cid = _parse_int(cid)
+            if parsed_cid is None:
+                return jsonify({'error': 'Invalid cover_attachment_id'}), 400
+            att = KanbanAttachment.query.filter_by(id=parsed_cid, card_id=card.id).first()
             if att:
                 card.cover_attachment_id = att.id
                 _log_activity(board.id, 'cover_updated', detail=att.original_filename or att.filename, card_id=card.id)
     if 'list_id' in data or 'position' in data:
-        new_list_id = int(data.get('list_id') or card.list_id)
+        new_list_id = _parse_int(data.get('list_id')) if data.get('list_id') not in (None, '') else card.list_id
+        if new_list_id is None:
+            return jsonify({'error': 'Invalid list_id'}), 400
         new_list = KanbanList.query.filter_by(id=new_list_id, board_id=board.id).first()
         if new_list:
             old_list_id = card.list_id
@@ -229,9 +246,13 @@ def api_move_card(board_id):
     if err:
         return err
     data = request.get_json(silent=True) or {}
-    card_id = int(data['card_id'])
-    list_id = int(data['list_id'])
-    position = int(data.get('position', 0))
+    card_id = _parse_int(data.get('card_id'))
+    list_id = _parse_int(data.get('list_id'))
+    if card_id is None or list_id is None:
+        return jsonify({'error': 'card_id and list_id required'}), 400
+    position = _parse_int(data.get('position', 0))
+    if position is None:
+        position = 0
     card = KanbanCard.query.get_or_404(card_id)
     if card.list.board_id != board.id:
         return jsonify({'error': 'Wrong board'}), 400
@@ -284,12 +305,14 @@ def api_create_label(board_id):
 @kanban_bp.route('/api/cards/<int:card_id>/labels', methods=['POST'])
 @login_or_share_required
 def api_toggle_card_label(card_id):
-    card = KanbanCard.query.get_or_404(card_id)
+    card, err = _require_card_edit(card_id)
+    if err:
+        return err
     board = card.list.board
-    if not _can_edit_board_ctx(board):
-        return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
-    label_id = int(data['label_id'])
+    label_id = _parse_int(data.get('label_id'))
+    if label_id is None:
+        return jsonify({'error': 'label_id required'}), 400
     label = KanbanLabel.query.filter_by(id=label_id, board_id=board.id).first_or_404()
     existing = KanbanCardLabel.query.filter_by(card_id=card.id, label_id=label.id).first()
     if existing:
@@ -309,12 +332,14 @@ def api_toggle_card_label(card_id):
 @kanban_bp.route('/api/cards/<int:card_id>/assignees', methods=['POST'])
 @login_or_share_required
 def api_toggle_assignee(card_id):
-    card = KanbanCard.query.get_or_404(card_id)
+    card, err = _require_card_edit(card_id)
+    if err:
+        return err
     board = card.list.board
-    if not _can_edit_board_ctx(board):
-        return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
-    user_id = int(data['user_id'])
+    user_id = _parse_int(data.get('user_id'))
+    if user_id is None:
+        return jsonify({'error': 'user_id required'}), 400
     if not is_effective_board_member(board, user_id):
         return jsonify({'error': 'Assignee is not a board member'}), 400
     existing = KanbanCardAssignee.query.filter_by(card_id=card.id, user_id=user_id).first()
@@ -335,10 +360,10 @@ def api_toggle_assignee(card_id):
 @kanban_bp.route('/api/cards/<int:card_id>/checklists', methods=['POST'])
 @login_or_share_required
 def api_create_checklist(card_id):
-    card = KanbanCard.query.get_or_404(card_id)
+    card, err = _require_card_edit(card_id)
+    if err:
+        return err
     board = card.list.board
-    if not _can_edit_board_ctx(board):
-        return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
     title = (data.get('title') or 'Checkliste').strip()
     cl = KanbanChecklist(
@@ -357,11 +382,13 @@ def api_create_checklist(card_id):
 @kanban_bp.route('/api/checklists/<int:checklist_id>', methods=['PATCH', 'DELETE'])
 @login_or_share_required
 def api_checklist(checklist_id):
-    cl = KanbanChecklist.query.get_or_404(checklist_id)
-    card = cl.card
+    cl = db.session.get(KanbanChecklist, checklist_id)
+    if not cl:
+        return jsonify({'error': 'Not found'}), 404
+    card, err = _require_card_edit(cl.card_id)
+    if err:
+        return err
     board = card.list.board
-    if not _can_edit_board_ctx(board):
-        return jsonify({'error': 'Forbidden'}), 403
     if request.method == 'DELETE':
         cl_title = cl.title
         db.session.delete(cl)
@@ -383,10 +410,13 @@ def api_checklist(checklist_id):
 @kanban_bp.route('/api/checklists/<int:checklist_id>/items', methods=['POST'])
 @login_or_share_required
 def api_add_checklist_item(checklist_id):
-    cl = KanbanChecklist.query.get_or_404(checklist_id)
-    board = cl.card.list.board
-    if not _can_edit_board_ctx(board):
-        return jsonify({'error': 'Forbidden'}), 403
+    cl = db.session.get(KanbanChecklist, checklist_id)
+    if not cl:
+        return jsonify({'error': 'Not found'}), 404
+    card, err = _require_card_edit(cl.card_id)
+    if err:
+        return err
+    board = card.list.board
     data = request.get_json(silent=True) or {}
     text = (data.get('text') or '').strip()
     if not text:
@@ -410,11 +440,13 @@ def api_add_checklist_item(checklist_id):
 @kanban_bp.route('/api/checklist-items/<int:item_id>', methods=['PATCH', 'DELETE'])
 @login_or_share_required
 def api_checklist_item(item_id):
-    item = KanbanChecklistItem.query.get_or_404(item_id)
-    card = item.checklist.card
+    item = db.session.get(KanbanChecklistItem, item_id)
+    if not item or not item.checklist:
+        return jsonify({'error': 'Not found'}), 404
+    card, err = _require_card_edit(item.checklist.card_id)
+    if err:
+        return err
     board = card.list.board
-    if not _can_edit_board_ctx(board):
-        return jsonify({'error': 'Forbidden'}), 403
     if request.method == 'DELETE':
         item_text = item.text
         db.session.delete(item)
@@ -567,7 +599,9 @@ def api_custom_field_categories(board_id):
 @kanban_bp.route('/api/custom-field-categories/<int:category_id>', methods=['PATCH', 'DELETE'])
 @login_or_share_required
 def api_custom_field_category(category_id):
-    category = KanbanCustomFieldCategory.query.get_or_404(category_id)
+    category = db.session.get(KanbanCustomFieldCategory, category_id)
+    if not category:
+        return jsonify({'error': 'Not found'}), 404
     board, err = _require_board_manage(category.board_id)
     if err:
         return err
@@ -598,7 +632,9 @@ def api_custom_field_category(category_id):
 @kanban_bp.route('/api/custom-fields/<int:field_id>', methods=['PATCH', 'DELETE'])
 @login_or_share_required
 def api_custom_field(field_id):
-    field = KanbanCustomField.query.get_or_404(field_id)
+    field = db.session.get(KanbanCustomField, field_id)
+    if not field:
+        return jsonify({'error': 'Not found'}), 404
     if field.card_id:
         board, err = _require_board_edit(field.board_id)
     else:
@@ -667,10 +703,10 @@ def api_custom_field(field_id):
 @kanban_bp.route('/api/cards/<int:card_id>/custom-fields', methods=['POST'])
 @login_or_share_required
 def api_create_card_custom_field(card_id):
-    card = KanbanCard.query.get_or_404(card_id)
+    card, err = _require_card_edit(card_id)
+    if err:
+        return err
     board = card.list.board
-    if not _can_edit_board_ctx(board):
-        return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
     label = (data.get('label') or '').strip()
     if not label:
@@ -697,10 +733,10 @@ def api_create_card_custom_field(card_id):
 @kanban_bp.route('/api/cards/<int:card_id>/custom-fields/enable', methods=['POST'])
 @login_or_share_required
 def api_enable_card_custom_field(card_id):
-    card = KanbanCard.query.get_or_404(card_id)
+    card, err = _require_card_edit(card_id)
+    if err:
+        return err
     board = card.list.board
-    if not _can_edit_board_ctx(board):
-        return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
     try:
         field_id = int(data.get('field_id'))
@@ -723,10 +759,10 @@ def api_enable_card_custom_field(card_id):
 @kanban_bp.route('/api/cards/<int:card_id>/custom-fields/enable/<int:field_id>', methods=['DELETE'])
 @login_or_share_required
 def api_disable_card_custom_field(card_id, field_id):
-    card = KanbanCard.query.get_or_404(card_id)
+    card, err = _require_card_edit(card_id)
+    if err:
+        return err
     board = card.list.board
-    if not _can_edit_board_ctx(board):
-        return jsonify({'error': 'Forbidden'}), 403
     enabled = KanbanCardFieldEnabled.query.filter_by(
         card_id=card.id, field_id=field_id
     ).first_or_404()
@@ -742,10 +778,10 @@ def api_disable_card_custom_field(card_id, field_id):
 @kanban_bp.route('/api/cards/<int:card_id>/custom-field-values', methods=['PUT'])
 @login_or_share_required
 def api_set_card_custom_field_value(card_id):
-    card = KanbanCard.query.get_or_404(card_id)
+    card, err = _require_card_edit(card_id)
+    if err:
+        return err
     board = card.list.board
-    if not _can_edit_board_ctx(board):
-        return jsonify({'error': 'Forbidden'}), 403
     data = request.get_json(silent=True) or {}
     try:
         field_id = int(data.get('field_id'))
@@ -777,13 +813,18 @@ def api_set_card_custom_field_value(card_id):
 @kanban_bp.route('/api/cards/<int:card_id>/vote', methods=['POST'])
 @login_or_share_required
 def api_vote_card(card_id):
-    card = KanbanCard.query.get_or_404(card_id)
-    board = card.list.board
-    if not _can_view_board_ctx(board):
+    if not current_user.is_authenticated:
+        return jsonify({'error': 'Unauthorized'}), 401
+    from app.utils.access_control import has_module_access
+    if not has_module_access(current_user, 'module_kanban'):
         return jsonify({'error': 'Forbidden'}), 403
+    card, err = _require_card_view(card_id)
+    if err:
+        return err
+    board = card.list.board
     if not (card.poll_text or '').strip():
         return jsonify({'error': 'Keine Abstimmung vorhanden'}), 400
-    actor_id = _actor_user_id(board)
+    actor_id = current_user.id
     existing = KanbanCardVote.query.filter_by(card_id=card.id, user_id=actor_id).first()
     if existing:
         db.session.delete(existing)

@@ -3,7 +3,7 @@ from flask_login import login_required, current_user
 from app import db
 from app.models.comment import Comment, CommentMention
 from app.models.user import User
-from app.utils.notifications import send_push_notification
+from app.utils.notifications import send_push_notification, send_comment_notification
 from app.utils.i18n import translate
 from app.utils.access_control import has_module_access
 from app.utils.kanban_access import can_view_board
@@ -107,29 +107,12 @@ def process_mentions(comment_text, comment_id):
 
 def send_mention_notifications(comment, mentions):
     """Sendet Benachrichtigungen für @-Mentions."""
-    comment_obj = comment.get_content_object()
-    content_name = ""
-    
-    if comment.content_type == 'file':
-        content_name = comment_obj.name if comment_obj else "Datei"
-    elif comment.content_type == 'wiki':
-        content_name = comment_obj.title if comment_obj else "Wiki-Seite"
-    elif comment.content_type == 'kanban_card':
-        content_name = comment_obj.title if comment_obj else "Karte"
-    
     for user, mention in mentions:
-        # Sende Push-Benachrichtigung
-        if send_push_notification(
-            user_id=user.id,
-            title=f"Du wurdest in einem Kommentar erwähnt",
-            body=f"{current_user.full_name} hat dich in einem Kommentar zu \"{content_name}\" erwähnt",
-            url=comment.get_content_url(),
-            data={
-                'comment_id': comment.id,
-                'content_type': comment.content_type,
-                'content_id': comment.content_id,
-                'type': 'comment_mention'
-            }
+        if send_comment_notification(
+            comment,
+            event_kind='mention',
+            target_user_id=user.id,
+            actor=current_user,
         ):
             mention.notification_sent = True
             mention.notification_sent_at = datetime.utcnow()
@@ -255,6 +238,17 @@ def create_comment(content_type, content_id):
     # Sende Benachrichtigungen für Mentions
     if mentions:
         send_mention_notifications(comment, mentions)
+
+    # Benachrichtige bei Antworten den Autor des Elternkommentars
+    if parent_id and parent_comment and parent_comment.author_id != current_user.id:
+        mentioned_uids = {u.id for u, _ in mentions} if mentions else set()
+        if parent_comment.author_id not in mentioned_uids:
+            send_comment_notification(
+                comment,
+                event_kind='reply',
+                target_user_id=parent_comment.author_id,
+                actor=current_user,
+            )
     
     return jsonify({
         'success': True,

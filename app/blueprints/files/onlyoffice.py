@@ -189,6 +189,8 @@ def onlyoffice_debug():
 @check_module_access('module_files')
 def onlyoffice_diagnose():
     """Diagnose Euro-Office Document Server connectivity."""
+    if not getattr(current_user, 'is_admin', False):
+        return jsonify({'success': False, 'error': 'Nur Administratoren erlaubt'}), 403
     import requests
     from app.utils.onlyoffice import get_onlyoffice_document_server_url
 
@@ -298,7 +300,29 @@ def api_files_presence():
             folder_id = int(folder_id_raw)
         except (TypeError, ValueError):
             return jsonify({'success': False, 'error': 'Ungültige Ordner-ID'}), 400
-    return jsonify({'success': True, 'presence': presence_for_folder(folder_id)})
+    if folder_id is not None:
+        folder = Folder.query.get_or_404(folder_id)
+        if folder.deleted_at is not None:
+            return jsonify({'success': False, 'error': 'Ordner nicht gefunden'}), 404
+        if _is_guest_user():
+            from app.utils.access_control import guest_has_folder_access
+            if not guest_has_folder_access(current_user, folder):
+                return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
+        elif not can_view_folder(folder, current_user) and not getattr(current_user, 'is_admin', False):
+            return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
+        return jsonify({'success': True, 'presence': presence_for_folder(folder_id)})
+
+    if _is_guest_user():
+        return jsonify({'success': True, 'presence': {}})
+    raw_presence = presence_for_folder(None)
+    if getattr(current_user, 'is_admin', False):
+        return jsonify({'success': True, 'presence': raw_presence})
+    visible_presence = {}
+    for fid_str, users in raw_presence.items():
+        f_obj = File.query.get(int(fid_str))
+        if f_obj and can_view_file(f_obj, current_user):
+            visible_presence[fid_str] = users
+    return jsonify({'success': True, 'presence': visible_presence})
 
 
 @files_bp.route('/api/onlyoffice-presence', methods=['POST'])
@@ -306,17 +330,26 @@ def api_files_presence():
 @login_required
 @check_module_access('module_files')
 def api_onlyoffice_presence():
+    from app.models.onlyoffice_session import OnlyOfficeSession
+
     payload = request.get_json(silent=True) or {}
     action = (payload.get('action') or 'heartbeat').strip().lower()
     session_key = (payload.get('session_key') or '').strip()
     if action == 'leave':
         if session_key:
-            oo_leave_session(session_key)
-            db.session.commit()
+            existing = OnlyOfficeSession.query.filter_by(session_key=session_key).first()
+            if existing and existing.user_id == current_user.id:
+                oo_leave_session(session_key)
+                db.session.commit()
         return jsonify({'success': True})
     if action == 'heartbeat':
         if not session_key:
             return jsonify({'success': False, 'error': 'session_key fehlt'}), 400
+        existing = OnlyOfficeSession.query.filter_by(session_key=session_key).first()
+        if not existing:
+            return jsonify({'success': False, 'error': 'Session unbekannt'}), 404
+        if existing.user_id != current_user.id:
+            return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
         row = oo_heartbeat_session(session_key)
         if not row:
             return jsonify({'success': False, 'error': 'Session unbekannt'}), 404
@@ -327,10 +360,18 @@ def api_onlyoffice_presence():
     except (TypeError, ValueError):
         return jsonify({'success': False, 'error': 'file_id fehlt'}), 400
     file_obj = File.query.get_or_404(file_id)
+    if file_obj.deleted_at is not None:
+        return jsonify({'success': False, 'error': 'Datei nicht gefunden'}), 404
     if _is_guest_user():
         from app.utils.access_control import GUEST_EDIT_MODES, guest_has_file_access
         if not guest_has_file_access(current_user, file_obj, modes=GUEST_EDIT_MODES):
             return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
+    elif not can_view_file(file_obj, current_user) and not getattr(current_user, 'is_admin', False):
+        return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
+    if session_key:
+        existing = OnlyOfficeSession.query.filter_by(session_key=session_key).first()
+        if existing and existing.user_id != current_user.id:
+            session_key = ''
     display_name = current_user.full_name if current_user.is_authenticated else 'Gast'
     avatar = getattr(current_user, 'profile_picture', None) if current_user.is_authenticated else None
     row = oo_upsert_session(
@@ -382,6 +423,15 @@ def api_file_edit_lock():
             file_id = int(payload.get('file_id'))
         except (TypeError, ValueError):
             return jsonify({'success': False, 'error': 'file_id fehlt'}), 400
+        file_obj = File.query.get_or_404(file_id)
+        if file_obj.deleted_at is not None:
+            return jsonify({'success': False, 'error': 'Datei nicht gefunden'}), 404
+        if _is_guest_user():
+            from app.utils.access_control import guest_has_file_access
+            if not guest_has_file_access(current_user, file_obj):
+                return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
+        elif not can_view_file(file_obj, current_user) and not getattr(current_user, 'is_admin', False):
+            return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
         lock = file_edit_lock_util.get_active_lock(file_id)
         held_by_me = bool(lock and lock.locked_by == current_user.id)
         return jsonify({
@@ -397,6 +447,8 @@ def api_file_edit_lock():
     except (TypeError, ValueError):
         return jsonify({'success': False, 'error': 'file_id fehlt'}), 400
     file_obj = File.query.get_or_404(file_id)
+    if file_obj.deleted_at is not None:
+        return jsonify({'success': False, 'error': 'Datei nicht gefunden'}), 404
     file_ext = os.path.splitext(file_obj.original_name)[1].lower()
     if not _is_markdown_extension(file_ext):
         return jsonify({
@@ -407,6 +459,8 @@ def api_file_edit_lock():
         from app.utils.access_control import GUEST_EDIT_MODES, guest_has_file_access
         if not guest_has_file_access(current_user, file_obj, modes=GUEST_EDIT_MODES):
             return jsonify({'success': False, 'error': 'Kein Zugriff'}), 403
+    elif not can_edit_file(file_obj, current_user) and not getattr(current_user, 'is_admin', False):
+        return jsonify({'success': False, 'error': 'Keine Bearbeitungsberechtigung'}), 403
 
     lock, blocker = file_edit_lock_util.acquire(
         file_id,

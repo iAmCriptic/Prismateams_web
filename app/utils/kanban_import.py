@@ -8,6 +8,7 @@ import json
 import logging
 import mimetypes
 import os
+import re
 import uuid
 from datetime import datetime
 from typing import Any
@@ -147,6 +148,46 @@ def _truthy(val: Any) -> bool:
     return str(val or '').strip().lower() in ('1', 'true', 'yes', 'on', 'complete', 'checked')
 
 
+def _safe_pos(val: Any, default: float = 0.0) -> float:
+    if val is None or isinstance(val, bool):
+        return default
+    if isinstance(val, (int, float)):
+        return float(val)
+    text = str(val).strip().lower()
+    if text == 'top':
+        return -1.0
+    if text == 'bottom':
+        return 1e12
+    try:
+        return float(text)
+    except (TypeError, ValueError):
+        return default
+
+
+def _decode_csv_bytes(raw: bytes) -> str:
+    for enc in ('utf-8-sig', 'utf-8', 'cp1252', 'latin-1'):
+        try:
+            return raw.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    raise KanbanImportError('invalid_csv')
+
+
+def _detect_csv_delimiter(text: str) -> str:
+    sample = '\n'.join(text.splitlines()[:5])
+    if sample.strip():
+        try:
+            dialect = csv.Sniffer().sniff(sample, delimiters=',;\t')
+            if dialect.delimiter in (',', ';', '\t'):
+                return dialect.delimiter
+        except csv.Error:
+            pass
+    first_line = text.splitlines()[0] if text.splitlines() else ''
+    counts = {d: first_line.count(d) for d in (';', ',', '\t')}
+    best = max(counts, key=counts.get)
+    return best if counts[best] > 0 else ','
+
+
 def _looks_like_trello_json(data: dict) -> bool:
     return isinstance(data, dict) and (
         'lists' in data and 'cards' in data and ('name' in data or 'id' in data)
@@ -174,6 +215,7 @@ def import_boards_from_zip(
     user: User,
     visibility: str,
     team_id: int | None = None,
+    trello_auth: tuple[str, str] | None = None,
 ) -> tuple[list[KanbanBoard], list[dict]]:
     """Import every *.json / *.csv entry inside a ZIP. Returns (boards, errors)."""
     import zipfile
@@ -205,6 +247,7 @@ def import_boards_from_zip(
                 user=user,
                 visibility=visibility,
                 team_id=team_id,
+                trello_auth=trello_auth,
             )
             boards.append(board)
         except (KanbanImportError, KanbanImportPermissionError) as exc:
@@ -217,6 +260,34 @@ def import_boards_from_zip(
     return boards, errors
 
 
+def import_trello_board_dict(
+    data: dict,
+    *,
+    user: User,
+    visibility: str,
+    team_id: int | None = None,
+    title_override: str | None = None,
+    trello_auth: tuple[str, str] | None = None,
+) -> KanbanBoard:
+    """Import a Trello board dictionary (e.g. fetched directly from Trello API)."""
+    assert_can_import_board_visibility(user, visibility, team_id)
+    visibility = (visibility or VISIBILITY_PRIVATE).strip().lower()
+    if not visibility_allowed(visibility):
+        raise KanbanImportError('visibility_not_allowed')
+    if visibility != VISIBILITY_TEAM:
+        team_id = None
+    if not _looks_like_trello_json(data):
+        raise KanbanImportError('not_trello_json')
+    return _import_trello_json(
+        data,
+        user=user,
+        visibility=visibility,
+        team_id=team_id,
+        title_override=title_override,
+        trello_auth=trello_auth,
+    )
+
+
 def import_board_from_bytes(
     *,
     raw: bytes,
@@ -225,6 +296,7 @@ def import_board_from_bytes(
     visibility: str,
     team_id: int | None = None,
     title_override: str | None = None,
+    trello_auth: tuple[str, str] | None = None,
 ) -> KanbanBoard:
     assert_can_import_board_visibility(user, visibility, team_id)
     visibility = (visibility or VISIBILITY_PRIVATE).strip().lower()
@@ -249,18 +321,17 @@ def import_board_from_bytes(
             visibility=visibility,
             team_id=team_id,
             title_override=title_override,
+            trello_auth=trello_auth,
         )
 
-    try:
-        text = raw.decode('utf-8-sig')
-    except Exception as exc:
-        raise KanbanImportError('invalid_csv') from exc
+    text = _decode_csv_bytes(raw)
     return _import_trello_csv(
         text,
         user=user,
         visibility=visibility,
         team_id=team_id,
         title_override=title_override,
+        trello_auth=trello_auth,
     )
 
 
@@ -317,6 +388,7 @@ def _download_remote_file(
     *,
     preferred_name: str | None = None,
     dest_dir: str | None = None,
+    trello_auth: tuple[str, str] | None = None,
 ) -> dict[str, Any] | None:
     """Download a remote URL into the kanban upload folder.
 
@@ -326,67 +398,101 @@ def _download_remote_file(
     url = (url or '').strip()
     if not url.startswith(('http://', 'https://')):
         return None
+    from urllib.parse import urljoin
+    from app.utils.link_preview import is_public_http_url
+
+    if not is_public_http_url(url):
+        logger.warning('kanban import blocked non-public URL: %s', url)
+        return None
     dest_dir = dest_dir or _kanban_upload_root()
     original = preferred_name or _guess_filename_from_url(url)
     original = secure_filename(original) or _guess_filename_from_url(url)
+    headers = {'User-Agent': 'Prismateams-Kanban-Import/1.0'}
+    if trello_auth:
+        from app.utils.trello_client import build_trello_oauth_header, is_trello_url
+        if is_trello_url(url):
+            headers['Authorization'] = build_trello_oauth_header(trello_auth[0], trello_auth[1])
     try:
-        with requests.get(
-            url,
-            stream=True,
-            timeout=_DOWNLOAD_TIMEOUT,
-            headers={'User-Agent': 'Prismateams-Kanban-Import/1.0'},
-            allow_redirects=True,
-        ) as resp:
-            if resp.status_code >= 400:
-                logger.info('kanban import download failed %s → %s', url, resp.status_code)
-                return None
-            mime = (resp.headers.get('Content-Type') or '').split(';')[0].strip() or None
-            if not mime or mime in ('application/octet-stream', 'binary/octet-stream'):
-                mime = mimetypes.guess_type(original)[0] or mime
-            # Improve filename from content-disposition if present
-            cd = resp.headers.get('Content-Disposition') or ''
-            if 'filename=' in cd:
-                part = cd.split('filename=')[-1].strip().strip('"\'')
-                if part:
-                    original = secure_filename(part) or original
-            stored = f'{uuid.uuid4().hex}_{original}'
-            path = os.path.join(dest_dir, stored)
-            size = 0
-            with open(path, 'wb') as out:
-                for chunk in resp.iter_content(chunk_size=64 * 1024):
-                    if not chunk:
-                        continue
-                    size += len(chunk)
-                    if size > _DOWNLOAD_MAX_BYTES:
-                        out.close()
-                        try:
-                            os.remove(path)
-                        except OSError:
-                            pass
-                        logger.info('kanban import download too large: %s', url)
+        current_url = url
+        for _ in range(5):
+            with requests.get(
+                current_url,
+                stream=True,
+                timeout=_DOWNLOAD_TIMEOUT,
+                headers=headers,
+                allow_redirects=False,
+            ) as resp:
+                if resp.status_code in (301, 302, 303, 307, 308):
+                    loc = resp.headers.get('Location')
+                    if not loc:
                         return None
-                    out.write(chunk)
-            if size <= 0:
-                try:
-                    os.remove(path)
-                except OSError:
-                    pass
-                return None
-            if not mime:
-                mime = mimetypes.guess_type(original)[0] or 'application/octet-stream'
-            return {
-                'path': path,
-                'filename': stored,
-                'original_filename': original[:255],
-                'mime_type': mime,
-                'file_size': size,
-            }
+                    next_url = urljoin(current_url, loc)
+                    if not is_public_http_url(next_url):
+                        logger.warning('kanban import blocked redirect to non-public URL: %s', next_url)
+                        return None
+                    if trello_auth:
+                        from app.utils.trello_client import build_trello_oauth_header, is_trello_url
+                        if is_trello_url(next_url):
+                            headers['Authorization'] = build_trello_oauth_header(trello_auth[0], trello_auth[1])
+                        else:
+                            headers.pop('Authorization', None)
+                    current_url = next_url
+                    continue
+                if resp.status_code >= 400:
+                    logger.info('kanban import download failed %s → %s', current_url, resp.status_code)
+                    return None
+                mime = (resp.headers.get('Content-Type') or '').split(';')[0].strip() or None
+                if not mime or mime in ('application/octet-stream', 'binary/octet-stream'):
+                    mime = mimetypes.guess_type(original)[0] or mime
+                # Improve filename from content-disposition if present
+                cd = resp.headers.get('Content-Disposition') or ''
+                if 'filename=' in cd:
+                    part = cd.split('filename=')[-1].strip().strip('"\'')
+                    if part:
+                        original = secure_filename(part) or original
+                stored = f'{uuid.uuid4().hex}_{original}'
+                path = os.path.join(dest_dir, stored)
+                size = 0
+                with open(path, 'wb') as out:
+                    for chunk in resp.iter_content(chunk_size=64 * 1024):
+                        if not chunk:
+                            continue
+                        size += len(chunk)
+                        if size > _DOWNLOAD_MAX_BYTES:
+                            out.close()
+                            try:
+                                os.remove(path)
+                            except OSError:
+                                pass
+                            logger.info('kanban import download too large: %s', current_url)
+                            return None
+                        out.write(chunk)
+                if size <= 0:
+                    try:
+                        os.remove(path)
+                    except OSError:
+                        pass
+                    return None
+                if not mime:
+                    mime = mimetypes.guess_type(original)[0] or 'application/octet-stream'
+                return {
+                    'path': path,
+                    'filename': stored,
+                    'original_filename': original[:255],
+                    'mime_type': mime,
+                    'file_size': size,
+                }
+        return None
     except Exception:
         logger.exception('kanban import download error: %s', url)
         return None
 
 
-def _map_trello_background(prefs: dict) -> tuple[str, str | None]:
+def _map_trello_background(
+    prefs: dict,
+    *,
+    trello_auth: tuple[str, str] | None = None,
+) -> tuple[str, str | None]:
     """Return (gradient_key, cover_path_or_None) from Trello prefs."""
     prefs = prefs or {}
     bg = prefs.get('background')
@@ -416,6 +522,7 @@ def _map_trello_background(prefs: dict) -> tuple[str, str | None]:
             img_url,
             preferred_name='board-background.jpg',
             dest_dir=_kanban_boards_upload_root(),
+            trello_auth=trello_auth,
         )
         if downloaded:
             cover_path = downloaded['path']
@@ -430,9 +537,10 @@ def _create_attachment_from_url(
     mime_hint: str | None,
     file_size_hint: int | None,
     user_id: int,
+    trello_auth: tuple[str, str] | None = None,
 ) -> KanbanAttachment:
     """Try to download URL as a local attachment; fall back to link."""
-    downloaded = _download_remote_file(url, preferred_name=name)
+    downloaded = _download_remote_file(url, preferred_name=name, trello_auth=trello_auth)
     if downloaded:
         return KanbanAttachment(
             card_id=card_id,
@@ -463,11 +571,12 @@ def _import_trello_json(
     visibility: str,
     team_id: int | None,
     title_override: str | None,
+    trello_auth: tuple[str, str] | None = None,
 ) -> KanbanBoard:
     title = (title_override or data.get('name') or 'Imported Board').strip()[:200] or 'Imported Board'
     desc = (data.get('desc') or '').strip() or None
     prefs = data.get('prefs') or {}
-    background, cover_path = _map_trello_background(prefs)
+    background, cover_path = _map_trello_background(prefs, trello_auth=trello_auth)
 
     board = KanbanBoard(
         title=title,
@@ -533,7 +642,7 @@ def _import_trello_json(
     # Lists (open first, preserve pos)
     lists_sorted = sorted(
         data.get('lists') or [],
-        key=lambda x: (bool(x.get('closed')), float(x.get('pos') or 0)),
+        key=lambda x: (bool(x.get('closed')), _safe_pos(x.get('pos'))),
     )
     list_map: dict[str, KanbanList] = {}
     list_pos = 0
@@ -586,40 +695,42 @@ def _import_trello_json(
         if fid:
             field_map[fid] = field
 
-    # Index checklists by card
-    checklists_by_card: dict[str, list] = {}
+    # Index checklists by id and by card
+    checklists_by_id: dict[str, dict] = {}
+    checklists_by_card: dict[str, list[dict]] = {}
     for cl in data.get('checklists') or []:
-        cid = cl.get('idCard')
-        if not cid:
+        if not isinstance(cl, dict):
             continue
-        checklists_by_card.setdefault(cid, []).append(cl)
+        cl_id = cl.get('id')
+        if cl_id:
+            checklists_by_id[str(cl_id)] = cl
+        cid = cl.get('idCard')
+        if cid:
+            checklists_by_card.setdefault(str(cid), []).append(cl)
 
     default_list = next(iter(list_map.values()))
     cards_sorted = sorted(
         data.get('cards') or [],
-        key=lambda x: (bool(x.get('closed')), float(x.get('pos') or 0)),
+        key=lambda x: (bool(x.get('closed')), _safe_pos(x.get('pos'))),
     )
+    list_card_pos: dict[int, int] = {}
 
     for card_data in cards_sorted:
         id_list = card_data.get('idList')
         kl = list_map.get(id_list) or default_list
+        pos_idx = list_card_pos.get(kl.id, 0)
+        list_card_pos[kl.id] = pos_idx + 1
         card = KanbanCard(
             list_id=kl.id,
             title=(card_data.get('name') or 'Karte')[:300],
             description=card_data.get('desc') or None,
             poll_text=card_data.get('pollText') or None,
             due_date=_parse_dt(card_data.get('due')),
-            position=int(float(card_data.get('pos') or 0) // 65536) if card_data.get('pos') is not None else 0,
+            position=pos_idx,
             completed_at=_parse_dt(card_data.get('dateCompleted')) if _truthy(card_data.get('dueComplete')) else None,
             archived_at=datetime.utcnow() if card_data.get('closed') else None,
             created_by=user.id,
         )
-        # better position: use index within list later — keep pos scaled down
-        if card_data.get('pos') is not None:
-            try:
-                card.position = max(0, int(float(card_data['pos']) / 65536.0))
-            except Exception:
-                card.position = 0
         db.session.add(card)
         db.session.flush()
 
@@ -636,14 +747,33 @@ def _import_trello_json(
                 if not exists:
                     db.session.add(KanbanCardLabel(card_id=card.id, label_id=label_map[lid].id))
 
-        # assignees
-        for mid in card_data.get('idMembers') or []:
-            uid = trello_member_to_user.get(mid)
-            if uid:
-                db.session.add(KanbanCardAssignee(card_id=card.id, user_id=uid))
+        # Card members/assignees are intentionally excluded from import
 
-        # checklists
-        for i, cl in enumerate(sorted(checklists_by_card.get(card_data.get('id'), []), key=lambda x: float(x.get('pos') or 0))):
+        # checklists (support idCard, idChecklists references, and embedded card.checklists)
+        card_checklists: list[dict] = []
+        seen_cl_ids: set[str] = set()
+        card_tid = str(card_data.get('id') or '')
+        for cl in checklists_by_card.get(card_tid, []):
+            cl_id = str(cl.get('id') or '')
+            if cl_id:
+                seen_cl_ids.add(cl_id)
+            card_checklists.append(cl)
+        for cl_ref in card_data.get('idChecklists') or []:
+            cl_id = str(cl_ref or '')
+            if cl_id and cl_id not in seen_cl_ids and cl_id in checklists_by_id:
+                seen_cl_ids.add(cl_id)
+                card_checklists.append(checklists_by_id[cl_id])
+        for cl in card_data.get('checklists') or []:
+            if not isinstance(cl, dict):
+                continue
+            cl_id = str(cl.get('id') or '')
+            if cl_id and cl_id in seen_cl_ids:
+                continue
+            if cl_id:
+                seen_cl_ids.add(cl_id)
+            card_checklists.append(cl)
+
+        for i, cl in enumerate(sorted(card_checklists, key=lambda x: _safe_pos(x.get('pos')))):
             checklist = KanbanChecklist(
                 card_id=card.id,
                 title=(cl.get('name') or 'Checkliste')[:200],
@@ -651,18 +781,22 @@ def _import_trello_json(
             )
             db.session.add(checklist)
             db.session.flush()
-            for j, item in enumerate(sorted(cl.get('checkItems') or [], key=lambda x: float(x.get('pos') or 0))):
-                assignee_id = None
-                mid = item.get('idMember')
-                if mid:
-                    assignee_id = trello_member_to_user.get(mid)
+            raw_items = [it for it in (cl.get('checkItems') or cl.get('items') or []) if isinstance(it, dict)]
+            for j, item in enumerate(sorted(raw_items, key=lambda x: _safe_pos(x.get('pos')))):
+                item_text = (item.get('name') or item.get('text') or '').strip()[:500] or '…'
+                item_done = (
+                    item.get('state') == 'complete'
+                    or _truthy(item.get('state'))
+                    or _truthy(item.get('checked'))
+                    or _truthy(item.get('done'))
+                )
                 db.session.add(KanbanChecklistItem(
                     checklist_id=checklist.id,
-                    text=(item.get('name') or '')[:500] or '…',
-                    done=item.get('state') == 'complete',
+                    text=item_text,
+                    done=item_done,
                     position=j,
                     due_date=_parse_dt(item.get('due')),
-                    assignee_id=assignee_id,
+                    assignee_id=None,
                 ))
 
         # attachments — download binaries when possible, else keep as links
@@ -680,6 +814,7 @@ def _import_trello_json(
                 mime_hint=att.get('mimeType'),
                 file_size_hint=att.get('bytes'),
                 user_id=user.id,
+                trello_auth=trello_auth,
             )
             db.session.add(ka)
             db.session.flush()
@@ -731,29 +866,32 @@ def _import_trello_csv(
     visibility: str,
     team_id: int | None,
     title_override: str | None,
+    trello_auth: tuple[str, str] | None = None,
 ) -> KanbanBoard:
-    reader = csv.DictReader(io.StringIO(text))
+    delimiter = _detect_csv_delimiter(text)
+    reader = csv.DictReader(io.StringIO(text), delimiter=delimiter)
     if not reader.fieldnames:
         raise KanbanImportError('invalid_csv')
 
     # Normalize headers
     def col(*names):
-        lower = { (h or '').strip().lower(): h for h in reader.fieldnames }
+        lower = {(h or '').strip().lower(): h for h in reader.fieldnames}
         for n in names:
             if n.lower() in lower:
                 return lower[n.lower()]
         return None
 
-    c_name = col('Card Name', 'Name', 'Title', 'Kartentitel')
+    c_name = col('Card Name', 'Card Title', 'Name', 'Title', 'Kartentitel', 'Karte', 'Titel')
     c_desc = col('Card Description', 'Description', 'Desc', 'Beschreibung')
-    c_labels = col('Labels', 'Label')
+    c_labels = col('Labels', 'Label', 'Etiketten')
     c_members = col('Members', 'Member', 'Mitglieder')
     c_due = col('Due Date', 'Due', 'Fälligkeitsdatum')
-    c_due_done = col('Due Complete', 'Completed')
-    c_list = col('List Name', 'List', 'Liste')
+    c_due_done = col('Due Complete', 'Completed', 'Erledigt')
+    c_list = col('List Name', 'List', 'Liste', 'Spalte')
     c_board = col('Board Name', 'Board')
-    c_att = col('Attachment Links', 'Attachments', 'Attachment URLs')
-    c_archived = col('Archived', 'Closed')
+    c_att = col('Attachment Links', 'Attachments', 'Attachment URLs', 'Anhänge')
+    c_checklist = col('Checklist', 'Checklists', 'Checkliste')
+    c_archived = col('Archived', 'Closed', 'Archiviert')
 
     if not c_name:
         raise KanbanImportError('invalid_csv')
@@ -781,15 +919,6 @@ def _import_trello_csv(
     list_map: dict[str, KanbanList] = {}
     label_map: dict[str, KanbanLabel] = {}
     label_pos = 0
-
-    member_emails: set[str] = set()
-    if c_members:
-        for row in rows:
-            for part in (row.get(c_members) or '').split(','):
-                part = part.strip()
-                if '@' in part:
-                    member_emails.add(part.lower())
-    email_users = _resolve_users_by_email(member_emails)
 
     for row in rows:
         list_name = ((row.get(c_list) if c_list else None) or 'To Do').strip() or 'To Do'
@@ -831,18 +960,11 @@ def _import_trello_csv(
                     label_map[name] = label
                 db.session.add(KanbanCardLabel(card_id=card.id, label_id=label_map[name].id))
 
-        if c_members:
-            for part in (row.get(c_members) or '').split(','):
-                part = part.strip()
-                u = None
-                if '@' in part:
-                    u = email_users.get(part.lower())
-                if u:
-                    db.session.add(KanbanCardAssignee(card_id=card.id, user_id=u.id))
+        # Card members/assignees are intentionally excluded from CSV import
 
         if c_att:
             first_image_cover = None
-            for url in (row.get(c_att) or '').split():
+            for url in re.split(r'[\s,]+', (row.get(c_att) or '').strip()):
                 url = url.strip()
                 if not url.startswith(('http://', 'https://')):
                     continue
@@ -854,6 +976,7 @@ def _import_trello_csv(
                     mime_hint=None,
                     file_size_hint=None,
                     user_id=user.id,
+                    trello_auth=trello_auth,
                 )
                 db.session.add(ka)
                 db.session.flush()
@@ -863,6 +986,29 @@ def _import_trello_csv(
                     first_image_cover = ka.id
             if first_image_cover:
                 card.cover_attachment_id = first_image_cover
+
+        if c_checklist:
+            raw_cl = (row.get(c_checklist) or '').strip()
+            if raw_cl and not raw_cl.isdigit():
+                parts = [p.strip() for p in re.split(r'[\r\n;]+', raw_cl) if p.strip()]
+                if parts:
+                    cl = KanbanChecklist(card_id=card.id, title='Checkliste', position=0)
+                    db.session.add(cl)
+                    db.session.flush()
+                    for j, part in enumerate(parts):
+                        done = False
+                        text_item = part
+                        if part.startswith(('[x]', '[X]')):
+                            done = True
+                            text_item = part[3:].strip()
+                        elif part.startswith('[ ]'):
+                            text_item = part[3:].strip()
+                        db.session.add(KanbanChecklistItem(
+                            checklist_id=cl.id,
+                            text=(text_item or '…')[:500],
+                            done=done,
+                            position=j,
+                        ))
 
     if not list_map:
         db.session.add(KanbanList(board_id=board.id, title='To Do', position=0))

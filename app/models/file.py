@@ -102,16 +102,21 @@ class Folder(db.Model):
                 g._folder_path_cache = existing
             cache = existing
 
-        def path_of(fid):
+        def path_of(fid, seen=None):
             if fid in cache:
                 return cache[fid]
+            if seen is None:
+                seen = set()
+            if fid in seen:
+                return ''
+            seen.add(fid)
             node = by_id.get(fid)
             if node is None:
                 return ''
             if not node.parent_id or node.parent_id not in by_id:
                 value = node.name
             else:
-                parent_path = path_of(node.parent_id)
+                parent_path = path_of(node.parent_id, seen)
                 value = f'{parent_path}/{node.name}' if parent_path else node.name
             cache[fid] = value
             return value

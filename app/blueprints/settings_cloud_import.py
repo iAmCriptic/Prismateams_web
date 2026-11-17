@@ -132,35 +132,77 @@ def _list_dest_folders(space: str, team_id=None, parent_id=None) -> list:
     return [{'id': f.id, 'name': f.name, 'is_dir': True} for f in folders]
 
 
+def _can_use_kanban_import():
+    if not is_module_enabled('module_kanban'):
+        return False, []
+    try:
+        from app.utils.access_control import has_module_access
+        from app.utils.kanban_access import allowed_import_board_targets
+        if not has_module_access(current_user, 'module_kanban'):
+            return False, []
+        targets = allowed_import_board_targets(current_user)
+        return bool(targets), targets
+    except Exception:
+        return False, []
+
+
 def register_cloud_import_routes(bp):
-    @bp.route('/cloud-import')
+    @bp.route('/imports')
     @login_required
-    def cloud_import():
-        if not _require_files_module():
+    def imports():
+        show_cloud_import = is_module_enabled('module_files')
+        show_kanban_import, kanban_targets = _can_use_kanban_import()
+
+        if not show_cloud_import and not show_kanban_import:
+            flash(translate('settings.imports.unavailable'), 'warning')
             return redirect(url_for('settings.index'))
 
-        connections = (
-            CloudImportConnection.query.filter_by(user_id=current_user.id)
-            .order_by(CloudImportConnection.created_at.desc())
-            .all()
-        )
-        jobs = (
-            CloudImportJob.query.filter_by(user_id=current_user.id)
-            .order_by(CloudImportJob.created_at.desc())
-            .limit(30)
-            .all()
-        )
-        spaces = allowed_import_spaces_for_user(current_user)
+        connections = []
+        jobs = []
+        spaces = []
+        if show_cloud_import:
+            connections = (
+                CloudImportConnection.query.filter_by(user_id=current_user.id)
+                .order_by(CloudImportConnection.created_at.desc())
+                .all()
+            )
+            jobs = (
+                CloudImportJob.query.filter_by(user_id=current_user.id)
+                .order_by(CloudImportJob.created_at.desc())
+                .limit(30)
+                .all()
+            )
+            spaces = allowed_import_spaces_for_user(current_user)
+
+        trello_profile = None
+        if show_kanban_import:
+            from app.utils.trello_client import get_trello_session_profile
+            trello_profile = get_trello_session_profile()
 
         return render_template(
-            'settings/cloud_import.html',
+            'settings/imports.html',
+            show_cloud_import=show_cloud_import,
+            show_kanban_import=show_kanban_import,
             connections=connections,
             jobs=jobs,
             spaces=spaces,
-            google_configured=google_oauth_configured(),
-            private_folders_enabled=is_private_folders_enabled(),
-            team_folders_enabled=is_team_folders_enabled(),
+            google_configured=google_oauth_configured() if show_cloud_import else False,
+            private_folders_enabled=is_private_folders_enabled() if show_cloud_import else False,
+            team_folders_enabled=is_team_folders_enabled() if show_cloud_import else False,
+            import_targets=kanban_targets,
+            kanban_import_url=url_for('kanban.api_import_board') if show_kanban_import else '',
+            trello_profile=trello_profile,
+            trello_callback_url=url_for('settings.kanban_import_trello_callback', _external=True) if show_kanban_import else '',
+            initial_source=(request.args.get('source') or '').strip(),
         )
+
+    @bp.route('/cloud-import')
+    @login_required
+    def cloud_import():
+        src = (request.args.get('source') or '').strip()
+        if src:
+            return redirect(url_for('settings.imports', source=src))
+        return redirect(url_for('settings.imports'))
 
     @bp.route('/cloud-import/connect/nextcloud', methods=['POST'])
     @login_required
@@ -214,12 +256,12 @@ def register_cloud_import_routes(bp):
             return redirect(url_for('settings.index'))
         if not google_oauth_configured():
             flash(translate('settings.cloud_import.flash.google_not_configured'), 'warning')
-            return redirect(url_for('settings.cloud_import'))
+            return redirect(url_for('settings.imports', source='google_drive'))
         try:
             return redirect(get_google_drive_oauth_url())
         except Exception as exc:
             flash(translate('settings.cloud_import.flash.google_oauth_error', error=str(exc)), 'danger')
-            return redirect(url_for('settings.cloud_import'))
+            return redirect(url_for('settings.imports', source='google_drive'))
 
     @bp.route('/cloud-import/connections/<int:connection_id>', methods=['DELETE'])
     @login_required

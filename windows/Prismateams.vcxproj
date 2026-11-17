@@ -67,7 +67,7 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)packages\Microsoft.Web.WebView2\build\native\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>WebView2LoaderStatic.lib;mpr.lib;winhttp.lib;comctl32.lib;shell32.lib;advapi32.lib;ole32.lib;shlwapi.lib;dwmapi.lib;uxtheme.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>WebView2LoaderStatic.lib;mpr.lib;winhttp.lib;comctl32.lib;shell32.lib;advapi32.lib;ole32.lib;shlwapi.lib;dwmapi.lib;uxtheme.lib;msimg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)resources;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -92,7 +92,7 @@
       <OptimizeReferences>true</OptimizeReferences>
       <GenerateDebugInformation>false</GenerateDebugInformation>
       <AdditionalLibraryDirectories>$(ProjectDir)packages\Microsoft.Web.WebView2\build\native\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>WebView2LoaderStatic.lib;mpr.lib;winhttp.lib;comctl32.lib;shell32.lib;advapi32.lib;ole32.lib;shlwapi.lib;dwmapi.lib;uxtheme.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>WebView2LoaderStatic.lib;mpr.lib;winhttp.lib;comctl32.lib;shell32.lib;advapi32.lib;ole32.lib;shlwapi.lib;dwmapi.lib;uxtheme.lib;msimg32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(ProjectDir)resources;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>

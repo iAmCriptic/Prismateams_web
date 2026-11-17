@@ -8,11 +8,19 @@ from app.models.credential import Credential, CredentialFavorite
 from app.models.wiki import WikiPage, WikiFavorite
 from app.models.inventory import BorrowTransaction
 from app.models.booking import BookingRequest
+from app.models.booking_personal import BookingPersonalEvent, BookingPersonalEntry
 from app.models.contact import Contact
-from app.models.kanban import KanbanActivity, KanbanBoard
+from app.models.kanban import KanbanActivity, KanbanBoard, KanbanCard, KanbanCardAssignee, KanbanList
+from app.models.event import Event
+from app.models.survey import Survey
+from app.models.protocol import Protocol
+from app.models.meetings import Meeting, MeetingInvite
+from app.models.duty_roster import DutyRoster, DutyRosterDay, DutyRosterColumn, DutyRosterEntry
+from app.models.excalidraw import ExcalidrawDrawing
 from app.models.user import User
 from app import db
 from app.utils.common import is_module_enabled, check_for_updates, portal_now_naive
+from app.utils.access_control import has_module_access
 from app.utils.i18n import translate
 from app.utils.module_visibility import accessible_query, can_view_item
 from app.utils.kanban_access import accessible_boards_query
@@ -31,7 +39,7 @@ from app.utils.multi_calendars import (
     is_calendar_multi_enabled,
 )
 from sqlalchemy.orm import joinedload
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 from datetime import datetime
 import json
 import logging
@@ -46,6 +54,7 @@ WHATS_NEW_VERSION = str(ABOUT_RELEASE_VERSION or '').strip().lstrip('vV') or '3.
 
 WIDGET_MODULE_MAP = {
     'termine': 'module_calendar',
+    'veranstaltungen': 'module_calendar',
     'nachrichten': 'module_chat',
     'emails': 'module_email',
     'dateien': 'module_files',
@@ -54,9 +63,42 @@ WIDGET_MODULE_MAP = {
     'meine_wikis': 'module_wiki',
     'meine_ausleihen': 'module_inventory',
     'buchungen': 'module_booking',
+    'raumbuchung_kommende': 'module_booking',
+    'booking_personal': 'module_booking_personal',
     'kontakte': 'module_contacts',
     'kanban_aenderungen': 'module_kanban',
+    'kanban_meine_karten': 'module_kanban',
+    'umfragen': 'module_surveys',
+    'protokolle': 'module_protocols',
+    'meetings': 'module_meetings',
+    'dienstplan': 'module_duty_roster',
+    'excalidraw': 'module_excalidraw',
 }
+
+WIDGET_METADATA = {
+    'termine': {'icon': 'bi-calendar-event', 'category': 'planning'},
+    'veranstaltungen': {'icon': 'bi-calendar2-week', 'category': 'planning'},
+    'dienstplan': {'icon': 'bi-calendar3', 'category': 'planning'},
+    'buchungen': {'icon': 'bi-calendar-check', 'category': 'planning'},
+    'raumbuchung_kommende': {'icon': 'bi-door-open', 'category': 'planning'},
+    'booking_personal': {'icon': 'bi-person-badge', 'category': 'planning'},
+    'nachrichten': {'icon': 'bi-chat-dots', 'category': 'communication'},
+    'emails': {'icon': 'bi-envelope', 'category': 'communication'},
+    'meetings': {'icon': 'bi-camera-video', 'category': 'communication'},
+    'kontakte': {'icon': 'bi-person-lines-fill', 'category': 'communication'},
+    'kanban_meine_karten': {'icon': 'bi-check2-square', 'category': 'projects'},
+    'kanban_aenderungen': {'icon': 'bi-kanban', 'category': 'projects'},
+    'neue_wikieintraege': {'icon': 'bi-journal-text', 'category': 'projects'},
+    'meine_wikis': {'icon': 'bi-star-fill', 'category': 'projects'},
+    'protokolle': {'icon': 'bi-journal-richtext', 'category': 'projects'},
+    'excalidraw': {'icon': 'bi-pencil-square', 'category': 'projects'},
+    'dateien': {'icon': 'bi-folder', 'category': 'org'},
+    'passwoerter': {'icon': 'bi-key', 'category': 'org'},
+    'meine_ausleihen': {'icon': 'bi-box-arrow-right', 'category': 'org'},
+    'umfragen': {'icon': 'bi-ui-checks-grid', 'category': 'org'},
+}
+
+WIDGET_CATEGORIES = ['planning', 'communication', 'projects', 'org']
 
 AVAILABLE_LINK_KEYS = [
     'files', 'credentials', 'manuals', 'chat', 'calendar', 'events', 'email',
@@ -72,13 +114,18 @@ AVAILABLE_LINK_KEYS = [
 SIMPLE_WIDGET_TYPES = [
     'nachrichten', 'emails', 'dateien', 'passwoerter',
     'neue_wikieintraege', 'meine_wikis', 'meine_ausleihen', 'buchungen',
-    'kanban_aenderungen',
+    'raumbuchung_kommende', 'booking_personal', 'veranstaltungen',
+    'umfragen', 'protokolle', 'meetings', 'dienstplan', 'excalidraw',
+    'kanban_aenderungen', 'kanban_meine_karten',
 ]
 
 ALL_WIDGET_TYPES = [
-    'termine', 'kontakte', 'nachrichten', 'emails', 'dateien', 'passwoerter',
-    'neue_wikieintraege', 'meine_wikis', 'meine_ausleihen', 'buchungen',
-    'kanban_aenderungen',
+    'termine', 'veranstaltungen', 'dienstplan',
+    'buchungen', 'raumbuchung_kommende', 'booking_personal',
+    'nachrichten', 'emails', 'meetings', 'kontakte',
+    'kanban_meine_karten', 'kanban_aenderungen',
+    'neue_wikieintraege', 'meine_wikis', 'protokolle', 'excalidraw',
+    'dateien', 'passwoerter', 'meine_ausleihen', 'umfragen',
 ]
 
 DASHBOARD_GRID_COLS = 4
@@ -339,13 +386,67 @@ def _load_kanban_activity_for_widget(user, board_ids):
         return []
 
 
+def _load_kanban_cards_for_widget(user, board_ids):
+    try:
+        accessible_ids = {
+            bid
+            for (bid,) in (
+                accessible_boards_query(user, include_closed=False)
+                .with_entities(KanbanBoard.id)
+            )
+        }
+        if board_ids:
+            target_ids = [bid for bid in board_ids if bid in accessible_ids]
+        else:
+            target_ids = list(accessible_ids)
+        if not target_ids:
+            return []
+        rows = (
+            KanbanCard.query
+            .join(KanbanList, KanbanCard.list_id == KanbanList.id)
+            .join(KanbanBoard, KanbanList.board_id == KanbanBoard.id)
+            .join(KanbanCardAssignee, KanbanCardAssignee.card_id == KanbanCard.id)
+            .options(
+                joinedload(KanbanCard.list).joinedload(KanbanList.board),
+            )
+            .filter(
+                KanbanCardAssignee.user_id == user.id,
+                KanbanCard.archived_at.is_(None),
+                KanbanCard.completed_at.is_(None),
+                KanbanBoard.id.in_(target_ids),
+            )
+            .order_by(KanbanCard.due_date.asc().nullslast(), KanbanCard.updated_at.desc())
+            .limit(DASHBOARD_WIDGET_LIST_LIMIT)
+            .all()
+        )
+        now = portal_now_naive()
+        cards = []
+        for card in rows:
+            lst = card.list
+            board = lst.board if lst else None
+            cards.append({
+                'id': card.id,
+                'title': card.title,
+                'due_date': card.due_date,
+                'is_overdue': bool(card.due_date and card.due_date < now),
+                'list_title': lst.title if lst else '',
+                'board_id': board.id if board else None,
+                'board_title': board.title if board else '',
+                'board_visibility': getattr(board, 'visibility', None) if board else None,
+            })
+        return cards
+    except Exception as e:
+        logger.warning(f"Fehler beim Laden der Kanban-Karten: {e}")
+        return []
+
+
 def _load_widget_payload(user, widgets):
     """Lädt Daten pro Widget-Instanz. Rückgabe: dict id -> payload."""
     enabled_types = {w['type'] for w in widgets}
     payload = {}
 
     unread_messages = []
-    if 'nachrichten' in enabled_types and is_module_enabled('module_chat'):
+    if 'nachrichten' in enabled_types and has_module_access(user, 'module_chat'):
         try:
             unread_messages = recent_unread_messages_for_user(
                 user.id, DASHBOARD_WIDGET_LIST_LIMIT
@@ -354,7 +455,7 @@ def _load_widget_payload(user, widgets):
             logger.warning(f"Fehler beim Laden der Nachrichten: {e}")
 
     recent_files = []
-    if 'dateien' in enabled_types and is_module_enabled('module_files'):
+    if 'dateien' in enabled_types and has_module_access(user, 'module_files'):
         try:
             recent_files = File.query.filter_by(
                 uploaded_by=user.id
@@ -363,7 +464,7 @@ def _load_widget_payload(user, widgets):
             logger.warning(f"Fehler beim Laden der Dateien: {e}")
 
     recent_wiki_pages = []
-    if 'neue_wikieintraege' in enabled_types and is_module_enabled('module_wiki'):
+    if 'neue_wikieintraege' in enabled_types and has_module_access(user, 'module_wiki'):
         try:
             recent_wiki_pages = (
                 accessible_query(user, WikiPage, 'wiki')
@@ -375,7 +476,7 @@ def _load_widget_payload(user, widgets):
             logger.warning(f"Fehler beim Laden der Wiki-Seiten: {e}")
 
     my_wiki_favorites = []
-    if 'meine_wikis' in enabled_types and is_module_enabled('module_wiki'):
+    if 'meine_wikis' in enabled_types and has_module_access(user, 'module_wiki'):
         try:
             favorites = WikiFavorite.query.filter_by(
                 user_id=user.id
@@ -389,7 +490,7 @@ def _load_widget_payload(user, widgets):
             logger.warning(f"Fehler beim Laden der Wiki-Favoriten: {e}")
 
     my_borrow_groups = []
-    if 'meine_ausleihen' in enabled_types and is_module_enabled('module_inventory') and not getattr(user, 'is_guest', False):
+    if 'meine_ausleihen' in enabled_types and has_module_access(user, 'module_inventory') and not getattr(user, 'is_guest', False):
         try:
             borrows = BorrowTransaction.query.filter_by(
                 borrower_id=user.id, status='active'
@@ -419,7 +520,7 @@ def _load_widget_payload(user, widgets):
 
     new_booking_requests = []
     total_pending_bookings = 0
-    if 'buchungen' in enabled_types and is_module_enabled('module_booking') and not getattr(user, 'is_guest', False):
+    if 'buchungen' in enabled_types and has_module_access(user, 'module_booking') and not getattr(user, 'is_guest', False):
         try:
             new_booking_requests = BookingRequest.query.filter_by(
                 status='pending'
@@ -428,12 +529,172 @@ def _load_widget_payload(user, widgets):
         except Exception as e:
             logger.warning(f"Fehler beim Laden der Buchungen: {e}")
 
+    upcoming_room_bookings = []
+    if 'raumbuchung_kommende' in enabled_types and has_module_access(user, 'module_booking') and not getattr(user, 'is_guest', False):
+        try:
+            today = portal_now_naive().date()
+            upcoming_room_bookings = (
+                BookingRequest.query
+                .options(joinedload(BookingRequest.room))
+                .filter(
+                    BookingRequest.status == 'accepted',
+                    BookingRequest.event_date >= today,
+                )
+                .order_by(BookingRequest.event_date.asc(), BookingRequest.event_start_time.asc().nullslast())
+                .limit(DASHBOARD_WIDGET_LIST_LIMIT)
+                .all()
+            )
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der kommenden Raumbuchungen: {e}")
+
+    booking_personal_events = []
+    if 'booking_personal' in enabled_types and has_module_access(user, 'module_booking_personal') and not getattr(user, 'is_guest', False):
+        try:
+            events_rows = (
+                BookingPersonalEvent.query
+                .filter_by(is_active=True)
+                .order_by(BookingPersonalEvent.start_date.asc().nullslast(), BookingPersonalEvent.created_at.desc())
+                .limit(DASHBOARD_WIDGET_LIST_LIMIT)
+                .all()
+            )
+            ev_ids = [ev.id for ev in events_rows]
+            entry_counts = {}
+            if ev_ids:
+                for ev_id, cnt in (
+                    db.session.query(BookingPersonalEntry.event_id, func.count(BookingPersonalEntry.id))
+                    .filter(BookingPersonalEntry.event_id.in_(ev_ids))
+                    .group_by(BookingPersonalEntry.event_id)
+                    .all()
+                ):
+                    entry_counts[ev_id] = cnt
+            booking_personal_events = [
+                {
+                    'id': ev.id,
+                    'name': ev.name,
+                    'start_date': ev.start_date,
+                    'end_date': ev.end_date,
+                    'entries_count': entry_counts.get(ev.id, 0),
+                }
+                for ev in events_rows
+            ]
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Booking-Events: {e}")
+
+    upcoming_events = []
+    if 'veranstaltungen' in enabled_types and has_module_access(user, 'module_calendar'):
+        try:
+            today = portal_now_naive().date()
+            upcoming_events = (
+                Event.query
+                .options(joinedload(Event.room))
+                .filter(
+                    Event.is_archived.is_(False),
+                    or_(Event.end_date >= today, Event.start_date >= today, Event.start_date.is_(None)),
+                )
+                .order_by(Event.start_date.asc().nullslast(), Event.created_at.desc())
+                .limit(DASHBOARD_WIDGET_LIST_LIMIT)
+                .all()
+            )
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Veranstaltungen: {e}")
+
+    active_surveys = []
+    if 'umfragen' in enabled_types and has_module_access(user, 'module_surveys'):
+        try:
+            survey_rows = (
+                accessible_query(user, Survey, 'surveys')
+                .filter(Survey.is_active.is_(True))
+                .order_by(Survey.updated_at.desc())
+                .limit(DASHBOARD_WIDGET_LIST_LIMIT)
+                .all()
+            )
+            active_surveys = [
+                {
+                    'id': s.id,
+                    'title': s.title,
+                    'visibility': s.visibility,
+                    'responses_count': len(s.responses) if s.responses else 0,
+                    'updated_at': s.updated_at,
+                }
+                for s in survey_rows
+            ]
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Umfragen: {e}")
+
+    recent_protocols = []
+    if 'protokolle' in enabled_types and has_module_access(user, 'module_protocols'):
+        try:
+            recent_protocols = (
+                accessible_query(user, Protocol, 'protocols')
+                .order_by(Protocol.meeting_date.desc(), Protocol.created_at.desc())
+                .limit(DASHBOARD_WIDGET_LIST_LIMIT)
+                .all()
+            )
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Protokolle: {e}")
+
+    active_meetings = []
+    if 'meetings' in enabled_types and has_module_access(user, 'module_meetings'):
+        try:
+            active_meetings = (
+                Meeting.query
+                .filter(
+                    Meeting.status == 'active',
+                    or_(
+                        Meeting.access_mode == 'public',
+                        Meeting.created_by == user.id,
+                        Meeting.invites.any(MeetingInvite.user_id == user.id),
+                    ),
+                )
+                .order_by(Meeting.created_at.desc())
+                .limit(DASHBOARD_WIDGET_LIST_LIMIT)
+                .all()
+            )
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Meetings: {e}")
+
+    upcoming_shifts = []
+    if 'dienstplan' in enabled_types and has_module_access(user, 'module_duty_roster'):
+        try:
+            today = portal_now_naive().date()
+            upcoming_shifts = (
+                DutyRosterEntry.query
+                .join(DutyRosterDay, DutyRosterEntry.day_id == DutyRosterDay.id)
+                .join(DutyRosterColumn, DutyRosterEntry.column_id == DutyRosterColumn.id)
+                .join(DutyRoster, DutyRosterDay.roster_id == DutyRoster.id)
+                .options(
+                    joinedload(DutyRosterEntry.day).joinedload(DutyRosterDay.roster).joinedload(DutyRoster.team)
+                )
+                .filter(
+                    DutyRosterColumn.user_id == user.id,
+                    DutyRoster.is_published.is_(True),
+                    DutyRosterDay.date >= today,
+                )
+                .order_by(DutyRosterDay.date.asc(), DutyRosterEntry.start_time.asc().nullslast())
+                .limit(DASHBOARD_WIDGET_LIST_LIMIT)
+                .all()
+            )
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden des Dienstplans: {e}")
+
+    recent_drawings = []
+    if 'excalidraw' in enabled_types and has_module_access(user, 'module_excalidraw'):
+        try:
+            recent_drawings = (
+                accessible_query(user, ExcalidrawDrawing, 'excalidraw')
+                .order_by(ExcalidrawDrawing.updated_at.desc())
+                .limit(DASHBOARD_WIDGET_LIST_LIMIT)
+                .all()
+            )
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Excalidraw-Boards: {e}")
+
     for w in widgets:
         wid = w['id']
         wtype = w['type']
-        if wtype == 'termine' and is_module_enabled('module_calendar'):
+        if wtype == 'termine' and has_module_access(user, 'module_calendar'):
             payload[wid] = _load_termine_for_widget(user, w.get('calendar_ids') or [])
-        elif wtype == 'kontakte' and is_module_enabled('module_contacts'):
+        elif wtype == 'kontakte' and has_module_access(user, 'module_contacts'):
             contact_ids = w.get('contact_ids') or []
             contacts = []
             if contact_ids:
@@ -449,7 +710,7 @@ def _load_widget_payload(user, widgets):
             payload[wid] = {'messages': unread_messages}
         elif wtype == 'emails':
             emails = []
-            if is_module_enabled('module_email') and not getattr(user, 'is_guest', False):
+            if has_module_access(user, 'module_email') and not getattr(user, 'is_guest', False):
                 emails = _load_emails_for_widget(user, w.get('mailbox_id', None))
             payload[wid] = {
                 'emails': emails,
@@ -459,7 +720,7 @@ def _load_widget_payload(user, widgets):
             payload[wid] = {'files': recent_files}
         elif wtype == 'passwoerter':
             creds = []
-            if is_module_enabled('module_credentials'):
+            if has_module_access(user, 'module_credentials'):
                 creds = _load_credentials_for_widget(user, w.get('credential_ids') or [])
             payload[wid] = {'credentials': creds}
         elif wtype == 'neue_wikieintraege':
@@ -473,9 +734,29 @@ def _load_widget_payload(user, widgets):
                 'requests': new_booking_requests,
                 'total_pending': total_pending_bookings,
             }
-        elif wtype == 'kanban_aenderungen' and is_module_enabled('module_kanban'):
+        elif wtype == 'raumbuchung_kommende':
+            payload[wid] = {'requests': upcoming_room_bookings}
+        elif wtype == 'booking_personal':
+            payload[wid] = {'events': booking_personal_events}
+        elif wtype == 'veranstaltungen':
+            payload[wid] = {'events': upcoming_events}
+        elif wtype == 'umfragen':
+            payload[wid] = {'surveys': active_surveys}
+        elif wtype == 'protokolle':
+            payload[wid] = {'protocols': recent_protocols}
+        elif wtype == 'meetings':
+            payload[wid] = {'meetings': active_meetings}
+        elif wtype == 'dienstplan':
+            payload[wid] = {'entries': upcoming_shifts}
+        elif wtype == 'excalidraw':
+            payload[wid] = {'drawings': recent_drawings}
+        elif wtype == 'kanban_aenderungen' and has_module_access(user, 'module_kanban'):
             payload[wid] = {
                 'activities': _load_kanban_activity_for_widget(user, w.get('board_ids') or []),
+            }
+        elif wtype == 'kanban_meine_karten' and has_module_access(user, 'module_kanban'):
+            payload[wid] = {
+                'cards': _load_kanban_cards_for_widget(user, w.get('board_ids') or []),
             }
     return payload
 
@@ -487,27 +768,58 @@ def _build_widget_options(user):
         'mailboxes': [],
         'credentials': [],
         'boards': [],
+        'contact_names': {},
+        'categories': [
+            {
+                'key': cat,
+                'label': translate(f'dashboard.live.categories.{cat}'),
+            }
+            for cat in WIDGET_CATEGORIES
+        ],
         'widget_types': [],
     }
 
     for wtype in ALL_WIDGET_TYPES:
         module = WIDGET_MODULE_MAP.get(wtype)
-        if module and not is_module_enabled(module):
+        if module and not has_module_access(user, module):
             continue
+        meta = WIDGET_METADATA.get(wtype, {})
+        cat = meta.get('category', 'org')
         options['widget_types'].append({
             'type': wtype,
             'label': translate(f'dashboard.edit.widgets.items.{wtype}.label'),
             'description': translate(f'dashboard.edit.widgets.items.{wtype}.description'),
+            'icon': meta.get('icon', 'bi-grid'),
+            'category': cat,
+            'category_label': translate(f'dashboard.live.categories.{cat}'),
             'configurable': wtype in (
-                'termine', 'kontakte', 'emails', 'passwoerter', 'kanban_aenderungen'
+                'termine', 'kontakte', 'emails', 'passwoerter',
+                'kanban_aenderungen', 'kanban_meine_karten',
             ),
             'once': wtype in SIMPLE_WIDGET_TYPES,
         })
 
-    if is_module_enabled('module_calendar'):
+    if has_module_access(user, 'module_contacts'):
+        try:
+            cfg = user.get_dashboard_config() if hasattr(user, 'get_dashboard_config') else {}
+            selected_cids = []
+            for w in (cfg.get('widgets') or []):
+                if w.get('type') == 'kontakte':
+                    selected_cids.extend(w.get('contact_ids') or [])
+            if selected_cids:
+                contacts = (
+                    accessible_query(user, Contact, 'contacts')
+                    .filter(Contact.id.in_(selected_cids))
+                    .all()
+                )
+                options['contact_names'] = {str(c.id): c.name for c in contacts}
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Kontaktnamen: {e}")
+
+    if has_module_access(user, 'module_calendar'):
         options['calendars'] = _flatten_sidebar_calendars(user)
 
-    if is_module_enabled('module_email') and not getattr(user, 'is_guest', False):
+    if has_module_access(user, 'module_email') and not getattr(user, 'is_guest', False):
         options['mailboxes'] = [
             {
                 'id': None,
@@ -522,7 +834,7 @@ def _build_widget_options(user):
                 'type': mb.mailbox_type,
             })
 
-    if is_module_enabled('module_credentials'):
+    if has_module_access(user, 'module_credentials'):
         try:
             creds = (
                 accessible_query(user, Credential, 'credentials')
@@ -542,7 +854,7 @@ def _build_widget_options(user):
         except Exception as e:
             logger.warning(f"Fehler beim Laden der Credential-Optionen: {e}")
 
-    if is_module_enabled('module_kanban'):
+    if has_module_access(user, 'module_kanban'):
         try:
             boards = (
                 accessible_boards_query(user, include_closed=False)
@@ -591,7 +903,7 @@ def index():
     visible_widgets = []
     for w in widgets:
         module = WIDGET_MODULE_MAP.get(w['type'])
-        if module and not is_module_enabled(module):
+        if module and not has_module_access(current_user, module):
             continue
         visible_widgets.append(w)
 

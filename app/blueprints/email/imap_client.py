@@ -520,17 +520,33 @@ def gmail_folder_role(folder_name: str):
     return _GMAIL_LEAF_ROLES.get(leaf) or _GMAIL_LEAF_ROLES.get(leaf_ascii)
 
 
+def strip_inbox_prefix(folder_name: str) -> str:
+    """Strip leading 'INBOX.' / 'INBOX/' / 'INBOX\\' prefix if present."""
+    name = (folder_name or '').strip()
+    upper = name.upper()
+    for sep in ('.', '/', '\\'):
+        prefix = f'INBOX{sep}'
+        if upper.startswith(prefix):
+            return name[len(prefix):]
+    return name
+
+
 def is_standard_mail_folder(folder_name: str) -> bool:
     """Ob Ordner als Standardordner (nicht Custom) behandelt wird."""
     if not folder_name:
         return False
     name = folder_name.strip()
-    if name == 'INBOX' or is_sent_folder(name):
+    if name.upper() == 'INBOX' or is_sent_folder(name):
         return True
-    if name in (
-        'Drafts', 'Trash', 'Deleted Messages', 'Spam', 'Junk',
+    standard_names = (
+        'Drafts', 'Trash', 'Deleted Messages', 'Deleted Items',
+        'Spam', 'Junk', 'Junk E-Mail',
         'Archive', 'Archives', 'All Mail', 'Starred', 'Important',
-    ):
+    )
+    stripped = strip_inbox_prefix(name)
+    if name in standard_names or stripped in standard_names:
+        return True
+    if stripped.lower() in {s.lower() for s in standard_names}:
         return True
     return gmail_folder_role(name) is not None
 
@@ -575,11 +591,13 @@ def save_email_to_imap_sent(msg):
         tuple: (success: bool, folder_name: str|None) - Erfolg und Name des Gesendet-Ordners
     """
     try:
-        imap_server = current_app.config.get('IMAP_SERVER')
-        imap_port = current_app.config.get('IMAP_PORT', 993)
-        imap_use_ssl = current_app.config.get('IMAP_USE_SSL', True)
-        username = current_app.config.get('MAIL_USERNAME')
-        password = current_app.config.get('MAIL_PASSWORD')
+        from app.utils.multi_mailboxes import get_main_imap_config
+        imap_cfg = get_main_imap_config()
+        imap_server = imap_cfg.get('server')
+        imap_port = imap_cfg.get('port', 993)
+        imap_use_ssl = imap_cfg.get('use_ssl', True)
+        username = imap_cfg.get('user')
+        password = imap_cfg.get('password')
         
         if not all([imap_server, username, password]):
             logging.warning("IMAP configuration missing, cannot save to Sent folder")

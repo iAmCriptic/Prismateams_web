@@ -203,7 +203,9 @@ window.EXCALIDRAW_BOOTSTRAP = {
     moduleFallback: {{ excalidraw_module_fallback|tojson }},
     assetFallback: {{ excalidraw_cdn_base|tojson }},
     reactUrl: 'https://esm.sh/react@18.3.1',
+    reactFallbackUrl: 'https://cdn.jsdelivr.net/npm/react@18.3.1/+esm',
     reactDomUrl: 'https://esm.sh/react-dom@18.3.1',
+    reactDomFallbackUrl: 'https://cdn.jsdelivr.net/npm/react-dom@18.3.1/+esm',
     collabUrl: {{ (url_for('static', filename='js/excalidraw-collab.js') ~ '?v=' ~ config.ABOUT_BUILD_NUMBER)|tojson }},
     editorUrl: {{ (url_for('static', filename='js/excalidraw-editor.js') ~ '?v=' ~ config.ABOUT_BUILD_NUMBER)|tojson }}
 };

@@ -69,13 +69,17 @@ def _normalize_email(addr: str) -> str:
 def _own_addresses(mailbox: Optional[Mailbox]) -> set:
     addrs = set()
     if mailbox is None:
-        for key in ('MAIL_USERNAME', 'MAIL_DEFAULT_SENDER', 'IMAP_USERNAME'):
-            raw = current_app.config.get(key) or ''
-            if raw:
-                addrs.add(_normalize_email(raw))
         try:
-            from config import get_formatted_sender
-            addrs.add(_normalize_email(get_formatted_sender() or ''))
+            from app.utils.main_mail_config import get_formatted_main_sender, get_main_mail_config
+            cfg = get_main_mail_config()
+            for raw in (
+                cfg.get('smtp_username'),
+                cfg.get('imap_username'),
+                cfg.get('default_sender'),
+                get_formatted_main_sender(),
+            ):
+                if raw:
+                    addrs.add(_normalize_email(raw))
         except Exception:
             pass
     else:
@@ -249,11 +253,9 @@ def send_auto_reply(
         from_addr = smtp_cfg.get('sender') or smtp_cfg.get('user')
     else:
         smtp_cfg = None
-        try:
-            from config import get_formatted_sender
-            from_addr = get_formatted_sender()
-        except Exception:
-            from_addr = current_app.config.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_USERNAME')
+        from app.utils.main_mail_config import get_formatted_main_sender, get_main_mail_config
+        cfg = get_main_mail_config()
+        from_addr = get_formatted_main_sender() or cfg.get('default_sender') or cfg.get('smtp_username')
 
     if not from_addr:
         logging.warning('Auto-reply: no sender configured for mailbox=%s', mailbox_auto_reply_key(mailbox))

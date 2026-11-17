@@ -12,6 +12,7 @@ from app.utils.private_files import (
     is_private_folders_enabled,
     is_team_folders_enabled,
     normalize_view,
+    sanitize_files_item_name,
 )
 
 from app.blueprints.files._bp import files_bp
@@ -29,14 +30,25 @@ from app.blueprints.files.upload_handlers import (
 )
 
 
+def _parse_optional_folder_id(raw_val):
+    if raw_val in (None, "", "null"):
+        return None, True
+    try:
+        return int(raw_val), True
+    except (TypeError, ValueError):
+        return None, False
+
+
 @files_bp.route("/upload", methods=["POST"])
 @login_required
 @check_module_access("module_files")
 def upload_file():
     """Upload a file or folder."""
     if hasattr(current_user, "is_guest") and current_user.is_guest:
-        folder_id = request.form.get("folder_id")
-        folder_id = int(folder_id) if folder_id else None
+        folder_id, ok_fid = _parse_optional_folder_id(request.form.get("folder_id"))
+        if not ok_fid:
+            flash("Ungültige Ordner-ID.", "danger")
+            return finish_upload(_safe_referrer_or(url_for("files.index")))
 
         if folder_id:
             from app.utils.access_control import GUEST_WRITE_MODES, guest_has_folder_access
@@ -58,8 +70,10 @@ def upload_file():
             )
             return finish_upload(_safe_referrer_or(url_for("files.index")))
 
-    folder_id = request.form.get("folder_id")
-    folder_id = int(folder_id) if folder_id else None
+    folder_id, ok_fid = _parse_optional_folder_id(request.form.get("folder_id"))
+    if not ok_fid:
+        flash("Ungültige Ordner-ID.", "danger")
+        return finish_upload(_safe_referrer_or(url_for("files.index")))
     conflict_strategy = request.form.get("conflict_strategy", "").strip().lower()
     files_view = normalize_view(request.form.get("view") or request.args.get("view"), user=current_user)
     team_id = _request_team_id()
@@ -68,10 +82,12 @@ def upload_file():
         flash("Keine Berechtigung für diese Team-Ablage.", "danger")
         return finish_upload(_safe_referrer_or(url_for("files.index")))
 
+    is_guest = bool(getattr(current_user, "is_guest", False))
     private_enabled = is_private_folders_enabled()
     team_enabled = is_team_folders_enabled()
     if (
-        (private_enabled or team_enabled)
+        not is_guest
+        and (private_enabled or team_enabled)
         and upload_parent
         and not current_user.is_admin
         and not can_edit_folder(upload_parent, current_user)
@@ -122,6 +138,15 @@ def upload_conflicts():
     except (TypeError, ValueError):
         return jsonify({"success": False, "error": "Ungültiger Ordner."}), 400
 
+    if folder_id is None:
+        files_view = normalize_view(payload.get("view"), user=current_user)
+        team_id = payload.get("team_id")
+        try:
+            team_id = int(team_id) if team_id not in (None, "", "null") else None
+        except (TypeError, ValueError):
+            team_id = None
+        folder_id, _ = _resolve_create_parent(files_view, None, team_id)
+
     if folder_id is not None:
         target = Folder.query.get(folder_id)
         if not target:
@@ -135,14 +160,19 @@ def upload_conflicts():
 
     candidate_names = []
     for raw_name in raw_names:
-        clean_name = secure_filename(str(raw_name or ""))
+        base_name = str(raw_name or "").replace("\\", "/").split("/")[-1]
+        clean_name = sanitize_files_item_name(base_name)
         if clean_name:
             candidate_names.append(clean_name)
 
     if not candidate_names:
         return jsonify({"success": True, "conflicts": []})
 
-    query = File.query.filter(File.is_current.is_(True), File.name.in_(candidate_names))
+    query = File.query.filter(
+        File.is_current.is_(True),
+        File.deleted_at.is_(None),
+        File.name.in_(candidate_names),
+    )
     if folder_id is None:
         query = query.filter(File.folder_id.is_(None))
     else:

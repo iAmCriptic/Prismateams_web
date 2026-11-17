@@ -13,6 +13,12 @@ NOTIFICATION_TYPE_ICONS = {
     'calendar_invite': 'bi-calendar-plus',
     'file': 'bi-folder',
     'booking': 'bi-calendar2-check',
+    'room_booking': 'bi-door-open',
+    'inventory': 'bi-box-seam',
+    'kanban': 'bi-kanban',
+    'comment': 'bi-chat-left-text',
+    'comment_mention': 'bi-at',
+    'survey': 'bi-ui-checks-grid',
     'test': 'bi-bell',
     'generic': 'bi-bell',
 }
@@ -70,6 +76,8 @@ def get_notification_settings():
 
         settings = get_or_create_notification_settings(current_user.id)
         return jsonify({
+            "is_paused": settings.is_paused(),
+            "notifications_paused_until": settings.notifications_paused_until.isoformat() if settings.notifications_paused_until else None,
             "chat_notifications_enabled": settings.chat_notifications_enabled,
             "file_notifications_enabled": settings.file_notifications_enabled,
             "file_new_notifications": settings.file_new_notifications,
@@ -83,6 +91,35 @@ def get_notification_settings():
             "calendar_not_participating": settings.calendar_not_participating,
             "calendar_no_response": settings.calendar_no_response,
             "reminder_times": settings.get_reminder_times(),
+            # Portal channels
+            "chat_portal_enabled": getattr(settings, "chat_portal_enabled", True),
+            "kanban_portal_enabled": getattr(settings, "kanban_portal_enabled", True),
+            "email_portal_enabled": getattr(settings, "email_portal_enabled", True),
+            "comment_portal_enabled": getattr(settings, "comment_portal_enabled", True),
+            "inventory_portal_enabled": getattr(settings, "inventory_portal_enabled", True),
+            "booking_portal_enabled": getattr(settings, "booking_portal_enabled", True),
+            "room_booking_portal_enabled": getattr(settings, "room_booking_portal_enabled", True),
+            "survey_portal_enabled": getattr(settings, "survey_portal_enabled", True),
+            "calendar_portal_enabled": getattr(settings, "calendar_portal_enabled", True),
+            "file_portal_enabled": getattr(settings, "file_portal_enabled", True),
+            # Push channels
+            "chat_push_enabled": getattr(settings, "chat_push_enabled", True),
+            "kanban_push_enabled": getattr(settings, "kanban_push_enabled", True),
+            "email_push_enabled": getattr(settings, "email_push_enabled", True),
+            "comment_push_enabled": getattr(settings, "comment_push_enabled", True),
+            "inventory_push_enabled": getattr(settings, "inventory_push_enabled", True),
+            "booking_push_enabled": getattr(settings, "booking_push_enabled", True),
+            "room_booking_push_enabled": getattr(settings, "room_booking_push_enabled", True),
+            "survey_push_enabled": getattr(settings, "survey_push_enabled", True),
+            "calendar_push_enabled": getattr(settings, "calendar_push_enabled", True),
+            "file_push_enabled": getattr(settings, "file_push_enabled", True),
+            # Sub-options
+            "comment_mention_notifications": getattr(settings, "comment_mention_notifications", True),
+            "comment_reply_notifications": getattr(settings, "comment_reply_notifications", True),
+            "survey_new_notifications": getattr(settings, "survey_new_notifications", True),
+            "survey_response_notifications": getattr(settings, "survey_response_notifications", True),
+            "room_booking_new_notifications": getattr(settings, "room_booking_new_notifications", True),
+            "room_booking_status_notifications": getattr(settings, "room_booking_status_notifications", True),
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -94,23 +131,53 @@ def update_notification_settings():
             sync_user_notification_flags,
         )
 
-        data = request.get_json()
+        data = request.get_json() or {}
         settings = get_or_create_notification_settings(current_user.id)
-        settings.chat_notifications_enabled = data.get("chat_notifications_enabled", True)
-        settings.file_notifications_enabled = data.get("file_notifications_enabled", True)
-        settings.file_new_notifications = data.get("file_new_notifications", True)
-        settings.file_modified_notifications = data.get("file_modified_notifications", True)
-        settings.email_notifications_enabled = data.get("email_notifications_enabled", True)
-        settings.booking_notifications_enabled = data.get("booking_notifications_enabled", True)
-        settings.booking_message_notifications_enabled = data.get(
-            "booking_message_notifications_enabled", True
-        )
-        settings.calendar_notifications_enabled = data.get("calendar_notifications_enabled", True)
-        settings.calendar_all_events = data.get("calendar_all_events", False)
-        settings.calendar_participating_only = data.get("calendar_participating_only", True)
-        settings.calendar_not_participating = data.get("calendar_not_participating", False)
-        settings.calendar_no_response = data.get("calendar_no_response", False)
-        settings.set_reminder_times(data.get("reminder_times", []))
+        
+        # Portal channels
+        for field in [
+            "chat_portal_enabled", "kanban_portal_enabled", "email_portal_enabled",
+            "comment_portal_enabled", "inventory_portal_enabled", "booking_portal_enabled",
+            "room_booking_portal_enabled", "survey_portal_enabled", "calendar_portal_enabled",
+            "file_portal_enabled",
+            "chat_push_enabled", "kanban_push_enabled", "email_push_enabled",
+            "comment_push_enabled", "inventory_push_enabled", "booking_push_enabled",
+            "room_booking_push_enabled", "survey_push_enabled", "calendar_push_enabled",
+            "file_push_enabled",
+            "comment_mention_notifications", "comment_reply_notifications",
+            "survey_new_notifications", "survey_response_notifications",
+            "room_booking_new_notifications", "room_booking_status_notifications",
+        ]:
+            if field in data:
+                setattr(settings, field, bool(data[field]))
+
+        if "chat_notifications_enabled" in data:
+            settings.chat_notifications_enabled = bool(data["chat_notifications_enabled"])
+        if "file_notifications_enabled" in data:
+            settings.file_notifications_enabled = bool(data["file_notifications_enabled"])
+        if "file_new_notifications" in data:
+            settings.file_new_notifications = bool(data["file_new_notifications"])
+        if "file_modified_notifications" in data:
+            settings.file_modified_notifications = bool(data["file_modified_notifications"])
+        if "email_notifications_enabled" in data:
+            settings.email_notifications_enabled = bool(data["email_notifications_enabled"])
+        if "booking_notifications_enabled" in data:
+            settings.booking_notifications_enabled = bool(data["booking_notifications_enabled"])
+        if "booking_message_notifications_enabled" in data:
+            settings.booking_message_notifications_enabled = bool(data["booking_message_notifications_enabled"])
+        if "calendar_notifications_enabled" in data:
+            settings.calendar_notifications_enabled = bool(data["calendar_notifications_enabled"])
+        if "calendar_all_events" in data:
+            settings.calendar_all_events = bool(data["calendar_all_events"])
+        if "calendar_participating_only" in data:
+            settings.calendar_participating_only = bool(data["calendar_participating_only"])
+        if "calendar_not_participating" in data:
+            settings.calendar_not_participating = bool(data["calendar_not_participating"])
+        if "calendar_no_response" in data:
+            settings.calendar_no_response = bool(data["calendar_no_response"])
+        if "reminder_times" in data:
+            settings.set_reminder_times(data.get("reminder_times", []))
+            
         sync_user_notification_flags(current_user, settings)
         db.session.commit()
         return jsonify({"message": "Benachrichtigungseinstellungen aktualisiert"})

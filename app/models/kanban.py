@@ -62,7 +62,11 @@ class KanbanBoard(db.Model):
 
     @property
     def is_archived(self):
-        return self.archived_at is not None or self.closed_at is not None
+        return self.archived_at is not None
+
+    @property
+    def is_closed(self):
+        return self.closed_at is not None
 
     def __repr__(self):
         return f'<KanbanBoard {self.id} {self.title}>'
@@ -93,6 +97,7 @@ class KanbanList(db.Model):
     title = db.Column(db.String(200), nullable=False)
     position = db.Column(db.Integer, nullable=False, default=0)
     archived_at = db.Column(db.DateTime, nullable=True)
+    default_custom_field_ids = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -107,6 +112,32 @@ class KanbanList(db.Model):
     @property
     def is_archived(self):
         return self.archived_at is not None
+
+    def get_default_custom_field_ids(self) -> list[int]:
+        if not self.default_custom_field_ids:
+            return []
+        try:
+            import json
+            raw = json.loads(self.default_custom_field_ids)
+            if not isinstance(raw, list):
+                return []
+            return [int(x) for x in raw if str(x).isdigit()]
+        except Exception:
+            return []
+
+    def set_default_custom_field_ids(self, field_ids: list[int]) -> None:
+        import json
+        cleaned = []
+        seen = set()
+        for fid in field_ids or []:
+            try:
+                val = int(fid)
+            except (TypeError, ValueError):
+                continue
+            if val > 0 and val not in seen:
+                seen.add(val)
+                cleaned.append(val)
+        self.default_custom_field_ids = json.dumps(cleaned) if cleaned else None
 
 
 class KanbanCard(db.Model):
@@ -347,7 +378,7 @@ class KanbanBoardView(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     viewed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    board = db.relationship('KanbanBoard', backref='views')
+    board = db.relationship('KanbanBoard', backref=db.backref('views', cascade='all, delete-orphan', passive_deletes=True))
     user = db.relationship('User', backref='kanban_board_views')
 
     __table_args__ = (

@@ -239,6 +239,9 @@ def api_import_board():
         return jsonify({'error': translate('kanban.import.error_empty'), 'code': 'empty'}), 400
 
     from app.utils.kanban_import import KanbanImportError, detect_import_format, import_board_from_bytes, import_boards_from_zip
+    from app.utils.trello_client import get_trello_session_auth
+
+    trello_auth = get_trello_session_auth()
 
     try:
         fmt = detect_import_format(f.filename, raw)
@@ -248,6 +251,7 @@ def api_import_board():
                 user=current_user,
                 visibility=visibility,
                 team_id=team_id,
+                trello_auth=trello_auth,
             )
             for board in boards:
                 _log_activity(board.id, 'board_imported', board.title, user_id=current_user.id)
@@ -266,6 +270,7 @@ def api_import_board():
             visibility=visibility,
             team_id=team_id,
             title_override=title_override,
+            trello_auth=trello_auth,
         )
     except KanbanImportPermissionError as exc:
         code = str(exc) or 'forbidden'
@@ -324,6 +329,58 @@ def api_board(board_id):
         board.title = (data['title'] or board.title).strip() or board.title
     if 'description' in data:
         board.description = (data.get('description') or '').strip() or None
+    if 'visibility' in data or 'team_id' in data:
+        raw_vis = (data.get('visibility') if 'visibility' in data else board.visibility) or VISIBILITY_PRIVATE
+        new_vis = str(raw_vis).strip().lower()
+        new_team_id = data.get('team_id') if 'team_id' in data else board.team_id
+        if new_vis.startswith('team:'):
+            try:
+                new_team_id = int(new_vis.split(':', 1)[1])
+            except (TypeError, ValueError):
+                return jsonify({'error': 'Invalid team'}), 400
+            new_vis = VISIBILITY_TEAM
+        if new_vis not in (VISIBILITY_PRIVATE, VISIBILITY_TEAM, VISIBILITY_PUBLIC):
+            return jsonify({'error': 'Invalid visibility'}), 400
+        if not visibility_allowed(new_vis, current_user):
+            return jsonify({'error': 'Visibility not allowed'}), 400
+        if new_team_id in ('', None):
+            new_team_id = None
+        else:
+            try:
+                new_team_id = int(new_team_id)
+            except (TypeError, ValueError):
+                return jsonify({'error': 'Invalid team'}), 400
+        if new_vis == VISIBILITY_TEAM:
+            if not new_team_id:
+                return jsonify({'error': 'Team required'}), 400
+            if not Team.query.get(new_team_id):
+                return jsonify({'error': 'Team not found'}), 404
+            if not _user_may_use_team(current_user, new_team_id):
+                return jsonify({'error': 'Forbidden'}), 403
+        else:
+            new_team_id = None
+
+        vis_changed = (board.visibility != new_vis) or (board.team_id != new_team_id)
+        board.visibility = new_vis
+        board.team_id = new_team_id
+        if vis_changed:
+            if new_vis == VISIBILITY_PRIVATE and getattr(current_user, 'id', None):
+                existing_member = KanbanBoardMember.query.filter_by(
+                    board_id=board.id,
+                    user_id=current_user.id,
+                ).first()
+                if existing_member is None:
+                    db.session.add(KanbanBoardMember(
+                        board_id=board.id,
+                        user_id=current_user.id,
+                        role='owner',
+                    ))
+                elif existing_member.role not in ('owner', 'admin'):
+                    existing_member.role = 'owner'
+            _log_activity(board.id, 'board_updated', json.dumps({
+                'visibility': board.visibility,
+                'team_id': board.team_id,
+            }))
     if 'background' in data:
         bg = (data['background'] or '').strip()
         if bg in {b['key'] for b in BOARD_BACKGROUNDS}:
@@ -415,10 +472,10 @@ def api_create_list(board_id):
 @kanban_bp.route('/api/lists/<int:list_id>', methods=['PATCH', 'DELETE'])
 @login_or_share_required
 def api_list(list_id):
-    lst = KanbanList.query.get_or_404(list_id)
+    lst, err = _require_list_edit(list_id)
+    if err:
+        return err
     board = lst.board
-    if not _can_edit_board_ctx(board):
-        return jsonify({'error': 'Forbidden'}), 403
 
     if request.method == 'DELETE':
         board_id = board.id
@@ -442,6 +499,21 @@ def api_list(list_id):
             lst.position = int(data['position'])
         except (TypeError, ValueError):
             pass
+    if 'default_custom_field_ids' in data:
+        raw_ids = data.get('default_custom_field_ids') or []
+        if not isinstance(raw_ids, list):
+            raw_ids = []
+        parsed_ids = []
+        for x in raw_ids:
+            try:
+                parsed_ids.append(int(x))
+            except (TypeError, ValueError):
+                continue
+        valid_ids = {
+            f.id
+            for f in KanbanCustomField.query.filter_by(board_id=board.id, card_id=None).all()
+        }
+        lst.set_default_custom_field_ids([fid for fid in parsed_ids if fid in valid_ids])
     db.session.commit()
     payload = _serialize_list(lst, share_token=_share_token_from_request())
     _emit_board(board.id, 'list_updated', payload)
@@ -455,9 +527,14 @@ def api_reorder_lists(board_id):
     if err:
         return err
     data = request.get_json(silent=True) or {}
-    order = data.get('order') or []
+    raw_order = data.get('order')
+    if raw_order is None:
+        raw_order = []
+    elif not isinstance(raw_order, list):
+        return jsonify({'error': 'order must be a list'}), 400
+    order = _parse_int_list(raw_order)
     for i, lid in enumerate(order):
-        lst = KanbanList.query.filter_by(id=int(lid), board_id=board.id).first()
+        lst = KanbanList.query.filter_by(id=lid, board_id=board.id).first()
         if lst:
             lst.position = i
     db.session.commit()

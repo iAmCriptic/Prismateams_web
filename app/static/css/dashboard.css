@@ -2089,6 +2089,180 @@ body:has(#whatsNewModal.show) .modal-backdrop {
     border-radius: var(--mod-radius-pill);
 }
 
+/* Widget-Katalog (Add Widget Modal) */
+.dashboard-catalog-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-bottom: 0.85rem;
+}
+
+.dashboard-catalog-search {
+    width: 100%;
+    margin: 0;
+}
+
+.dashboard-catalog-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.dashboard-catalog-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem;
+    max-height: 24rem;
+    overflow-y: auto;
+    padding: 0.15rem;
+}
+
+@media (max-width: 767.98px) {
+    .dashboard-catalog-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.dashboard-catalog-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 0.85rem;
+    border-radius: var(--mod-radius-card);
+    border: 1px solid color-mix(in srgb, var(--bs-border-color) 80%, transparent);
+    background: color-mix(in srgb, var(--bs-body-bg) 55%, var(--bs-tertiary-bg) 45%);
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease, transform 0.12s ease;
+    text-align: left;
+}
+
+.dashboard-catalog-card:hover:not(.is-added) {
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 55%, var(--bs-border-color));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 6%, var(--bs-body-bg));
+}
+
+.dashboard-catalog-card.is-selected {
+    border-color: var(--accent-color, var(--bs-primary));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color, var(--bs-primary)) 22%, transparent);
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, var(--bs-body-bg));
+}
+
+.dashboard-catalog-card.is-added {
+    opacity: 0.62;
+    cursor: default;
+}
+
+.dashboard-catalog-card__icon {
+    width: 2.35rem;
+    height: 2.35rem;
+    border-radius: var(--mod-radius-pill);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 1.05rem;
+    color: var(--accent-color, var(--bs-primary));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+}
+
+.dashboard-catalog-card__body {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.dashboard-catalog-card__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+}
+
+.dashboard-catalog-card__title {
+    font-size: 0.92rem;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--bs-body-color);
+}
+
+.dashboard-catalog-card__desc {
+    margin: 0;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    color: var(--bs-secondary-color);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.dashboard-catalog-card__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.dashboard-catalog-cat {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--bs-secondary-color);
+    background: color-mix(in srgb, var(--bs-border-color) 35%, transparent);
+    padding: 0.12rem 0.5rem;
+    border-radius: var(--mod-radius-pill);
+}
+
+.dashboard-catalog-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    padding: 0.12rem 0.45rem;
+    border-radius: var(--mod-radius-pill);
+    flex-shrink: 0;
+}
+
+.dashboard-catalog-badge--added {
+    color: var(--bs-success);
+    background: color-mix(in srgb, var(--bs-success) 14%, transparent);
+}
+
+.dashboard-catalog-badge--cfg {
+    color: var(--bs-secondary-color);
+    background: color-mix(in srgb, var(--bs-border-color) 35%, transparent);
+}
+
+.dashboard-catalog-quick-add {
+    width: 1.65rem;
+    height: 1.65rem;
+    border-radius: var(--mod-radius-pill);
+    border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 40%, var(--bs-border-color));
+    background: transparent;
+    color: var(--accent-color, var(--bs-primary));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 0.85rem;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dashboard-catalog-quick-add:hover {
+    background: var(--accent-color, var(--bs-primary));
+    color: var(--bs-light);
+    border-color: var(--accent-color, var(--bs-primary));
+}
+
+.dashboard-catalog-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 1.5rem 0.5rem;
+}
+
 @media (min-width: 992px) {
     .dashboard-page--live.dashboard-shell > .mod-main {
         overflow-x: auto;
