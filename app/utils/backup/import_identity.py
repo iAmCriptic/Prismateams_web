@@ -178,6 +178,29 @@ def import_whitelist(whitelist_data: List[Dict]):
             db.session.add(entry)
 
 
+def _apply_extended_user_fields(target: User, u_data: Dict) -> None:
+    """Apply access flags, 2FA, OAuth, and UI preferences from backup data."""
+    for field, default in (
+        ('can_access_public', True),
+        ('can_access_team', True),
+        ('can_access_private', True),
+        ('totp_enabled', False),
+        ('show_update_notifications', True),
+        ('portal_onboarding_completed', False),
+    ):
+        if hasattr(target, field) and field in u_data:
+            setattr(target, field, bool(u_data.get(field, default)))
+    for field in ('totp_secret', 'google_sub', 'google_email', 'dashboard_config', 'whats_new_seen_version'):
+        if hasattr(target, field) and u_data.get(field) is not None:
+            setattr(target, field, u_data.get(field))
+    for dt_field in ('dguv_signature_confirmed_until', 'google_linked_at'):
+        if hasattr(target, dt_field) and u_data.get(dt_field):
+            try:
+                setattr(target, dt_field, datetime.fromisoformat(u_data[dt_field]))
+            except Exception:
+                pass
+
+
 def import_users(users_data: List[Dict]) -> Dict[str, int]:
     """
     Importiert Benutzer und gibt ein Mapping von E-Mail zu neuer ID zurück.
@@ -265,6 +288,7 @@ def import_users(users_data: List[Dict]) -> Dict[str, int]:
             # Passwort-Hash aktualisieren falls vorhanden
             if u_data.get('password_hash'):
                 existing.password_hash = u_data['password_hash']
+            _apply_extended_user_fields(existing, u_data)
             user_map[u_data['email']] = existing.id
         else:
             # Neuer Benutzer (mit Passwort-Hash aus Backup)
@@ -303,6 +327,7 @@ def import_users(users_data: List[Dict]) -> Dict[str, int]:
                 user.must_change_password = u_data.get('must_change_password', False)
             if u_data.get('guest_expires_at') and hasattr(user, 'guest_expires_at'):
                 user.guest_expires_at = datetime.fromisoformat(u_data['guest_expires_at'])
+            _apply_extended_user_fields(user, u_data)
             # Falls kein Passwort-Hash vorhanden, temporäres Passwort setzen
             if not user.password_hash:
                 user.set_password('TEMPORARY_PASSWORD_RESET_REQUIRED')

@@ -4990,7 +4990,8 @@
         "folder": "Папка",
         "no_folder": "Без папки",
         "root_folder": "Без папки",
-        "is_favorite": "Отметить как избранное"
+        "is_favorite": "Отметить как избранное",
+        "storage_location": "Расположение"
       },
       "placeholders": {
         "website_name": "напр. GitHub",

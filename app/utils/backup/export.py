@@ -75,6 +75,28 @@ from app.utils.backup_extensions import (
 )
 
 from app.utils.backup.constants import BACKUP_VERSION, _category_selected
+from app.utils.backup.export_kanban import export_kanban_bundle
+from app.utils.backup.export_new_modules import (
+    export_booking_personal_bundle,
+    export_duty_roster_bundle,
+    export_meetings_bundle,
+    export_protocols_bundle,
+    export_surveys_bundle,
+    export_teams_bundle,
+)
+from app.utils.backup.export_submodels import (
+    export_booking_submodels,
+    export_contact_submodels,
+    export_credential_submodels,
+    export_email_submodels,
+    export_event_submodels,
+    export_inventory_submodels,
+    export_manual_submodels,
+    export_settings_submodels,
+    export_user_submodels,
+    export_wiki_submodels,
+)
+from app.utils.backup.file_io import read_file_base64, upload_root
 
 def export_backup(categories: List[str], output_path: str) -> Dict:
     """
@@ -101,15 +123,22 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
     if _category_selected(categories, 'settings'):
         backup_data['data']['settings'] = export_settings()
         backup_data['data']['whitelist'] = export_whitelist()
+        backup_data['data'].update(export_settings_submodels())
     
     # Benutzer exportieren
     if _category_selected(categories, 'users'):
         backup_data['data']['users'] = export_users()
         backup_data['data']['notification_settings'] = export_notification_settings()
         backup_data['data']['user_module_roles'] = export_user_module_roles()
+        backup_data['data'].update(export_user_submodels())
+
+    # Teams exportieren
+    if _category_selected(categories, 'teams'):
+        backup_data['data'].update(export_teams_bundle())
     
     # E-Mails exportieren
     if _category_selected(categories, 'emails'):
+        backup_data['data'].update(export_email_submodels())
         backup_data['data']['emails'] = export_emails()
         backup_data['data']['email_permissions'] = export_email_permissions()
         backup_data['data']['email_attachments'] = export_email_attachments()
@@ -124,10 +153,12 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
     
     # Zugangsdaten exportieren (entschlüsselt)
     if _category_selected(categories, 'credentials'):
+        backup_data['data'].update(export_credential_submodels())
         backup_data['data']['credentials'] = export_credentials()
     
     # Handbücher exportieren
     if _category_selected(categories, 'manuals'):
+        backup_data['data'].update(export_manual_submodels())
         backup_data['data']['manuals'] = export_manuals()
     
     # Chats exportieren
@@ -152,6 +183,7 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
         backup_data['data']['wiki_tags'] = export_wiki_tags()
         backup_data['data']['wiki_pages'] = export_wiki_pages()
         backup_data['data']['wiki_page_versions'] = export_wiki_page_versions()
+        backup_data['data'].update(export_wiki_submodels())
     
     # Kommentare exportieren
     if _category_selected(categories, 'comments'):
@@ -170,10 +202,12 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
         backup_data['data']['product_favorites'] = export_product_favorites()
         backup_data['data']['inventories'] = export_inventories()
         backup_data['data']['inventory_items'] = export_inventory_items()
+        backup_data['data'].update(export_inventory_submodels())
 
     # Neue Module
     if _category_selected(categories, 'contacts'):
         backup_data['data']['contacts'] = export_contacts()
+        backup_data['data'].update(export_contact_submodels())
     if _category_selected(categories, 'events'):
         backup_data['data']['portal_events'] = export_portal_events()
         backup_data['data']['event_appointments'] = export_event_appointments()
@@ -181,6 +215,7 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
         backup_data['data']['event_inventory_needs'] = export_event_inventory_needs()
         backup_data['data']['event_contacts'] = export_event_contacts()
         backup_data['data']['event_timeline_items'] = export_event_timeline_items()
+        backup_data['data'].update(export_event_submodels())
     if _category_selected(categories, 'booking'):
         backup_data['data']['booking_forms'] = export_booking_forms()
         backup_data['data']['booking_form_fields'] = export_booking_form_fields()
@@ -190,6 +225,7 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
         backup_data['data']['booking_requests'] = export_booking_requests()
         backup_data['data']['booking_request_fields'] = export_booking_request_fields()
         backup_data['data']['booking_request_approvals'] = export_booking_request_approvals()
+        backup_data['data'].update(export_booking_submodels())
     if _category_selected(categories, 'music'):
         backup_data['data']['music_settings'] = export_music_settings()
         backup_data['data']['music_wishes'] = export_music_wishes()
@@ -203,6 +239,18 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
     if _category_selected(categories, 'excalidraw'):
         backup_data['data']['excalidraw_drawings'] = export_excalidraw_drawings()
         backup_data['data']['excalidraw_drawing_versions'] = export_excalidraw_drawing_versions()
+    if _category_selected(categories, 'kanban'):
+        backup_data['data'].update(export_kanban_bundle())
+    if _category_selected(categories, 'surveys'):
+        backup_data['data'].update(export_surveys_bundle())
+    if _category_selected(categories, 'protocols'):
+        backup_data['data'].update(export_protocols_bundle())
+    if _category_selected(categories, 'meetings'):
+        backup_data['data'].update(export_meetings_bundle())
+    if _category_selected(categories, 'duty_roster'):
+        backup_data['data'].update(export_duty_roster_bundle())
+    if _category_selected(categories, 'booking_personal'):
+        backup_data['data'].update(export_booking_personal_bundle())
     
     # Backup-Datei schreiben
     with open(output_path, 'w', encoding='utf-8') as f:
@@ -293,6 +341,18 @@ def export_users() -> List[Dict]:
             'preferred_layout': getattr(u, 'preferred_layout', 'auto'),
             'must_change_password': getattr(u, 'must_change_password', False),
             'totp_enabled': getattr(u, 'totp_enabled', False),
+            'totp_secret': getattr(u, 'totp_secret', None),
+            'can_access_public': getattr(u, 'can_access_public', True),
+            'can_access_team': getattr(u, 'can_access_team', True),
+            'can_access_private': getattr(u, 'can_access_private', True),
+            'dguv_signature_confirmed_until': u.dguv_signature_confirmed_until.isoformat() if getattr(u, 'dguv_signature_confirmed_until', None) else None,
+            'google_sub': getattr(u, 'google_sub', None),
+            'google_email': getattr(u, 'google_email', None),
+            'google_linked_at': u.google_linked_at.isoformat() if getattr(u, 'google_linked_at', None) else None,
+            'dashboard_config': getattr(u, 'dashboard_config', None),
+            'show_update_notifications': getattr(u, 'show_update_notifications', True),
+            'whats_new_seen_version': getattr(u, 'whats_new_seen_version', None),
+            'portal_onboarding_completed': getattr(u, 'portal_onboarding_completed', False),
             'created_at': u.created_at.isoformat() if u.created_at else None,
             'last_login': u.last_login.isoformat() if u.last_login else None
         }
@@ -340,6 +400,9 @@ def export_notification_settings() -> List[Dict]:
 
 def export_emails() -> List[Dict]:
     """Exportiert E-Mails."""
+    from app.models.email import Mailbox
+
+    mailbox_names = {m.id: m.name for m in Mailbox.query.all()}
     emails = EmailMessage.query.all()
     return [{
         'uid': e.uid,
@@ -355,6 +418,10 @@ def export_emails() -> List[Dict]:
         'is_sent': e.is_sent,
         'has_attachments': e.has_attachments,
         'folder': e.folder,
+        'mailbox_name': mailbox_names.get(e.mailbox_id) if getattr(e, 'mailbox_id', None) else None,
+        'color_dot': getattr(e, 'color_dot', None),
+        'is_flagged': getattr(e, 'is_flagged', False),
+        'imap_color_keyword': getattr(e, 'imap_color_keyword', None),
         'sent_by_user_email': lookup_user_email(e.sent_by_user_id),
         'received_at': e.received_at.isoformat() if e.received_at else None,
         'sent_at': e.sent_at.isoformat() if e.sent_at else None,
@@ -450,6 +517,9 @@ def export_credentials() -> List[Dict]:
                 'favicon_url': cred.favicon_url,
                 'visibility': getattr(cred, 'visibility', 'public'),
                 'team_id': getattr(cred, 'team_id', None),
+                'team_name': lookup_team_name(cred.team_id) if getattr(cred, 'team_id', None) else None,
+                'folder_name': cred.folder.name if getattr(cred, 'folder', None) else None,
+                'is_favorite': getattr(cred, 'is_favorite', False),
                 'created_by_email': lookup_user_email(cred.created_by),
                 'created_at': cred.created_at.isoformat() if cred.created_at else None,
                 'updated_at': cred.updated_at.isoformat() if cred.updated_at else None
@@ -472,6 +542,8 @@ def export_manuals() -> List[Dict]:
             'file_size': m.file_size,
             'visibility': getattr(m, 'visibility', 'public'),
             'team_id': getattr(m, 'team_id', None),
+            'team_name': lookup_team_name(m.team_id) if getattr(m, 'team_id', None) else None,
+            'folder_name': m.folder.name if getattr(m, 'folder', None) else None,
             'uploaded_by_email': lookup_user_email(m.uploaded_by),
             'uploaded_at': m.uploaded_at.isoformat() if m.uploaded_at else None
         }
@@ -525,17 +597,13 @@ def export_chats() -> List[Dict]:
         
         # Exportiere Gruppenbild als Base64 wenn vorhanden
         if c.group_avatar:
-            try:
-                project_root = os.path.dirname(current_app.root_path)
-                avatar_path = os.path.join(project_root, current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'chat_avatars', c.group_avatar)
-                if os.path.exists(avatar_path):
-                    with open(avatar_path, 'rb') as f:
-                        import base64
-                        avatar_data = f.read()
-                        chat_data['group_avatar_content_base64'] = base64.b64encode(avatar_data).decode('utf-8')
-                        chat_data['group_avatar_original_name'] = c.group_avatar
-            except Exception as e:
-                current_app.logger.error(f"Fehler beim Exportieren des Chat-Avatars für {c.name}: {str(e)}")
+            b64 = read_file_base64([
+                os.path.join(upload_root(), 'chat', 'avatars', c.group_avatar),
+                os.path.join(upload_root(), 'chat_avatars', c.group_avatar),
+            ])
+            if b64:
+                chat_data['group_avatar_content_base64'] = b64
+                chat_data['group_avatar_original_name'] = c.group_avatar
         
         result.append(chat_data)
     
@@ -570,30 +638,15 @@ def export_chat_messages() -> List[Dict]:
         
         # Exportiere Media-Datei als Base64 wenn vorhanden
         if msg.media_url:
-            try:
-                project_root = os.path.dirname(current_app.root_path)
-                # Versuche verschiedene mögliche Pfade
-                media_paths = [
-                    os.path.join(project_root, current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'chat_media', msg.media_url),
-                    os.path.join(project_root, msg.media_url),
-                    msg.media_url
-                ]
-                
-                media_data = None
-                for media_path in media_paths:
-                    if os.path.exists(media_path):
-                        with open(media_path, 'rb') as f:
-                            import base64
-                            media_data = base64.b64encode(f.read()).decode('utf-8')
-                            message_data['media_content_base64'] = media_data
-                            message_data['media_original_name'] = os.path.basename(msg.media_url)
-                            break
-                
-                if not media_data:
-                    # Falls Datei nicht gefunden, speichere URL
-                    message_data['media_url'] = msg.media_url
-            except Exception as e:
-                current_app.logger.error(f"Fehler beim Exportieren der Media-Datei für Nachricht {msg.id}: {str(e)}")
+            b64 = read_file_base64([
+                os.path.join(upload_root(), 'chat', msg.media_url),
+                os.path.join(upload_root(), 'chat_media', msg.media_url),
+                msg.media_url,
+            ])
+            if b64:
+                message_data['media_content_base64'] = b64
+                message_data['media_original_name'] = os.path.basename(msg.media_url)
+            else:
                 message_data['media_url'] = msg.media_url
         else:
             message_data['media_url'] = None
@@ -701,6 +754,8 @@ def export_public_shares() -> List[Dict]:
                 entry['file_name'] = file_obj.name
                 if file_obj.folder_id:
                     entry['folder_name'] = lookup_entity_name('folder', file_obj.folder_id)
+        elif share.resource_type == 'kanban_board':
+            entry['old_kanban_board_id'] = share.resource_id
         else:
             entry['folder_name'] = lookup_entity_name('folder', share.resource_id)
         result.append(entry)
@@ -741,6 +796,7 @@ def export_wiki_pages() -> List[Dict]:
             'version_number': p.version_number,
             'visibility': getattr(p, 'visibility', 'public'),
             'team_id': getattr(p, 'team_id', None),
+            'team_name': lookup_team_name(p.team_id) if getattr(p, 'team_id', None) else None,
             'tags': [tag.name for tag in p.tags],
             'created_at': p.created_at.isoformat() if p.created_at else None,
             'updated_at': p.updated_at.isoformat() if p.updated_at else None
@@ -812,6 +868,8 @@ def export_comments() -> List[Dict]:
             wiki_slug = lookup_entity_name('wiki_page_slug', c.content_id)
             if wiki_slug:
                 comment_data['content_reference'] = f"wiki:{wiki_slug}"
+        elif c.content_type == 'kanban_card':
+            comment_data['content_reference'] = f"kanban_card:{c.content_id}"
 
         result.append(comment_data)
     return result

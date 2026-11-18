@@ -70,6 +70,28 @@ from app.utils.backup_extensions import (
 
 
 from app.utils.backup.constants import SUPPORTED_BACKUP_VERSIONS, _category_selected
+from app.utils.backup.import_kanban import import_kanban_bundle
+from app.utils.backup.import_new_modules import (
+    import_booking_personal_bundle,
+    import_duty_roster_bundle,
+    import_meetings_bundle,
+    import_protocols_bundle,
+    import_surveys_bundle,
+    import_teams_bundle,
+)
+from app.utils.backup.import_submodels import (
+    import_booking_submodels,
+    import_contact_submodels,
+    import_credential_favorites,
+    import_credential_submodels,
+    import_email_submodels,
+    import_event_submodels,
+    import_inventory_submodels,
+    import_manual_submodels,
+    import_settings_submodels,
+    import_user_submodels,
+    import_wiki_submodels,
+)
 from app.utils.backup.import_comms import (
     import_calendar_events,
     import_chat_members,
@@ -161,6 +183,7 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
             'emails', 'appointments', 'credentials', 'files', 'wiki', 'comments',
             'inventory', 'chats', 'contacts', 'events', 'booking', 'music',
             'media_downloader', 'assessment', 'shortlinks', 'manuals',
+            'teams', 'kanban', 'surveys', 'protocols', 'meetings', 'duty_roster', 'booking_personal',
         ]
         needs_users = any(_category_selected(categories, cat) for cat in user_dependent_modules)
         
@@ -186,6 +209,14 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
             for user in existing_users:
                 user_map[user.email] = user.id
         
+        # Teams importieren (vor Modulen die team_id referenzieren)
+        team_map = {}
+        if _category_selected(categories, 'teams'):
+            team_map = import_teams_bundle(backup_data_dict, user_map, current_user_id, results)
+        else:
+            from app.models.team import Team
+            team_map = {t.name: t.id for t in Team.query.all()}
+
         # Einstellungen importieren
         if _category_selected(categories, 'settings'):
             if 'settings' in backup_data.get('data', {}):
@@ -194,6 +225,7 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
             if 'whitelist' in backup_data.get('data', {}):
                 import_whitelist(backup_data['data']['whitelist'])
                 results['imported'].append('whitelist')
+            import_settings_submodels(backup_data_dict, user_map)
         
         # Notification Settings importieren (benötigt user_map)
         if _category_selected(categories, 'users'):
@@ -206,8 +238,9 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
         
         # E-Mails importieren
         if _category_selected(categories, 'emails'):
+            mailbox_map = import_email_submodels(backup_data_dict, user_map, team_map)
             if 'emails' in backup_data.get('data', {}):
-                email_map = import_emails(backup_data['data']['emails'], user_map, current_user_id)
+                email_map = import_emails(backup_data['data']['emails'], user_map, current_user_id, mailbox_map=mailbox_map)
                 results['imported'].append('emails')
             else:
                 email_map = {}
@@ -244,14 +277,17 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
         
         # Zugangsdaten importieren
         if _category_selected(categories, 'credentials'):
+            cred_folder_map = import_credential_submodels(backup_data_dict, user_map, current_user_id, team_map)
             if 'credentials' in backup_data.get('data', {}):
-                import_credentials(backup_data['data']['credentials'], user_map, current_user_id)
+                import_credentials(backup_data['data']['credentials'], user_map, current_user_id, folder_map=cred_folder_map, team_map=team_map)
                 results['imported'].append('credentials')
+            import_credential_favorites(backup_data_dict, user_map)
         
         # Handbücher importieren
         if _category_selected(categories, 'manuals'):
+            manual_folder_map = import_manual_submodels(backup_data_dict, user_map, current_user_id, team_map)
             if 'manuals' in backup_data.get('data', {}):
-                import_manuals(backup_data['data']['manuals'], user_map, current_user_id)
+                import_manuals(backup_data['data']['manuals'], user_map, current_user_id, folder_map=manual_folder_map, team_map=team_map)
                 results['imported'].append('manuals')
         
         # Chats importieren
@@ -273,6 +309,18 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
             if 'chat_pins' in backup_data.get('data', {}):
                 import_chat_pins(backup_data['data']['chat_pins'], chat_map, user_map, current_user_id)
                 results['imported'].append('chat_pins')
+
+        # User-Submodels (Tokens, App-Passwörter, Chat-Notification-Settings nach Chats)
+        if _category_selected(categories, 'users'):
+            import_user_submodels(backup_data_dict, user_map)
+
+        # Kanban importieren (vor Files/PublicShares und Comments, damit IDs remapped werden)
+        kanban_board_map = {}
+        kanban_card_map = {}
+        if _category_selected(categories, 'kanban'):
+            kanban_board_map, kanban_card_map = import_kanban_bundle(
+                backup_data_dict, user_map, current_user_id, results, team_map=team_map
+            )
         
         # Dateien importieren
         if _category_selected(categories, 'files'):
@@ -291,7 +339,7 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
                 results['imported'].append('file_versions')
 
             if 'public_shares' in backup_data.get('data', {}):
-                import_public_shares(backup_data['data']['public_shares'], user_map, current_user_id)
+                import_public_shares(backup_data['data']['public_shares'], user_map, current_user_id, kanban_board_map=kanban_board_map)
                 results['imported'].append('public_shares')
 
             if 'resource_acls' in backup_data.get('data', {}):
@@ -317,7 +365,7 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
                 tag_map = {}
             
             if 'wiki_pages' in backup_data.get('data', {}):
-                page_map = import_wiki_pages(backup_data['data']['wiki_pages'], category_map, tag_map, user_map, current_user_id)
+                page_map = import_wiki_pages(backup_data['data']['wiki_pages'], category_map, tag_map, user_map, current_user_id, team_map=team_map)
                 results['imported'].append('wiki_pages')
             else:
                 page_map = {}
@@ -325,11 +373,13 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
             if 'wiki_page_versions' in backup_data.get('data', {}):
                 import_wiki_page_versions(backup_data['data']['wiki_page_versions'], page_map, user_map, current_user_id)
                 results['imported'].append('wiki_page_versions')
+
+            import_wiki_submodels(backup_data_dict, page_map, user_map)
         
         # Kommentare importieren
         if _category_selected(categories, 'comments'):
             if 'comments' in backup_data.get('data', {}):
-                comment_map = import_comments(backup_data['data']['comments'], user_map, current_user_id)
+                comment_map = import_comments(backup_data['data']['comments'], user_map, current_user_id, kanban_card_map=kanban_card_map)
                 results['imported'].append('comments')
             else:
                 comment_map = {}
@@ -388,10 +438,17 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
                 import_inventory_items(backup_data['data']['inventory_items'], inventory_map, product_map, user_map, current_user_id)
                 results['imported'].append('inventory_items')
 
+            import_inventory_submodels(backup_data_dict, product_map, set_map, user_map, current_user_id)
+
         # Neue Module
         if _category_selected(categories, 'contacts') and 'contacts' in backup_data_dict:
             import_contacts(backup_data_dict['contacts'], user_map, current_user_id)
+            import_contact_submodels(backup_data_dict, user_map)
             results['imported'].append('contacts')
+
+        bp_event_map = {}
+        if _category_selected(categories, 'booking_personal'):
+            bp_event_map = import_booking_personal_bundle(backup_data_dict, user_map, current_user_id, results)
 
         if _category_selected(categories, 'events'):
             event_id_map = {}
@@ -413,9 +470,11 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
             if 'event_timeline_items' in backup_data_dict:
                 import_event_timeline_items(backup_data_dict['event_timeline_items'], event_id_map)
                 results['imported'].append('event_timeline_items')
+            import_event_submodels(backup_data_dict, event_id_map, user_map, bp_event_map=bp_event_map)
 
         if _category_selected(categories, 'booking'):
             import_booking_bundle(backup_data_dict, user_map, current_user_id, results)
+            import_booking_submodels(backup_data_dict, user_map)
 
         if _category_selected(categories, 'music'):
             if 'music_settings' in backup_data_dict:
@@ -449,6 +508,18 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
                     backup_data_dict['excalidraw_drawing_versions'], room_map, user_map, current_user_id
                 )
                 results['imported'].append('excalidraw_drawing_versions')
+
+        if _category_selected(categories, 'surveys'):
+            import_surveys_bundle(backup_data_dict, user_map, current_user_id, results, team_map=team_map)
+
+        if _category_selected(categories, 'protocols'):
+            import_protocols_bundle(backup_data_dict, user_map, current_user_id, results, team_map=team_map)
+
+        if _category_selected(categories, 'meetings'):
+            import_meetings_bundle(backup_data_dict, user_map, current_user_id, results)
+
+        if _category_selected(categories, 'duty_roster'):
+            import_duty_roster_bundle(backup_data_dict, user_map, current_user_id, results, team_map=team_map)
         
         db.session.commit()
 

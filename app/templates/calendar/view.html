@@ -184,6 +184,12 @@
                         <i class="bi bi-x-circle"></i> {{ _('calendar.view.buttons.decline') }}
                     </button>
                 </form>
+                {% elif user_participation and user_participation.status == 'removed' %}
+                <div class="alert alert-warning mb-0">
+                    {{ _('calendar.view.alerts.removed') }}
+                </div>
+                {% endif %}
+                {% if not (user_participation and user_participation.status == 'removed') %}
                 {% if can_edit %}
                 <a href="{{ url_for('calendar.edit_event', event_id=event.id) }}" class="btn btn-outline-primary calendar-form-cancel">
                     <i class="bi bi-pencil"></i> {{ _('calendar.view.buttons.edit') }}
@@ -204,10 +210,6 @@
                 </form>
                 {% endif %}
                 {% endif %}
-                {% elif user_participation and user_participation.status == 'removed' %}
-                <div class="alert alert-warning mb-0">
-                    {{ _('calendar.view.alerts.removed') }}
-                </div>
                 {% endif %}
             </div>
         </div>

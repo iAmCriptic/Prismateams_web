@@ -2210,7 +2210,14 @@
           "media_downloader": "Media Downloader",
           "assessment": "Bewertung",
           "shortlinks": "Kurzlinks",
-          "excalidraw": "Excalidraw"
+          "excalidraw": "Excalidraw",
+          "teams": "Teams",
+          "kanban": "Kanban",
+          "surveys": "Umfragen",
+          "protocols": "Protokolle",
+          "meetings": "Meetings",
+          "duty_roster": "Dienstplan",
+          "booking_personal": "Persönliche Buchungen"
         },
         "helps": {
           "settings": "Systemeinstellungen, Modul-Flags und Whitelist.",
@@ -2231,7 +2238,14 @@
           "media_downloader": "Download-Job-Metadaten.",
           "assessment": "Bewertung: Listen, Kriterien, Evaluationen und zugehörige Daten.",
           "shortlinks": "Kurzlinks.",
-          "excalidraw": "Zeichnungen, Szenen und Versionen."
+          "excalidraw": "Zeichnungen, Szenen und Versionen.",
+          "teams": "Teams, Mitglieder, Modul-Einstellungen, Team-Avatare und Einladungscodes",
+          "kanban": "Kanban-Boards, Listen, Karten, Checklisten, Labels, benutzerdefinierte Felder, Vorlagen, Aktivitäten und Anhänge",
+          "surveys": "Umfragen, Seiten, Fragen, Logik-Regeln, Antworten und hochgeladene Dateien",
+          "protocols": "Sitzungsprotokolle und Tagesordnungspunkte",
+          "meetings": "Video-Meetings und Einladungen",
+          "duty_roster": "Dienstpläne, Schichten, Personen-Konfigurationen, externe Personen und Zeiterfassung",
+          "booking_personal": "Persönliche Buchungs-Events, Felder, Einträge, Dateien und Vorlagen"
         },
         "lead_short": "Portal-Backup exportieren und importieren."
       },
@@ -4168,7 +4182,8 @@
         "folder": "Ordner",
         "no_folder": "Kein Ordner",
         "root_folder": "Kein Ordner",
-        "is_favorite": "Als Favorit markieren"
+        "is_favorite": "Als Favorit markieren",
+        "storage_location": "Speicherort"
       },
       "placeholders": {
         "website_name": "z.B. GitHub",

@@ -70,7 +70,7 @@ from app.utils.backup_extensions import (
 
 from app.utils.backup.helpers import _ensure_local_main_chat, _message_fingerprint
 
-def import_emails(emails_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None) -> Dict[str, int]:
+def import_emails(emails_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None, mailbox_map: Optional[Dict[str, int]] = None) -> Dict[str, int]:
     """Importiert E-Mails und gibt ein Mapping von message_id zu neuer ID zurück."""
     email_map = {}  # message_id -> neue_id
     
@@ -82,6 +82,7 @@ def import_emails(emails_data: List[Dict], user_map: Dict[str, int], current_use
             if sent_by_user_id is None and current_user_id:
                 sent_by_user_id = current_user_id
         
+        resolved_mailbox_id = (mailbox_map or {}).get(e_data.get('mailbox_name')) if e_data.get('mailbox_name') else None
         existing = None
         if e_data.get('message_id'):
             existing = EmailMessage.query.filter_by(message_id=e_data['message_id']).first()
@@ -99,6 +100,14 @@ def import_emails(emails_data: List[Dict], user_map: Dict[str, int], current_use
             existing.is_sent = e_data.get('is_sent', False)
             existing.has_attachments = e_data.get('has_attachments', False)
             existing.folder = e_data.get('folder', 'INBOX')
+            if resolved_mailbox_id is not None:
+                existing.mailbox_id = resolved_mailbox_id
+            if 'color_dot' in e_data:
+                existing.color_dot = e_data.get('color_dot')
+            if 'is_flagged' in e_data:
+                existing.is_flagged = bool(e_data.get('is_flagged', False))
+            if 'imap_color_keyword' in e_data:
+                existing.imap_color_keyword = e_data.get('imap_color_keyword')
             existing.sent_by_user_id = sent_by_user_id
             if e_data.get('received_at'):
                 existing.received_at = datetime.fromisoformat(e_data['received_at'])
@@ -122,6 +131,10 @@ def import_emails(emails_data: List[Dict], user_map: Dict[str, int], current_use
                 is_sent=e_data.get('is_sent', False),
                 has_attachments=e_data.get('has_attachments', False),
                 folder=e_data.get('folder', 'INBOX'),
+                mailbox_id=resolved_mailbox_id,
+                color_dot=e_data.get('color_dot'),
+                is_flagged=bool(e_data.get('is_flagged', False)),
+                imap_color_keyword=e_data.get('imap_color_keyword'),
                 sent_by_user_id=sent_by_user_id
             )
             if e_data.get('received_at'):
@@ -307,8 +320,10 @@ def import_event_participants(participants_data: List[Dict], event_map: Dict[str
             db.session.add(participant)
 
 
-def import_manuals(manuals_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None):
+def import_manuals(manuals_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None, folder_map: Optional[Dict[str, int]] = None, team_map: Optional[Dict[str, int]] = None):
     """Importiert Handbücher (inkl. PDF-Dateien)."""
+    from app.utils.backup.file_io import resolve_team_id
+
     for m_data in manuals_data:
         uploaded_by_email = m_data.get('uploaded_by_email')
         if not uploaded_by_email:
@@ -325,6 +340,9 @@ def import_manuals(manuals_data: List[Dict], user_map: Dict[str, int], current_u
         else:
             uploaded_by_id = user_map[uploaded_by_email]
         
+        resolved_team_id = resolve_team_id(m_data.get('team_name'), team_map, m_data.get('team_id'))
+        resolved_folder_id = (folder_map or {}).get(m_data.get('folder_name')) if m_data.get('folder_name') else None
+
         # Prüfe ob Manual bereits existiert (nach Titel und Uploader)
         existing = Manual.query.filter_by(
             title=m_data.get('title'),
@@ -337,8 +355,10 @@ def import_manuals(manuals_data: List[Dict], user_map: Dict[str, int], current_u
             existing.file_size = m_data.get('file_size', existing.file_size)
             if m_data.get('visibility'):
                 existing.visibility = m_data['visibility']
-            if 'team_id' in m_data:
-                existing.team_id = m_data.get('team_id')
+            if resolved_team_id is not None:
+                existing.team_id = resolved_team_id
+            if resolved_folder_id is not None:
+                existing.folder_id = resolved_folder_id
         else:
             # Neues Manual
             manual = Manual(
@@ -347,7 +367,8 @@ def import_manuals(manuals_data: List[Dict], user_map: Dict[str, int], current_u
                 file_size=m_data.get('file_size', 0),
                 uploaded_by=uploaded_by_id,
                 visibility=m_data.get('visibility') or 'public',
-                team_id=m_data.get('team_id'),
+                team_id=resolved_team_id,
+                folder_id=resolved_folder_id,
             )
             
             # Importiere PDF-Datei wenn vorhanden
@@ -507,7 +528,7 @@ def import_chats(chats_data: List[Dict], user_map: Dict[str, int], current_user_
                     filename = f"{timestamp}_{secure_filename(base_name)}{ext}"
                     
                     project_root = os.path.dirname(current_app.root_path)
-                    upload_dir = os.path.join(project_root, current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'chat_avatars')
+                    upload_dir = os.path.join(project_root, current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'chat', 'avatars')
                     os.makedirs(upload_dir, exist_ok=True)
                     file_path = os.path.join(upload_dir, filename)
                     
@@ -657,7 +678,7 @@ def import_chat_messages(messages_data: List[Dict], chat_map: Dict[str, int], us
                 filename = f"{timestamp}_{secure_filename(base_name)}{ext}"
                 
                 project_root = os.path.dirname(current_app.root_path)
-                upload_dir = os.path.join(project_root, current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'chat_media')
+                upload_dir = os.path.join(project_root, current_app.config.get('UPLOAD_FOLDER', 'uploads'), 'chat')
                 os.makedirs(upload_dir, exist_ok=True)
                 file_path = os.path.join(upload_dir, filename)
                 
@@ -680,8 +701,10 @@ def import_chat_messages(messages_data: List[Dict], chat_map: Dict[str, int], us
         existing_fps[chat_id].add(fp)
 
 
-def import_credentials(credentials_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None):
+def import_credentials(credentials_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None, folder_map: Optional[Dict[str, int]] = None, team_map: Optional[Dict[str, int]] = None):
     """Importiert Zugangsdaten (verschlüsselt neu)."""
+    from app.utils.backup.file_io import resolve_team_id
+
     key = get_encryption_key()
     
     for c_data in credentials_data:
@@ -700,6 +723,9 @@ def import_credentials(credentials_data: List[Dict], user_map: Dict[str, int], c
         else:
             created_by_id = user_map[created_by_email]
         
+        resolved_team_id = resolve_team_id(c_data.get('team_name'), team_map, c_data.get('team_id'))
+        resolved_folder_id = (folder_map or {}).get(c_data.get('folder_name')) if c_data.get('folder_name') else None
+
         # Prüfe ob Credential bereits existiert (nach URL, Username und Ersteller)
         existing = Credential.query.filter_by(
             website_url=c_data.get('website_url'),
@@ -714,8 +740,12 @@ def import_credentials(credentials_data: List[Dict], user_map: Dict[str, int], c
             existing.favicon_url = c_data.get('favicon_url')
             if c_data.get('visibility'):
                 existing.visibility = c_data['visibility']
-            if 'team_id' in c_data:
-                existing.team_id = c_data.get('team_id')
+            if resolved_team_id is not None:
+                existing.team_id = resolved_team_id
+            if resolved_folder_id is not None:
+                existing.folder_id = resolved_folder_id
+            if 'is_favorite' in c_data:
+                existing.is_favorite = bool(c_data.get('is_favorite', False))
             if c_data.get('password'):
                 existing.set_password(c_data['password'], key)
         else:
@@ -728,7 +758,9 @@ def import_credentials(credentials_data: List[Dict], user_map: Dict[str, int], c
                 favicon_url=c_data.get('favicon_url'),
                 created_by=created_by_id,
                 visibility=c_data.get('visibility') or 'public',
-                team_id=c_data.get('team_id'),
+                team_id=resolved_team_id,
+                folder_id=resolved_folder_id,
+                is_favorite=bool(c_data.get('is_favorite', False)),
             )
             if c_data.get('password'):
                 credential.set_password(c_data['password'], key)

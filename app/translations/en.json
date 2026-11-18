@@ -2616,7 +2616,14 @@
           "media_downloader": "Media Downloader",
           "assessment": "Assessment",
           "shortlinks": "Short links",
-          "excalidraw": "Excalidraw"
+          "excalidraw": "Excalidraw",
+          "teams": "Teams",
+          "kanban": "Kanban",
+          "surveys": "Surveys",
+          "protocols": "Protocols",
+          "meetings": "Meetings",
+          "duty_roster": "Duty Roster",
+          "booking_personal": "Personal Bookings"
         },
         "helps": {
           "settings": "System settings, module flags and whitelist.",
@@ -2637,7 +2644,14 @@
           "media_downloader": "Download job metadata.",
           "assessment": "Assessment: lists, criteria, evaluations and related data.",
           "shortlinks": "Short links.",
-          "excalidraw": "Drawings, scenes and versions."
+          "excalidraw": "Drawings, scenes and versions.",
+          "teams": "Teams, members, module settings, team avatars, and invite codes",
+          "kanban": "Kanban boards, lists, cards, checklists, labels, custom fields, templates, activities, and attachments",
+          "surveys": "Surveys, pages, questions, logic rules, responses, and uploaded files",
+          "protocols": "Meeting protocols and agenda items",
+          "meetings": "Video meetings and invites",
+          "duty_roster": "Duty rosters, shifts, person configurations, external persons, and time tracking",
+          "booking_personal": "Personal booking events, fields, entries, files, and templates"
         },
         "lead_short": "Export and import portal backups."
       },
@@ -5109,7 +5123,8 @@
         "folder": "Folder",
         "no_folder": "No folder",
         "root_folder": "No folder",
-        "is_favorite": "Mark as favorite"
+        "is_favorite": "Mark as favorite",
+        "storage_location": "Storage location"
       },
       "placeholders": {
         "website_name": "e.g. GitHub",

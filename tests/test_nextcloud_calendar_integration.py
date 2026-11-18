@@ -368,8 +368,14 @@ def test_nextcloud_event_edit_and_email_attendee_sync(app, client):
         assert bob_part.status == 'accepted'
         assert 'extern@partner.de' in (ev.remote_attendees_json or '')
 
+        # Alice opens view page without being a participant -> Edit & Delete buttons MUST be visible
+        _login(alice_client if 'alice_client' in locals() else client, alice)
+        view_resp = client.get(f'/calendar/event/{ev.id}')
+        assert view_resp.status_code == 200
+        assert f'/calendar/edit/{ev.id}'.encode() in view_resp.data
+        assert f'/calendar/delete/{ev.id}'.encode() in view_resp.data
+
         # Alice edits the Nextcloud event and adds attendee emails
-        _login(client, alice)
         day_str = (datetime.utcnow() + timedelta(days=3)).strftime('%Y-%m-%d')
         e_resp = client.post(f'/calendar/edit/{ev.id}', data={
             'title': 'Nextcloud Meeting Updated',
