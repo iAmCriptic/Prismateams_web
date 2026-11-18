@@ -146,6 +146,190 @@
           </div>
         </div>
       </section>
+
+      <section class="sp-group" id="files-nextcloud" data-settings-search-id="files-nextcloud" aria-labelledby="files-nextcloud-title">
+        <div class="sp-group-head">
+          <h2 id="files-nextcloud-title" class="sp-group-title"><i class="bi bi-cloud" aria-hidden="true"></i>{{ _('settings.admin.file_settings.nc_section_title') }}</h2>
+          {{ sp_info(_('settings.admin.file_settings.nc_section_help')) }}
+        </div>
+        <div class="sp-group-body">
+          {% if not nc_configured %}
+          <div class="alert alert-warning d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3" role="status">
+            <span><i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>{{ _('settings.admin.file_settings.nc_not_configured_hint') }}</span>
+            <a href="{{ url_for('settings.admin_integrations') }}#integrations-nextcloud" class="btn btn-sm btn-outline-secondary mod-pill-btn mod-pill-btn--outline-muted">
+              {{ _('settings.admin.file_settings.nc_open_integrations') }}
+            </a>
+          </div>
+          {% endif %}
+
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.file_settings.nc_enabled_label') }}</span>
+              {{ sp_info(_('settings.admin.file_settings.nc_enabled_help')) }}
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="files_nextcloud_enabled" name="files_nextcloud_enabled" {% if nc_enabled %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.file_settings.nc_mode_label') }}</span>
+              {{ sp_info(_('settings.admin.file_settings.nc_mode_help')) }}
+            </div>
+            <div class="sp-row-control w-100 justify-content-start">
+              <div class="sp-seg sp-seg--wrap" role="radiogroup" aria-label="{{ _('settings.admin.file_settings.nc_mode_label') }}">
+                <input type="radio" class="btn-check" name="files_storage_mode" id="files_storage_mode_local" value="local" {% if nc_mode == 'local' %}checked{% endif %}>
+                <label for="files_storage_mode_local">{{ _('settings.admin.file_settings.nc_mode_local') }}</label>
+                <input type="radio" class="btn-check" name="files_storage_mode" id="files_storage_mode_nextcloud" value="nextcloud" {% if nc_mode == 'nextcloud' %}checked{% endif %}>
+                <label for="files_storage_mode_nextcloud">{{ _('settings.admin.file_settings.nc_mode_nextcloud') }}</label>
+                <input type="radio" class="btn-check" name="files_storage_mode" id="files_storage_mode_hybrid" value="hybrid" {% if nc_mode == 'hybrid' %}checked{% endif %}>
+                <label for="files_storage_mode_hybrid">{{ _('settings.admin.file_settings.nc_mode_hybrid') }}</label>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.file_settings.nc_eurooffice_label') }}</span>
+              {{ sp_info(_('settings.admin.file_settings.nc_eurooffice_help')) }}
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="files_nextcloud_eurooffice_enabled" name="files_nextcloud_eurooffice_enabled" {% if nc_eurooffice %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.file_settings.nc_md_label') }}</span>
+              {{ sp_info(_('settings.admin.file_settings.nc_md_help')) }}
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="files_nextcloud_markdown_enabled" name="files_nextcloud_markdown_enabled" {% if nc_md_edit %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.file_settings.nc_locks_label') }}</span>
+              {{ sp_info(_('settings.admin.file_settings.nc_locks_help')) }}
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="files_nextcloud_webdav_locks_enabled" name="files_nextcloud_webdav_locks_enabled" {% if nc_webdav_locks %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-2">
+
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.file_settings.nc_private_enabled_label') }}</span>
+              {{ sp_info(_('settings.admin.file_settings.nc_private_enabled_help')) }}
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="files_nextcloud_private_enabled" name="files_nextcloud_private_enabled" {% if nc_private_enabled %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.file_settings.nc_private_base_label') }}</span>
+            </div>
+            <div class="sp-row-control w-100">
+              <div class="input-group">
+                <input type="text" class="form-control" id="files_nextcloud_private_base_path" name="files_nextcloud_private_base_path" value="{{ nc_private_base }}" placeholder="/Ablage" autocomplete="off">
+                <button type="button" class="btn btn-outline-secondary" data-nc-pick-target="files_nextcloud_private_base_path">
+                  <i class="bi bi-folder2-open me-1" aria-hidden="true"></i>{{ _('settings.admin.file_settings.nc_pick_folder') }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <hr class="my-2">
+
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.file_settings.nc_public_enabled_label') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="files_nextcloud_public_enabled" name="files_nextcloud_public_enabled" {% if nc_public_enabled %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.file_settings.nc_public_path_label') }}</span>
+            </div>
+            <div class="sp-row-control w-100">
+              <div class="input-group">
+                <input type="text" class="form-control" id="files_nextcloud_public_path" name="files_nextcloud_public_path" value="{{ nc_public_path }}" placeholder="/Public" autocomplete="off">
+                <button type="button" class="btn btn-outline-secondary" data-nc-pick-target="files_nextcloud_public_path">
+                  <i class="bi bi-folder2-open me-1" aria-hidden="true"></i>{{ _('settings.admin.file_settings.nc_pick_folder') }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.file_settings.nc_public_access_label') }}</span>
+              {{ sp_info(_('settings.admin.file_settings.nc_public_access_help')) }}
+            </div>
+            <div class="sp-row-control w-100 justify-content-start">
+              <select class="form-select" id="files_nextcloud_public_access" name="files_nextcloud_public_access" data-mod-pill-select>
+                <option value="all" {% if nc_public_access == 'all' %}selected{% endif %}>{{ _('settings.admin.file_settings.nc_public_access_all') }}</option>
+                <option value="read_only" {% if nc_public_access == 'read_only' %}selected{% endif %}>{{ _('settings.admin.file_settings.nc_public_access_read_only') }}</option>
+                <option value="admins_only" {% if nc_public_access == 'admins_only' %}selected{% endif %}>{{ _('settings.admin.file_settings.nc_public_access_admins_only') }}</option>
+                <option value="disabled" {% if nc_public_access == 'disabled' %}selected{% endif %}>{{ _('settings.admin.file_settings.nc_public_access_disabled') }}</option>
+              </select>
+            </div>
+          </div>
+
+          <hr class="my-2">
+
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.admin.file_settings.nc_teams_title') }}</span>
+              {{ sp_info(_('settings.admin.file_settings.nc_teams_help')) }}
+            </div>
+            <div class="sp-row-control w-100">
+              {% if nc_teams %}
+              <div class="d-flex flex-column gap-2 w-100">
+                {% for t in nc_teams %}
+                {% set tm = nc_team_mappings.get(t.id, {}) %}
+                <div class="d-flex align-items-center gap-2 flex-wrap border rounded p-2">
+                  <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="nc_team_enabled_{{ t.id }}" name="nc_team_enabled_{{ t.id }}" {% if tm.get('enabled') %}checked{% endif %} aria-label="{{ t.name }}">
+                  </div>
+                  <span class="fw-semibold text-truncate" style="min-width: 8rem;">{{ t.name }}</span>
+                  <div class="input-group input-group-sm flex-grow-1" style="min-width: 14rem;">
+                    <input type="text" class="form-control" id="nc_team_path_{{ t.id }}" name="nc_team_path_{{ t.id }}" value="{{ tm.get('path', '') }}" placeholder="/Teams/{{ t.name }}" autocomplete="off">
+                    <button type="button" class="btn btn-outline-secondary" data-nc-pick-target="nc_team_path_{{ t.id }}">
+                      <i class="bi bi-folder2-open" aria-hidden="true"></i>
+                    </button>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              {% else %}
+              <p class="sp-row-meta mb-0">{{ _('settings.admin.file_settings.nc_teams_empty') }}</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </section>
     </form>
   </div>
 
@@ -354,5 +538,105 @@
         initUserPicker(document.querySelector('[data-exception-user-picker]'));
     });
 })();
+(function () {
+    var modalEl = document.getElementById('nextcloudFolderPickerModal');
+    if (!modalEl) return;
+    if (modalEl.parentElement !== document.body) {
+        document.body.appendChild(modalEl);
+    }
+    var listEl = document.getElementById('ncPickerList');
+    var pathEl = document.getElementById('ncPickerCurrentPath');
+    var selectBtn = document.getElementById('ncPickerSelectBtn');
+    var upBtn = document.getElementById('ncPickerUpBtn');
+    var targetInputId = null;
+    var currentPath = '/';
+    var apiUrl = modalEl.getAttribute('data-folders-url');
+
+    function loadPath(path) {
+        currentPath = path || '/';
+        if (pathEl) pathEl.textContent = currentPath;
+        if (listEl) listEl.innerHTML = '<div class="text-body-secondary small p-2">{{ _("common.loading") }}</div>';
+        fetch(apiUrl + '?path=' + encodeURIComponent(currentPath))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (!data || !data.success) {
+                    listEl.innerHTML = '<div class="text-danger small p-2">' + ((data && data.error) || 'Fehler') + '</div>';
+                    return;
+                }
+                currentPath = data.path || '/';
+                if (pathEl) pathEl.textContent = currentPath;
+                if (!data.folders || data.folders.length === 0) {
+                    listEl.innerHTML = '<div class="text-body-secondary small p-2">{{ _("settings.admin.file_settings.nc_picker_empty") }}</div>';
+                    return;
+                }
+                listEl.innerHTML = '';
+                data.folders.forEach(function (f) {
+                    var btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'list-group-item list-group-item-action d-flex align-items-center gap-2';
+                    btn.innerHTML = '<i class="bi bi-folder-fill text-warning" aria-hidden="true"></i><span></span>';
+                    btn.querySelector('span').textContent = f.name;
+                    btn.addEventListener('click', function () { loadPath(f.path); });
+                    listEl.appendChild(btn);
+                });
+            })
+            .catch(function () {
+                if (listEl) listEl.innerHTML = '<div class="text-danger small p-2">Verbindungsfehler</div>';
+            });
+    }
+
+    document.querySelectorAll('[data-nc-pick-target]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            targetInputId = btn.getAttribute('data-nc-pick-target');
+            var inp = targetInputId ? document.getElementById(targetInputId) : null;
+            var startPath = (inp && inp.value.trim()) ? inp.value.trim() : '/';
+            var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+            modal.show();
+            loadPath(startPath);
+        });
+    });
+
+    if (upBtn) {
+        upBtn.addEventListener('click', function () {
+            var parts = currentPath.split('/').filter(Boolean);
+            parts.pop();
+            loadPath('/' + parts.join('/'));
+        });
+    }
+    if (selectBtn) {
+        selectBtn.addEventListener('click', function () {
+            var inp = targetInputId ? document.getElementById(targetInputId) : null;
+            if (inp) {
+                inp.value = currentPath;
+                inp.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+        });
+    }
+})();
 </script>
+
+<div class="modal fade" id="nextcloudFolderPickerModal" tabindex="-1" aria-labelledby="nextcloudFolderPickerModalLabel" aria-hidden="true" data-folders-url="{{ url_for('settings.admin_file_settings_nextcloud_folders') }}">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="nextcloudFolderPickerModalLabel"><i class="bi bi-cloud me-2" aria-hidden="true"></i>{{ _('settings.admin.file_settings.nc_picker_title') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="ncPickerUpBtn" title="{{ _('layout.nav.back') }}">
+            <i class="bi bi-arrow-up" aria-hidden="true"></i>
+          </button>
+          <code id="ncPickerCurrentPath" class="flex-grow-1 text-truncate">/</code>
+        </div>
+        <div class="list-group" id="ncPickerList"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary mod-pill-btn mod-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+        <button type="button" class="btn btn-accent mod-pill-btn" id="ncPickerSelectBtn">{{ _('settings.admin.file_settings.nc_picker_select') }}</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

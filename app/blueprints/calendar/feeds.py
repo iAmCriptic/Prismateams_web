@@ -214,11 +214,31 @@ def export_calendar():
 @login_required
 @check_module_access('module_calendar')
 def create_calendar():
-    """Create an extra personal, team or public calendar."""
+    """Create an extra personal, team, public, or Nextcloud calendar."""
     name = request.form.get('name', '').strip()
     calendar_type = request.form.get('calendar_type', '').strip().lower()
-    color = request.form.get('color', '').strip() or None
+    color = request.form.get('color', '').strip() or '#0d6efd'
     team_id = request.form.get('team_id', '').strip() or None
+
+    if calendar_type == 'nextcloud':
+        from app.utils.nextcloud_calendar_settings import is_nextcloud_calendar_active
+        from app.utils.nextcloud_calendar_sync import create_nextcloud_calendar
+        if not name:
+            flash(translate('calendar.flash.calendar_invalid_name'), 'danger')
+            return redirect(url_for('calendar.index'))
+        if not is_nextcloud_calendar_active():
+            flash(translate('calendar.flash.no_manage_permission'), 'danger')
+            return redirect(url_for('calendar.index'))
+        try:
+            cal = create_nextcloud_calendar(name, color=color)
+            db.session.commit()
+            flash(translate('calendar.flash.calendar_created', name=cal.name), 'success')
+            return redirect(url_for('calendar.index', calendars=cal.id))
+        except Exception as exc:
+            db.session.rollback()
+            flash(f'Nextcloud-Kalender konnte nicht erstellt werden: {exc}', 'danger')
+            return redirect(url_for('calendar.index'))
+
     cal, err = create_extra_calendar(
         current_user,
         name,
@@ -241,6 +261,22 @@ def update_calendar(calendar_id):
     cal = Calendar.query.get_or_404(calendar_id)
     name = request.form.get('name')
     color = request.form.get('color')
+
+    if cal.calendar_type == 'nextcloud':
+        from app.utils.multi_calendars import can_manage_calendar
+        from app.utils.nextcloud_calendar_sync import update_nextcloud_calendar
+        if not can_manage_calendar(current_user, cal):
+            flash(translate('calendar.flash.no_manage_permission'), 'danger')
+            return redirect(url_for('calendar.index'))
+        try:
+            update_nextcloud_calendar(cal, name=name, color=color)
+            db.session.commit()
+            flash(translate('calendar.flash.calendar_updated'), 'success')
+        except Exception as exc:
+            db.session.rollback()
+            flash(f'Nextcloud-Kalender konnte nicht aktualisiert werden: {exc}', 'danger')
+        return redirect(url_for('calendar.index'))
+
     hidden_raw = request.form.get('hidden_from_others')
     hidden = None
     if request.form.get('meta_form') == '1':
@@ -262,6 +298,20 @@ def delete_user_calendar(calendar_id):
     cal = Calendar.query.get_or_404(calendar_id)
     if cal.calendar_type == 'imported':
         return delete_imported_calendar(calendar_id)
+    if cal.calendar_type == 'nextcloud':
+        from app.utils.multi_calendars import can_delete_calendar_row
+        from app.utils.nextcloud_calendar_sync import delete_nextcloud_calendar
+        if not can_delete_calendar_row(current_user, cal):
+            flash(translate('calendar.flash.cannot_delete_calendar'), 'danger')
+            return redirect(url_for('calendar.index'))
+        try:
+            delete_nextcloud_calendar(cal)
+            db.session.commit()
+            flash(translate('calendar.flash.calendar_deleted'), 'success')
+        except Exception as exc:
+            db.session.rollback()
+            flash(f'Nextcloud-Kalender konnte nicht gelöscht werden: {exc}', 'danger')
+        return redirect(url_for('calendar.index'))
     if not delete_extra_calendar(current_user, cal):
         flash(translate('calendar.flash.cannot_delete_calendar'), 'danger')
         return redirect(url_for('calendar.index'))

@@ -606,6 +606,68 @@ def ensure_critical_columns(db) -> None:
                 except Exception as err:
                     logger.warning("Konnte kanban_lists.default_custom_field_ids nicht ergänzen: %s", err)
 
+        if inspector.has_table("folders"):
+            folder_cols = {col["name"] for col in inspector.get_columns("folders")}
+            for col_name, ddl in (
+                ("storage_backend", "VARCHAR(20) NOT NULL DEFAULT 'local'"),
+                ("remote_path", "VARCHAR(1024) NULL"),
+                ("remote_etag", "VARCHAR(128) NULL"),
+            ):
+                if col_name not in folder_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE folders ADD COLUMN {col_name} {ddl}"))
+                        logger.info("[OK] folders.%s ergänzt", col_name)
+                    except Exception as err:
+                        logger.warning("Konnte folders.%s nicht ergänzen: %s", col_name, err)
+
+        if inspector.has_table("files"):
+            file_cols = {col["name"] for col in inspector.get_columns("files")}
+            for col_name, ddl in (
+                ("storage_backend", "VARCHAR(20) NOT NULL DEFAULT 'local'"),
+                ("remote_path", "VARCHAR(1024) NULL"),
+                ("remote_etag", "VARCHAR(128) NULL"),
+                ("remote_lock_token", "VARCHAR(255) NULL"),
+                ("remote_lock_expires_at", "DATETIME NULL"),
+            ):
+                if col_name not in file_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE files ADD COLUMN {col_name} {ddl}"))
+                        logger.info("[OK] files.%s ergänzt", col_name)
+                    except Exception as err:
+                        logger.warning("Konnte files.%s nicht ergänzen: %s", col_name, err)
+
+        if inspector.has_table("calendars"):
+            cal_cols = {col["name"] for col in inspector.get_columns("calendars")}
+            for col_name, ddl in (
+                ("storage_backend", "VARCHAR(20) NOT NULL DEFAULT 'local'"),
+                ("remote_url", "VARCHAR(1024) NULL"),
+                ("remote_ctag", "VARCHAR(255) NULL"),
+                ("remote_read_only", bool_false),
+            ):
+                if col_name not in cal_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE calendars ADD COLUMN {col_name} {ddl}"))
+                        logger.info("[OK] calendars.%s ergänzt", col_name)
+                    except Exception as err:
+                        logger.warning("Konnte calendars.%s nicht ergänzen: %s", col_name, err)
+
+        if inspector.has_table("calendar_events"):
+            ce_cols = {col["name"] for col in inspector.get_columns("calendar_events")}
+            for col_name, ddl in (
+                ("remote_href", "VARCHAR(1024) NULL"),
+                ("remote_etag", "VARCHAR(255) NULL"),
+            ):
+                if col_name not in ce_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE calendar_events ADD COLUMN {col_name} {ddl}"))
+                        logger.info("[OK] calendar_events.%s ergänzt", col_name)
+                    except Exception as err:
+                        logger.warning("Konnte calendar_events.%s nicht ergänzen: %s", col_name, err)
+
     except Exception as exc:
         logger.warning("ensure_critical_columns fehlgeschlagen: %s", exc)
 

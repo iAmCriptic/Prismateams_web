@@ -756,6 +756,60 @@ def admin_file_settings():
         _upsert_text(SETTING_QUOTA_ENABLED, str(quota_enabled).lower(), 'Speicherkontingente aktiv')
         _upsert_text(SETTING_QUOTA_BYTES, str(max(0, quota_bytes)), 'Standard-Speicherkontingent pro Nutzer')
 
+        # Nextcloud-Einstellungen für Dateien
+        import json as _json
+        from app.models.team import Team
+        from app.utils.nextcloud_settings import (
+            SETTING_NC_ENABLED,
+            SETTING_NC_EUROOFFICE,
+            SETTING_NC_MD_EDIT,
+            SETTING_NC_MODE,
+            SETTING_NC_PRIVATE_BASE,
+            SETTING_NC_PRIVATE_ENABLED,
+            SETTING_NC_PUBLIC_ACCESS,
+            SETTING_NC_PUBLIC_ENABLED,
+            SETTING_NC_PUBLIC_PATH,
+            SETTING_NC_TEAM_MAPPINGS,
+            SETTING_NC_WEBDAV_LOCKS,
+            VALID_PUBLIC_ACCESS_MODES,
+            VALID_STORAGE_MODES,
+            normalize_remote_path,
+        )
+
+        nc_enabled = request.form.get('files_nextcloud_enabled') == 'on'
+        nc_mode = (request.form.get('files_storage_mode') or 'local').strip().lower()
+        if nc_mode not in VALID_STORAGE_MODES:
+            nc_mode = 'local'
+        nc_eurooffice = request.form.get('files_nextcloud_eurooffice_enabled') == 'on'
+        nc_md = request.form.get('files_nextcloud_markdown_enabled') == 'on'
+        nc_locks = request.form.get('files_nextcloud_webdav_locks_enabled') == 'on'
+        nc_private_enabled = request.form.get('files_nextcloud_private_enabled') == 'on'
+        nc_private_base = normalize_remote_path(request.form.get('files_nextcloud_private_base_path')) or '/Ablage'
+        nc_public_enabled = request.form.get('files_nextcloud_public_enabled') == 'on'
+        nc_public_path = normalize_remote_path(request.form.get('files_nextcloud_public_path')) or '/Public'
+        nc_public_access = (request.form.get('files_nextcloud_public_access') or 'all').strip().lower()
+        if nc_public_access not in VALID_PUBLIC_ACCESS_MODES:
+            nc_public_access = 'all'
+
+        team_mappings = {}
+        for t in Team.query.order_by(Team.name.asc()).all():
+            t_path = normalize_remote_path(request.form.get(f'nc_team_path_{t.id}'))
+            t_enabled = request.form.get(f'nc_team_enabled_{t.id}') == 'on'
+            if t_path:
+                team_mappings[str(t.id)] = {'path': t_path, 'enabled': t_enabled}
+
+        _upsert_text(SETTING_NC_ENABLED, str(nc_enabled).lower(), 'Nextcloud-Integration für Dateien aktiv')
+        _upsert_text(SETTING_NC_MODE, nc_mode, 'Speicher-Modus: local, nextcloud oder hybrid')
+        _upsert_text(SETTING_NC_EUROOFFICE, str(nc_eurooffice).lower(), 'Euro-Office Live-Coop für Nextcloud')
+        _upsert_text(SETTING_NC_MD_EDIT, str(nc_md).lower(), 'Markdown-Bearbeitung für Nextcloud')
+        _upsert_text(SETTING_NC_WEBDAV_LOCKS, str(nc_locks).lower(), 'Nextcloud WebDAV-Locks bei Bearbeitung')
+        _upsert_text(SETTING_NC_PRIVATE_ENABLED, str(nc_private_enabled).lower(), 'Nextcloud Meine Ablage aktiv')
+        _upsert_text(SETTING_NC_PRIVATE_BASE, nc_private_base, 'Nextcloud Basis-Pfad für Meine Ablage')
+        _upsert_text(SETTING_NC_PUBLIC_ENABLED, str(nc_public_enabled).lower(), 'Nextcloud Public-Bereich aktiv')
+        _upsert_text(SETTING_NC_PUBLIC_PATH, nc_public_path, 'Nextcloud Pfad für Public-Bereich')
+        _upsert_text(SETTING_NC_PUBLIC_ACCESS, nc_public_access, 'Nextcloud Public-Zugriffsbeschränkung')
+        _upsert_text(SETTING_NC_TEAM_MAPPINGS, _json.dumps(team_mappings, ensure_ascii=False), 'Nextcloud Team-Ordner-Zuweisungen')
+
         from app.utils.files_trash_retention import set_trash_retention_days
         try:
             trash_days = int(request.form.get('files_trash_retention_days', '30') or 30)
@@ -832,6 +886,26 @@ def admin_file_settings():
             'quota_label': format_bytes_de(exc.quota_bytes) if exc.quota_bytes is not None else None,
         })
 
+    from app.models.team import Team
+    from app.utils.integrations import nextcloud_configured
+    from app.utils.nextcloud_settings import (
+        SETTING_NC_ENABLED,
+        SETTING_NC_EUROOFFICE,
+        SETTING_NC_MD_EDIT,
+        SETTING_NC_MODE,
+        SETTING_NC_PRIVATE_BASE,
+        SETTING_NC_PRIVATE_ENABLED,
+        SETTING_NC_PUBLIC_ACCESS,
+        SETTING_NC_PUBLIC_ENABLED,
+        SETTING_NC_PUBLIC_PATH,
+        SETTING_NC_WEBDAV_LOCKS,
+        get_nextcloud_team_mappings,
+    )
+    from app.utils.system_settings_cache import get_setting as _nc_text, setting_bool as _nc_bool
+
+    nc_teams = Team.query.order_by(Team.name.asc()).all()
+    nc_team_mappings = get_nextcloud_team_mappings()
+
     return render_template(
         'settings/admin_file_settings.html',
         files_dropbox_enabled=files_dropbox_enabled,
@@ -850,7 +924,41 @@ def admin_file_settings():
         users_for_exceptions=users_for_exceptions,
         size_units=('KB', 'MB', 'GB', 'TB'),
         files_trash_retention_days=files_trash_retention_days,
+        nc_configured=nextcloud_configured(),
+        nc_enabled=_nc_bool(SETTING_NC_ENABLED, False),
+        nc_mode=(_nc_text(SETTING_NC_MODE, 'local') or 'local').lower(),
+        nc_eurooffice=_nc_bool(SETTING_NC_EUROOFFICE, True),
+        nc_md_edit=_nc_bool(SETTING_NC_MD_EDIT, True),
+        nc_webdav_locks=_nc_bool(SETTING_NC_WEBDAV_LOCKS, True),
+        nc_private_enabled=_nc_bool(SETTING_NC_PRIVATE_ENABLED, True),
+        nc_private_base=_nc_text(SETTING_NC_PRIVATE_BASE, '/Ablage') or '/Ablage',
+        nc_public_enabled=_nc_bool(SETTING_NC_PUBLIC_ENABLED, True),
+        nc_public_path=_nc_text(SETTING_NC_PUBLIC_PATH, '/Public') or '/Public',
+        nc_public_access=(_nc_text(SETTING_NC_PUBLIC_ACCESS, 'all') or 'all').lower(),
+        nc_teams=nc_teams,
+        nc_team_mappings=nc_team_mappings,
     )
+
+
+@settings_bp.route('/admin/file-settings/nextcloud-folders', methods=['GET'])
+@login_required
+def admin_file_settings_nextcloud_folders():
+    """List Nextcloud directories for the admin folder picker."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'unauthorized'}), 403
+    from app.utils.integrations import nextcloud_configured
+    from app.utils.nextcloud_storage import get_portal_nextcloud_provider
+
+    if not nextcloud_configured():
+        return jsonify({'success': False, 'error': translate('settings.admin.file_settings.nc_not_configured')}), 400
+    path = (request.args.get('path') or '').strip().strip('/')
+    try:
+        provider = get_portal_nextcloud_provider()
+        entries = provider.list_children(path)
+        folders = [{'name': e.name, 'path': '/' + (e.path or e.id).strip('/')} for e in entries if e.is_dir]
+        return jsonify({'success': True, 'path': ('/' + path) if path else '/', 'folders': folders})
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 502
 
 
 def _upsert_bool_setting(key, enabled):
@@ -875,6 +983,34 @@ def admin_calendar_settings():
 
         _upsert_bool_setting('calendar_export_enabled', export_enabled)
         _upsert_bool_setting('calendar_import_enabled', import_enabled)
+
+        from app.utils.nextcloud_calendar_settings import (
+            SETTING_NC_CAL_ENABLED,
+            SETTING_NC_CAL_EVENTS_INTERNAL_ID,
+            SETTING_NC_CAL_EVENTS_NC_URL,
+            SETTING_NC_CAL_EVENTS_TARGET,
+            SETTING_NC_CAL_MODE,
+            VALID_CALENDAR_MODES,
+            VALID_EVENTS_TARGETS,
+            upsert_calendar_setting,
+        )
+
+        nc_cal_enabled = request.form.get('calendar_nextcloud_enabled') == 'on'
+        nc_cal_mode = (request.form.get('calendar_storage_mode') or 'local').strip().lower()
+        if nc_cal_mode not in VALID_CALENDAR_MODES:
+            nc_cal_mode = 'local'
+        nc_events_target = (request.form.get('calendar_events_sync_target') or 'internal').strip().lower()
+        if nc_events_target not in VALID_EVENTS_TARGETS:
+            nc_events_target = 'internal'
+        nc_events_nc_url = (request.form.get('calendar_events_nextcloud_url') or '').strip()
+        nc_events_internal_id = (request.form.get('calendar_events_internal_id') or '').strip()
+
+        upsert_calendar_setting(SETTING_NC_CAL_ENABLED, str(nc_cal_enabled).lower(), 'Nextcloud-Kalender aktiv')
+        upsert_calendar_setting(SETTING_NC_CAL_MODE, nc_cal_mode, 'Kalender-Modus: local, nextcloud oder hybrid')
+        upsert_calendar_setting(SETTING_NC_CAL_EVENTS_TARGET, nc_events_target, 'Veranstaltungen-Sync Ziel: internal oder nextcloud')
+        upsert_calendar_setting(SETTING_NC_CAL_EVENTS_NC_URL, nc_events_nc_url, 'Nextcloud-Kalender URL für Veranstaltungen')
+        upsert_calendar_setting(SETTING_NC_CAL_EVENTS_INTERNAL_ID, nc_events_internal_id, 'Interner Kalender-ID für Veranstaltungen')
+
         db.session.commit()
 
         from app.utils.multi_calendars import (
@@ -944,19 +1080,82 @@ def admin_calendar_settings():
             'settings.admin_calendar_settings',
         )
 
+    from app.models.calendar import Calendar
+    from app.utils.integrations import nextcloud_configured
     from app.utils.multi_calendars import (
         is_calendar_export_enabled,
         is_calendar_import_enabled,
         is_calendar_personal_enabled,
         is_calendar_team_enabled,
     )
+    from app.utils.nextcloud_calendar_settings import (
+        SETTING_NC_CAL_ENABLED,
+        SETTING_NC_CAL_EVENTS_INTERNAL_ID,
+        SETTING_NC_CAL_EVENTS_NC_URL,
+        SETTING_NC_CAL_EVENTS_TARGET,
+        SETTING_NC_CAL_MODE,
+    )
+    from app.utils.system_settings_cache import get_setting as _cal_text, setting_bool as _cal_bool
+
+    internal_calendars = (
+        Calendar.query.filter(
+            Calendar.storage_backend == 'local',
+            Calendar.calendar_type.in_(['public', 'events', 'team']),
+        )
+        .order_by(Calendar.name.asc())
+        .all()
+    )
+    nextcloud_calendars = (
+        Calendar.query.filter_by(storage_backend='nextcloud')
+        .order_by(Calendar.name.asc())
+        .all()
+    )
+
     return render_template(
         'settings/admin_calendar_settings.html',
         calendar_personal_enabled=is_calendar_personal_enabled(),
         calendar_team_enabled=is_calendar_team_enabled(),
         calendar_export_enabled=is_calendar_export_enabled(),
         calendar_import_enabled=is_calendar_import_enabled(),
+        nc_cal_configured=nextcloud_configured(),
+        nc_cal_enabled=_cal_bool(SETTING_NC_CAL_ENABLED, False),
+        nc_cal_mode=(_cal_text(SETTING_NC_CAL_MODE, 'local') or 'local').lower(),
+        nc_events_target=(_cal_text(SETTING_NC_CAL_EVENTS_TARGET, 'internal') or 'internal').lower(),
+        nc_events_nc_url=_cal_text(SETTING_NC_CAL_EVENTS_NC_URL, '') or '',
+        nc_events_internal_id=_cal_text(SETTING_NC_CAL_EVENTS_INTERNAL_ID, '') or '',
+        internal_calendars=internal_calendars,
+        nextcloud_calendars=nextcloud_calendars,
     )
+
+
+@settings_bp.route('/admin/calendar-settings/nextcloud-calendars', methods=['GET'])
+@login_required
+def admin_calendar_settings_nextcloud_calendars():
+    """Discover Nextcloud CalDAV calendars for the admin settings dropdown."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'unauthorized'}), 403
+    from app.utils.integrations import nextcloud_configured
+    from app.utils.nextcloud_calendar_sync import sync_nextcloud_calendars
+
+    if not nextcloud_configured():
+        return jsonify({'success': False, 'error': translate('settings.admin.file_settings.nc_not_configured')}), 400
+    try:
+        cals = sync_nextcloud_calendars(force=True)
+        return jsonify({
+            'success': True,
+            'calendars': [
+                {
+                    'id': c.id,
+                    'name': c.name,
+                    'url': c.remote_url,
+                    'color': c.color,
+                    'read_only': bool(c.remote_read_only),
+                }
+                for c in cals
+            ],
+        })
+    except Exception as exc:
+        return jsonify({'success': False, 'error': str(exc)}), 502
 
 
 @settings_bp.route('/admin/modules', methods=['GET', 'POST'])
@@ -1031,7 +1230,9 @@ def admin_integrations():
     from app.utils.integrations import (
         get_google_credentials,
         get_microsoft_credentials,
+        get_nextcloud_credentials,
         save_integrations_from_form,
+        save_nextcloud_from_form,
         migrate_youtube_keys_to_system,
     )
 
@@ -1039,6 +1240,7 @@ def admin_integrations():
 
     if request.method == 'POST':
         save_integrations_from_form(request.form)
+        save_nextcloud_from_form(request.form)
         from app.models.music import MusicSettings
 
         spotify_client_id = request.form.get('spotify_client_id', '').strip()
@@ -1059,6 +1261,7 @@ def admin_integrations():
 
     google = get_google_credentials()
     microsoft = get_microsoft_credentials()
+    nextcloud = get_nextcloud_credentials(include_password=False)
     from app.utils.integrations import google_oauth_redirect_uri
     from app.models.music import MusicSettings
 
@@ -1069,12 +1272,49 @@ def admin_integrations():
         'settings/admin_integrations.html',
         google=google,
         microsoft=microsoft,
+        nextcloud=nextcloud,
         google_redirect=google_oauth_redirect_uri(),
         microsoft_redirect=url_for('settings.mailbox_oauth_callback', provider='microsoft', _external=True),
         spotify_client_id=spotify_client_id.value if spotify_client_id else '',
         spotify_client_secret=spotify_client_secret.value if spotify_client_secret else '',
         spotify_redirect_uri=url_for('music.spotify_callback', _external=True),
     )
+
+
+@settings_bp.route('/admin/integrations/nextcloud/test', methods=['POST'])
+@login_required
+def admin_integrations_nextcloud_test():
+    """Test portal-wide Nextcloud WebDAV connection."""
+    if not current_user.is_admin:
+        return jsonify({'success': False, 'error': 'unauthorized'}), 403
+
+    from app.utils.cloud_import.nextcloud import NextcloudProvider
+    from app.utils.integrations import get_nextcloud_credentials
+
+    data = request.get_json(silent=True) or request.form
+    saved = get_nextcloud_credentials(include_password=True)
+    server_url = (data.get('nextcloud_url') or saved.get('server_url') or '').strip().rstrip('/')
+    username = (data.get('nextcloud_username') or saved.get('username') or '').strip()
+    password = (data.get('nextcloud_password') or '').strip() or saved.get('app_password') or ''
+
+    if not server_url or not username or not password:
+        return jsonify({
+            'success': False,
+            'error': translate('settings.integrations.nextcloud_test_missing'),
+        }), 400
+
+    try:
+        provider = NextcloudProvider(server_url=server_url, username=username, app_password=password)
+        provider.test_connection()
+        return jsonify({
+            'success': True,
+            'message': translate('settings.integrations.nextcloud_test_ok'),
+        })
+    except Exception as exc:
+        return jsonify({
+            'success': False,
+            'error': f"{translate('settings.integrations.nextcloud_test_failed')}: {exc}",
+        }), 400
 
 
 @settings_bp.route('/admin/push-subscriptions', methods=['GET', 'POST'])

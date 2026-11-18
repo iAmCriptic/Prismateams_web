@@ -154,35 +154,40 @@ def create_folder():
         return redirect(url_for('files.index', view='trash'))
 
     parent_id, parent_folder = _resolve_create_parent(files_view, parent_id, team_id)
-    if files_view == 'team' and team_enabled and not parent_folder:
+    if files_view in ('team', 'nc_team') and (team_enabled or files_view == 'nc_team') and not parent_folder:
         flash('Keine Berechtigung für diese Team-Ablage.', 'danger')
         return redirect(_safe_referrer_or(url_for('files.index')))
 
-    if (private_enabled or team_enabled) and parent_folder and not can_edit_folder(parent_folder, current_user):
+    if (private_enabled or team_enabled or (parent_folder and getattr(parent_folder, 'storage_backend', 'local') == 'nextcloud')) and parent_folder and not can_edit_folder(parent_folder, current_user):
         flash('Keine Berechtigung für diesen Ordner.', 'danger')
         return redirect(_safe_referrer_or(url_for('files.index')))
 
     space = resolve_space_for_parent(parent_folder, files_view or 'public')
     resolved_team_id = resolve_team_id_for_parent(parent_folder, files_view, team_id)
-    
-    new_folder = Folder(
-        name=folder_name,
-        parent_id=parent_id,
-        created_by=current_user.id,
-        space=space,
-        team_id=resolved_team_id,
-        is_personal_root=False,
-        is_team_root=False,
-    )
-    db.session.add(new_folder)
-    db.session.commit()
+
+    if parent_folder and getattr(parent_folder, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.nextcloud_storage import create_nextcloud_folder
+        new_folder = create_nextcloud_folder(parent_folder, folder_name, user_id=current_user.id)
+    else:
+        new_folder = Folder(
+            name=folder_name,
+            parent_id=parent_id,
+            created_by=current_user.id,
+            space=space,
+            team_id=resolved_team_id,
+            is_personal_root=False,
+            is_team_root=False,
+        )
+        db.session.add(new_folder)
+        db.session.commit()
     
     flash(f'Ordner "{folder_name}" wurde erstellt.', 'success')
     view_kwargs = _files_view_kwargs(files_view, folder=parent_folder or new_folder, team_id=resolved_team_id)
     
     if parent_id and not (
-        (parent_folder and parent_folder.is_personal_root and files_view == 'ablage')
-        or (parent_folder and getattr(parent_folder, 'is_team_root', False) and files_view == 'team')
+        (parent_folder and parent_folder.is_personal_root and files_view in ('ablage', 'nc_ablage'))
+        or (parent_folder and getattr(parent_folder, 'is_team_root', False) and files_view in ('team', 'nc_team'))
+        or (parent_folder and getattr(parent_folder, 'storage_backend', 'local') == 'nextcloud' and parent_folder.parent_id is None)
     ):
         return redirect(url_for('files.browse_folder', folder_id=parent_id, **view_kwargs))
     return redirect(url_for('files.index', **view_kwargs))
@@ -221,7 +226,20 @@ def rename_file(file_id):
         flash(f'Eine Datei mit dem Namen "{new_name}" existiert bereits in diesem Ordner.', 'danger')
         return redirect(_safe_referrer_or(url_for('files.index')))
     
-    file.name = new_name
+    if getattr(file, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.cloud_import.nextcloud import NextcloudLockError
+        from app.utils.nextcloud_storage import rename_nextcloud_file
+        try:
+            rename_nextcloud_file(file, new_name)
+        except NextcloudLockError as exc:
+            owner = exc.owner or 'Nextcloud'
+            flash(f'Datei ist in Nextcloud durch {owner} gesperrt.', 'warning')
+            return _redirect_to_files_context(folder_id=file.folder_id)
+        except Exception as exc:
+            flash(f'Nextcloud-Fehler beim Umbenennen: {exc}', 'danger')
+            return _redirect_to_files_context(folder_id=file.folder_id)
+    else:
+        file.name = new_name
     db.session.commit()
     flash('Datei wurde umbenannt.', 'success')
     return _redirect_to_files_context(folder_id=file.folder_id)
@@ -264,7 +282,20 @@ def rename_folder(folder_id):
     if sibling_query.first():
         flash(f'Ein Ordner mit dem Namen "{new_name}" existiert bereits in diesem Verzeichnis.', 'danger')
         return redirect(_safe_referrer_or(url_for('files.index')))
-    folder.name = new_name
+    if getattr(folder, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.cloud_import.nextcloud import NextcloudLockError
+        from app.utils.nextcloud_storage import rename_nextcloud_folder
+        try:
+            rename_nextcloud_folder(folder, new_name)
+        except NextcloudLockError as exc:
+            owner = exc.owner or 'Nextcloud'
+            flash(f'Ordner ist in Nextcloud durch {owner} gesperrt.', 'warning')
+            return _redirect_to_files_context(folder_id=folder.parent_id)
+        except Exception as exc:
+            flash(f'Nextcloud-Fehler beim Umbenennen: {exc}', 'danger')
+            return _redirect_to_files_context(folder_id=folder.parent_id)
+    else:
+        folder.name = new_name
     db.session.commit()
     flash('Ordner wurde umbenannt.', 'success')
 
@@ -387,8 +418,18 @@ def move_item():
             if team_root:
                 target_folder_id = team_root.id
                 target_folder = team_root
+        elif files_view in ('nc_ablage', 'nc_team', 'nc_public'):
+            if files_view == 'nc_team' and not user_may_use_file_team(current_user, move_team_id):
+                return jsonify({
+                    'success': False,
+                    'error': translate('files.index.errors.move_not_allowed')
+                }), 403
+            nc_root_id = resolve_default_parent_for_view(files_view, current_user.id, team_id=move_team_id)
+            if nc_root_id:
+                target_folder_id = nc_root_id
+                target_folder = Folder.query.get(nc_root_id)
 
-    if target_folder and (is_files_spaces_enabled() or (getattr(target_folder, 'space', None) == 'team')):
+    if target_folder and (is_files_spaces_enabled() or (getattr(target_folder, 'space', None) == 'team') or getattr(target_folder, 'storage_backend', 'local') == 'nextcloud'):
         if not can_edit_folder(target_folder, current_user) and not current_user.is_admin:
             return jsonify({
                 'success': False,
@@ -429,9 +470,22 @@ def move_item():
                 'error': translate('files.index.errors.move_name_conflict')
             }), 409
 
-        file.folder_id = target_folder_id
-        file.space = target_space
-        file.team_id = target_team_id
+        if getattr(file, 'storage_backend', 'local') == 'nextcloud' or (target_folder and getattr(target_folder, 'storage_backend', 'local') == 'nextcloud'):
+            if not (getattr(file, 'storage_backend', 'local') == 'nextcloud' and target_folder and getattr(target_folder, 'storage_backend', 'local') == 'nextcloud'):
+                return jsonify({'success': False, 'error': translate('files.index.errors.move_not_allowed')}), 400
+            from app.utils.cloud_import.nextcloud import NextcloudLockError
+            from app.utils.nextcloud_storage import move_nextcloud_file
+            try:
+                move_nextcloud_file(file, target_folder)
+            except NextcloudLockError as exc:
+                owner = exc.owner or 'Nextcloud'
+                return jsonify({'success': False, 'error': f'Datei ist in Nextcloud durch {owner} gesperrt.'}), 423
+            except Exception as exc:
+                return jsonify({'success': False, 'error': f'Nextcloud-Fehler: {exc}'}), 502
+        else:
+            file.folder_id = target_folder_id
+            file.space = target_space
+            file.team_id = target_team_id
         db.session.commit()
         return jsonify({'success': True}), 200
 
@@ -483,8 +537,21 @@ def move_item():
             'error': translate('files.index.errors.move_name_conflict')
         }), 409
 
-    folder.parent_id = target_folder_id
-    apply_space_to_folder_tree(folder, target_space, target_team_id)
+    if getattr(folder, 'storage_backend', 'local') == 'nextcloud' or (target_folder and getattr(target_folder, 'storage_backend', 'local') == 'nextcloud'):
+        if not (getattr(folder, 'storage_backend', 'local') == 'nextcloud' and target_folder and getattr(target_folder, 'storage_backend', 'local') == 'nextcloud'):
+            return jsonify({'success': False, 'error': translate('files.index.errors.move_not_allowed')}), 400
+        from app.utils.cloud_import.nextcloud import NextcloudLockError
+        from app.utils.nextcloud_storage import move_nextcloud_folder
+        try:
+            move_nextcloud_folder(folder, target_folder)
+        except NextcloudLockError as exc:
+            owner = exc.owner or 'Nextcloud'
+            return jsonify({'success': False, 'error': f'Ordner ist in Nextcloud durch {owner} gesperrt.'}), 423
+        except Exception as exc:
+            return jsonify({'success': False, 'error': f'Nextcloud-Fehler: {exc}'}), 502
+    else:
+        folder.parent_id = target_folder_id
+        apply_space_to_folder_tree(folder, target_space, target_team_id)
     db.session.commit()
     return jsonify({'success': True}), 200
 
@@ -616,27 +683,37 @@ def create_file():
     if not ok_quota:
         flash(quota_err or 'Speicherkontingent oder maximale Dateigröße überschritten.', 'danger')
         return redirect(_safe_referrer_or(url_for('files.index')))
-    with open(filepath, 'w', encoding='utf-8') as f:
-        f.write(content)
+    if parent_folder and getattr(parent_folder, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.nextcloud_storage import upload_nextcloud_file
+        new_file = upload_nextcloud_file(
+            parent_folder,
+            filename,
+            (content or '').encode('utf-8'),
+            user_id=current_user.id,
+            mime_type='text/plain' if file_type == 'txt' else 'text/markdown',
+        )
+    else:
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(content)
 
-    # Store absolute path in database
-    absolute_filepath = os.path.abspath(filepath)
+        # Store absolute path in database
+        absolute_filepath = os.path.abspath(filepath)
 
-    new_file = File(
-        name=filename,
-        original_name=filename,
-        folder_id=folder_id,
-        uploaded_by=current_user.id,
-        file_path=absolute_filepath,
-        file_size=os.path.getsize(absolute_filepath),
-        mime_type='text/plain' if file_type == 'txt' else 'text/markdown',
-        version_number=1,
-        is_current=True,
-        space=space,
-        team_id=resolved_team_id,
-    )
-    db.session.add(new_file)
-    db.session.commit()
+        new_file = File(
+            name=filename,
+            original_name=filename,
+            folder_id=folder_id,
+            uploaded_by=current_user.id,
+            file_path=absolute_filepath,
+            file_size=os.path.getsize(absolute_filepath),
+            mime_type='text/plain' if file_type == 'txt' else 'text/markdown',
+            version_number=1,
+            is_current=True,
+            space=space,
+            team_id=resolved_team_id,
+        )
+        db.session.add(new_file)
+        db.session.commit()
 
     # Sende Dashboard-Update an den Benutzer
     try:
@@ -761,24 +838,40 @@ def create_office_file():
         flash(f'Fehler beim Erstellen der Datei: {str(e)}', 'danger')
         return redirect(_safe_referrer_or(url_for('files.index')))
     
-    # Store absolute path in database
-    absolute_filepath = os.path.abspath(filepath)
-    
-    new_file = File(
-        name=filename,
-        original_name=filename,
-        folder_id=folder_id,
-        uploaded_by=current_user.id,
-        file_path=absolute_filepath,
-        file_size=os.path.getsize(absolute_filepath),
-        mime_type=mime_type,
-        version_number=1,
-        is_current=True,
-        space=space,
-        team_id=resolved_team_id,
-    )
-    db.session.add(new_file)
-    db.session.commit()
+    if parent_folder and getattr(parent_folder, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.nextcloud_storage import upload_nextcloud_file
+        with open(filepath, 'rb') as tmp_f:
+            raw_bytes = tmp_f.read()
+        try:
+            os.remove(filepath)
+        except OSError:
+            pass
+        new_file = upload_nextcloud_file(
+            parent_folder,
+            filename,
+            raw_bytes,
+            user_id=current_user.id,
+            mime_type=mime_type,
+        )
+    else:
+        # Store absolute path in database
+        absolute_filepath = os.path.abspath(filepath)
+        
+        new_file = File(
+            name=filename,
+            original_name=filename,
+            folder_id=folder_id,
+            uploaded_by=current_user.id,
+            file_path=absolute_filepath,
+            file_size=os.path.getsize(absolute_filepath),
+            mime_type=mime_type,
+            version_number=1,
+            is_current=True,
+            space=space,
+            team_id=resolved_team_id,
+        )
+        db.session.add(new_file)
+        db.session.commit()
     
     # Sende Dashboard-Update an den Benutzer
     try:

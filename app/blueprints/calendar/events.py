@@ -55,6 +55,23 @@ import calendar
 from app.blueprints.calendar._bp import DEFAULT_EVENT_COLOR, calendar_bp, logger
 from app.blueprints.calendar.helpers import *  # noqa: F401,F403
 
+@calendar_bp.route('/nextcloud-sync', methods=['POST'])
+@login_required
+@check_module_access('module_calendar')
+def nextcloud_sync_now():
+    """Force-sync all Nextcloud CalDAV calendars and events."""
+    from app.utils.nextcloud_calendar_settings import is_nextcloud_calendar_active
+    from app.utils.nextcloud_calendar_sync import sync_all_nextcloud_calendars
+
+    if is_nextcloud_calendar_active():
+        res = sync_all_nextcloud_calendars(force=True)
+        flash(
+            translate('calendar.flash.nextcloud_synced', ok=res.get('ok', 0)),
+            'success' if not res.get('fail') else 'warning',
+        )
+    return redirect(request.referrer or url_for('calendar.index'))
+
+
 @calendar_bp.route('/')
 @login_required
 @check_module_access('module_calendar')
@@ -266,6 +283,13 @@ def create_event():
         if multi and target_calendar and target_calendar.calendar_type == 'personal':
             invitee_ids = _parse_invitee_ids()
         notify_ids = _add_participants_for_event(event, multi, invitee_ids)
+        if target_calendar and getattr(target_calendar, 'storage_backend', 'local') == 'nextcloud':
+            try:
+                from app.utils.nextcloud_calendar_sync import push_event_to_nextcloud
+                push_event_to_nextcloud(event)
+            except Exception as exc:
+                logger.warning('Nextcloud CalDAV push failed on create: %s', exc)
+                flash('Termin wurde lokal gespeichert, aber Nextcloud-Sync schlug fehl.', 'warning')
         db.session.commit()
 
         if multi and notify_ids:
@@ -398,6 +422,14 @@ def edit_event(event_id):
                         db.session.add(EventParticipant(event_id=event.id, user_id=uid, status='pending'))
                         new_invite_ids.append(uid)
 
+        if getattr(event.calendar, 'storage_backend', 'local') == 'nextcloud':
+            try:
+                from app.utils.nextcloud_calendar_sync import push_event_to_nextcloud
+                push_event_to_nextcloud(event)
+            except Exception as exc:
+                logger.warning('Nextcloud CalDAV push failed on edit: %s', exc)
+                flash('Änderung lokal gespeichert, aber Nextcloud-Sync schlug fehl.', 'warning')
+
         db.session.commit()
         if new_invite_ids:
             _notify_event_invites(event, new_invite_ids)
@@ -452,7 +484,11 @@ def delete_event(event_id):
     
     # Hole Teilnehmer-IDs vor dem Löschen
     participant_ids = [p.user_id for p in EventParticipant.query.filter_by(event_id=event_id).all()]
-    
+
+    if event.calendar and getattr(event.calendar, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.nextcloud_calendar_sync import delete_event_from_nextcloud
+        delete_event_from_nextcloud(event)
+
     db.session.delete(event)
     db.session.commit()
     
@@ -749,7 +785,11 @@ def delete_recurring_event_all(event_id):
     instances = CalendarEvent.query.filter_by(parent_event_id=event.id).all()
     for instance in instances:
         db.session.delete(instance)
-    
+
+    if event.calendar and getattr(event.calendar, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.nextcloud_calendar_sync import delete_event_from_nextcloud
+        delete_event_from_nextcloud(event)
+
     db.session.delete(event)
     db.session.commit()
     

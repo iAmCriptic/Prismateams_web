@@ -120,3 +120,54 @@ def migrate_youtube_keys_to_system() -> None:
         row = MusicSettings.query.filter_by(key=legacy).first()
         if row and row.value:
             set_system_setting(system_key, row.value, f'Migriert von {legacy}')
+
+
+NEXTCLOUD_KEYS = {
+    'url': 'nextcloud_url',
+    'username': 'nextcloud_username',
+    'password_enc': 'nextcloud_password_enc',
+}
+
+
+def get_nextcloud_credentials(*, include_password: bool = True) -> dict:
+    """Return portal-wide Nextcloud credentials from SystemSettings."""
+    url = (get_system_setting(NEXTCLOUD_KEYS['url'], '') or '').strip().rstrip('/')
+    username = (get_system_setting(NEXTCLOUD_KEYS['username'], '') or '').strip()
+    enc = get_system_setting(NEXTCLOUD_KEYS['password_enc'], '') or ''
+    app_password = ''
+    if include_password and enc:
+        try:
+            from app.utils.multi_mailboxes import decrypt_password
+            app_password = decrypt_password(enc) or ''
+        except Exception:
+            app_password = ''
+    return {
+        'server_url': url,
+        'username': username,
+        'app_password': app_password,
+        'has_password': bool(enc),
+    }
+
+
+def nextcloud_configured() -> bool:
+    """True when portal-wide Nextcloud URL, username, and password are set."""
+    creds = get_nextcloud_credentials(include_password=False)
+    return bool(creds['server_url'] and creds['username'] and creds['has_password'])
+
+
+def save_nextcloud_from_form(form) -> None:
+    """Save portal-wide Nextcloud credentials (encrypting password, preserving if blank)."""
+    url = (form.get('nextcloud_url') or '').strip().rstrip('/')
+    username = (form.get('nextcloud_username') or '').strip()
+    raw_password = form.get('nextcloud_password') or ''
+
+    set_system_setting(NEXTCLOUD_KEYS['url'], url, 'Nextcloud Server URL (portalweit)')
+    set_system_setting(NEXTCLOUD_KEYS['username'], username, 'Nextcloud Benutzername (portalweit)')
+
+    if form.get('nextcloud_clear_password') == 'on':
+        set_system_setting(NEXTCLOUD_KEYS['password_enc'], '', 'Nextcloud App-Passwort (verschlüsselt)')
+    elif raw_password.strip():
+        from app.utils.multi_mailboxes import encrypt_password
+        enc = encrypt_password(raw_password.strip()) or ''
+        set_system_setting(NEXTCLOUD_KEYS['password_enc'], enc, 'Nextcloud App-Passwort (verschlüsselt)')
+

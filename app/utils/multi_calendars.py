@@ -49,7 +49,10 @@ def is_calendar_team_enabled():
 
 
 def is_calendar_multi_enabled():
-    """Sidebar / multi-calendar UI: personal, team, or extra public calendars."""
+    """Sidebar / multi-calendar UI: personal, team, extra public, or Nextcloud calendars."""
+    from app.utils.nextcloud_calendar_settings import is_nextcloud_calendar_active
+    if is_nextcloud_calendar_active():
+        return True
     if is_calendar_personal_enabled() or is_calendar_team_enabled() or is_calendar_public_enabled():
         return True
     try:
@@ -134,10 +137,37 @@ def get_or_create_events_calendar():
 
 
 def target_calendar_id_for_module_events():
-    """Calendar for Events/Booking module entries.
+    """Calendar for Events/Booking module entries (internal or Nextcloud)."""
+    from app.utils.nextcloud_calendar_settings import (
+        get_events_internal_calendar_id,
+        get_events_nextcloud_url,
+        get_events_sync_target,
+        is_nextcloud_calendar_active,
+    )
 
-    Multi on → Veranstaltungen; multi off → Public (single shared calendar).
-    """
+    if get_events_sync_target() == 'nextcloud' and is_nextcloud_calendar_active():
+        nc_url = get_events_nextcloud_url()
+        if nc_url:
+            cal = Calendar.query.filter_by(
+                storage_backend='nextcloud',
+                remote_url=nc_url,
+            ).first()
+            if cal and not cal.remote_read_only:
+                return cal.id
+        try:
+            from app.utils.nextcloud_calendar_sync import ensure_nextcloud_events_calendar
+            nc_cal = ensure_nextcloud_events_calendar()
+            if nc_cal:
+                return nc_cal.id
+        except Exception:
+            pass
+
+    internal_id = get_events_internal_calendar_id()
+    if internal_id:
+        cal = Calendar.query.get(internal_id)
+        if cal and getattr(cal, 'storage_backend', 'local') == 'local':
+            return cal.id
+
     if is_calendar_multi_enabled():
         return get_or_create_events_calendar().id
     return get_public_calendar().id
@@ -302,6 +332,9 @@ def can_view_calendar(user, calendar):
     )
 
     ctype = calendar.calendar_type
+    if ctype == 'nextcloud':
+        from app.utils.nextcloud_calendar_settings import is_nextcloud_calendar_active
+        return is_nextcloud_calendar_active()
     if ctype in ('public', 'events', 'room'):
         if not is_calendar_public_enabled():
             return False
@@ -337,6 +370,9 @@ def can_create_in_calendar(user, calendar):
         return False
     if calendar.calendar_type == 'imported':
         return False
+    if calendar.calendar_type == 'nextcloud':
+        from app.utils.nextcloud_calendar_settings import is_nextcloud_calendar_active
+        return is_nextcloud_calendar_active() and not bool(getattr(calendar, 'remote_read_only', False))
     from app.utils.user_content_access import (
         user_bypasses_content_restrictions,
         user_may_access_private,
@@ -378,6 +414,9 @@ def can_manage_calendar(user, calendar):
         return _is_team_member(user, calendar.team_id)
     if calendar.calendar_type == 'public':
         return True
+    if calendar.calendar_type == 'nextcloud':
+        from app.utils.nextcloud_calendar_settings import is_nextcloud_calendar_active
+        return is_nextcloud_calendar_active() and not bool(getattr(calendar, 'remote_read_only', False))
     return False
 
 
@@ -388,7 +427,7 @@ def can_delete_calendar_row(user, calendar):
         return False
     if calendar.is_default and calendar.calendar_type in ('personal', 'public'):
         return False
-    if calendar.calendar_type == 'imported':
+    if calendar.calendar_type in ('imported', 'nextcloud'):
         return True
     return calendar.calendar_type in ('personal', 'public')
 
@@ -422,13 +461,20 @@ def _is_module_managed_calendar_event(event):
 
 
 def can_edit_event(user, event):
+    cal = event.calendar
+    if cal is not None and cal.calendar_type == 'nextcloud':
+        if not user or getattr(user, 'is_guest', False):
+            return False
+        if getattr(cal, 'remote_read_only', False):
+            return False
+        from app.utils.nextcloud_calendar_settings import is_nextcloud_calendar_active
+        return is_nextcloud_calendar_active()
     if getattr(user, 'is_admin', False):
         return True
     if _is_module_managed_calendar_event(event):
         return False
     if not is_calendar_multi_enabled():
         return True
-    cal = event.calendar
     if cal is None:
         return event.created_by == user.id
     if cal.calendar_type == 'public':
@@ -441,13 +487,20 @@ def can_edit_event(user, event):
 
 
 def can_delete_event(user, event):
+    cal = event.calendar
+    if cal is not None and cal.calendar_type == 'nextcloud':
+        if not user or getattr(user, 'is_guest', False):
+            return False
+        if getattr(cal, 'remote_read_only', False):
+            return False
+        from app.utils.nextcloud_calendar_settings import is_nextcloud_calendar_active
+        return is_nextcloud_calendar_active()
     if getattr(user, 'is_admin', False):
         return True
     if _is_module_managed_calendar_event(event):
         return False
     if not is_calendar_multi_enabled():
         return False
-    cal = event.calendar
     if cal is None:
         return event.created_by == user.id
     if cal.calendar_type == 'public':
@@ -583,6 +636,14 @@ def participations_for_user(event_ids, user_id):
 
 
 def default_calendar_for_user(user):
+    from app.utils.nextcloud_calendar_settings import (
+        is_nextcloud_calendar_active,
+        is_portal_calendar_active,
+    )
+    if not is_portal_calendar_active() and is_nextcloud_calendar_active():
+        nc = Calendar.query.filter_by(storage_backend='nextcloud', remote_read_only=False).order_by(Calendar.name.asc()).first()
+        if nc:
+            return nc
     from app.utils.user_content_access import (
         user_may_access_private,
         user_may_access_public,
@@ -609,65 +670,96 @@ def default_calendar_for_user(user):
 
 
 def list_writable_calendars(user):
+    from app.utils.nextcloud_calendar_settings import (
+        is_nextcloud_calendar_active,
+        is_portal_calendar_active,
+    )
     from app.utils.user_content_access import user_may_access_team, user_may_access_public
     cals = []
-    if is_calendar_personal_enabled() and user:
-        cals.extend(list_personal_calendars(user))
-    if is_calendar_team_enabled() and user and user_may_access_team(user):
-        cals.extend(list_team_calendars_for_user(user))
-    if is_calendar_public_enabled() and (not user or user_may_access_public(user)):
-        cals.extend(list_public_calendars())
+    if is_portal_calendar_active():
+        if is_calendar_personal_enabled() and user:
+            cals.extend(list_personal_calendars(user))
+        if is_calendar_team_enabled() and user and user_may_access_team(user):
+            cals.extend(list_team_calendars_for_user(user))
+        if is_calendar_public_enabled() and (not user or user_may_access_public(user)):
+            cals.extend(list_public_calendars())
+    if is_nextcloud_calendar_active():
+        nc_cals = Calendar.query.filter_by(storage_backend='nextcloud', remote_read_only=False).order_by(Calendar.name.asc()).all()
+        cals.extend(nc_cals)
     return [c for c in cals if can_create_in_calendar(user, c)]
 
 
 def list_sidebar_calendars(user):
     """Ordered calendars for sidebar groups."""
+    from app.utils.nextcloud_calendar_settings import (
+        is_nextcloud_calendar_active,
+        is_portal_calendar_active,
+    )
     from app.utils.user_content_access import (
         user_may_access_private,
         user_may_access_public,
         user_may_access_team,
     )
 
+    portal_active = is_portal_calendar_active()
+    nc_active = is_nextcloud_calendar_active()
+
     personal = None
     personals = []
-    if is_calendar_personal_enabled() and user and user_may_access_private(user):
-        personals = list_personal_calendars(user)
-        personal = get_or_create_personal_calendar(user)
-        for u in User.query.filter_by(is_active=True).all():
-            if u.id != user.id:
-                get_or_create_personal_calendar(u)
-
-    allow_public = is_calendar_public_enabled() and (not user or user_may_access_public(user))
-    publics = list_public_calendars() if allow_public else []
-    public = get_public_calendar() if allow_public else None
-    events_cal = get_or_create_events_calendar() if is_calendar_multi_enabled() and allow_public else None
-    teams = list_team_calendars_for_user(user) if (is_calendar_team_enabled() and (not user or user_may_access_team(user))) else []
-    rooms = Calendar.query.filter_by(calendar_type='room').order_by(Calendar.name.asc()).all() if allow_public else []
-
-    reserved_ids = {c.id for c in personals}
-    reserved_ids.update(c.id for c in publics)
-    reserved_ids.update(c.id for c in teams)
-    if events_cal:
-        reserved_ids.add(events_cal.id)
-    reserved_ids.update(c.id for c in rooms)
-
-    others_q = Calendar.query.filter(Calendar.id.notin_(list(reserved_ids) or [0]))
-    others = others_q.order_by(Calendar.calendar_type.asc(), Calendar.name.asc()).all()
+    publics = []
+    public = None
+    events_cal = None
+    teams = []
+    rooms = []
     personal_others = []
     imported = []
-    for cal in others:
-        if cal.calendar_type == 'personal':
-            if not is_calendar_personal_enabled() or not can_view_calendar(user, cal):
+
+    if portal_active:
+        if is_calendar_personal_enabled() and user and user_may_access_private(user):
+            personals = list_personal_calendars(user)
+            personal = get_or_create_personal_calendar(user)
+            for u in User.query.filter_by(is_active=True).all():
+                if u.id != user.id:
+                    get_or_create_personal_calendar(u)
+
+        allow_public = is_calendar_public_enabled() and (not user or user_may_access_public(user))
+        publics = list_public_calendars() if allow_public else []
+        public = get_public_calendar() if allow_public else None
+        events_cal = get_or_create_events_calendar() if is_calendar_multi_enabled() and allow_public else None
+        teams = list_team_calendars_for_user(user) if (is_calendar_team_enabled() and (not user or user_may_access_team(user))) else []
+        rooms = Calendar.query.filter_by(calendar_type='room').order_by(Calendar.name.asc()).all() if allow_public else []
+
+        reserved_ids = {c.id for c in personals}
+        reserved_ids.update(c.id for c in publics)
+        reserved_ids.update(c.id for c in teams)
+        if events_cal:
+            reserved_ids.add(events_cal.id)
+        reserved_ids.update(c.id for c in rooms)
+
+        others_q = Calendar.query.filter(
+            Calendar.id.notin_(list(reserved_ids) or [0]),
+            Calendar.storage_backend == 'local',
+        )
+        others = others_q.order_by(Calendar.calendar_type.asc(), Calendar.name.asc()).all()
+        for cal in others:
+            if cal.calendar_type == 'personal':
+                if not is_calendar_personal_enabled() or not can_view_calendar(user, cal):
+                    continue
+                if cal.owner and not cal.owner.is_active:
+                    continue
+                personal_others.append(cal)
+            elif cal.calendar_type == 'imported':
+                imported.append(cal)
+            elif cal.calendar_type == 'team':
                 continue
-            if cal.owner and not cal.owner.is_active:
-                continue
-            personal_others.append(cal)
-        elif cal.calendar_type == 'imported':
-            imported.append(cal)
-        elif cal.calendar_type == 'team':
-            continue
-    personal_others.sort(key=lambda c: (calendar_display_name(c, user) or c.name or '').lower())
-    imported.sort(key=lambda c: (c.name or '').lower())
+        personal_others.sort(key=lambda c: (calendar_display_name(c, user) or c.name or '').lower())
+        imported.sort(key=lambda c: (c.name or '').lower())
+
+    nextcloud_cals = (
+        Calendar.query.filter_by(storage_backend='nextcloud').order_by(Calendar.name.asc()).all()
+        if nc_active else []
+    )
+
     return {
         'personal': personal,
         'personals': personals,
@@ -677,6 +769,7 @@ def list_sidebar_calendars(user):
         'teams': teams,
         'rooms': rooms,
         'others': personal_others + imported,
+        'nextcloud': nextcloud_cals,
     }
 
 

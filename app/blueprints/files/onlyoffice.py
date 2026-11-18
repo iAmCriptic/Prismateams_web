@@ -339,8 +339,13 @@ def api_onlyoffice_presence():
         if session_key:
             existing = OnlyOfficeSession.query.filter_by(session_key=session_key).first()
             if existing and existing.user_id == current_user.id:
+                fid = existing.file_id
                 oo_leave_session(session_key)
                 db.session.commit()
+                fobj = File.query.get(fid)
+                if fobj and getattr(fobj, 'storage_backend', 'local') == 'nextcloud':
+                    from app.utils.nextcloud_storage import release_nextcloud_lock_if_unused
+                    release_nextcloud_lock_if_unused(fobj)
         return jsonify({'success': True})
     if action == 'heartbeat':
         if not session_key:
@@ -354,6 +359,10 @@ def api_onlyoffice_presence():
         if not row:
             return jsonify({'success': False, 'error': 'Session unbekannt'}), 404
         db.session.commit()
+        fobj = File.query.get(row.file_id)
+        if fobj and getattr(fobj, 'storage_backend', 'local') == 'nextcloud':
+            from app.utils.nextcloud_storage import refresh_nextcloud_lock
+            refresh_nextcloud_lock(fobj)
         return jsonify({'success': True, 'session_key': row.session_key})
     try:
         file_id = int(payload.get('file_id'))
@@ -397,16 +406,26 @@ def api_file_edit_lock():
 
     if action == 'leave':
         ok = False
+        released_file_id = None
         if session_key:
+            from app.models.file import FileEditLock
+            lock_row = FileEditLock.query.filter_by(session_key=session_key, locked_by=current_user.id).first()
+            released_file_id = lock_row.file_id if lock_row else None
             ok = file_edit_lock_util.release(session_key, current_user.id)
         elif payload.get('file_id') is not None:
             try:
                 file_id = int(payload.get('file_id'))
             except (TypeError, ValueError):
                 return jsonify({'success': False, 'error': 'file_id fehlt'}), 400
+            released_file_id = file_id
             ok = file_edit_lock_util.release_for_file(file_id, current_user.id)
         if ok:
             db.session.commit()
+            if released_file_id:
+                fobj = File.query.get(released_file_id)
+                if fobj and getattr(fobj, 'storage_backend', 'local') == 'nextcloud':
+                    from app.utils.nextcloud_storage import release_nextcloud_lock_if_unused
+                    release_nextcloud_lock_if_unused(fobj)
         return jsonify({'success': True, 'released': ok})
 
     if action == 'heartbeat':
@@ -416,6 +435,10 @@ def api_file_edit_lock():
         if not lock:
             return jsonify({'success': False, 'error': 'Lock unbekannt oder abgelaufen'}), 404
         db.session.commit()
+        fobj = File.query.get(lock.file_id)
+        if fobj and getattr(fobj, 'storage_backend', 'local') == 'nextcloud':
+            from app.utils.nextcloud_storage import refresh_nextcloud_lock
+            refresh_nextcloud_lock(fobj)
         return jsonify({'success': True, 'lock': file_edit_lock_util.serialize_lock(lock)})
 
     if action == 'status':
@@ -510,7 +533,13 @@ def edit_onlyoffice(file_id):
     if not is_onlyoffice_file_type(file_ext):
         flash('Dieser Dateityp wird von Euro-Office nicht unterstützt.', 'warning')
         return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
-    
+
+    if getattr(file, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.nextcloud_settings import is_nextcloud_eurooffice_enabled
+        if not is_nextcloud_eurooffice_enabled():
+            flash('Euro-Office für Nextcloud-Dateien ist deaktiviert.', 'warning')
+            return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
+
     # Get document type and file type
     document_type = get_onlyoffice_document_type(file_ext)
     file_type = get_onlyoffice_file_type(file_ext)
@@ -519,14 +548,26 @@ def edit_onlyoffice(file_id):
 
     dav_block = webdav_occupancy_for_file(file.id)
     user_can_edit = bool(current_user.is_admin or can_edit_file(file, current_user))
-    editor_mode = 'edit' if (user_can_edit and not dav_block) else 'view'
+    nc_lock_block_msg = None
+    if user_can_edit and not dav_block and getattr(file, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.nextcloud_storage import acquire_nextcloud_lock
+        owner_name = getattr(current_user, 'full_name', None) or getattr(current_user, 'username', None) or f'User {current_user.id}'
+        nc_ok, nc_lock_block_msg = acquire_nextcloud_lock(file, owner_name)
+        if not nc_ok:
+            flash((nc_lock_block_msg or 'Datei ist in Nextcloud gesperrt.') + ' Euro-Office öffnet die Datei schreibgeschützt.', 'warning')
+
+    editor_mode = 'edit' if (user_can_edit and not dav_block and not nc_lock_block_msg) else 'view'
     if dav_block:
         flash(dav_block.message + ' Euro-Office öffnet die Datei schreibgeschützt.', 'warning')
     
     # Generate unique document key for versioning
     from app.utils.onlyoffice import build_onlyoffice_document_key, resolve_storage_path
-    file_path = resolve_storage_path(file.file_path)
-    document_key = build_onlyoffice_document_key('file', file.id, file.version_number, file_path)
+    if getattr(file, 'storage_backend', 'local') == 'nextcloud':
+        rev = file.remote_etag or (file.updated_at.isoformat() if file.updated_at else str(file.version_number))
+        document_key = build_onlyoffice_document_key('file', file.id, rev, None)
+    else:
+        file_path = resolve_storage_path(file.file_path)
+        document_key = build_onlyoffice_document_key('file', file.id, file.version_number, file_path)
     
     # Generate access token for OnlyOffice to access the document
     from app.utils.onlyoffice import generate_onlyoffice_access_token

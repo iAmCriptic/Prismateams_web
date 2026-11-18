@@ -30,6 +30,10 @@ class Folder(db.Model):
     is_team_root = db.Column(db.Boolean, default=False, nullable=False)
     deleted_at = db.Column(db.DateTime, nullable=True, index=True)
     deleted_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
+    storage_backend = db.Column(db.String(20), nullable=False, default='local', index=True)
+    remote_path = db.Column(db.String(1024), nullable=True, index=True)
+    remote_etag = db.Column(db.String(128), nullable=True)
     
     parent = db.relationship('Folder', remote_side=[id], backref='subfolders')
     files = db.relationship('File', back_populates='folder', cascade='all, delete-orphan')
@@ -160,6 +164,12 @@ class File(db.Model):
     team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True, index=True)
     deleted_at = db.Column(db.DateTime, nullable=True, index=True)
     deleted_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+
+    storage_backend = db.Column(db.String(20), nullable=False, default='local', index=True)
+    remote_path = db.Column(db.String(1024), nullable=True, index=True)
+    remote_etag = db.Column(db.String(128), nullable=True)
+    remote_lock_token = db.Column(db.String(255), nullable=True)
+    remote_lock_expires_at = db.Column(db.DateTime, nullable=True)
 
     folder = db.relationship('Folder', back_populates='files')
     uploader = db.relationship('User', foreign_keys=[uploaded_by], back_populates='uploaded_files')

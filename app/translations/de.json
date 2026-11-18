@@ -2601,7 +2601,43 @@
         "trash_retention_label": "Papierkorb-Aufbewahrung",
         "trash_retention_help": "Soft-gelöschte Dateien und Ordner werden nach dieser Frist automatisch endgültig gelöscht. 0 deaktiviert den Auto-Purge.",
         "trash_retention_unit": "Tage",
-        "trash_retention_note": "Standard: 30 Tage. Überschreibt den ENV-Wert FILES_TRASH_DAYS, sobald gespeichert."
+        "trash_retention_note": "Standard: 30 Tage. Überschreibt den ENV-Wert FILES_TRASH_DAYS, sobald gespeichert.",
+        "nc_section_title": "Nextcloud & Speicher-Modus",
+        "nc_section_help": "Steuert, ob das Modul Dateien den Teamportal-Speicher, Nextcloud oder beides gemeinsam verwendet.",
+        "nc_not_configured_hint": "Nextcloud ist unter Verknüpfungen noch nicht eingerichtet.",
+        "nc_not_configured": "Nextcloud-Zugangsdaten sind noch nicht hinterlegt.",
+        "nc_open_integrations": "Zu Verknüpfungen",
+        "nc_enabled_label": "Nextcloud-Integration aktivieren",
+        "nc_enabled_help": "Aktiviert oder deaktiviert die Nextcloud-Anbindung im Modul Dateien.",
+        "nc_mode_label": "Speicher-Modus",
+        "nc_mode_help": "Teamportal: nur lokaler Speicher. Nextcloud: nur Nextcloud. Beides gemeinsam: beide Bereiche in der Sidebar.",
+        "nc_mode_local": "Teamportal",
+        "nc_mode_nextcloud": "Nextcloud",
+        "nc_mode_hybrid": "Beides gemeinsam",
+        "nc_eurooffice_label": "Euro-Office Live-Coop-Edit (Nextcloud)",
+        "nc_eurooffice_help": "Ermöglicht gemeinsames Bearbeiten von Nextcloud-Office-Dateien in Euro-Office.",
+        "nc_md_label": "Markdown-Bearbeitung (Nextcloud)",
+        "nc_md_help": "Ermöglicht das Bearbeiten von .md- und Textdateien auf Nextcloud (mit exklusivem Lock).",
+        "nc_locks_label": "Nextcloud WebDAV-Locks aktivieren",
+        "nc_locks_help": "Sperrt Dateien während der Bearbeitung im Portal automatisch per WebDAV LOCK in Nextcloud.",
+        "nc_private_enabled_label": "„Meine Ablage“ auf Nextcloud aktivieren",
+        "nc_private_enabled_help": "Legt pro Benutzer automatisch einen persönlichen Unterordner unter dem Basis-Pfad in Nextcloud an.",
+        "nc_private_base_label": "Nextcloud Basis-Pfad für „Meine Ablage“",
+        "nc_public_enabled_label": "Public-Bereich auf Nextcloud aktivieren",
+        "nc_public_path_label": "Nextcloud-Pfad für Public-Bereich",
+        "nc_public_access_label": "Public-Bereich einschränken",
+        "nc_public_access_help": "Legt fest, welche Nutzer auf den Nextcloud-Public-Bereich zugreifen oder dort schreiben dürfen.",
+        "nc_public_access_all": "Alle Nutzer (Lesen & Schreiben)",
+        "nc_public_access_read_only": "Mitglieder nur Lesen (Admins Vollzugriff)",
+        "nc_public_access_admins_only": "Nur Admins",
+        "nc_public_access_disabled": "Deaktiviert",
+        "nc_teams_title": "Nextcloud-Ordner zu Teams zuweisen",
+        "nc_teams_help": "Weise jedem Team einen eigenen Nextcloud-Ordner zu.",
+        "nc_teams_empty": "Keine Teams vorhanden.",
+        "nc_pick_folder": "Ordner wählen",
+        "nc_picker_title": "Nextcloud-Ordner auswählen",
+        "nc_picker_empty": "Keine Unterordner vorhanden.",
+        "nc_picker_select": "Diesen Ordner verwenden"
       },
       "calendar_settings": {
         "page_title": "Kalender-Einstellungen - Administration",
@@ -2623,7 +2659,27 @@
         "import_help": "Wenn deaktiviert, können keine ICS-Dateien importiert und keine Sync-Links angelegt werden.",
         "save_button": "Speichern",
         "flash_updated": "Kalender-Einstellungen wurden aktualisiert.",
-        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite."
+        "flash_unauthorized": "Nur Administratoren haben Zugriff auf diese Seite.",
+        "nc_section_title": "Nextcloud-Kalender & Synchronisation",
+        "nc_section_help": "Steuert, ob der Kalender interne Portal-Kalender, Nextcloud-Kalender (CalDAV) oder beides gemeinsam nutzt.",
+        "nc_enabled_label": "Nextcloud-Kalender aktivieren",
+        "nc_enabled_help": "Aktiviert die bidirektionale CalDAV-Synchronisation mit Nextcloud (nutzt den portalweiten Login unter Verknüpfungen).",
+        "nc_mode_label": "Kalender-Modus",
+        "nc_mode_help": "Teamportal: nur interne Kalender. Nextcloud: alle Termine über Nextcloud. Beides gemeinsam: beide Bereiche aufklappbar in der Sidebar.",
+        "nc_mode_local_suffix": "Kalender",
+        "nc_mode_nextcloud": "Nextcloud Kalender",
+        "nc_mode_hybrid": "Beides gemeinsam",
+        "nc_events_target_label": "Veranstaltungen synchronisieren nach",
+        "nc_events_target_help": "Legt fest, ob Termine aus dem Modul Veranstaltungen in einen internen Kalender oder einen Nextcloud-Kalender geschrieben werden.",
+        "nc_events_target_internal": "Interner Kalender",
+        "nc_events_target_nextcloud": "Nextcloud-Kalender",
+        "nc_events_internal_cal_label": "Ziel-Kalender (Intern)",
+        "nc_events_internal_default": "Standard (Veranstaltungen / Public)",
+        "nc_events_nc_cal_label": "Ziel-Kalender (Nextcloud)",
+        "nc_events_nc_cal_help": "Wähle einen Nextcloud-Kalender oder lasse automatisch einen Kalender „Veranstaltungen“ in Nextcloud anlegen.",
+        "nc_events_nc_auto": "Automatisch („Veranstaltungen“ in Nextcloud anlegen)",
+        "nc_load_calendars": "Kalender laden",
+        "nc_calendars_loaded": "Kalender geladen"
       },
       "teams": {
         "page_title": "Teams - Administration",
@@ -2963,7 +3019,21 @@
       "google_help_api_heading": "API-Schlüssel (für YouTube)",
       "redirect_hint_login": "Redirect-URI: {url}",
       "short": "OAuth & APIs",
-      "lead_short": "Google, Microsoft und Spotify."
+      "lead_short": "Google, Microsoft und Spotify.",
+      "nextcloud_title": "Nextcloud (Portalweit)",
+      "nextcloud_help": "Portalweite Nextcloud-Anmeldedaten für das Modul Dateien (gilt für alle Nutzer).",
+      "nextcloud_url": "Nextcloud Server-URL",
+      "nextcloud_username": "Benutzername (Service-Account)",
+      "nextcloud_password": "App-Passwort / Passwort",
+      "nextcloud_password_help": "Wird verschlüsselt gespeichert. Leer lassen, um das bestehende Passwort beizubehalten.",
+      "nextcloud_password_saved": "•••••••• (gespeichert — leer lassen zum Beibehalten)",
+      "nextcloud_password_placeholder": "Nextcloud App-Passwort eingeben",
+      "nextcloud_test_label": "Verbindungsprüfung",
+      "nextcloud_test_btn": "Verbindung testen",
+      "nextcloud_testing": "Teste Verbindung …",
+      "nextcloud_test_missing": "Bitte Server-URL, Benutzername und Passwort angeben.",
+      "nextcloud_test_ok": "Verbindung erfolgreich hergestellt.",
+      "nextcloud_test_failed": "Verbindung fehlgeschlagen"
     },
     "cloud_import": {
       "page_title": "Cloud-Import",
@@ -3707,7 +3777,10 @@
         "move_error": "Element konnte nicht verschoben werden."
       },
       "search_placeholder": "In Dateien suchen",
-      "search_empty": "Keine Treffer in diesem Ordner."
+      "search_empty": "Keine Treffer in diesem Ordner.",
+      "sidebar": {
+        "reorder": "Reihenfolge tauschen"
+      }
     },
     "view": {
       "download": "Herunterladen",
@@ -4935,7 +5008,8 @@
       "participation_status": "Teilnahme an \"{event_title}\": {status}",
       "accepted": "zugesagt",
       "declined": "abgesagt",
-      "sync_started": "Synchronisation im Hintergrund gestartet. Aktualisieren Sie die Seite in wenigen Sekunden."
+      "sync_started": "Synchronisation im Hintergrund gestartet. Aktualisieren Sie die Seite in wenigen Sekunden.",
+      "nextcloud_synced": "Nextcloud-Kalender synchronisiert ({ok} Kalender aktualisiert)."
     },
     "notifications": {
       "invite_title": "Einladung zu Termin erhalten",
@@ -4978,7 +5052,10 @@
         "color": "Farbe",
         "create": "Anlegen"
       },
-      "rooms": "Räume"
+      "rooms": "Räume",
+      "nextcloud_calendars": "Nextcloud Kalender",
+      "nextcloud_empty": "Keine Nextcloud-Kalender gefunden.",
+      "nextcloud_sync_now": "Jetzt synchronisieren"
     },
     "feed": {
       "page_title": "In eigenen Kalender integrieren",

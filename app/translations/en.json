@@ -2092,7 +2092,43 @@
         "trash_retention_label": "Trash retention",
         "trash_retention_help": "Soft-deleted files and folders are permanently removed after this period. 0 disables auto-purge.",
         "trash_retention_unit": "days",
-        "trash_retention_note": "Default: 30 days. Overrides FILES_TRASH_DAYS from the environment once saved."
+        "trash_retention_note": "Default: 30 days. Overrides FILES_TRASH_DAYS from the environment once saved.",
+        "nc_section_title": "Nextcloud & Storage Mode",
+        "nc_section_help": "Controls whether the Files module uses Teamportal storage, Nextcloud, or both together.",
+        "nc_not_configured_hint": "Nextcloud is not configured yet under Integrations.",
+        "nc_not_configured": "Nextcloud credentials are not configured yet.",
+        "nc_open_integrations": "Open Integrations",
+        "nc_enabled_label": "Enable Nextcloud integration",
+        "nc_enabled_help": "Enables or disables Nextcloud support in the Files module.",
+        "nc_mode_label": "Storage Mode",
+        "nc_mode_help": "Teamportal: local storage only. Nextcloud: Nextcloud only. Both together: both sections in sidebar.",
+        "nc_mode_local": "Teamportal",
+        "nc_mode_nextcloud": "Nextcloud",
+        "nc_mode_hybrid": "Both together",
+        "nc_eurooffice_label": "Euro-Office Live Co-Edit (Nextcloud)",
+        "nc_eurooffice_help": "Allows collaborative editing of Nextcloud Office files in Euro-Office.",
+        "nc_md_label": "Markdown editing (Nextcloud)",
+        "nc_md_help": "Allows editing .md and text files on Nextcloud (with exclusive lock).",
+        "nc_locks_label": "Enable Nextcloud WebDAV Locks",
+        "nc_locks_help": "Automatically acquires a WebDAV LOCK on Nextcloud while files are edited in the portal.",
+        "nc_private_enabled_label": "Enable \"My Files\" on Nextcloud",
+        "nc_private_enabled_help": "Automatically creates a personal subfolder per user under the base path on Nextcloud.",
+        "nc_private_base_label": "Nextcloud base path for \"My Files\"",
+        "nc_public_enabled_label": "Enable Public area on Nextcloud",
+        "nc_public_path_label": "Nextcloud path for Public area",
+        "nc_public_access_label": "Restrict Public area",
+        "nc_public_access_help": "Controls which users may access or write to the Nextcloud Public area.",
+        "nc_public_access_all": "All users (Read & Write)",
+        "nc_public_access_read_only": "Members read-only (Admins full access)",
+        "nc_public_access_admins_only": "Admins only",
+        "nc_public_access_disabled": "Disabled",
+        "nc_teams_title": "Assign Nextcloud folders to Teams",
+        "nc_teams_help": "Assign a dedicated Nextcloud folder to each team.",
+        "nc_teams_empty": "No teams available.",
+        "nc_pick_folder": "Choose folder",
+        "nc_picker_title": "Select Nextcloud folder",
+        "nc_picker_empty": "No subfolders available.",
+        "nc_picker_select": "Use this folder"
       },
       "calendar_settings": {
         "page_title": "Calendar Settings - Administration",
@@ -2114,7 +2150,27 @@
         "import_help": "When disabled, ICS files cannot be imported and sync links cannot be created.",
         "save_button": "Save",
         "flash_updated": "Calendar settings have been updated.",
-        "flash_unauthorized": "Only administrators have access to this page."
+        "flash_unauthorized": "Only administrators have access to this page.",
+        "nc_section_title": "Nextcloud Calendar & Sync",
+        "nc_section_help": "Controls whether the Calendar uses internal portal calendars, Nextcloud (CalDAV), or both together.",
+        "nc_enabled_label": "Enable Nextcloud calendars",
+        "nc_enabled_help": "Enables bidirectional CalDAV sync with Nextcloud using the portal-wide login from Integrations.",
+        "nc_mode_label": "Calendar Mode",
+        "nc_mode_help": "Portal Calendar: internal only. Nextcloud Calendar: all events via Nextcloud. Both together: collapsible sections in sidebar.",
+        "nc_mode_local_suffix": "Calendar",
+        "nc_mode_nextcloud": "Nextcloud Calendar",
+        "nc_mode_hybrid": "Both together",
+        "nc_events_target_label": "Sync Events module to",
+        "nc_events_target_help": "Choose whether Events module appointments sync to an internal calendar or a specific Nextcloud calendar.",
+        "nc_events_target_internal": "Internal Calendar",
+        "nc_events_target_nextcloud": "Nextcloud Calendar",
+        "nc_events_internal_cal_label": "Target Calendar (Internal)",
+        "nc_events_internal_default": "Default (Events / Public)",
+        "nc_events_nc_cal_label": "Target Calendar (Nextcloud)",
+        "nc_events_nc_cal_help": "Select a Nextcloud calendar or automatically create a 'Veranstaltungen' calendar in Nextcloud.",
+        "nc_events_nc_auto": "Automatic (create 'Veranstaltungen' in Nextcloud)",
+        "nc_load_calendars": "Load calendars",
+        "nc_calendars_loaded": "calendars loaded"
       },
       "system": {
         "page_title": "System Settings - Administration",
@@ -2963,7 +3019,21 @@
       "google_help_api_heading": "API key (for YouTube)",
       "redirect_hint_login": "Redirect URI: {url}",
       "short": "OAuth & APIs",
-      "lead_short": "Google, Microsoft, and Spotify."
+      "lead_short": "Google, Microsoft, and Spotify.",
+      "nextcloud_title": "Nextcloud (Portal-wide)",
+      "nextcloud_help": "Portal-wide Nextcloud credentials for the Files module (applies to all users).",
+      "nextcloud_url": "Nextcloud Server URL",
+      "nextcloud_username": "Username (Service Account)",
+      "nextcloud_password": "App Password / Password",
+      "nextcloud_password_help": "Stored encrypted. Leave blank to keep the existing password.",
+      "nextcloud_password_saved": "•••••••• (saved — leave blank to keep)",
+      "nextcloud_password_placeholder": "Enter Nextcloud app password",
+      "nextcloud_test_label": "Connection check",
+      "nextcloud_test_btn": "Test connection",
+      "nextcloud_testing": "Testing connection…",
+      "nextcloud_test_missing": "Please enter server URL, username, and password.",
+      "nextcloud_test_ok": "Connection established successfully.",
+      "nextcloud_test_failed": "Connection failed"
     },
     "cloud_import": {
       "page_title": "Cloud import",
@@ -3704,7 +3774,10 @@
         "move_target_not_found": "Target folder was not found."
       },
       "search_placeholder": "Search in files",
-      "search_empty": "No matches in this folder."
+      "search_empty": "No matches in this folder.",
+      "sidebar": {
+        "reorder": "Swap order"
+      }
     },
     "view": {
       "download": "Download",
@@ -4590,7 +4663,8 @@
       "participation_status": "Participation for \"{event_title}\": {status}",
       "accepted": "accepted",
       "declined": "declined",
-      "sync_started": "Sync started in the background. Refresh the page in a few seconds."
+      "sync_started": "Sync started in the background. Refresh the page in a few seconds.",
+      "nextcloud_synced": "Nextcloud calendars synced ({ok} calendars updated)."
     },
     "notifications": {
       "invite_title": "Event invitation received",
@@ -4633,7 +4707,10 @@
         "color": "Color",
         "create": "Create"
       },
-      "rooms": "Rooms"
+      "rooms": "Rooms",
+      "nextcloud_calendars": "Nextcloud Calendar",
+      "nextcloud_empty": "No Nextcloud calendars found.",
+      "nextcloud_sync_now": "Sync now"
     },
     "feed": {
       "page_title": "Integrate into your calendar",

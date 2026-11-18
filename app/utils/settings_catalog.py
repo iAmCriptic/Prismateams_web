@@ -212,6 +212,13 @@ def build_settings_catalog(user) -> list[dict]:
         anchor='youtube',
     ))
     catalog.append(_entry(
+        'Nextcloud',
+        'settings.admin_integrations',
+        'admin',
+        'nextcloud webdav cloud dateien speicher portalweit',
+        anchor='integrations-nextcloud',
+    ))
+    catalog.append(_entry(
         translate('settings.admin.cards.backup.title'),
         'settings.admin_backup',
         'admin',
