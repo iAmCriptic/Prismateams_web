@@ -538,6 +538,33 @@
         initUserPicker(document.querySelector('[data-exception-user-picker]'));
     });
 })();
+</script>
+
+<div class="modal fade" id="nextcloudFolderPickerModal" tabindex="-1" aria-labelledby="nextcloudFolderPickerModalLabel" aria-hidden="true" data-folders-url="{{ url_for('settings.admin_file_settings_nextcloud_folders') }}">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="nextcloudFolderPickerModalLabel"><i class="bi bi-cloud me-2" aria-hidden="true"></i>{{ _('settings.admin.file_settings.nc_picker_title') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="ncPickerUpBtn" title="{{ _('layout.nav.back') }}">
+            <i class="bi bi-arrow-up" aria-hidden="true"></i>
+          </button>
+          <code id="ncPickerCurrentPath" class="flex-grow-1 text-truncate">/</code>
+        </div>
+        <div class="list-group" id="ncPickerList"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary mod-pill-btn mod-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+        <button type="button" class="btn btn-accent mod-pill-btn" id="ncPickerSelectBtn">{{ _('settings.admin.file_settings.nc_picker_select') }}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
 (function () {
     var modalEl = document.getElementById('nextcloudFolderPickerModal');
     if (!modalEl) return;
@@ -615,28 +642,4 @@
     }
 })();
 </script>
-
-<div class="modal fade" id="nextcloudFolderPickerModal" tabindex="-1" aria-labelledby="nextcloudFolderPickerModalLabel" aria-hidden="true" data-folders-url="{{ url_for('settings.admin_file_settings_nextcloud_folders') }}">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="nextcloudFolderPickerModalLabel"><i class="bi bi-cloud me-2" aria-hidden="true"></i>{{ _('settings.admin.file_settings.nc_picker_title') }}</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
-      </div>
-      <div class="modal-body">
-        <div class="d-flex align-items-center gap-2 mb-2">
-          <button type="button" class="btn btn-sm btn-outline-secondary" id="ncPickerUpBtn" title="{{ _('layout.nav.back') }}">
-            <i class="bi bi-arrow-up" aria-hidden="true"></i>
-          </button>
-          <code id="ncPickerCurrentPath" class="flex-grow-1 text-truncate">/</code>
-        </div>
-        <div class="list-group" id="ncPickerList"></div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary mod-pill-btn mod-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
-        <button type="button" class="btn btn-accent mod-pill-btn" id="ncPickerSelectBtn">{{ _('settings.admin.file_settings.nc_picker_select') }}</button>
-      </div>
-    </div>
-  </div>
-</div>
 {% endblock %}
