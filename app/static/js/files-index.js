@@ -1333,7 +1333,6 @@ document.addEventListener('DOMContentLoaded', function() {
 // Side Menu Funktionen
 function openFileDetails(fileId) {
     const sideMenu = document.getElementById('sideMenu');
-    const sideMenu = document.getElementById('sideMenu');
     const backdrop = document.getElementById('sideMenuBackdrop');
     const content = document.getElementById('sideMenuContent');
     if (!sideMenu || !backdrop || !content) return;
