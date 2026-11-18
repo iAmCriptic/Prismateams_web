@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% from "helpers/_sidebar.html" import helpers_sidebar, helpers_mobile_offcanvas, helpers_new_event_modal with context %}
+
+{% block title %}{{ _('helpers.nav.ausgabe') }} — {{ current_event.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/helpers.css') }}">
+{% endblock %}
+
+{% block navbar_search %}
+<div class="mod-search" role="search">
+  <label class="mod-search-field" for="modSearchInput">
+    <i class="bi bi-search" aria-hidden="true"></i>
+    <input type="text"
+           id="modSearchInput"
+           class="mod-search-input"
+           placeholder="{{ _('helpers.search_placeholder') }}"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+  </label>
+  <button type="button" class="btn mod-search-clear d-none" id="modSearchClear" aria-label="{{ _('common.cancel') }}">
+    <i class="bi bi-x-lg"></i>
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="helpers-shell mod-shell--nav">
+  {{ helpers_sidebar(events, current_event, active_nav) }}
+  {{ helpers_mobile_offcanvas(events, current_event, active_nav) }}
+
+  <main class="mod-main">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn mod-pill-btn mod-pill-btn--outline d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#helpersMobileNav" aria-label="{{ _('helpers.heading') }}">
+          <i class="bi bi-list"></i>
+        </button>
+        <div>
+          <h1 class="h4 mb-0">{{ current_event.name }} — {{ _('helpers.nav.ausgabe') }}</h1>
+          <div class="small text-muted">{{ _('helpers.ausgabe.subtitle') }}</div>
+        </div>
+      </div>
+
+      <div class="btn-group" role="group">
+        <a href="{{ url_for('helpers.ausgabe', event_id=current_event.id, status='all') }}"
+           class="btn mod-pill-btn {% if status_filter == 'all' %}mod-pill-btn--accent{% else %}mod-pill-btn--outline{% endif %}">
+          {{ _('helpers.ausgabe.filter_all') }}
+        </a>
+        <a href="{{ url_for('helpers.ausgabe', event_id=current_event.id, status='open') }}"
+           class="btn mod-pill-btn {% if status_filter == 'open' %}mod-pill-btn--accent{% else %}mod-pill-btn--outline{% endif %}">
+          {{ _('helpers.ausgabe.filter_open') }}
+        </a>
+        <a href="{{ url_for('helpers.ausgabe', event_id=current_event.id, status='issued') }}"
+           class="btn mod-pill-btn {% if status_filter == 'issued' %}mod-pill-btn--accent{% else %}mod-pill-btn--outline{% endif %}">
+          {{ _('helpers.ausgabe.filter_issued') }}
+        </a>
+      </div>
+    </div>
+
+    <div class="mod-list-table-wrap">
+      <table class="table mod-list-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{{ _('helpers.bedarf.issued') }}</th>
+            <th>{{ _('helpers.table.name') }}</th>
+            <th>{{ _('helpers.table.tshirt') }}</th>
+            <th>{{ _('helpers.ausgabe.days_present') }}</th>
+            <th>{{ _('helpers.table.food') }}</th>
+            <th>{{ _('helpers.table.drinks') }}</th>
+          </tr>
+        </thead>
+        <tbody id="helpersTableBody">
+          {% for item in checklist %}
+          {% set h = item.helper %}
+          <tr data-search="{{ h.full_name }} {{ h.email }} {{ h.tshirt_size or '' }} {{ item.days|join(' ') }}">
+            <td>
+              <input type="checkbox"
+                     class="form-check-input js-toggle-voucher"
+                     data-url="{{ url_for('helpers.toggle_vouchers_issued', helper_id=h.id) }}"
+                     aria-label="{{ h.full_name }}"
+                     {% if h.vouchers_issued %}checked{% endif %}>
+            </td>
+            <td>
+              <div class="fw-semibold">{{ h.full_name }}</div>
+              <div class="small text-muted">{{ h.email }}</div>
+            </td>
+            <td>
+              <span class="badge bg-body-secondary text-body border">{{ h.tshirt_size or '—' }}</span>
+            </td>
+            <td>
+              {% if item.days %}
+              <div class="d-flex flex-wrap gap-1">
+                {% for d in item.days %}
+                <span class="badge helpers-badge-accent">{{ d }}</span>
+                {% endfor %}
+              </div>
+              {% else %}
+              <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td class="fw-semibold">{{ item.food }}</td>
+            <td class="fw-semibold">{{ item.drinks }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-5">{{ _('helpers.bedarf.checklist_empty') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+{{ helpers_new_event_modal(events) }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/helpers.js') }}"></script>
+{% endblock %}

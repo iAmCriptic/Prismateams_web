@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+{% from "helpers/_sidebar.html" import helpers_sidebar, helpers_mobile_offcanvas, helpers_new_event_modal with context %}
+
+{% block title %}{{ _('helpers.nav.bedarf') }} — {{ current_event.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/helpers.css') }}">
+{% endblock %}
+
+{% block navbar_search %}
+<div class="mod-search" role="search">
+  <label class="mod-search-field" for="modSearchInput">
+    <i class="bi bi-search" aria-hidden="true"></i>
+    <input type="text" id="modSearchInput" class="mod-search-input" placeholder="{{ _('helpers.search_placeholder') }}" autocomplete="off" spellcheck="false">
+  </label>
+  <button type="button" class="btn mod-search-clear d-none" id="modSearchClear" aria-label="{{ _('common.cancel') }}">
+    <i class="bi bi-x-lg"></i>
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="helpers-shell mod-shell--nav">
+  {{ helpers_sidebar(events, current_event, active_nav) }}
+  {{ helpers_mobile_offcanvas(events, current_event, active_nav) }}
+
+  <main class="mod-main">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn mod-pill-btn mod-pill-btn--outline d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#helpersMobileNav" aria-label="{{ _('helpers.heading') }}">
+          <i class="bi bi-list"></i>
+        </button>
+        <div>
+          <h1 class="h4 mb-0">{{ current_event.name }} — {{ _('helpers.nav.bedarf') }}</h1>
+          <div class="small text-muted">{{ _('helpers.bedarf.subtitle') }}</div>
+        </div>
+      </div>
+
+      <div class="btn-group" role="group">
+        <a href="{{ url_for('helpers.bedarf', event_id=current_event.id, filter='all') }}"
+           class="btn mod-pill-btn {% if not only_assigned %}mod-pill-btn--accent{% else %}mod-pill-btn--outline{% endif %}">
+          {{ _('helpers.bedarf.filter_all') }}
+        </a>
+        <a href="{{ url_for('helpers.bedarf', event_id=current_event.id, filter='assigned') }}"
+           class="btn mod-pill-btn {% if only_assigned %}mod-pill-btn--accent{% else %}mod-pill-btn--outline{% endif %}">
+          {{ _('helpers.bedarf.filter_assigned') }}
+        </a>
+      </div>
+    </div>
+
+    <!-- T-Shirt-Übersicht -->
+    <h2 class="h5 mb-2">{{ _('helpers.bedarf.tshirt_heading') }} ({{ tshirt_summary.total_count }})</h2>
+    <div class="row g-2 mb-3">
+      {% for sz in tshirt_summary.sizes %}
+      <div class="col-4 col-sm-3 col-md-2">
+        <div class="helpers-kpi-card p-2 text-center">
+          <div class="small text-muted">{{ sz }}</div>
+          <div class="helpers-kpi-value">{{ tshirt_summary.totals[sz] }}</div>
+        </div>
+      </div>
+      {% else %}
+      <div class="col-12 text-muted small">{{ _('helpers.bedarf.no_tshirts') }}</div>
+      {% endfor %}
+    </div>
+
+    {% if tshirt_summary.area_matrix %}
+    <div class="mod-list-table-wrap mb-4">
+      <table class="table mod-list-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{{ _('helpers.areas.area') }}</th>
+            {% for sz in tshirt_summary.sizes %}
+            <th class="text-center">{{ sz }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for area_name, counts in tshirt_summary.area_matrix.items() %}
+          <tr>
+            <td class="fw-semibold">{{ area_name }}</td>
+            {% for sz in tshirt_summary.sizes %}
+            <td class="text-center">{{ counts.get(sz, 0) }}</td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    <!-- Essens- & Getränkemarken-Übersicht -->
+    <h2 class="h5 mb-2">{{ _('helpers.bedarf.vouchers_heading') }}</h2>
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="helpers-kpi-card p-3">
+          <div class="small text-muted">{{ _('helpers.bedarf.food_total') }}</div>
+          <div class="helpers-kpi-value">{{ voucher_summary.totals.food }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="helpers-kpi-card p-3">
+          <div class="small text-muted">{{ _('helpers.bedarf.drinks_total') }}</div>
+          <div class="helpers-kpi-value">{{ voucher_summary.totals.drinks }}</div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6">
+        <div class="helpers-kpi-card p-3">
+          <div class="small text-muted mb-1">{{ _('helpers.bedarf.by_day') }}</div>
+          <div class="d-flex flex-wrap gap-3 small">
+            {% for day_key in ['Fr', 'Sa', 'So', 'Sonstige'] %}
+            {% set d = voucher_summary.by_day[day_key] %}
+            {% if d.food > 0 or d.drinks > 0 or day_key in ('Fr', 'Sa', 'So') %}
+            <div>
+              <span class="fw-semibold">{{ day_key }}:</span>
+              {{ d.food }} {{ _('helpers.table.food') }} / {{ d.drinks }} {{ _('helpers.table.drinks') }}
+            </div>
+            {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mod-list-table-wrap mb-4">
+      <table class="table mod-list-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{{ _('helpers.areas.area') }}</th>
+            <th class="text-center">{{ _('helpers.bedarf.food_fr') }}</th>
+            <th class="text-center">{{ _('helpers.bedarf.food_sa') }}</th>
+            <th class="text-center">{{ _('helpers.bedarf.food_so') }}</th>
+            <th class="text-center">{{ _('helpers.bedarf.food_total') }}</th>
+            <th class="text-center">{{ _('helpers.bedarf.drinks_total') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in voucher_summary.by_area %}
+          <tr>
+            <td class="fw-semibold">{{ row.area.name }}</td>
+            <td class="text-center">{{ row.food_fr }}</td>
+            <td class="text-center">{{ row.food_sa }}</td>
+            <td class="text-center">{{ row.food_so }}</td>
+            <td class="text-center fw-semibold">{{ row.food_total }}</td>
+            <td class="text-center fw-semibold">{{ row.drinks_total }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Ausgabe-Checkliste pro Helfer -->
+    <h2 class="h5 mb-2">{{ _('helpers.bedarf.checklist_heading') }}</h2>
+    <div class="mod-list-table-wrap">
+      <table class="table mod-list-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{{ _('helpers.bedarf.issued') }}</th>
+            <th>{{ _('helpers.table.name') }}</th>
+            <th>{{ _('helpers.shifts.hours') }}</th>
+            <th>{{ _('helpers.table.food') }}</th>
+            <th>{{ _('helpers.table.drinks') }}</th>
+          </tr>
+        </thead>
+        <tbody id="helpersTableBody">
+          {% for item in voucher_summary.checklist %}
+          {% set h = item.helper %}
+          <tr data-search="{{ h.full_name }} {{ h.email }}">
+            <td>
+              <input type="checkbox"
+                     class="form-check-input js-toggle-voucher"
+                     data-url="{{ url_for('helpers.toggle_vouchers_issued', helper_id=h.id) }}"
+                     aria-label="{{ h.full_name }}"
+                     {% if h.vouchers_issued %}checked{% endif %}>
+            </td>
+            <td>
+              <div class="fw-semibold">{{ h.full_name }}</div>
+              <div class="small text-muted">{{ h.email }}</div>
+            </td>
+            <td>{{ item.hours }} {{ _('helpers.common.hours_short') }}</td>
+            <td class="fw-semibold">{{ item.food }}</td>
+            <td class="fw-semibold">{{ item.drinks }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">{{ _('helpers.bedarf.checklist_empty') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+{{ helpers_new_event_modal(events) }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/helpers.js') }}"></script>
+{% endblock %}

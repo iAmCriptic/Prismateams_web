@@ -1461,7 +1461,8 @@ def resend_confirmation():
 @login_required
 def show_confirmation_codes():
     """Legacy: Bestätigungscodes sind in der Benutzerverwaltung."""
-    if not current_user.is_admin:
+    from app.utils.admin_cards import has_admin_card_access
+    if not has_admin_card_access(current_user, 'admin_users'):
         flash(translate('auth.flash.admin_only'), 'danger')
         return redirect(url_for('dashboard.index'))
     return redirect(url_for('settings.admin_users') + '#confirmation-codes')
@@ -1471,7 +1472,8 @@ def show_confirmation_codes():
 @login_required
 def test_email():
     """Testet die E-Mail-Konfiguration (Admin only, POST-only — kein GET-Side-Effect)."""
-    if not current_user.is_admin:
+    from app.utils.admin_cards import has_admin_card_access
+    if not has_admin_card_access(current_user, 'admin_email'):
         flash(translate('auth.flash.admin_only'), 'danger')
         return redirect(url_for('dashboard.index'))
     

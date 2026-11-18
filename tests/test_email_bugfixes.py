@@ -201,3 +201,103 @@ def test_sync_emails_from_folder_only_notifies_on_new_unread_inbox(db_ctx):
         ok, _ = sync_emails_from_folder('INBOX')
         assert ok is True
         mock_send.assert_called_once_with(999)
+
+
+def test_parse_imap_list_entry_and_utf7_select():
+    from app.blueprints.email.imap_client import (
+        _encode_imap_utf7,
+        _parse_imap_list_entry,
+        _select_imap_folder,
+    )
+
+    assert _parse_imap_list_entry(b'(\\HasNoChildren) "." INBOX.Trash') == ('INBOX.Trash', '.', False)
+    assert _parse_imap_list_entry(b'(\\Noselect \\HasChildren) "/" "[Gmail]"') == ('[Gmail]', '/', True)
+    assert _parse_imap_list_entry(b'(\\HasNoChildren) NIL INBOX') == ('INBOX', '/', False)
+    assert _parse_imap_list_entry((b'(\\HasNoChildren) "." {11}', b'INBOX.B\xc3\xbcro')) == ('INBOX.Büro', '.', False)
+
+    assert _encode_imap_utf7('Entwürfe') == 'Entw&APw-rfe'
+
+    class FakeImap:
+        def __init__(self):
+            self.tried = []
+
+        def select(self, name):
+            self.tried.append(name)
+            if name == 'Entw&APw-rfe':
+                return ('OK', [b'1'])
+            return ('NO', [b'Mailbox does not exist'])
+
+    conn = FakeImap()
+    ok, _ = _select_imap_folder(conn, 'Entwürfe')
+    assert ok is True
+    assert 'Entw&APw-rfe' in conn.tried
+
+
+def test_build_folder_tree_prefers_synced_inbox_prefixed_over_bootstrap(db_ctx):
+    now = datetime.utcnow()
+    bootstrap_trash = EmailFolder(
+        name='Trash',
+        display_name='Papierkorb',
+        folder_type='standard',
+        is_system=True,
+        last_synced=None,
+    )
+    imap_trash = EmailFolder(
+        name='INBOX.Trash',
+        display_name='Papierkorb',
+        folder_type='standard',
+        is_system=True,
+        last_synced=now,
+    )
+    tree = _build_folder_tree([bootstrap_trash, imap_trash])
+    names = [entry['folder'].name for entry in tree]
+    assert 'INBOX.Trash' in names
+    assert 'Trash' not in names
+
+
+def test_sync_imap_folders_removes_stale_bootstrap_folders_and_resolves_alias(db_ctx):
+    from app.blueprints.email.mailbox import _resolve_mailbox_folder
+    from app.blueprints.email.sync import sync_imap_folders
+
+    # Simulate bootstrap folders created before IMAP sync
+    for name, disp in [('INBOX', 'Posteingang'), ('Trash', 'Papierkorb'), ('Sent', 'Gesendet')]:
+        db.session.add(EmailFolder(name=name, display_name=disp, folder_type='standard', is_system=True))
+    db.session.commit()
+
+    class FakeConn:
+        def list(self, directory='""', pattern='*'):
+            if directory == '"[Gmail]"' or directory == '"[Google Mail]"':
+                return ('NO', [])
+            return ('OK', [
+                b'(\\HasChildren) "." INBOX',
+                b'(\\HasNoChildren) "." INBOX.Drafts',
+                b'(\\HasNoChildren) "." INBOX.Sent',
+                b'(\\HasNoChildren) "." INBOX.Trash',
+                b'(\\HasNoChildren) "." INBOX.Spam',
+                b'(\\Noselect \\HasChildren) "." Public',
+            ])
+
+        def namespace(self):
+            return ('OK', [b'(("INBOX." ".")) NIL NIL'])
+
+        def close(self):
+            pass
+
+        def logout(self):
+            pass
+
+    with patch('app.blueprints.email.sync.connect_imap', return_value=FakeConn()):
+        ok, _ = sync_imap_folders(mailbox=None)
+        assert ok is True
+
+    db_names = {f.name for f in EmailFolder.query.filter(EmailFolder.mailbox_id.is_(None)).all()}
+    assert 'INBOX' in db_names
+    assert 'INBOX.Trash' in db_names
+    assert 'INBOX.Sent' in db_names
+    assert 'Trash' not in db_names
+    assert 'Sent' not in db_names
+    assert 'Public' not in db_names
+
+    resolved = _resolve_mailbox_folder('Trash', mailbox_id=None)
+    assert resolved is not None
+    assert resolved.name == 'INBOX.Trash'

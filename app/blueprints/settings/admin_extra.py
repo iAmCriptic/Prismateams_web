@@ -16,6 +16,7 @@ import json
 import os
 import secrets
 import tempfile
+from app.utils.admin_cards import ALL_ADMIN_CARD_KEYS, has_admin_card_access
 from app.utils.i18n import available_languages, translate
 from app.utils.totp import (
     generate_totp_secret,
@@ -47,7 +48,7 @@ from app.blueprints.settings._bp import (
 @login_required
 def admin_music():
     """Musikmodul-Einstellungen (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_music'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -101,11 +102,11 @@ def admin_roles():
 @login_required
 def admin_roles_user(user_id):
     """Zeige Rollen für einen bestimmten Benutzer (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_users'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
-    from app.models.role import UserModuleRole
+    from app.models.role import UserAdminCardPermission, UserModuleRole
     from app.models.booking import BookingFormRole, BookingFormRoleUser, BookingForm
     from flask import jsonify
     
@@ -148,15 +149,23 @@ def admin_roles_user(user_id):
                 'can_send': email_perm.can_send
             }
         
+        admin_cards = [
+            p.card_key
+            for p in UserAdminCardPermission.query.filter_by(user_id=user.id).all()
+        ]
+
         return jsonify({
             'has_full_access': user.has_full_access,
+            'is_admin': bool(user.is_admin),
+            'is_guest': bool(getattr(user, 'is_guest', False)),
             'can_access_public': bool(getattr(user, 'can_access_public', True)),
             'can_access_team': bool(getattr(user, 'can_access_team', True)),
             'can_access_private': bool(getattr(user, 'can_access_private', True)),
             'module_roles': module_roles,
             'booking_roles': booking_roles,
             'email_permissions': email_permissions,
-            'can_borrow': user.can_borrow
+            'can_borrow': user.can_borrow,
+            'admin_cards': admin_cards,
         })
     
     # HTML-Ansicht (falls benötigt)
@@ -167,11 +176,11 @@ def admin_roles_user(user_id):
 @login_required
 def admin_roles_user_update(user_id):
     """Aktualisiere Rollen für einen bestimmten Benutzer (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_users'):
         from flask import jsonify
         return jsonify({'success': False, 'error': 'Nicht autorisiert'}), 403
     
-    from app.models.role import UserModuleRole
+    from app.models.role import UserAdminCardPermission, UserModuleRole
     from app.models.booking import BookingFormRoleUser
     from flask import jsonify
     
@@ -213,6 +222,7 @@ def admin_roles_user_update(user_id):
             'module_meetings',
             'module_duty_roster',
             'module_booking_personal',
+            'module_helpers',
         ]
         
         # Aktualisiere Modul-Rollen
@@ -270,6 +280,18 @@ def admin_roles_user_update(user_id):
             except ValueError:
                 continue  # Ignoriere ungültige IDs
         
+        # Limitierter Admin-Zugriff (nur durch Voll-Admins änderbar, nicht für Gäste)
+        if current_user.is_admin and not getattr(user, 'is_guest', False):
+            UserAdminCardPermission.query.filter_by(user_id=user.id).delete()
+            if not user.is_admin:
+                allowed_card_set = set(ALL_ADMIN_CARD_KEYS)
+                seen_cards = set()
+                for card_key in request.form.getlist('admin_card'):
+                    card_key = (card_key or '').strip()
+                    if card_key in allowed_card_set and card_key not in seen_cards:
+                        seen_cards.add(card_key)
+                        db.session.add(UserAdminCardPermission(user_id=user.id, card_key=card_key))
+
         db.session.commit()
         return jsonify({'success': True})
     
@@ -283,7 +305,7 @@ def admin_roles_user_update(user_id):
 @login_required
 def admin_roles_default():
     """Konfiguriere Standardrollen für neue Benutzer (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_users'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -314,6 +336,7 @@ def admin_roles_default():
         ('module_meetings', 'Meetings'),
         ('module_duty_roster', 'Dienstplan'),
         ('module_booking_personal', 'Booking'),
+        ('module_helpers', 'Helferverwaltung'),
     ]
     
     from app.utils.access_control import load_default_module_roles, _roles_flag_enabled
@@ -367,7 +390,7 @@ def admin_roles_default():
 @login_required
 def booking_forms():
     """Booking forms management (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -381,7 +404,7 @@ def booking_forms():
 @login_required
 def booking_form_create():
     """Create a new booking form (admin only) — opens full editor in one step."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -406,7 +429,7 @@ def booking_form_create():
 @login_required
 def booking_form_edit(form_id):
     """Edit a booking form (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -474,7 +497,7 @@ def booking_form_edit(form_id):
 @login_required
 def booking_form_delete(form_id):
     """Delete a booking form (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -494,7 +517,7 @@ def booking_form_delete(form_id):
 @login_required
 def booking_secondary_logo_upload(form_id):
     """Upload secondary logo for booking form (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -563,7 +586,7 @@ def booking_secondary_logo_upload(form_id):
 @login_required
 def booking_secondary_logo_delete(form_id):
     """Delete secondary logo for booking form (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -594,7 +617,7 @@ def booking_secondary_logo_delete(form_id):
 @login_required
 def booking_secondary_logo(form_id, filename):
     """Serve secondary logo for booking form."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         abort(403)
     
     try:
@@ -617,7 +640,7 @@ def booking_secondary_logo(form_id, filename):
 @login_required
 def booking_field_add(form_id):
     """Add a field to a booking form (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -675,7 +698,7 @@ def booking_field_add(form_id):
 @login_required
 def booking_field_edit(form_id, field_id):
     """Edit a field on a booking form (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -723,7 +746,7 @@ def booking_field_edit(form_id, field_id):
 @login_required
 def booking_field_delete(form_id, field_id):
     """Delete a field from a booking form (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -744,7 +767,7 @@ def booking_field_delete(form_id, field_id):
 @login_required
 def booking_role_create(form_id):
     """Create a role for a booking form (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -780,7 +803,7 @@ def booking_role_create(form_id):
 @login_required
 def booking_role_edit(form_id, role_id):
     """Edit a role for a booking form (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -809,7 +832,7 @@ def booking_role_edit(form_id, role_id):
 @login_required
 def booking_role_delete(form_id, role_id):
     """Delete a role from a booking form (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -830,7 +853,7 @@ def booking_role_delete(form_id, role_id):
 @login_required
 def booking_role_user_add(form_id, role_id):
     """Add users to a role for a booking form (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -864,7 +887,7 @@ def booking_role_user_add(form_id, role_id):
 @login_required
 def booking_roles(form_id):
     """Get roles for a booking form as JSON (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         from flask import jsonify
         return jsonify({'error': 'Unauthorized'}), 403
     
@@ -890,7 +913,7 @@ def booking_roles(form_id):
 @login_required
 def admin_events_settings():
     """Veranstaltungs-Einstellungen und benutzerdefinierte Felder (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_events'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -1014,7 +1037,7 @@ def admin_events_settings():
 @login_required
 def booking_rooms():
     """Room management (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -1027,7 +1050,7 @@ def booking_rooms():
 @login_required
 def booking_room_create():
     """Create a new room (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -1091,7 +1114,7 @@ def booking_room_create():
 @login_required
 def booking_room_edit(room_id):
     """Edit an existing room (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -1153,7 +1176,7 @@ def booking_room_edit(room_id):
 @login_required
 def booking_room_delete(room_id):
     """Delete room (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_booking'):
         flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -1176,3 +1199,35 @@ def booking_room_delete(room_id):
         flash(f'Raum "{name}" wurde gelöscht.', 'success')
 
     return _settings_redirect('settings.booking_rooms')
+
+
+@settings_bp.route('/admin/helpers', methods=['GET'])
+@login_required
+def admin_helpers_settings():
+    """Admin-Einstellungen für das Modul Helferverwaltung innerhalb der Portal-Einstellungen."""
+    if not has_admin_card_access(current_user, 'admin_helpers'):
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.email import Mailbox
+    from app.models.helpers import HelperEvent
+    from app.utils.helpers_seed import ensure_helper_schema, ensure_initial_helper_event
+
+    ensure_helper_schema()
+
+    events = HelperEvent.query.filter_by(is_active=True).order_by(HelperEvent.created_at.desc()).all()
+    if not events:
+        events = [ensure_initial_helper_event()]
+
+    selected_id = request.args.get('event_id', type=int)
+    current_event = next((ev for ev in events if ev.id == selected_id), None) or events[0]
+    public_url = url_for('helpers.public_register', token=current_event.apply_token, _external=True)
+    mailboxes = Mailbox.query.filter_by(is_active=True).order_by(Mailbox.name.asc()).all()
+
+    return render_template(
+        'settings/admin_helpers_settings.html',
+        events=events,
+        current_event=current_event,
+        public_url=public_url,
+        mailboxes=mailboxes,
+    )

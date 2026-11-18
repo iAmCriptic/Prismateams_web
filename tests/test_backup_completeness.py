@@ -413,3 +413,19 @@ def test_full_backup_roundtrip_all_modules_and_kanban(app, tmp_path):
         assert StockMovement.query.count() == 1
         assert ProductStatusHistory.query.count() == 1
         assert LengthColorMapping.query.filter_by(length_meters=10.0).first() is not None
+
+
+def test_backup_upload_allows_large_request_body(app):
+    from flask import request
+
+    orig_limit = app.config.get('MAX_CONTENT_LENGTH')
+    app.config['MAX_CONTENT_LENGTH'] = 1024
+    try:
+        with app.test_request_context('/settings/admin/backup', method='POST'):
+            assert request.max_content_length == 10 * 1024 * 1024 * 1024
+        with app.test_request_context('/setup/import-backup', method='POST'):
+            assert request.max_content_length == 10 * 1024 * 1024 * 1024
+        with app.test_request_context('/files/upload', method='POST'):
+            assert request.max_content_length == 1024
+    finally:
+        app.config['MAX_CONTENT_LENGTH'] = orig_limit

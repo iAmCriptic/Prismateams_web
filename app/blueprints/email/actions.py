@@ -67,6 +67,7 @@ from app.blueprints.email.imap_client import (
 from app.blueprints.email.mailbox import (
     _find_email_folder,
     _folder_tree_context,
+    _resolve_mailbox_folder,
     _resolve_request_mailbox,
     check_email_permission,
 )
@@ -152,19 +153,27 @@ def sync_emails():
                                 folder_label or current_folder,
                             )
                             sync_imap_folders(mailbox=None)
+                            resolved_folder = _resolve_mailbox_folder(current_folder, None)
+                            target_folder_name = resolved_folder.name if resolved_folder else current_folder
                             success, message = sync_emails_from_folder(
-                                current_folder, mailbox=None
+                                target_folder_name, mailbox=None
                             )
                             logger.info(
                                 "E-Mail-Synchronisation wurde beendet (Ordner: %s)",
-                                folder_label or current_folder,
+                                folder_label or target_folder_name,
                             )
                         else:
                             # Nur Hauptpostfach synchronisieren
                             success, message = sync_emails_from_server(mailbox=None)
                         
                         if success:
-                            emit_status('success', message, 'success', shouldRefresh=True)
+                            if message and (
+                                'konnte nicht geöffnet werden' in message
+                                or 'existiert nicht auf dem Server' in message
+                            ):
+                                emit_status('warning', message, 'warning', shouldRefresh=True)
+                            else:
+                                emit_status('success', message, 'success', shouldRefresh=True)
                         else:
                             emit_status('error', message, 'danger', shouldRefresh=False)
                     else:

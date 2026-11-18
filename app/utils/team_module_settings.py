@@ -23,6 +23,7 @@ TEAM_SECTION_MODULES = {
     'chat': 'module_chat',
     'duty_roster': 'module_duty_roster',
     'booking_personal': 'module_booking_personal',
+    'helpers': 'module_helpers',
 }
 
 

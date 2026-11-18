@@ -33,6 +33,7 @@ def register_template_helpers(app):
     def inject_app_config():
         from app.utils.common import is_module_enabled
         from app.utils.access_control import has_module_access
+        from app.utils.admin_cards import has_admin_card_access, has_any_admin_card_access
         from app.utils.multi_mailboxes import is_email_multi_enabled
         from app.utils.system_settings_cache import get_setting
         from flask_login import current_user
@@ -168,6 +169,8 @@ def register_template_helpers(app):
             'is_module_enabled': is_module_enabled,
             'is_email_multi_enabled': is_email_multi_enabled,
             'has_module_access': has_module_access,
+            'has_admin_card': lambda card_key, user=current_user: has_admin_card_access(user, card_key),
+            'has_any_admin_card': lambda user=current_user: has_any_admin_card_access(user),
             'can_compose_email': can_compose_email,
             'get_chat_display_name': get_chat_display_name,
             'get_other_chat_user': get_other_chat_user,

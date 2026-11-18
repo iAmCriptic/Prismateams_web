@@ -36,7 +36,7 @@
       </div>
     </section>
 
-    {% if current_user.led_teams and current_user.led_teams|length > 0 and not current_user.is_admin %}
+    {% if current_user.led_teams and current_user.led_teams|length > 0 and not has_admin_card('admin_teams') %}
     <section class="sp-hub-section" aria-labelledby="hub-leader">
       <h2 id="hub-leader" class="sp-hub-section-title">{{ _('settings.sidebar.team_lead_heading') }}</h2>
       <div class="sp-hub-grid">
@@ -45,50 +45,78 @@
     </section>
     {% endif %}
 
-    {% if current_user.is_admin %}
+    {% if has_admin_card('admin_users') or has_admin_card('admin_teams') or has_admin_card('admin_whitelist') %}
     <section class="sp-hub-section" id="admin" aria-labelledby="hub-admin-people">
       <h2 id="hub-admin-people" class="sp-hub-section-title">{{ _('settings.admin.sections.users.title') }}</h2>
       <div class="sp-hub-grid">
+        {% if has_admin_card('admin_users') %}
         {{ sp_hub_tile(url_for('settings.admin_users'), 'bi-people', _('settings.admin.cards.user_management.title'), _('settings.admin.cards.user_management.short')) }}
+        {% endif %}
+        {% if has_admin_card('admin_teams') %}
         {{ sp_hub_tile(url_for('settings.admin_teams'), 'bi-diagram-3', _('settings.admin.cards.teams.title'), _('settings.admin.cards.teams.short')) }}
+        {% endif %}
+        {% if has_admin_card('admin_whitelist') %}
         {{ sp_hub_tile(url_for('settings.admin_whitelist'), 'bi-shield-check', _('settings.admin.cards.whitelist.title'), _('settings.admin.cards.whitelist.short')) }}
+        {% endif %}
       </div>
     </section>
+    {% endif %}
 
+    {% if has_admin_card('admin_system') or has_admin_card('admin_legal') or has_admin_card('admin_modules') or has_admin_card('admin_integrations') or has_admin_card('admin_backup') or has_admin_card('admin_registration') %}
     <section class="sp-hub-section" aria-labelledby="hub-admin-portal">
       <h2 id="hub-admin-portal" class="sp-hub-section-title">{{ _('settings.admin.sections.system.title') }}</h2>
       <div class="sp-hub-grid">
+        {% if has_admin_card('admin_system') %}
         {{ sp_hub_tile(url_for('settings.admin_system'), 'bi-gear', _('settings.admin.cards.system_settings.title'), _('settings.admin.cards.system_settings.short')) }}
+        {% endif %}
+        {% if has_admin_card('admin_legal') %}
         {{ sp_hub_tile(url_for('settings.admin_legal'), 'bi-file-earmark-text', _('settings.admin.cards.legal.title'), _('settings.admin.cards.legal.short')) }}
+        {% endif %}
+        {% if has_admin_card('admin_modules') %}
         {{ sp_hub_tile(url_for('settings.admin_modules'), 'bi-grid-3x3-gap', _('settings.admin.cards.modules.title'), _('settings.admin.cards.modules.short')) }}
+        {% endif %}
+        {% if has_admin_card('admin_integrations') %}
         {{ sp_hub_tile(url_for('settings.admin_integrations'), 'bi-link-45deg', _('settings.integrations.heading'), _('settings.integrations.short')) }}
+        {% endif %}
+        {% if has_admin_card('admin_backup') %}
         {{ sp_hub_tile(url_for('settings.admin_backup'), 'bi-archive', _('settings.admin.cards.backup.title'), _('settings.admin.cards.backup.short')) }}
+        {% endif %}
+        {% if has_admin_card('admin_registration') %}
         {{ sp_hub_tile(url_for('settings.admin_registration'), 'bi-person-lock', _('settings.admin.cards.registration_options.title'), _('settings.admin.cards.registration_options.short')) }}
+        {% endif %}
       </div>
     </section>
+    {% endif %}
 
+    {% set show_admin_modules_hub = (is_module_enabled('module_booking') and has_admin_card('admin_booking')) or (is_module_enabled('module_music') and has_admin_card('admin_music')) or (is_module_enabled('module_email') and has_admin_card('admin_email')) or (is_module_enabled('module_inventory') and has_admin_card('admin_inventory')) or (is_module_enabled('module_calendar') and has_admin_card('admin_calendar')) or (is_module_enabled('module_events') and has_admin_card('admin_events')) or (is_module_enabled('module_helpers') and has_admin_card('admin_helpers')) or has_admin_card('admin_files') %}
+    {% if show_admin_modules_hub %}
     <section class="sp-hub-section" aria-labelledby="hub-admin-modules">
       <h2 id="hub-admin-modules" class="sp-hub-section-title">{{ _('settings.sidebar.sections.modules') }}</h2>
       <div class="sp-hub-grid">
-        {% if is_module_enabled('module_booking') %}
+        {% if is_module_enabled('module_booking') and has_admin_card('admin_booking') %}
         {{ sp_hub_tile(url_for('settings.booking_rooms'), 'bi-door-open', _('layout.nav.booking'), _('booking.admin.cards.booking_module.short')) }}
         {% endif %}
-        {% if is_module_enabled('module_music') %}
+        {% if is_module_enabled('module_music') and has_admin_card('admin_music') %}
         {{ sp_hub_tile(url_for('settings.admin_music'), 'bi-music-note-beamed', _('booking.admin.cards.music_module.title'), _('booking.admin.cards.music_module.short')) }}
         {% endif %}
-        {% if is_module_enabled('module_email') %}
+        {% if is_module_enabled('module_email') and has_admin_card('admin_email') %}
         {{ sp_hub_tile(url_for('settings.admin_email_module'), 'bi-envelope', _('settings.sidebar.email_module'), _('settings.admin.cards.email.short')) }}
         {% endif %}
-        {% if is_module_enabled('module_inventory') %}
+        {% if is_module_enabled('module_inventory') and has_admin_card('admin_inventory') %}
         {{ sp_hub_tile(url_for('settings.admin_inventory_settings'), 'bi-box-seam', _('settings.sidebar.inventory'), _('settings.admin.cards.inventory.short')) }}
         {% endif %}
-        {% if is_module_enabled('module_calendar') %}
+        {% if is_module_enabled('module_calendar') and has_admin_card('admin_calendar') %}
         {{ sp_hub_tile(url_for('settings.admin_calendar_settings'), 'bi-calendar-event', _('settings.admin.cards.calendar_settings.title'), _('settings.admin.cards.calendar_settings.short')) }}
         {% endif %}
-        {% if is_module_enabled('module_events') %}
+        {% if is_module_enabled('module_events') and has_admin_card('admin_events') %}
         {{ sp_hub_tile(url_for('settings.admin_events_settings'), 'bi-calendar2-week', 'Veranstaltungen', 'Benutzerdefinierte Felder & Einstellungen') }}
         {% endif %}
+        {% if is_module_enabled('module_helpers') and has_admin_card('admin_helpers') %}
+        {{ sp_hub_tile(url_for('settings.admin_helpers_settings'), 'bi-people-fill', _('helpers.heading'), _('helpers.settings.general_heading')) }}
+        {% endif %}
+        {% if has_admin_card('admin_files') %}
         {{ sp_hub_tile(url_for('settings.admin_file_settings'), 'bi-folder', _('settings.admin.cards.file_settings.title'), _('settings.admin.cards.file_settings.short')) }}
+        {% endif %}
       </div>
     </section>
     {% endif %}
@@ -103,9 +131,14 @@
         <a href="{{ url_for('settings.notifications') }}" class="sp-sidepanel-link"><i class="bi bi-bell"></i>{{ _('settings.index.cards.notifications.title') }}</a>
         <a href="{{ url_for('settings.security') }}" class="sp-sidepanel-link"><i class="bi bi-shield-lock"></i>{{ _('settings.index.cards.security.title') }}</a>
         <a href="{{ url_for('settings.privacy') }}" class="sp-sidepanel-link"><i class="bi bi-shield-check"></i>{{ _('settings.index.cards.privacy.title') }}</a>
-        {% if current_user.is_admin %}
+        {% if has_admin_card('admin_modules') %}
         <a href="{{ url_for('settings.admin_modules') }}" class="sp-sidepanel-link"><i class="bi bi-grid-3x3-gap"></i>{{ _('settings.admin.cards.modules.title') }}</a>
+        {% endif %}
+        {% if is_module_enabled('module_events') and has_admin_card('admin_events') %}
         <a href="{{ url_for('settings.admin_events_settings') }}" class="sp-sidepanel-link"><i class="bi bi-calendar2-week"></i>Veranstaltungen</a>
+        {% endif %}
+        {% if is_module_enabled('module_helpers') and has_admin_card('admin_helpers') %}
+        <a href="{{ url_for('settings.admin_helpers_settings') }}" class="sp-sidepanel-link"><i class="bi bi-people-fill"></i>{{ _('helpers.heading') }}</a>
         {% endif %}
       </div>
     </div>

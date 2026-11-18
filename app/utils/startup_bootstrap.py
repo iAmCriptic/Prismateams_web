@@ -102,6 +102,15 @@ def run_startup_database(app, *, run_schema_init, run_startup_migrations):
                     AssessmentRoomInspection,
                     AssessmentAppSetting,
                 )
+                from app.models.helpers import (
+                    HelperEvent,
+                    Helper,
+                    HelperArea,
+                    HelperAreaWish,
+                    HelperShift,
+                    HelperFieldConfig,
+                    HelperVoucherRule,
+                )
                 from sqlalchemy import inspect, text
 
                 # Robust: create_all + kritische Tabellen einzeln nachziehen (MySQL-Lock bei Multi-Worker)

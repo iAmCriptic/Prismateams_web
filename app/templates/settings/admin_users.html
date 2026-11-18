@@ -318,6 +318,9 @@
 {% else %}
 <span class="badge rounded-pill text-bg-info">{{ _('settings.admin.users.badge_modules') }}</span>
 {% endif %}
+{% if not user.is_admin and item.admin_cards %}
+<span class="badge rounded-pill text-bg-warning" title="{{ _('settings.admin.users.limited_admin_badge_title', count=item.admin_cards|length) }}">{{ _('settings.admin.users.badge_limited_admin', count=item.admin_cards|length) }}</span>
+{% endif %}
 {% if not item.can_access_public|default(true) %}
     {% if item.can_access_team|default(true) %}
     <span class="badge rounded-pill text-bg-warning">{{ _('settings.admin.users.badge_team_only') }}</span>
@@ -1151,6 +1154,46 @@
                         </div>
                         <div id="bookingRolesCheckboxes" class="settings-admin-roles-booking pt-1"></div>
                     </div>
+
+                    {% if current_user.is_admin %}
+                    <hr class="modal-roles-divider" id="adminCardsDivider">
+
+                    <!-- Limitierter Admin-Zugriff -->
+                    <div id="adminCardsSection" class="modal-roles-section mb-0" aria-labelledby="roles-modal-admin-cards-heading">
+                        <div class="modal-roles-head">
+                            <div class="d-flex align-items-center gap-2">
+                                <h6 id="roles-modal-admin-cards-heading" class="modal-roles-title mb-0">
+                                    <i class="bi bi-shield-exclamation" aria-hidden="true"></i>
+                                    {{ _('settings.admin.users.limited_admin_title') }}
+                                </h6>
+                                <button type="button" class="sp-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.users.limited_admin_help') }}" aria-label="{{ _('settings.admin.users.limited_admin_help') }}">
+                                    <i class="bi bi-info-circle" aria-hidden="true"></i>
+                                </button>
+                            </div>
+                            <div class="d-flex align-items-center gap-1" id="adminCardsQuickActions">
+                                <button type="button" class="btn btn-sm btn-link text-decoration-none py-0 px-2 text-muted" id="selectAllAdminCardsBtn">{{ _('settings.admin.users.select_all') }}</button>
+                                <span class="text-muted" aria-hidden="true">·</span>
+                                <button type="button" class="btn btn-sm btn-link text-decoration-none py-0 px-2 text-muted" id="deselectAllAdminCardsBtn">{{ _('settings.admin.users.select_none') }}</button>
+                            </div>
+                        </div>
+                        <div id="rolesModalAdminFullHint" class="sp-hint my-2" hidden>
+                            <i class="bi bi-info-circle me-1" aria-hidden="true"></i>{{ _('settings.admin.users.limited_admin_full_hint') }}
+                        </div>
+                        <div id="adminCardsCheckboxes" class="settings-admin-roles-booking pt-1">
+                            {% for section in admin_card_catalog %}
+                            <div class="settings-admin-roles-booking-group">
+                                <div class="settings-admin-roles-booking-title">{{ section.title }}</div>
+                                <div class="settings-admin-roles-chips">
+                                    {% for card in section.cards %}
+                                    <input type="checkbox" class="btn-check admin-card-checkbox" id="admin_card_{{ card.key }}" name="admin_card" value="{{ card.key }}" autocomplete="off">
+                                    <label class="settings-admin-roles-chip" for="admin_card_{{ card.key }}">{{ card.title }}</label>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
                 </form>
             </div>
             <div class="modal-footer settings-admin-roles-modal-footer">
@@ -1315,6 +1358,14 @@ document.getElementById('selectAllModulesBtn')?.addEventListener('click', functi
 document.getElementById('deselectAllModulesBtn')?.addEventListener('click', function () {
     if (document.getElementById('modalHasFullAccess').checked) return;
     document.querySelectorAll('#moduleCheckboxes .module-checkbox').forEach(cb => { cb.checked = false; });
+});
+
+document.getElementById('selectAllAdminCardsBtn')?.addEventListener('click', function () {
+    document.querySelectorAll('.admin-card-checkbox').forEach(cb => { if (!cb.disabled) cb.checked = true; });
+});
+
+document.getElementById('deselectAllAdminCardsBtn')?.addEventListener('click', function () {
+    document.querySelectorAll('.admin-card-checkbox').forEach(cb => { if (!cb.disabled) cb.checked = false; });
 });
 
 function fillGuestChipGroup(container, emptyEl, items, selected, idPrefix, valueKey, labelFn) {
@@ -1482,6 +1533,7 @@ function loadUserRoles(userId) {
                 container.appendChild(label);
             });
             loadBookingRoles(data.booking_roles || []);
+            loadAdminCardRoles(data.admin_cards || [], !!data.is_admin, !!data.is_guest);
             toggleModuleRoles();
         })
         .catch(error => {
@@ -1545,6 +1597,33 @@ function loadBookingRoles(bookingRoles) {
     });
 }
 
+function loadAdminCardRoles(adminCards, isTargetAdmin, isTargetGuest) {
+    const section = document.getElementById('adminCardsSection');
+    const divider = document.getElementById('adminCardsDivider');
+    if (!section) return;
+    if (isTargetGuest) {
+        section.hidden = true;
+        if (divider) divider.hidden = true;
+        return;
+    }
+    section.hidden = false;
+    if (divider) divider.hidden = false;
+
+    const hint = document.getElementById('rolesModalAdminFullHint');
+    const box = document.getElementById('adminCardsCheckboxes');
+    const quick = document.getElementById('adminCardsQuickActions');
+    const selectedSet = new Set(Array.isArray(adminCards) ? adminCards : []);
+
+    if (hint) hint.hidden = !isTargetAdmin;
+    if (box) box.hidden = isTargetAdmin;
+    if (quick) quick.hidden = isTargetAdmin;
+
+    document.querySelectorAll('.admin-card-checkbox').forEach(cb => {
+        cb.disabled = isTargetAdmin;
+        cb.checked = isTargetAdmin ? true : selectedSet.has(cb.value);
+    });
+}
+
 function toggleModuleRoles() {
     const fullAccess = document.getElementById('modalHasFullAccess').checked;
     const chips = document.getElementById('moduleCheckboxes');
@@ -1605,6 +1684,11 @@ function saveRoles() {
     formData.append('can_borrow', document.getElementById('canBorrow').checked ? 'on' : '');
     document.querySelectorAll('.booking-role-checkbox:checked').forEach(checkbox => {
         formData.append('booking_role', checkbox.value);
+    });
+    document.querySelectorAll('.admin-card-checkbox:checked').forEach(checkbox => {
+        if (!checkbox.disabled) {
+            formData.append('admin_card', checkbox.value);
+        }
     });
     const saveBtn = document.getElementById('rolesSaveBtn');
     if (saveBtn) saveBtn.disabled = true;

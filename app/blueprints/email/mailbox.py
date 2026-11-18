@@ -161,6 +161,33 @@ def _find_email_folder(name, mailbox_id=None):
     )
 
 
+def _resolve_mailbox_folder(name, mailbox_id=None):
+    """Find EmailFolder by exact name or unprefixed/display-name alias (e.g. Trash -> INBOX.Trash)."""
+    exact = _find_email_folder(name, mailbox_id)
+    if exact is not None:
+        return exact
+    if not name:
+        return None
+    from app.blueprints.email.imap_client import strip_inbox_prefix
+
+    target_stripped = strip_inbox_prefix(name).lower()
+    target_display = (EmailFolder.get_folder_display_name(name) or '').strip().lower()
+    candidates = (
+        EmailFolder.query.filter(_folder_mailbox_filter(mailbox_id))
+        .order_by(EmailFolder.id.asc())
+        .all()
+    )
+    # Prefer synced folders (last_synced is not None) over bootstrap placeholders
+    candidates.sort(key=lambda f: (0 if f.last_synced is not None else 1, f.id or 0))
+    for f in candidates:
+        if strip_inbox_prefix(f.name).lower() == target_stripped:
+            return f
+    for f in candidates:
+        if target_display and (f.display_name or '').strip().lower() == target_display:
+            return f
+    return None
+
+
 def _has_dedicated_google_mailbox() -> bool:
     try:
         from app.utils.multi_mailboxes import is_email_multi_enabled
@@ -480,16 +507,21 @@ def _build_folder_tree(all_folders):
 
     standard_folders.sort(key=standard_sort_key)
 
-    # Gleicher Anzeigename (z. B. Archive + Archives → „Archiv“) nur einmal
+    # Gleicher Anzeigename (z. B. Archive + Archives → „Archiv“) nur einmal;
+    # dabei synchronisierte IMAP-Ordner (last_synced != None) gegenüber Bootstrap-Platzhaltern bevorzugen.
     deduped_standard = []
-    seen_display = set()
+    seen_display = {}
     for f in standard_folders:
         label = (f.display_name or f.name or '').strip().lower()
         role = gmail_folder_role(f.name)
         dedupe_key = role or label or f.name
         if dedupe_key in seen_display:
+            prev_idx = seen_display[dedupe_key]
+            prev_folder = deduped_standard[prev_idx]
+            if prev_folder.last_synced is None and f.last_synced is not None:
+                deduped_standard[prev_idx] = f
             continue
-        seen_display.add(dedupe_key)
+        seen_display[dedupe_key] = len(deduped_standard)
         deduped_standard.append(f)
     standard_folders = deduped_standard
 

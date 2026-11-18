@@ -23,6 +23,7 @@ from app.models.event import (
     EventTodoList,
     EventTodoItem,
     EventBookingPersonalLink,
+    EventHelperLink,
     EventCustomField,
     EventCustomFieldValue,
     EventLink,
@@ -753,6 +754,7 @@ def view_event(event_id):
     active_modules = {
         'files': is_module_enabled('module_files') and has_module_access(current_user, 'module_files'),
         'booking_personal': is_module_enabled('module_booking_personal') and has_module_access(current_user, 'module_booking_personal'),
+        'helpers': is_module_enabled('module_helpers') and has_module_access(current_user, 'module_helpers'),
         'booking': is_module_enabled('module_booking') and has_module_access(current_user, 'module_booking'),
         'kanban': is_module_enabled('module_kanban') and has_module_access(current_user, 'module_kanban'),
         'inventory': is_module_enabled('module_inventory') and has_module_access(current_user, 'module_inventory'),
@@ -773,6 +775,15 @@ def view_event(event_id):
         if linked_bp_ids:
             bp_query = bp_query.filter(~BookingPersonalEvent.id.in_(linked_bp_ids))
         available_booking_events = bp_query.order_by(BookingPersonalEvent.name).all()
+
+    available_helper_events = []
+    if active_modules['helpers']:
+        from app.models.helpers import HelperEvent
+        linked_helper_ids = {link.helper_event_id for link in event_obj.helper_links}
+        helper_query = HelperEvent.query.filter_by(is_active=True)
+        if linked_helper_ids:
+            helper_query = helper_query.filter(~HelperEvent.id.in_(linked_helper_ids))
+        available_helper_events = helper_query.order_by(HelperEvent.name).all()
 
     available_boards = []
     if active_modules['kanban']:
@@ -844,6 +855,7 @@ def view_event(event_id):
         folder_files=folder_files,
         file_open_urls=file_open_urls,
         available_booking_events=available_booking_events,
+        available_helper_events=available_helper_events,
         available_boards=available_boards,
         users=users,
         users_by_id=users_by_id,
@@ -1023,6 +1035,47 @@ def link_booking(event_id):
         ).delete()
         db.session.commit()
         flash('Booking-Verknüpfung entfernt.', 'info')
+
+    return redirect(url_for('events.view_event', event_id=event_obj.id))
+
+
+@events_bp.route('/<int:event_id>/link/helpers', methods=['POST'])
+@login_required
+@check_module_access('module_events')
+def link_helpers(event_id):
+    if not (is_module_enabled('module_helpers') and has_module_access(current_user, 'module_helpers')):
+        flash('Helferverwaltung ist nicht aktiv.', 'warning')
+        return redirect(url_for('events.view_event', event_id=event_id))
+
+    event_obj = Event.query.get_or_404(event_id)
+    action = request.form.get('action', 'add')
+    helper_event_id = request.form.get('helper_event_id')
+    try:
+        helper_event_id = int(helper_event_id)
+    except (TypeError, ValueError):
+        flash('Ungültige Helfer-Veranstaltung.', 'danger')
+        return redirect(url_for('events.view_event', event_id=event_obj.id))
+
+    if action == 'add':
+        existing = EventHelperLink.query.filter_by(
+            event_id=event_obj.id,
+            helper_event_id=helper_event_id,
+        ).first()
+        if not existing:
+            link = EventHelperLink(
+                event_id=event_obj.id,
+                helper_event_id=helper_event_id,
+            )
+            db.session.add(link)
+            db.session.commit()
+            flash('Helferverwaltung erfolgreich verknüpft.', 'success')
+    elif action == 'remove':
+        EventHelperLink.query.filter_by(
+            event_id=event_obj.id,
+            helper_event_id=helper_event_id,
+        ).delete()
+        db.session.commit()
+        flash('Helferverwaltungs-Verknüpfung entfernt.', 'info')
 
     return redirect(url_for('events.view_event', event_id=event_obj.id))
 

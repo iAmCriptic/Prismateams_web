@@ -17,6 +17,7 @@ import json
 import os
 import secrets
 import tempfile
+from app.utils.admin_cards import has_admin_card_access
 from app.utils.i18n import available_languages, translate
 from app.utils.totp import (
     generate_totp_secret,
@@ -132,7 +133,7 @@ def admin_teams():
     from app.models.team import Team
     from app.utils.multi_mailboxes import get_led_teams, user_is_team_leader
 
-    if current_user.is_admin:
+    if has_admin_card_access(current_user, 'admin_teams'):
         teams = Team.query.order_by(Team.name).all()
     elif user_is_team_leader(current_user):
         teams = get_led_teams(current_user)
@@ -140,7 +141,7 @@ def admin_teams():
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
-    return render_template('settings/admin_teams.html', teams=teams, is_team_leader_view=not current_user.is_admin)
+    return render_template('settings/admin_teams.html', teams=teams, is_team_leader_view=not has_admin_card_access(current_user, 'admin_teams'))
 
 
 @settings_bp.route('/team-settings', methods=['GET', 'POST'])
@@ -150,7 +151,7 @@ def team_settings():
     from app.models.team import Team
     from app.utils.multi_mailboxes import can_manage_team, get_led_teams, user_is_team_leader
 
-    is_admin = bool(current_user.is_admin)
+    is_admin = bool(has_admin_card_access(current_user, 'admin_teams'))
     is_leader = user_is_team_leader(current_user)
     if not is_admin and not is_leader:
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
@@ -172,7 +173,7 @@ def team_settings():
 @login_required
 def create_team():
     """Create a new team (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_teams'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -239,7 +240,7 @@ def admin_team_detail(team_id):
     if not can_manage_team(current_user, team_id):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         from app.utils.multi_mailboxes import user_is_team_leader
-        if user_is_team_leader(current_user) or current_user.is_admin:
+        if user_is_team_leader(current_user) or has_admin_card_access(current_user, 'admin_teams'):
             return redirect(url_for('settings.admin_teams'))
         return redirect(url_for('settings.index'))
 
@@ -450,7 +451,7 @@ def admin_team_detail(team_id):
         invite_codes=invite_codes,
         modules=modules,
         email_multi_enabled=is_email_multi_enabled(),
-        can_edit_team_meta=current_user.is_admin,
+        can_edit_team_meta=has_admin_card_access(current_user, 'admin_teams'),
         can_create_portal_invite=is_team_invite_portal_user_allowed(),
     )
 
@@ -459,7 +460,7 @@ def admin_team_detail(team_id):
 @login_required
 def edit_team(team_id):
     """Edit team metadata (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_teams'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -533,7 +534,7 @@ def edit_team(team_id):
 @login_required
 def delete_team(team_id):
     """Delete a team (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_teams'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -581,7 +582,7 @@ def team_image(filename):
 @login_required
 def set_user_teams(user_id):
     """Set team memberships for a user from the users list (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_teams'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 

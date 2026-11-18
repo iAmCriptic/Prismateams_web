@@ -16,6 +16,7 @@ import json
 import os
 import secrets
 import tempfile
+from app.utils.admin_cards import has_admin_card_access
 from app.utils.i18n import available_languages, translate
 from app.utils.totp import (
     generate_totp_secret,
@@ -54,7 +55,7 @@ def admin_module_visibility(module):
 @login_required
 def admin_email_module():
     """E-Mail-Moduleinstellungen Übersicht mit Tabs (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -157,7 +158,7 @@ def _main_mail_wizard_mailbox(cfg: dict):
 @login_required
 def admin_main_mailbox():
     """Hauptpostfach (System-E-Mail) im Browser einrichten und bearbeiten (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -203,7 +204,7 @@ def admin_main_mailbox():
 @login_required
 def admin_main_mailbox_autodiscover():
     """Autodiscover für das Hauptpostfach (admin only, JSON)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
     from app.utils.main_mail_config import main_mail_autodiscover_response
 
@@ -215,7 +216,7 @@ def admin_main_mailbox_autodiscover():
 @login_required
 def admin_main_mailbox_test_smtp():
     """SMTP-Live-Test für das Hauptpostfach-Formular (admin only, JSON)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
     from app.utils.main_mail_config import main_mail_test_smtp_response
 
@@ -227,7 +228,7 @@ def admin_main_mailbox_test_smtp():
 @login_required
 def admin_main_mailbox_test_imap():
     """IMAP-Live-Test für das Hauptpostfach-Formular (admin only, JSON)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
     from app.utils.main_mail_config import main_mail_test_imap_response
 
@@ -239,7 +240,7 @@ def admin_main_mailbox_test_imap():
 @login_required
 def admin_email_auto_reply():
     """Auto-Antwort für das Hauptpostfach (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -257,7 +258,7 @@ def admin_email_auto_reply():
 @login_required
 def admin_email_settings():
     """E-Mail-System-Einstellungen (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -368,7 +369,7 @@ def admin_email_settings():
 @login_required
 def admin_email_test_smtp():
     """SMTP-Test: sendet eine Test-E-Mail an den Admin (JSON)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
 
     from app.utils.email_sender import send_smtp_test_email
@@ -416,7 +417,7 @@ def admin_email_test_smtp():
 @login_required
 def admin_email_test_imap():
     """IMAP-Test: prüft eingehende Verbindung (JSON)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
 
     from flask import current_app
@@ -478,7 +479,7 @@ def admin_email_test_imap():
 @login_required
 def admin_email_test_company_mail():
     """Prüft die IMAP-Verbindung zum Unternehmens-Mailserver."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
 
     from app.services.company_mail_auth import get_company_mail_server_config
@@ -823,7 +824,7 @@ def mailbox_oauth_start(provider):
         return redirect(url_for('settings.my_mailboxes'))
     if not provider_oauth_ready(provider):
         flash(translate('settings.mailboxes.oauth_not_configured'), 'warning')
-        if current_user.is_admin:
+        if has_admin_card_access(current_user, 'admin_integrations'):
             return redirect(url_for('settings.admin_integrations'))
         return redirect(url_for('settings.my_mailboxes'))
     popup = request.args.get('popup') == '1'
@@ -877,7 +878,7 @@ def mailbox_oauth_callback(provider):
 @login_required
 def admin_mailboxes():
     """Alle Multi-Postfächer (Admin)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     if not _require_email_multi_or_redirect():
@@ -892,7 +893,7 @@ def admin_mailboxes():
 @login_required
 def admin_mailbox_create():
     """Admin legt nur private Postfächer an (Team nur über Teams-Reiter)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     if not _require_email_multi_or_redirect():
@@ -941,7 +942,7 @@ def admin_mailbox_create():
 @settings_bp.route('/admin/mailboxes/<int:mailbox_id>/edit', methods=['GET', 'POST'])
 @login_required
 def admin_mailbox_edit(mailbox_id):
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     if not _require_email_multi_or_redirect():
@@ -983,7 +984,7 @@ def admin_mailbox_edit(mailbox_id):
 @settings_bp.route('/admin/mailboxes/<int:mailbox_id>/delete', methods=['POST'])
 @login_required
 def admin_mailbox_delete(mailbox_id):
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     from app.models.email import Mailbox

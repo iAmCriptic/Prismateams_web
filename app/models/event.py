@@ -35,6 +35,7 @@ class Event(db.Model):
     timeline_items = db.relationship('EventTimelineItem', back_populates='event', cascade='all, delete-orphan', order_by='EventTimelineItem.position')
     todo_lists = db.relationship('EventTodoList', back_populates='event', cascade='all, delete-orphan', order_by='EventTodoList.id')
     booking_personal_links = db.relationship('EventBookingPersonalLink', back_populates='event', cascade='all, delete-orphan')
+    helper_links = db.relationship('EventHelperLink', back_populates='event', cascade='all, delete-orphan')
     custom_values = db.relationship('EventCustomFieldValue', back_populates='event', cascade='all, delete-orphan')
     links = db.relationship('EventLink', back_populates='event', cascade='all, delete-orphan')
     room = db.relationship('BookingRoom', foreign_keys=[room_id])
@@ -257,6 +258,25 @@ class EventBookingPersonalLink(db.Model):
 
     def __repr__(self):
         return f'<EventBookingPersonalLink event={self.event_id} booking={self.booking_personal_event_id}>'
+
+
+class EventHelperLink(db.Model):
+    __tablename__ = 'event_helper_links'
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('events.id', ondelete='CASCADE'), nullable=False, index=True)
+    helper_event_id = db.Column(db.Integer, db.ForeignKey('helper_events.id', ondelete='CASCADE'), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    event = db.relationship('Event', back_populates='helper_links')
+    helper_event = db.relationship('HelperEvent')
+
+    __table_args__ = (
+        db.UniqueConstraint('event_id', 'helper_event_id', name='uq_event_helper_link'),
+    )
+
+    def __repr__(self):
+        return f'<EventHelperLink event={self.event_id} helper_event={self.helper_event_id}>'
 
 
 class EventCustomField(db.Model):

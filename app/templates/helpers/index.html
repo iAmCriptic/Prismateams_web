@@ -1,0 +1,492 @@
+{% extends "base.html" %}
+{% from "helpers/_sidebar.html" import helpers_sidebar, helpers_mobile_offcanvas, helpers_new_event_modal with context %}
+
+{% block title %}{{ _('helpers.heading') }} — {{ current_event.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/helpers.css') }}">
+{% endblock %}
+
+{% block navbar_search %}
+<div class="mod-search" role="search">
+  <label class="mod-search-field" for="modSearchInput">
+    <i class="bi bi-search" aria-hidden="true"></i>
+    <input type="text"
+           id="modSearchInput"
+           class="mod-search-input"
+           value="{{ search_query }}"
+           placeholder="{{ _('helpers.search_placeholder') }}"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+  </label>
+  <button type="button" class="btn mod-search-clear {% if not search_query %}d-none{% endif %}" id="modSearchClear" aria-label="{{ _('common.cancel') }}">
+    <i class="bi bi-x-lg"></i>
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="helpers-shell mod-shell--nav">
+  {{ helpers_sidebar(events, current_event, active_nav) }}
+  {{ helpers_mobile_offcanvas(events, current_event, active_nav) }}
+
+  <main class="mod-main">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn mod-pill-btn mod-pill-btn--outline d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#helpersMobileNav" aria-label="{{ _('helpers.heading') }}">
+          <i class="bi bi-list"></i>
+        </button>
+        <div>
+          <h1 class="h4 mb-0">{{ current_event.name }} — {{ _('helpers.nav.overview') }}</h1>
+          <div class="small text-muted">{{ rows|length }} {{ _('helpers.overview.helpers_count') }}</div>
+        </div>
+      </div>
+
+      <div class="d-flex flex-wrap gap-2">
+        {% if current_event.apply_enabled and current_event.apply_token %}
+        <button type="button"
+                class="btn mod-pill-btn mod-pill-btn--outline"
+                data-copy-target="publicApplyUrlInput"
+                data-i18n-copied="{{ _('helpers.common.copied') }}">
+          <i class="bi bi-link-45deg"></i>
+          <span>{{ _('helpers.overview.copy_public_link') }}</span>
+        </button>
+        <input type="hidden" id="publicApplyUrlInput" value="{{ url_for('helpers.public_register', token=current_event.apply_token, _external=True) }}">
+        {% endif %}
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--accent" data-bs-toggle="modal" data-bs-target="#helpersAddHelperModal">
+          <i class="bi bi-person-plus"></i>
+          <span>{{ _('helpers.overview.add_helper') }}</span>
+        </button>
+      </div>
+    </div>
+
+    <form method="GET" action="{{ url_for('helpers.index', event_id=current_event.id) }}" class="mod-toolbar mb-3 d-flex flex-wrap gap-2 align-items-center">
+      <select name="area_id" class="form-select form-select-sm mod-pill-input w-auto" onchange="this.form.submit()">
+        <option value="">{{ _('helpers.filter.all_areas') }}</option>
+        {% for area in areas %}
+        <option value="{{ area.id }}" {% if area_filter == area.id %}selected{% endif %}>{{ area.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="assignment" class="form-select form-select-sm mod-pill-input w-auto" onchange="this.form.submit()">
+        <option value="">{{ _('helpers.filter.all_assignments') }}</option>
+        <option value="assigned" {% if assignment_filter == 'assigned' %}selected{% endif %}>{{ _('helpers.filter.only_assigned') }}</option>
+        <option value="unassigned" {% if assignment_filter == 'unassigned' %}selected{% endif %}>{{ _('helpers.filter.only_unassigned') }}</option>
+      </select>
+      <select name="status" class="form-select form-select-sm mod-pill-input w-auto" onchange="this.form.submit()">
+        <option value="">{{ _('helpers.filter.all_statuses') }}</option>
+        <option value="registered" {% if status_filter == 'registered' %}selected{% endif %}>{{ _('helpers.status.registered') }}</option>
+        <option value="confirmed" {% if status_filter == 'confirmed' %}selected{% endif %}>{{ _('helpers.status.confirmed') }}</option>
+        <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>{{ _('helpers.status.cancelled') }}</option>
+      </select>
+      {% if area_filter or assignment_filter or status_filter %}
+      <a href="{{ url_for('helpers.index', event_id=current_event.id) }}" class="btn mod-pill-btn mod-pill-btn--outline-muted btn-sm">
+        <i class="bi bi-x-lg"></i>
+        <span>{{ _('helpers.filter.reset') }}</span>
+      </a>
+      {% endif %}
+    </form>
+
+    <div class="mod-list-table-wrap">
+      <table class="table mod-list-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{{ _('helpers.table.name') }}</th>
+            <th>{{ _('helpers.table.contact') }}</th>
+            <th>{{ _('helpers.table.tshirt') }}</th>
+            <th>{{ _('helpers.table.wished_for') }}</th>
+            <th>{{ _('helpers.table.assigned_to') }}</th>
+            {% for fc in overview_fields %}
+            <th>{{ fc.label }}</th>
+            {% endfor %}
+            <th>{{ _('helpers.table.vouchers') }}</th>
+            <th class="text-end">{{ _('common.actions') }}</th>
+          </tr>
+        </thead>
+        <tbody id="helpersTableBody">
+          {% for row in rows %}
+          {% set h = row.helper %}
+          <tr class="mod-list-row" data-search="{{ h.full_name }} {{ h.email }} {{ h.phone or '' }} {{ h.tshirt_size or '' }} {{ row.assigned_areas|join(' ') }}">
+            <td>
+              <div class="fw-semibold">{{ h.full_name }}</div>
+              <div class="small text-muted">
+                {% if h.status == 'confirmed' %}
+                <span class="badge bg-success">{{ _('helpers.status.confirmed') }}</span>
+                {% elif h.status == 'cancelled' %}
+                <span class="badge bg-danger">{{ _('helpers.status.cancelled') }}</span>
+                {% else %}
+                <span class="badge bg-secondary">{{ _('helpers.status.registered') }}</span>
+                {% endif %}
+                {% if h.allergies %}
+                <span class="badge bg-warning text-dark ms-1" title="{{ h.allergies }}"><i class="bi bi-exclamation-triangle me-1"></i>{{ h.allergies|truncate(20) }}</span>
+                {% endif %}
+              </div>
+            </td>
+            <td>
+              <div class="small">{{ h.email }}</div>
+              {% if h.phone %}<div class="small text-muted">{{ h.phone }}</div>{% endif %}
+            </td>
+            <td>
+              <span class="badge bg-body-secondary text-body border">{{ h.tshirt_size or '—' }}</span>
+            </td>
+            <td>
+              {% if row.wishes %}
+              <div class="d-flex flex-wrap gap-1">
+                {% for w in row.wishes %}
+                <span class="badge helpers-badge-accent">{{ w.area.name }}</span>
+                {% endfor %}
+              </div>
+              {% if row.wishes[0].get_available_days() %}
+              <div class="small text-muted mt-1">{{ row.wishes[0].get_available_days()|join(', ') }}</div>
+              {% endif %}
+              {% else %}
+              <span class="text-muted small">—</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if row.is_unassigned %}
+              <span class="badge bg-warning text-dark">{{ _('helpers.overview.unassigned_badge') }}</span>
+              {% else %}
+              <div class="d-flex flex-wrap gap-1">
+                {% for aname in row.assigned_areas %}
+                <span class="badge bg-success">{{ aname }}</span>
+                {% endfor %}
+              </div>
+              <div class="small text-muted mt-1">
+                {{ row.assigned_days|join(', ') }} · {{ row.total_hours }} {{ _('helpers.common.hours_short') }}
+              </div>
+              {% endif %}
+            </td>
+            {% for fc in overview_fields %}
+            <td class="small">
+              {% set val = row.custom.get(fc.field_key) %}
+              {% if fc.field_type == 'checkbox' %}
+                {% if val %}<i class="bi bi-check-circle-fill text-success"></i>{% else %}<i class="bi bi-circle text-muted"></i>{% endif %}
+              {% elif val is iterable and val is not string %}
+                {{ val|join(', ') }}
+              {% else %}
+                {{ val or '—' }}
+              {% endif %}
+            </td>
+            {% endfor %}
+            <td class="small">
+              <span title="{{ _('helpers.table.food') }}"><i class="bi bi-egg-fried me-1"></i>{{ row.food_vouchers }}</span>
+              <span class="ms-2" title="{{ _('helpers.table.drinks') }}"><i class="bi bi-cup-straw me-1"></i>{{ row.drinks_vouchers }}</span>
+            </td>
+            <td class="text-end">
+              <div class="mod-list-actions">
+                <div class="mod-list-hover-actions">
+                  <button type="button"
+                          class="btn btn-sm btn-link js-edit-helper-btn"
+                          data-bs-toggle="modal"
+                          data-bs-target="#helpersEditHelperModal"
+                          data-action="{{ url_for('helpers.update_helper', helper_id=h.id) }}"
+                          data-first-name="{{ h.first_name }}"
+                          data-last-name="{{ h.last_name }}"
+                          data-email="{{ h.email }}"
+                          data-phone="{{ h.phone or '' }}"
+                          data-tshirt="{{ h.tshirt_size or '' }}"
+                          data-allergies="{{ h.allergies or '' }}"
+                          data-status="{{ h.status }}"
+                          data-wish-areas='{{ row.wishes|map(attribute="area_id")|list|tojson }}'
+                          data-wish-days='{{ (row.wishes[0].get_available_days() if row.wishes else [])|tojson }}'
+                          data-custom='{{ row.custom|tojson }}'
+                          title="{{ _('common.edit') }}"
+                          aria-label="{{ _('common.edit') }}">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                  <form method="POST" action="{{ url_for('helpers.send_helper_mail', helper_id=h.id) }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-sm btn-link" title="{{ _('helpers.mail.send_schedule') }}" aria-label="{{ _('helpers.mail.send_schedule') }}">
+                      <i class="bi bi-envelope"></i>
+                    </button>
+                  </form>
+                </div>
+                <div class="dropdown d-inline-block">
+                  <button class="btn btn-sm btn-link"
+                          type="button"
+                          data-bs-toggle="dropdown"
+                          data-bs-popper-config='{"strategy":"fixed"}'
+                          aria-label="{{ _('common.actions') }}">
+                    <i class="bi bi-three-dots-vertical"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
+                    <li>
+                      <button type="button"
+                              class="dropdown-item js-edit-helper-btn"
+                              data-bs-toggle="modal"
+                              data-bs-target="#helpersEditHelperModal"
+                              data-action="{{ url_for('helpers.update_helper', helper_id=h.id) }}"
+                              data-first-name="{{ h.first_name }}"
+                              data-last-name="{{ h.last_name }}"
+                              data-email="{{ h.email }}"
+                              data-phone="{{ h.phone or '' }}"
+                              data-tshirt="{{ h.tshirt_size or '' }}"
+                              data-allergies="{{ h.allergies or '' }}"
+                              data-status="{{ h.status }}"
+                              data-wish-areas='{{ row.wishes|map(attribute="area_id")|list|tojson }}'
+                              data-wish-days='{{ (row.wishes[0].get_available_days() if row.wishes else [])|tojson }}'
+                              data-custom='{{ row.custom|tojson }}'>
+                        <i class="bi bi-pencil me-2"></i>{{ _('common.edit') }}
+                      </button>
+                    </li>
+                    <li>
+                      <form method="POST" action="{{ url_for('helpers.send_helper_mail', helper_id=h.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="dropdown-item">
+                          <i class="bi bi-envelope me-2"></i>{{ _('helpers.mail.send_schedule') }}
+                        </button>
+                      </form>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                      <form method="POST" action="{{ url_for('helpers.delete_helper', helper_id=h.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="dropdown-item text-danger">
+                          <i class="bi bi-trash me-2"></i>{{ _('common.delete') }}
+                        </button>
+                      </form>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="{{ 7 + overview_fields|length }}" class="text-center text-muted py-5">
+              {{ _('helpers.overview.empty') }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- Modals außerhalb von .mod-shell--nav gemäß STYLEGUIDE.md -->
+{{ helpers_new_event_modal(events) }}
+
+<div class="modal fade" id="helpersAddHelperModal" tabindex="-1" aria-labelledby="helpersAddHelperModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <form method="POST" action="{{ url_for('helpers.create_helper', event_id=current_event.id) }}" class="modal-content rounded-4 border-0 shadow">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header">
+        <h5 class="modal-title" id="helpersAddHelperModalLabel">{{ _('helpers.overview.add_helper') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="addHelperFirstName">{{ _('helpers.fields.first_name') }} *</label>
+            <input type="text" class="form-control mod-pill-input" id="addHelperFirstName" name="first_name" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="addHelperLastName">{{ _('helpers.fields.last_name') }} *</label>
+            <input type="text" class="form-control mod-pill-input" id="addHelperLastName" name="last_name" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="addHelperEmail">{{ _('helpers.fields.email') }} *</label>
+            <input type="email" class="form-control mod-pill-input" id="addHelperEmail" name="email" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="addHelperPhone">{{ _('helpers.fields.phone') }}</label>
+            <input type="text" class="form-control mod-pill-input" id="addHelperPhone" name="phone">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="addHelperTshirt">{{ _('helpers.fields.tshirt_size') }}</label>
+            <select class="form-select mod-pill-input" id="addHelperTshirt" name="tshirt_size">
+              <option value="">—</option>
+              {% for sz in ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'] %}
+              <option value="{{ sz }}">{{ sz }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="addHelperStatus">{{ _('helpers.fields.status') }}</label>
+            <select class="form-select mod-pill-input" id="addHelperStatus" name="status">
+              <option value="confirmed">{{ _('helpers.status.confirmed') }}</option>
+              <option value="registered">{{ _('helpers.status.registered') }}</option>
+              <option value="cancelled">{{ _('helpers.status.cancelled') }}</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="addHelperAllergies">{{ _('helpers.fields.allergies') }}</label>
+            <textarea class="form-control" id="addHelperAllergies" name="allergies" rows="2"></textarea>
+          </div>
+          {% if areas %}
+          <div class="col-12">
+            <div class="form-label fw-medium mb-1">{{ _('helpers.public.areas_label') }}</div>
+            <div class="row g-2">
+              {% for area in areas %}
+              <div class="col-sm-6 col-md-4">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="addArea_{{ area.id }}" name="area_ids" value="{{ area.id }}">
+                  <label class="form-check-label small" for="addArea_{{ area.id }}">{{ area.name }}</label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+          <div class="col-12">
+            <div class="form-label fw-medium mb-1">{{ _('helpers.public.days_label') }}</div>
+            <div class="d-flex flex-wrap gap-3">
+              {% for day in ['Freitag', 'Samstag', 'Sonntag', 'Aufbau / Abbau'] %}
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="addDay_{{ loop.index }}" name="available_days" value="{{ day }}">
+                <label class="form-check-label small" for="addDay_{{ loop.index }}">{{ day }}</label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% for fc in all_active_fields %}
+          {% if fc.field_key not in ('first_name', 'last_name', 'email', 'phone', 'tshirt_size', 'allergies') %}
+          <div class="col-md-6">
+            <label class="form-label" for="addCustom_{{ fc.field_key }}">{{ fc.label }}</label>
+            {% if fc.field_type == 'textarea' %}
+            <textarea class="form-control" id="addCustom_{{ fc.field_key }}" name="custom_{{ fc.field_key }}" rows="2"></textarea>
+            {% elif fc.field_type == 'checkbox' %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="addCustom_{{ fc.field_key }}" name="custom_{{ fc.field_key }}" value="1">
+              <label class="form-check-label" for="addCustom_{{ fc.field_key }}">{{ fc.label }}</label>
+            </div>
+            {% elif fc.field_type == 'select' %}
+            <select class="form-select mod-pill-input" id="addCustom_{{ fc.field_key }}" name="custom_{{ fc.field_key }}">
+              <option value="">—</option>
+              {% for opt in fc.get_options() %}
+              <option value="{{ opt }}">{{ opt }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input type="{{ 'number' if fc.field_type == 'number' else 'text' }}" class="form-control mod-pill-input" id="addCustom_{{ fc.field_key }}" name="custom_{{ fc.field_key }}">
+            {% endif %}
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+        <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent">{{ _('common.save') }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade" id="helpersEditHelperModal" tabindex="-1" aria-labelledby="helpersEditHelperModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <form method="POST" action="" class="modal-content rounded-4 border-0 shadow">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header">
+        <h5 class="modal-title" id="helpersEditHelperModalLabel">{{ _('helpers.overview.edit_helper') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="editHelperFirstName">{{ _('helpers.fields.first_name') }} *</label>
+            <input type="text" class="form-control mod-pill-input" id="editHelperFirstName" name="first_name" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="editHelperLastName">{{ _('helpers.fields.last_name') }} *</label>
+            <input type="text" class="form-control mod-pill-input" id="editHelperLastName" name="last_name" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="editHelperEmail">{{ _('helpers.fields.email') }} *</label>
+            <input type="email" class="form-control mod-pill-input" id="editHelperEmail" name="email" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="editHelperPhone">{{ _('helpers.fields.phone') }}</label>
+            <input type="text" class="form-control mod-pill-input" id="editHelperPhone" name="phone">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="editHelperTshirt">{{ _('helpers.fields.tshirt_size') }}</label>
+            <select class="form-select mod-pill-input" id="editHelperTshirt" name="tshirt_size">
+              <option value="">—</option>
+              {% for sz in ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'] %}
+              <option value="{{ sz }}">{{ sz }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="editHelperStatus">{{ _('helpers.fields.status') }}</label>
+            <select class="form-select mod-pill-input" id="editHelperStatus" name="status">
+              <option value="registered">{{ _('helpers.status.registered') }}</option>
+              <option value="confirmed">{{ _('helpers.status.confirmed') }}</option>
+              <option value="cancelled">{{ _('helpers.status.cancelled') }}</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="editHelperAllergies">{{ _('helpers.fields.allergies') }}</label>
+            <textarea class="form-control" id="editHelperAllergies" name="allergies" rows="2"></textarea>
+          </div>
+          <input type="hidden" name="update_wishes" value="1">
+          {% if areas %}
+          <div class="col-12">
+            <div class="form-label fw-medium mb-1">{{ _('helpers.public.areas_label') }}</div>
+            <div class="row g-2">
+              {% for area in areas %}
+              <div class="col-sm-6 col-md-4">
+                <div class="form-check">
+                  <input class="form-check-input js-edit-wish-area" type="checkbox" id="editArea_{{ area.id }}" name="area_ids" value="{{ area.id }}">
+                  <label class="form-check-label small" for="editArea_{{ area.id }}">{{ area.name }}</label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+          <div class="col-12">
+            <div class="form-label fw-medium mb-1">{{ _('helpers.public.days_label') }}</div>
+            <div class="d-flex flex-wrap gap-3">
+              {% for day in ['Freitag', 'Samstag', 'Sonntag', 'Aufbau / Abbau'] %}
+              <div class="form-check">
+                <input class="form-check-input js-edit-wish-day" type="checkbox" id="editDay_{{ loop.index }}" name="available_days" value="{{ day }}">
+                <label class="form-check-label small" for="editDay_{{ loop.index }}">{{ day }}</label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% for fc in all_active_fields %}
+          {% if fc.field_key not in ('first_name', 'last_name', 'email', 'phone', 'tshirt_size', 'allergies') %}
+          <div class="col-md-6">
+            <label class="form-label" for="editCustom_{{ fc.field_key }}">
+              {{ fc.label }}
+              {% if fc.admin_only %}<span class="badge bg-secondary ms-1">{{ _('helpers.settings.admin_only_short') }}</span>{% endif %}
+            </label>
+            {% if fc.field_type == 'textarea' %}
+            <textarea class="form-control" id="editCustom_{{ fc.field_key }}" name="custom_{{ fc.field_key }}" data-custom-key="{{ fc.field_key }}" rows="2"></textarea>
+            {% elif fc.field_type == 'checkbox' %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="editCustom_{{ fc.field_key }}" name="custom_{{ fc.field_key }}" data-custom-key="{{ fc.field_key }}" value="1">
+              <label class="form-check-label" for="editCustom_{{ fc.field_key }}">{{ fc.label }}</label>
+            </div>
+            {% elif fc.field_type == 'select' %}
+            <select class="form-select mod-pill-input" id="editCustom_{{ fc.field_key }}" name="custom_{{ fc.field_key }}" data-custom-key="{{ fc.field_key }}">
+              <option value="">—</option>
+              {% for opt in fc.get_options() %}
+              <option value="{{ opt }}">{{ opt }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input type="{{ 'number' if fc.field_type == 'number' else 'text' }}" class="form-control mod-pill-input" id="editCustom_{{ fc.field_key }}" name="custom_{{ fc.field_key }}" data-custom-key="{{ fc.field_key }}">
+            {% endif %}
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+        <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent">{{ _('common.save') }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/helpers.js') }}"></script>
+{% endblock %}
