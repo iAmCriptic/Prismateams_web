@@ -307,12 +307,16 @@ def _collect_folder_files_for_zip(folder, prefix, out_entries, skipped, limit=20
         if not _user_can_view_file_item(f):
             skipped.append(f.original_name or f.name)
             continue
+        if getattr(f, 'storage_backend', 'local') == 'nextcloud':
+            arc = f'{prefix}{f.original_name or f.name}'
+            out_entries.append(('nextcloud', arc, f))
+            continue
         abs_path = _abs_disk_path(f.file_path)
         if not abs_path or not os.path.isfile(abs_path):
             skipped.append(f.original_name or f.name)
             continue
         arc = f'{prefix}{f.original_name or f.name}'
-        out_entries.append((arc, abs_path))
+        out_entries.append(('local', arc, abs_path))
 
 
 @files_bp.route('/api/bulk-delete', methods=['POST'])
@@ -454,12 +458,16 @@ def api_download_zip():
             if not _user_can_view_file_item(file_obj):
                 skipped.append(file_obj.original_name or file_obj.name)
                 continue
+            if getattr(file_obj, 'storage_backend', 'local') == 'nextcloud':
+                arc = _unique_arc(file_obj.original_name or file_obj.name)
+                entries.append(('nextcloud', arc, file_obj))
+                continue
             abs_path = _abs_disk_path(file_obj.file_path)
             if not abs_path or not os.path.isfile(abs_path):
                 skipped.append(file_obj.original_name or file_obj.name)
                 continue
             arc = _unique_arc(file_obj.original_name or file_obj.name)
-            entries.append((arc, abs_path))
+            entries.append(('local', arc, abs_path))
         else:
             folder = Folder.query.get(item['id'])
             if not folder or folder.deleted_at is not None:
@@ -484,10 +492,14 @@ def api_download_zip():
     tmp.close()
     try:
         with zipfile.ZipFile(tmp_path, 'w', compression=zipfile.ZIP_DEFLATED) as zf:
-            for arcname, abs_path in entries:
+            for kind, arcname, source in entries:
                 try:
-                    zf.write(abs_path, arcname=arcname)
-                except OSError:
+                    if kind == 'nextcloud':
+                        from app.utils.nextcloud_storage import read_file_bytes
+                        zf.writestr(arcname, read_file_bytes(source))
+                    else:
+                        zf.write(source, arcname=arcname)
+                except Exception:
                     skipped.append(arcname)
         stamp = dt.utcnow().strftime('%Y%m%d-%H%M%S')
         download_name = f'Dateien-{stamp}.zip'

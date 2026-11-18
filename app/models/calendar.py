@@ -15,6 +15,10 @@ class Calendar(db.Model):
     color = db.Column(db.String(7), nullable=False, default='#0d6efd')
     is_default = db.Column(db.Boolean, default=False, nullable=False)
     hidden_from_others = db.Column(db.Boolean, default=False, nullable=False)
+    storage_backend = db.Column(db.String(20), nullable=False, default='local', index=True)
+    remote_url = db.Column(db.String(1024), nullable=True, index=True)
+    remote_ctag = db.Column(db.String(255), nullable=True)
+    remote_read_only = db.Column(db.Boolean, default=False, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     owner = db.relationship('User', foreign_keys=[owner_id], backref=db.backref('owned_calendars', lazy='dynamic'))
@@ -69,9 +73,12 @@ class CalendarEvent(db.Model):
     # Buchungsmodul-Integration
     booking_request_id = db.Column(db.Integer, db.ForeignKey('booking_requests.id'), nullable=True)
 
-    # Inbound-Sync (externe Kalender-URLs)
+    # Inbound-Sync (externe Kalender-URLs / Nextcloud CalDAV)
     sync_source_id = db.Column(db.Integer, db.ForeignKey('calendar_sync_sources.id'), nullable=True, index=True)
     ical_uid = db.Column(db.String(255), nullable=True, index=True)
+    remote_href = db.Column(db.String(1024), nullable=True, index=True)
+    remote_etag = db.Column(db.String(255), nullable=True)
+    remote_attendees_json = db.Column(db.Text, nullable=True)
     
     # Relationships
     creator = db.relationship('User', back_populates='created_events')

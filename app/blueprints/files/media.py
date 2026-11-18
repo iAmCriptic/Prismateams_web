@@ -113,6 +113,18 @@ def serve_pdf(file_id):
         flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
         return redirect(url_for('files.index'))
     
+    # Only serve PDFs
+    file_ext = os.path.splitext(file.original_name)[1].lower()
+    if file_ext != '.pdf':
+        flash('Diese Route ist nur für PDF-Dateien.', 'danger')
+        return redirect(url_for('files.index'))
+
+    if getattr(file, 'storage_backend', 'local') == 'nextcloud':
+        import io
+        from app.utils.nextcloud_storage import read_file_bytes
+        data = read_file_bytes(file)
+        return _response_with_nosniff(send_file(io.BytesIO(data), mimetype='application/pdf'))
+
     # Ensure we have an absolute path
     if not os.path.isabs(file.file_path):
         file_path = os.path.join(os.getcwd(), file.file_path)
@@ -122,12 +134,6 @@ def serve_pdf(file_id):
     # Check if file exists
     if not os.path.exists(file_path):
         flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
-        return redirect(url_for('files.index'))
-    
-    # Only serve PDFs
-    file_ext = os.path.splitext(file.original_name)[1].lower()
-    if file_ext != '.pdf':
-        flash('Diese Route ist nur für PDF-Dateien.', 'danger')
         return redirect(url_for('files.index'))
     
     return _response_with_nosniff(send_file(file_path, mimetype='application/pdf'))
@@ -172,6 +178,20 @@ def download_file(file_id):
         flash('Sie haben keinen Zugriff auf diese Datei.', 'danger')
         return redirect(url_for('files.index'))
     
+    file_ext = _file_extension(file.original_name)
+    mimetype = _mimetype_for_extension(file_ext)
+
+    if getattr(file, 'storage_backend', 'local') == 'nextcloud':
+        import io
+        from app.utils.nextcloud_storage import read_file_bytes
+        data = read_file_bytes(file)
+        return _response_with_nosniff(send_file(
+            io.BytesIO(data),
+            as_attachment=True,
+            download_name=file.original_name,
+            mimetype=mimetype,
+        ))
+
     # Ensure we have an absolute path
     if not os.path.isabs(file.file_path):
         file_path = os.path.join(os.getcwd(), file.file_path)
@@ -182,9 +202,6 @@ def download_file(file_id):
     if not os.path.exists(file_path):
         flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
         return redirect(url_for('files.index'))
-
-    file_ext = _file_extension(file.original_name)
-    mimetype = _mimetype_for_extension(file_ext)
 
     return _response_with_nosniff(send_file(
         file_path, 
@@ -258,6 +275,12 @@ def edit_file(file_id):
     if file_ext not in editable_extensions:
         flash('Dieser Dateityp kann nicht online bearbeitet werden.', 'warning')
         return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
+
+    if getattr(file, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.nextcloud_settings import is_nextcloud_markdown_enabled
+        if not is_nextcloud_markdown_enabled():
+            flash('Die Online-Bearbeitung von Text-/Markdown-Dateien auf Nextcloud ist deaktiviert.', 'warning')
+            return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
     
     if request.method == 'POST':
         wants_json = (
@@ -312,47 +335,61 @@ def edit_file(file_id):
             flash(msg, 'danger')
             return redirect(url_for('files.edit_file', file_id=file.id))
         
-        # Save current version to history
-        version = FileVersion(
-            file_id=file.id,
-            version_number=file.version_number,
-            file_path=os.path.abspath(file.file_path),
-            file_size=file.file_size,
-            uploaded_by=file.uploaded_by
-        )
-        db.session.add(version)
-        
-        # Delete oldest version if needed
-        versions = FileVersion.query.filter_by(file_id=file.id).order_by(
-            FileVersion.version_number.desc()
-        ).all()
-        
-        if len(versions) >= MAX_FILE_VERSIONS:
-            oldest = versions[-1]
-            if os.path.exists(oldest.file_path):
-                os.remove(oldest.file_path)
-            db.session.delete(oldest)
-        
-        # Save new version
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-        safe_name = _disk_safe_upload_basename(file.original_name)
-        filename = f"{timestamp}_{safe_name}"
-        filepath = os.path.join('uploads', 'files', filename)
-        
-        # Kein Newline-Transform auf Windows, sonst entstehen doppelte Leerzeilen.
-        with open(filepath, 'w', encoding='utf-8', newline='') as f:
-            f.write(content)
-        
-        # Store absolute path in database
-        absolute_filepath = os.path.abspath(filepath)
-        
-        file.file_path = absolute_filepath
-        file.file_size = os.path.getsize(absolute_filepath)
-        file.version_number += 1
-        file.uploaded_by = current_user.id
-        file.updated_at = datetime.utcnow()
-        
-        db.session.commit()
+        if getattr(file, 'storage_backend', 'local') == 'nextcloud':
+            from app.utils.cloud_import.nextcloud import NextcloudLockError
+            from app.utils.nextcloud_storage import write_file_bytes
+            try:
+                write_file_bytes(file, (content or '').encode('utf-8'))
+            except NextcloudLockError as exc:
+                msg = f'Die Datei ist in Nextcloud durch {exc.owner or "einen anderen Nutzer"} gesperrt.'
+                if wants_json:
+                    return jsonify({'success': False, 'error': msg, 'locked': True}), 409
+                flash(msg, 'warning')
+                return redirect(url_for('files.edit_file', file_id=file.id))
+            file.uploaded_by = current_user.id
+            db.session.commit()
+        else:
+            # Save current version to history
+            version = FileVersion(
+                file_id=file.id,
+                version_number=file.version_number,
+                file_path=os.path.abspath(file.file_path),
+                file_size=file.file_size,
+                uploaded_by=file.uploaded_by
+            )
+            db.session.add(version)
+            
+            # Delete oldest version if needed
+            versions = FileVersion.query.filter_by(file_id=file.id).order_by(
+                FileVersion.version_number.desc()
+            ).all()
+            
+            if len(versions) >= MAX_FILE_VERSIONS:
+                oldest = versions[-1]
+                if os.path.exists(oldest.file_path):
+                    os.remove(oldest.file_path)
+                db.session.delete(oldest)
+            
+            # Save new version
+            timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+            safe_name = _disk_safe_upload_basename(file.original_name)
+            filename = f"{timestamp}_{safe_name}"
+            filepath = os.path.join('uploads', 'files', filename)
+            
+            # Kein Newline-Transform auf Windows, sonst entstehen doppelte Leerzeilen.
+            with open(filepath, 'w', encoding='utf-8', newline='') as f:
+                f.write(content)
+            
+            # Store absolute path in database
+            absolute_filepath = os.path.abspath(filepath)
+            
+            file.file_path = absolute_filepath
+            file.file_size = os.path.getsize(absolute_filepath)
+            file.version_number += 1
+            file.uploaded_by = current_user.id
+            file.updated_at = datetime.utcnow()
+            
+            db.session.commit()
 
         if wants_json:
             return jsonify({'success': True, 'message': 'Datei wurde gespeichert.'})
@@ -362,14 +399,18 @@ def edit_file(file_id):
     
     # Read file content
     try:
-        # Ensure we have an absolute path
-        if not os.path.isabs(file.file_path):
-            file_path = os.path.join(os.getcwd(), file.file_path)
+        if getattr(file, 'storage_backend', 'local') == 'nextcloud':
+            from app.utils.nextcloud_storage import read_file_bytes
+            content = read_file_bytes(file).decode('utf-8', errors='replace')
         else:
-            file_path = file.file_path
-            
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
+            # Ensure we have an absolute path
+            if not os.path.isabs(file.file_path):
+                file_path = os.path.join(os.getcwd(), file.file_path)
+            else:
+                file_path = file.file_path
+                
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
     except Exception as e:
         flash(f'Fehler beim Lesen der Datei: {str(e)}', 'danger')
         return redirect(_get_safe_file_back_url(file, guest_accessible_folder_ids))
@@ -390,9 +431,23 @@ def edit_file(file_id):
             lock, blocker = file_edit_lock_util.acquire(file.id, current_user.id)
             edit_locked = lock is None
             if lock:
-                lock_info = file_edit_lock_util.serialize_lock(lock, include_session=True)
-                edit_session_key = lock.session_key
-                db.session.commit()
+                if getattr(file, 'storage_backend', 'local') == 'nextcloud':
+                    from app.utils.nextcloud_storage import acquire_nextcloud_lock
+                    owner_name = getattr(current_user, 'full_name', None) or getattr(current_user, 'username', None) or f'User {current_user.id}'
+                    nc_ok, nc_msg = acquire_nextcloud_lock(file, owner_name)
+                    if not nc_ok:
+                        file_edit_lock_util.release(lock.session_key, current_user.id)
+                        db.session.commit()
+                        edit_locked = True
+                        lock_info = {'display_name': 'Nextcloud', 'message': nc_msg}
+                    else:
+                        lock_info = file_edit_lock_util.serialize_lock(lock, include_session=True)
+                        edit_session_key = lock.session_key
+                        db.session.commit()
+                else:
+                    lock_info = file_edit_lock_util.serialize_lock(lock, include_session=True)
+                    edit_session_key = lock.session_key
+                    db.session.commit()
             else:
                 lock_info = file_edit_lock_util.serialize_lock(blocker, include_session=False)
     
@@ -501,16 +556,17 @@ def view_file(file_id):
     
     # Handle PDF files - display in browser
     if file_ext == '.pdf':
-        # Ensure we have an absolute path
-        if not os.path.isabs(file.file_path):
-            file_path = os.path.join(os.getcwd(), file.file_path)
-        else:
-            file_path = file.file_path
-        
-        # Check if file exists
-        if not os.path.exists(file_path):
-            flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
-            return redirect(back_url)
+        if getattr(file, 'storage_backend', 'local') != 'nextcloud':
+            # Ensure we have an absolute path
+            if not os.path.isabs(file.file_path):
+                file_path = os.path.join(os.getcwd(), file.file_path)
+            else:
+                file_path = file.file_path
+            
+            # Check if file exists
+            if not os.path.exists(file_path):
+                flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
+                return redirect(back_url)
         
         # Return PDF for inline viewing (similar to manuals)
         return render_template(
@@ -522,10 +578,11 @@ def view_file(file_id):
 
     kind = media_kind(file_ext)
     if kind:
-        file_path = _resolve_absolute_file_path(file.file_path)
-        if not file_path or not os.path.exists(file_path):
-            flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
-            return redirect(back_url)
+        if getattr(file, 'storage_backend', 'local') != 'nextcloud':
+            file_path = _resolve_absolute_file_path(file.file_path)
+            if not file_path or not os.path.exists(file_path):
+                flash(f'Datei "{file.original_name}" wurde nicht gefunden.', 'danger')
+                return redirect(back_url)
         return render_template(
             'files/view.html',
             file=file,
@@ -544,14 +601,18 @@ def view_file(file_id):
     
     # Read file content
     try:
-        # Ensure we have an absolute path
-        if not os.path.isabs(file.file_path):
-            file_path = os.path.join(os.getcwd(), file.file_path)
+        if getattr(file, 'storage_backend', 'local') == 'nextcloud':
+            from app.utils.nextcloud_storage import read_file_bytes
+            content = read_file_bytes(file).decode('utf-8', errors='replace')
         else:
-            file_path = file.file_path
-            
-        with open(file_path, 'r', encoding='utf-8') as f:
-            content = f.read()
+            # Ensure we have an absolute path
+            if not os.path.isabs(file.file_path):
+                file_path = os.path.join(os.getcwd(), file.file_path)
+            else:
+                file_path = file.file_path
+                
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
     except Exception as e:
         flash(f'Fehler beim Lesen der Datei: {str(e)}', 'danger')
         return redirect(back_url)

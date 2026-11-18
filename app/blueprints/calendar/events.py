@@ -55,6 +55,23 @@ import calendar
 from app.blueprints.calendar._bp import DEFAULT_EVENT_COLOR, calendar_bp, logger
 from app.blueprints.calendar.helpers import *  # noqa: F401,F403
 
+@calendar_bp.route('/nextcloud-sync', methods=['POST'])
+@login_required
+@check_module_access('module_calendar')
+def nextcloud_sync_now():
+    """Force-sync all Nextcloud CalDAV calendars and events."""
+    from app.utils.nextcloud_calendar_settings import is_nextcloud_calendar_active
+    from app.utils.nextcloud_calendar_sync import sync_all_nextcloud_calendars
+
+    if is_nextcloud_calendar_active():
+        res = sync_all_nextcloud_calendars(force=True)
+        flash(
+            translate('calendar.flash.nextcloud_synced', ok=res.get('ok', 0)),
+            'success' if not res.get('fail') else 'warning',
+        )
+    return redirect(request.referrer or url_for('calendar.index'))
+
+
 @calendar_bp.route('/')
 @login_required
 @check_module_access('module_calendar')
@@ -98,6 +115,37 @@ def index():
     )
 
 
+def _parse_attendee_emails_field(raw_text: str | None) -> tuple[list[int], list[dict[str, str]]]:
+    """Parse comma/newline-separated emails into matched user IDs and external attendee dicts."""
+    if not raw_text:
+        return [], []
+    import re as _re
+    from sqlalchemy import func as _func
+    tokens = [t.strip().lower() for t in _re.split(r'[,\n;]+', raw_text) if t.strip()]
+    emails = []
+    seen = set()
+    for t in tokens:
+        if '@' in t and '.' in t.split('@', 1)[1] and t not in seen:
+            seen.add(t)
+            emails.append(t)
+    if not emails:
+        return [], []
+    matched_users = {
+        u.email.strip().lower(): u
+        for u in User.query.filter(_func.lower(User.email).in_(emails), User.is_active.is_(True)).all()
+        if u.email
+    }
+    user_ids = []
+    external = []
+    for em in emails:
+        u = matched_users.get(em)
+        if u:
+            user_ids.append(u.id)
+        else:
+            external.append({'email': em, 'name': em, 'status': 'pending'})
+    return user_ids, external
+
+
 @calendar_bp.route('/event/<int:event_id>')
 @login_required
 @check_module_access('module_calendar')
@@ -129,10 +177,21 @@ def view_event(event_id):
     except Exception:
         pass
     
+    import json as _json
+    remote_attendees = []
+    if getattr(event, 'remote_attendees_json', None):
+        try:
+            parsed_att = _json.loads(event.remote_attendees_json)
+            if isinstance(parsed_att, list):
+                remote_attendees = parsed_att
+        except (TypeError, ValueError, _json.JSONDecodeError):
+            remote_attendees = []
+
     return render_template(
         'calendar/view.html',
         event=event,
         participants=participants,
+        remote_attendees=remote_attendees,
         user_participation=user_participation,
         booking_request=booking_request,
         can_edit=can_edit_event(current_user, event),
@@ -263,9 +322,24 @@ def create_event():
         db.session.flush()
 
         invitee_ids = []
-        if multi and target_calendar and target_calendar.calendar_type == 'personal':
+        external_attendees = []
+        if multi and target_calendar and target_calendar.calendar_type in ('personal', 'nextcloud'):
             invitee_ids = _parse_invitee_ids()
+            email_uids, external_attendees = _parse_attendee_emails_field(request.form.get('attendee_emails'))
+            for uid in email_uids:
+                if uid not in invitee_ids:
+                    invitee_ids.append(uid)
+        if external_attendees:
+            import json as _json
+            event.remote_attendees_json = _json.dumps(external_attendees, ensure_ascii=False)
         notify_ids = _add_participants_for_event(event, multi, invitee_ids)
+        if target_calendar and getattr(target_calendar, 'storage_backend', 'local') == 'nextcloud':
+            try:
+                from app.utils.nextcloud_calendar_sync import push_event_to_nextcloud
+                push_event_to_nextcloud(event)
+            except Exception as exc:
+                logger.warning('Nextcloud CalDAV push failed on create: %s', exc)
+                flash('Termin wurde lokal gespeichert, aber Nextcloud-Sync schlug fehl.', 'warning')
         db.session.commit()
 
         if multi and notify_ids:
@@ -313,6 +387,17 @@ def edit_event(event_id):
     invite_users = User.query.filter_by(is_active=True).order_by(User.first_name, User.last_name).all() if multi else []
 
     def _edit_template(**extra):
+        import json as _json
+        ext_emails = ''
+        if getattr(event, 'remote_attendees_json', None):
+            try:
+                ext_list = _json.loads(event.remote_attendees_json)
+                if isinstance(ext_list, list):
+                    ext_emails = ', '.join(
+                        item.get('email', '') for item in ext_list if isinstance(item, dict) and item.get('email')
+                    )
+            except (TypeError, ValueError, _json.JSONDecodeError):
+                ext_emails = ''
         return render_template(
             'calendar/edit.html',
             event=event,
@@ -324,10 +409,11 @@ def edit_event(event_id):
             ],
             existing_invitee_ids=[
                 p.user_id for p in EventParticipant.query.filter_by(event_id=event.id).all()
-                if p.user_id != current_user.id and p.status in ('pending', 'accepted')
+                if p.user_id != current_user.id and p.status in ('pending', 'accepted', 'tentative')
             ],
+            existing_attendee_emails=ext_emails,
             show_invitees=bool(
-                multi and event.calendar and event.calendar.calendar_type == 'personal'
+                multi and event.calendar and event.calendar.calendar_type in ('personal', 'nextcloud')
             ),
             **_page_shell_context(),
             **extra,
@@ -388,8 +474,14 @@ def edit_event(event_id):
 
         new_invite_ids = []
         if multi:
+            import json as _json
+            parsed_ids = _parse_invitee_ids()
+            email_uids, external_attendees = _parse_attendee_emails_field(request.form.get('attendee_emails'))
+            for uid in email_uids:
+                if uid not in parsed_ids:
+                    parsed_ids.append(uid)
             existing = {p.user_id: p for p in EventParticipant.query.filter_by(event_id=event.id).all()}
-            for uid in _parse_invitee_ids():
+            for uid in parsed_ids:
                 if uid == event.created_by:
                     continue
                 if uid not in existing:
@@ -397,6 +489,26 @@ def edit_event(event_id):
                     if user:
                         db.session.add(EventParticipant(event_id=event.id, user_id=uid, status='pending'))
                         new_invite_ids.append(uid)
+                elif existing[uid].status == 'removed':
+                    existing[uid].status = 'pending'
+                    new_invite_ids.append(uid)
+            if event.calendar and event.calendar.calendar_type == 'nextcloud':
+                keep_set = set(parsed_ids) | {event.created_by}
+                for uid, part in existing.items():
+                    if uid not in keep_set:
+                        db.session.delete(part)
+                event.remote_attendees_json = (
+                    _json.dumps(external_attendees, ensure_ascii=False) if external_attendees else None
+                )
+            db.session.flush()
+
+        if getattr(event.calendar, 'storage_backend', 'local') == 'nextcloud':
+            try:
+                from app.utils.nextcloud_calendar_sync import push_event_to_nextcloud
+                push_event_to_nextcloud(event)
+            except Exception as exc:
+                logger.warning('Nextcloud CalDAV push failed on edit: %s', exc)
+                flash('Änderung lokal gespeichert, aber Nextcloud-Sync schlug fehl.', 'warning')
 
         db.session.commit()
         if new_invite_ids:
@@ -452,7 +564,11 @@ def delete_event(event_id):
     
     # Hole Teilnehmer-IDs vor dem Löschen
     participant_ids = [p.user_id for p in EventParticipant.query.filter_by(event_id=event_id).all()]
-    
+
+    if event.calendar and getattr(event.calendar, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.nextcloud_calendar_sync import delete_event_from_nextcloud
+        delete_event_from_nextcloud(event)
+
     db.session.delete(event)
     db.session.commit()
     
@@ -510,6 +626,14 @@ def set_participation(event_id, status):
         participation.status = status
         participation.responded_at = datetime.utcnow()
     
+    if event.calendar and getattr(event.calendar, 'storage_backend', 'local') == 'nextcloud':
+        try:
+            db.session.flush()
+            from app.utils.nextcloud_calendar_sync import push_event_to_nextcloud
+            push_event_to_nextcloud(event)
+        except Exception as exc:
+            logger.warning('Nextcloud CalDAV push failed on participation update: %s', exc)
+
     db.session.commit()
     
     status_text = translate('calendar.flash.accepted') if status == 'accepted' else translate('calendar.flash.declined')
@@ -749,7 +873,11 @@ def delete_recurring_event_all(event_id):
     instances = CalendarEvent.query.filter_by(parent_event_id=event.id).all()
     for instance in instances:
         db.session.delete(instance)
-    
+
+    if event.calendar and getattr(event.calendar, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.nextcloud_calendar_sync import delete_event_from_nextcloud
+        delete_event_from_nextcloud(event)
+
     db.session.delete(event)
     db.session.commit()
     

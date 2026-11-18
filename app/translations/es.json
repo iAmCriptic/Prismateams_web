@@ -4995,7 +4995,8 @@
         "folder": "Carpeta",
         "no_folder": "Sin carpeta",
         "root_folder": "Sin carpeta",
-        "is_favorite": "Marcar como favorito"
+        "is_favorite": "Marcar como favorito",
+        "storage_location": "Ubicación"
       },
       "placeholders": {
         "website_name": "p. ej. GitHub",

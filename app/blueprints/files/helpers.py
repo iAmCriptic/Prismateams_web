@@ -218,6 +218,18 @@ def _send_inline_media(file_obj):
     kind = media_kind(file_ext)
     if not kind:
         abort(404)
+    if getattr(file_obj, 'storage_backend', 'local') == 'nextcloud':
+        import io
+        from app.utils.nextcloud_storage import read_file_bytes
+        try:
+            data = read_file_bytes(file_obj)
+        except Exception:
+            abort(404)
+        return _response_with_nosniff(send_file(
+            io.BytesIO(data),
+            mimetype=media_mimetype(file_ext),
+            as_attachment=False,
+        ))
     file_path = _resolve_absolute_file_path(file_obj.file_path)
     if not file_path or not os.path.exists(file_path):
         abort(404)
@@ -234,6 +246,8 @@ def _send_image_preview(file_obj):
     file_ext = _file_extension(file_obj.original_name)
     if media_kind(file_ext) != 'image':
         abort(404)
+    if getattr(file_obj, 'storage_backend', 'local') == 'nextcloud':
+        return _send_inline_media(file_obj)
     file_path = _resolve_absolute_file_path(file_obj.file_path)
     if not file_path or not os.path.exists(file_path):
         abort(404)
@@ -284,6 +298,28 @@ def _create_new_file_version(existing_file, uploaded_file, user_id):
     """Create a new version for an existing file."""
     if not is_allowed_upload_filename(existing_file.name):
         raise ValueError('disallowed_extension')
+
+    if getattr(existing_file, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.nextcloud_storage import upload_nextcloud_file
+        parent = getattr(existing_file, 'folder', None) or (Folder.query.get(existing_file.folder_id) if existing_file.folder_id else None)
+        if not parent:
+            raise ValueError('missing_parent_folder')
+        raw = uploaded_file.read()
+        if hasattr(uploaded_file, 'stream') and hasattr(uploaded_file.stream, 'seek'):
+            try:
+                uploaded_file.stream.seek(0)
+            except Exception:
+                pass
+        updated = upload_nextcloud_file(
+            parent,
+            existing_file.name or existing_file.original_name,
+            raw,
+            user_id=user_id,
+            mime_type=getattr(uploaded_file, 'content_type', None),
+            existing_file=existing_file,
+        )
+        updated.uploaded_by = user_id
+        return updated.version_number
 
     version_number = existing_file.version_number + 1
 
@@ -576,15 +612,16 @@ def _files_view_kwargs(view=None, folder=None, team_id=None):
         raw = session.get('files_last_view')
     if not raw and folder is not None:
         space = (getattr(folder, 'space', None) or 'public').lower()
+        is_nc = getattr(folder, 'storage_backend', 'local') == 'nextcloud'
         if space == 'personal':
-            raw = 'ablage'
+            raw = 'nc_ablage' if is_nc else 'ablage'
         elif space == 'team':
-            raw = 'team'
+            raw = 'nc_team' if is_nc else 'team'
         else:
-            raw = 'public'
+            raw = 'nc_public' if is_nc else 'public'
     files_view = normalize_view(raw, private_enabled=private_enabled, team_enabled=team_enabled, user=current_user)
     kwargs = {'view': files_view} if files_view else {}
-    if files_view == 'team':
+    if files_view in ('team', 'nc_team'):
         tid = parse_team_id(team_id) if team_id is not None else _request_team_id(folder)
         if tid:
             kwargs['team_id'] = tid
@@ -611,6 +648,26 @@ def _resolve_create_parent(files_view, folder_id, team_id=None):
             return None, None
         folder_id = resolve_default_parent_for_view('team', current_user.id, team_id=team_id)
         return folder_id, Folder.query.get(folder_id) if folder_id else None
+    if files_view in ('nc_ablage', 'nc_team', 'nc_public'):
+        from app.utils.nextcloud_settings import (
+            can_access_nextcloud_public,
+            get_team_nextcloud_mapping,
+            is_nextcloud_active,
+            is_nextcloud_private_enabled,
+        )
+        if not is_nextcloud_active():
+            return None, None
+        if files_view == 'nc_ablage' and is_nextcloud_private_enabled():
+            folder_id = resolve_default_parent_for_view('nc_ablage', current_user.id)
+            return folder_id, Folder.query.get(folder_id) if folder_id else None
+        if files_view == 'nc_team' and team_id:
+            if not user_may_use_file_team(current_user, team_id) or not get_team_nextcloud_mapping(team_id):
+                return None, None
+            folder_id = resolve_default_parent_for_view('nc_team', current_user.id, team_id=team_id)
+            return folder_id, Folder.query.get(folder_id) if folder_id else None
+        if files_view == 'nc_public' and can_access_nextcloud_public(current_user, write=True):
+            folder_id = resolve_default_parent_for_view('nc_public', current_user.id)
+            return folder_id, Folder.query.get(folder_id) if folder_id else None
     return None, None
 
 
@@ -686,6 +743,23 @@ def _process_file_upload(file, original_name, folder_id, user_id, space='public'
     if not is_allowed_upload_filename(safe_name):
         raise ValueError('disallowed_extension')
 
+    parent = Folder.query.get(folder_id) if folder_id else None
+    if parent and getattr(parent, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.nextcloud_storage import upload_nextcloud_file
+        raw = file.read()
+        if hasattr(file, 'stream') and hasattr(file.stream, 'seek'):
+            try:
+                file.stream.seek(0)
+            except Exception:
+                pass
+        return upload_nextcloud_file(
+            parent,
+            display_name,
+            raw,
+            user_id=user_id,
+            mime_type=getattr(file, 'content_type', None),
+        )
+
     filepath = _unique_disk_filepath(display_name)
     
     file.save(filepath)
@@ -693,12 +767,10 @@ def _process_file_upload(file, original_name, folder_id, user_id, space='public'
     # Store absolute path in database
     absolute_filepath = os.path.abspath(filepath)
 
-    if folder_id:
-        parent = Folder.query.get(folder_id)
-        if parent:
-            if parent.space:
-                space = parent.space
-            team_id = getattr(parent, 'team_id', None)
+    if parent:
+        if parent.space:
+            space = parent.space
+        team_id = getattr(parent, 'team_id', None)
     
     new_file = File(
         name=display_name,

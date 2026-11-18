@@ -519,6 +519,9 @@ def _store_form_data(event_obj, req):
     if old_calendar_event_ids:
         stale_calendar_events = CalendarEvent.query.filter(CalendarEvent.id.in_(old_calendar_event_ids)).all()
         for calendar_event in stale_calendar_events:
+            if getattr(calendar_event.calendar, 'storage_backend', 'local') == 'nextcloud':
+                from app.utils.nextcloud_calendar_sync import delete_event_from_nextcloud
+                delete_event_from_nextcloud(calendar_event)
             db.session.delete(calendar_event)
 
     EventAssignment.query.filter_by(event_id=event_obj.id).delete()

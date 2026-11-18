@@ -134,6 +134,59 @@
           </p>
         </div>
       </section>
+
+      <section class="sp-group sp-group--span2" id="integrations-nextcloud" data-settings-search-id="integrations-nextcloud" aria-labelledby="integrations-nextcloud-title">
+        <div class="sp-group-head">
+          <h2 id="integrations-nextcloud-title" class="sp-group-title"><i class="bi bi-cloud-check" aria-hidden="true"></i>{{ _('settings.integrations.nextcloud_title') }}</h2>
+          {{ sp_info(_('settings.integrations.nextcloud_help')) }}
+        </div>
+        <div class="sp-group-body">
+          <p class="settings-integrations-lead">{{ _('settings.integrations.nextcloud_help') }}</p>
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.integrations.nextcloud_url') }}</span>
+            </div>
+            <div class="sp-row-control w-100">
+              <input type="url" class="form-control" id="nextcloud_url" name="nextcloud_url"
+                     value="{{ nextcloud.server_url if nextcloud else '' }}"
+                     placeholder="https://cloud.example.com" autocomplete="off" spellcheck="false">
+            </div>
+          </div>
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.integrations.nextcloud_username') }}</span>
+            </div>
+            <div class="sp-row-control w-100">
+              <input type="text" class="form-control" id="nextcloud_username" name="nextcloud_username"
+                     value="{{ nextcloud.username if nextcloud else '' }}" autocomplete="off" spellcheck="false">
+            </div>
+          </div>
+          <div class="sp-row sp-row--stack">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.integrations.nextcloud_password') }}</span>
+              {{ sp_info(_('settings.integrations.nextcloud_password_help')) }}
+            </div>
+            <div class="sp-row-control w-100">
+              <input type="password" class="form-control" id="nextcloud_password" name="nextcloud_password"
+                     value=""
+                     placeholder="{{ _('settings.integrations.nextcloud_password_saved') if (nextcloud and nextcloud.has_password) else _('settings.integrations.nextcloud_password_placeholder') }}"
+                     autocomplete="new-password">
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.integrations.nextcloud_test_label') }}</span>
+            </div>
+            <div class="sp-row-control d-flex align-items-center gap-2 flex-wrap">
+              <button type="button" class="btn btn-outline-secondary mod-pill-btn mod-pill-btn--outline-muted" id="nextcloudTestBtn"
+                      data-test-url="{{ url_for('settings.admin_integrations_nextcloud_test') }}">
+                <i class="bi bi-plug me-1" aria-hidden="true"></i>{{ _('settings.integrations.nextcloud_test_btn') }}
+              </button>
+              <span id="nextcloudTestStatus" class="small text-body-secondary" role="status" aria-live="polite"></span>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   </form>
 </div>
@@ -202,6 +255,45 @@
             tries += 1;
             if (bds.length || tries > 20) clearInterval(timer);
         }, 16);
+    });
+})();
+(function () {
+    var btn = document.getElementById('nextcloudTestBtn');
+    var status = document.getElementById('nextcloudTestStatus');
+    if (!btn || !status) return;
+    btn.addEventListener('click', function () {
+        var urlEl = document.getElementById('nextcloud_url');
+        var userEl = document.getElementById('nextcloud_username');
+        var passEl = document.getElementById('nextcloud_password');
+        btn.disabled = true;
+        status.className = 'small text-body-secondary';
+        status.textContent = '{{ _("settings.integrations.nextcloud_testing") }}';
+        fetch(btn.getAttribute('data-test-url'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify({
+                nextcloud_url: urlEl ? urlEl.value : '',
+                nextcloud_username: userEl ? userEl.value : '',
+                nextcloud_password: passEl ? passEl.value : ''
+            })
+        })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); })
+        .then(function (res) {
+            if (res.ok && res.data && res.data.success) {
+                status.className = 'small text-success fw-semibold';
+                status.textContent = res.data.message || '{{ _("settings.integrations.nextcloud_test_ok") }}';
+            } else {
+                status.className = 'small text-danger fw-semibold';
+                status.textContent = (res.data && res.data.error) || '{{ _("settings.integrations.nextcloud_test_failed") }}';
+            }
+        })
+        .catch(function () {
+            status.className = 'small text-danger fw-semibold';
+            status.textContent = '{{ _("settings.integrations.nextcloud_test_failed") }}';
+        })
+        .finally(function () {
+            btn.disabled = false;
+        });
     });
 })();
 </script>

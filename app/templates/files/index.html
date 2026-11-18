@@ -29,11 +29,18 @@
 {% set files_team_id = files_team_id|default(none) %}
 {% set files_team_name = files_team_name|default(none) %}
 {% set files_view = files_view|default(none) %}
+{% set files_portal_storage_active = files_portal_storage_active|default(true) %}
+{% set files_nextcloud_active = files_nextcloud_active|default(false) %}
+{% set files_nc_private_enabled = files_nc_private_enabled|default(false) %}
+{% set files_nc_public_enabled = files_nc_public_enabled|default(false) %}
+{% set files_nc_teams = files_nc_teams|default([]) %}
+{% set files_sidebar_order = files_sidebar_order|default(['portal', 'nextcloud']) %}
+{% set files_sidebar_collapsed = files_sidebar_collapsed|default({'portal': false, 'nextcloud': false}) %}
 {% set is_trash_view = is_trash_view|default(false) %}
 {% set users_by_id = users_by_id|default({}) %}
 {% set folder_favorites = folder_favorites|default([]) %}
 {% set favorite_folder_ids = favorite_folder_ids|default([]) %}
-{% if files_view == 'team' and files_team_id %}
+{% if files_view in ('team', 'nc_team') and files_team_id %}
 {% set view_q = {'view': files_view, 'team_id': files_team_id} %}
 {% elif files_view %}
 {% set view_q = {'view': files_view} %}
@@ -43,27 +50,25 @@
 {% set files_root_url = files_root_url|default(url_for('files.index', **view_q)) %}
 
 {% macro files_view_icon(view) -%}
-    {%- if view == 'ablage' -%}<i class="bi bi-hdd" aria-hidden="true"></i>
-    {%- elif view == 'public' -%}<i class="bi bi-globe2" aria-hidden="true"></i>
+    {%- if view in ('ablage', 'nc_ablage') -%}<i class="bi bi-hdd" aria-hidden="true"></i>
+    {%- elif view in ('public', 'nc_public') -%}<i class="bi bi-globe2" aria-hidden="true"></i>
     {%- elif view == 'freigaben' -%}<i class="bi bi-people" aria-hidden="true"></i>
-    {%- elif view == 'team' -%}<i class="bi bi-people-fill" aria-hidden="true"></i>
+    {%- elif view in ('team', 'nc_team') -%}<i class="bi bi-people-fill" aria-hidden="true"></i>
     {%- elif view == 'trash' -%}<i class="bi bi-trash3-fill" aria-hidden="true"></i>
     {%- else -%}<i class="bi bi-folder2-open" aria-hidden="true"></i>
     {%- endif -%}
 {%- endmacro %}
 
 {% macro files_view_label() -%}
-{%- if files_view == 'team' -%}{{ files_team_name or _('files.index.nav.team') }}
+{%- if files_view in ('team', 'nc_team') -%}{{ files_team_name or _('files.index.nav.team') }}
+{%- elif files_view == 'nc_ablage' -%}{{ _('files.index.nav.ablage') }} (Nextcloud)
+{%- elif files_view == 'nc_public' -%}{{ _('files.index.nav.public') }} (Nextcloud)
 {%- elif files_view -%}{{ _('files.index.nav.' + files_view) }}
 {%- else -%}{{ _('files.index.heading') }}
 {%- endif -%}
 {%- endmacro %}
 
-{% macro files_nav_links(dismiss_offcanvas=false) %}
-{% set allow_private = (current_user.is_admin or current_user.can_access_private|default(true)) and files_private_folders_enabled %}
-{% set allow_public = (current_user.is_admin or current_user.can_access_public|default(true)) and files_public_folders_enabled %}
-{% set allow_team = (current_user.is_admin or current_user.can_access_team|default(true)) and files_team_folders_enabled %}
-<nav class="mod-sidebar-nav nav flex-column gap-1">
+{% macro files_portal_nav_items(allow_private, allow_team, allow_public, dismiss_offcanvas) %}
     {% if allow_private %}
     <a class="nav-link mod-nav-link files-drop-target files-space-drop {% if files_view == 'ablage' %}active{% endif %}" href="{{ url_for('files.index', view='ablage') }}" data-drop-target="space" data-drop-view="ablage"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-hdd me-2"></i>{{ _('files.index.nav.ablage') }}</a>
     {% endif %}
@@ -80,6 +85,57 @@
     {% endif %}
     {% if allow_private or allow_team %}
     <a class="nav-link mod-nav-link {% if files_view == 'freigaben' %}active{% endif %}" href="{{ url_for('files.index', view='freigaben') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-people me-2"></i>{{ _('files.index.nav.freigaben') }}</a>
+    {% endif %}
+{% endmacro %}
+
+{% macro files_nc_nav_items(dismiss_offcanvas) %}
+    {% if files_nc_private_enabled %}
+    <a class="nav-link mod-nav-link {% if files_view == 'nc_ablage' %}active{% endif %}" href="{{ url_for('files.index', view='nc_ablage') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-hdd me-2"></i>{{ _('files.index.nav.ablage') }}</a>
+    {% endif %}
+    {% for t in files_nc_teams %}
+    <a class="nav-link mod-nav-link {% if files_view == 'nc_team' and files_team_id == t.id %}active{% endif %}" href="{{ url_for('files.index', view='nc_team', team_id=t.id) }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}>
+        <span class="d-inline-block rounded-circle me-2 flex-shrink-0" style="width:.65rem;height:.65rem;background:{{ t.color or 'var(--bs-secondary-color, #6c757d)' }};" aria-hidden="true"></span>
+        <span class="text-truncate">{{ t.name }}</span>
+    </a>
+    {% endfor %}
+    {% if files_nc_public_enabled %}
+    <a class="nav-link mod-nav-link {% if files_view == 'nc_public' %}active{% endif %}" href="{{ url_for('files.index', view='nc_public') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-globe2 me-2"></i>{{ _('files.index.nav.public') }}</a>
+    {% endif %}
+{% endmacro %}
+
+{% macro files_nav_links(dismiss_offcanvas=false) %}
+{% set allow_private = (current_user.is_admin or current_user.can_access_private|default(true)) and files_private_folders_enabled %}
+{% set allow_public = (current_user.is_admin or current_user.can_access_public|default(true)) and files_public_folders_enabled %}
+{% set allow_team = (current_user.is_admin or current_user.can_access_team|default(true)) and files_team_folders_enabled %}
+<nav class="mod-sidebar-nav nav flex-column gap-1">
+    {% if files_portal_storage_active and files_nextcloud_active %}
+    <div class="d-flex flex-column gap-2" data-files-sidebar-groups data-prefs-url="{{ url_for('files.api_sidebar_prefs') }}">
+      {% for sec in files_sidebar_order %}
+      {% set is_collapsed = files_sidebar_collapsed.get(sec, false) %}
+      <div class="files-sidebar-group" data-sidebar-group="{{ sec }}" draggable="true">
+        <div class="d-flex align-items-center justify-content-between px-2 py-1 text-body-secondary small fw-semibold">
+          <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-reset d-flex align-items-center gap-1 flex-grow-1 text-start" data-sidebar-toggle="{{ sec }}" aria-expanded="{{ 'false' if is_collapsed else 'true' }}">
+            <i class="bi {{ 'bi-chevron-right' if is_collapsed else 'bi-chevron-down' }}" aria-hidden="true"></i>
+            {% if sec == 'nextcloud' %}<i class="bi bi-cloud" aria-hidden="true"></i><span>Nextcloud</span>{% else %}<i class="bi bi-building" aria-hidden="true"></i><span>{{ app_name or 'PrismaTeams' }}</span>{% endif %}
+          </button>
+          <button type="button" class="btn btn-link btn-sm p-0 text-body-secondary" data-sidebar-swap title="{{ _('files.index.sidebar.reorder') }}" aria-label="{{ _('files.index.sidebar.reorder') }}">
+            <i class="bi bi-arrow-down-up" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div class="nav flex-column gap-1{% if is_collapsed %} d-none{% endif %}" data-sidebar-body="{{ sec }}">
+          {% if sec == 'nextcloud' %}
+          {{ files_nc_nav_items(dismiss_offcanvas) }}
+          {% else %}
+          {{ files_portal_nav_items(allow_private, allow_team, allow_public, dismiss_offcanvas) }}
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% elif files_nextcloud_active %}
+    {{ files_nc_nav_items(dismiss_offcanvas) }}
+    {% else %}
+    {{ files_portal_nav_items(allow_private, allow_team, allow_public, dismiss_offcanvas) }}
     {% endif %}
     <a class="nav-link mod-nav-link {% if files_view == 'trash' %}active{% endif %}" href="{{ url_for('files.index', view='trash') }}"{% if dismiss_offcanvas %} data-files-dismiss-offcanvas="1"{% endif %}><i class="bi bi-trash3-fill me-2"></i>{{ _('files.index.nav.trash') }}</a>
 </nav>
@@ -501,7 +557,7 @@
                     </div>
                     <form method="POST" action="{{ url_for('files.create_folder') }}" class="inline-create-form">
                         <input type="hidden" name="parent_id" value="{{ current_folder.id if current_folder else '' }}">
-                        {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view == 'team' and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
+                        {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view in ('team', 'nc_team') and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
                         <input type="text" class="form-control form-control-sm mod-pill-input" name="folder_name" placeholder="{{ _('files.index.inline.folder_name_placeholder') }}" required autofocus>
                         <div class="d-flex gap-2 mt-2">
                             <button type="submit" class="btn btn-sm btn-accent flex-fill mod-pill-btn">
@@ -609,7 +665,7 @@
                                 {% endif %}
                                 <li>
                                     <form method="POST" action="{{ url_for('files.delete_folder', folder_id=folder.id) }}" class="d-inline">
-                                        {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view == 'team' and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
+                                        {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view in ('team', 'nc_team') and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
                                         <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('files.index.alerts.delete_folder') }}">
                                             <i class="bi bi-trash"></i> {{ _('files.index.folder_actions.delete') }}
                                         </button>
@@ -641,7 +697,7 @@
                     </div>
                     <form method="POST" class="inline-create-form" id="inlineFileForm">
                         <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
-                        {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view == 'team' and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
+                        {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view in ('team', 'nc_team') and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
                         <input type="text" class="form-control form-control-sm mod-pill-input" name="filename" placeholder="{{ _('files.index.inline.file_name_placeholder') }}" required autofocus>
                         <div class="d-flex gap-2 mt-2">
                             <button type="submit" class="btn btn-sm btn-accent flex-fill mod-pill-btn">
@@ -818,7 +874,7 @@
                                 {% endif %}
                                 <li>
                                     <form method="POST" action="{{ url_for('files.delete_file', file_id=file.id) }}" class="d-inline">
-                                        {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view == 'team' and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
+                                        {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view in ('team', 'nc_team') and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
                                         <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('files.index.alerts.delete_file') }}">
                                             <i class="bi bi-trash"></i> {{ _('files.index.file_actions.delete') }}
                                         </button>
@@ -857,7 +913,7 @@
             <i class="bi bi-folder-fill text-warning fs-4 me-3"></i>
             <form method="POST" action="{{ url_for('files.create_folder') }}" class="inline-create-form d-flex flex-grow-1 align-items-center gap-2">
                 <input type="hidden" name="parent_id" value="{{ current_folder.id if current_folder else '' }}">
-                {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view == 'team' and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
+                {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view in ('team', 'nc_team') and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
                 <input type="text" class="form-control form-control-sm mod-pill-input" name="folder_name" placeholder="{{ _('files.index.inline.folder_name_placeholder') }}" required autofocus>
                 <button type="submit" class="btn btn-sm btn-accent mod-pill-btn">
                     <i class="bi bi-check"></i> {{ _('common.create') }}
@@ -877,7 +933,7 @@
             <i class="bi bi-file-earmark fs-4 text-primary me-3" id="inlineFileIconList"></i>
             <form method="POST" class="inline-create-form d-flex flex-grow-1 align-items-center gap-2" id="inlineFileFormList">
                 <input type="hidden" name="folder_id" value="{{ current_folder.id if current_folder else '' }}">
-                {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view == 'team' and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
+                {% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view in ('team', 'nc_team') and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}
                 <input type="text" class="form-control form-control-sm mod-pill-input" name="filename" placeholder="{{ _('files.index.inline.file_name_placeholder') }}" required autofocus>
                 <button type="submit" class="btn btn-sm btn-accent mod-pill-btn">
                     <i class="bi bi-check"></i> {{ _('common.create') }}
@@ -960,7 +1016,7 @@
                                     <li><a class="dropdown-item" href="#" onclick='startInlineRename("folder", {{ folder.id }}, {{ folder.name|tojson }}); return false;'><i class="bi bi-pencil me-2"></i> {{ _('files.index.folder_actions.rename') }}</a></li>
                                     {{ files_move_menu_item('folder', folder.id) }}
                                     <li><a class="dropdown-item files-favorite-toggle" href="#" data-folder-id="{{ folder.id }}" onclick="toggleFolderFavorite({{ folder.id }}); return false;"><i class="bi bi-star{% if folder.id in favorite_folder_ids %}-fill{% endif %}"></i> <span>{% if folder.id in favorite_folder_ids %}{{ _('files.index.favorites.remove') }}{% else %}{{ _('files.index.favorites.add') }}{% endif %}</span></a></li>
-                                    <li><form method="POST" action="{{ url_for('files.delete_folder', folder_id=folder.id) }}">{% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view == 'team' and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}<button class="dropdown-item text-danger" type="submit" data-confirm-delete="{{ _('files.index.alerts.delete_folder') }}"><i class="bi bi-trash"></i> {{ _('files.index.folder_actions.delete') }}</button></form></li>
+                                    <li><form method="POST" action="{{ url_for('files.delete_folder', folder_id=folder.id) }}">{% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view in ('team', 'nc_team') and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}<button class="dropdown-item text-danger" type="submit" data-confirm-delete="{{ _('files.index.alerts.delete_folder') }}"><i class="bi bi-trash"></i> {{ _('files.index.folder_actions.delete') }}</button></form></li>
                                     {% endif %}
                                 </ul>
                             </div>
@@ -1027,7 +1083,7 @@
                                     {% endif %}
                                     <li><a class="dropdown-item" href="#" onclick='startInlineRename("file", {{ file.id }}, {{ file.name|tojson }}); return false;'><i class="bi bi-pencil me-2"></i> {{ _('files.index.file_actions.rename') }}</a></li>
                                     {{ files_move_menu_item('file', file.id) }}
-                                    <li><form method="POST" action="{{ url_for('files.delete_file', file_id=file.id) }}">{% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view == 'team' and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}<button class="dropdown-item text-danger" type="submit" data-confirm-delete="{{ _('files.index.alerts.delete_file') }}"><i class="bi bi-trash"></i> {{ _('files.index.file_actions.delete') }}</button></form></li>
+                                    <li><form method="POST" action="{{ url_for('files.delete_file', file_id=file.id) }}">{% if files_view %}<input type="hidden" name="view" value="{{ files_view }}">{% endif %}{% if files_view in ('team', 'nc_team') and files_team_id %}<input type="hidden" name="team_id" value="{{ files_team_id }}">{% endif %}<button class="dropdown-item text-danger" type="submit" data-confirm-delete="{{ _('files.index.alerts.delete_file') }}"><i class="bi bi-trash"></i> {{ _('files.index.file_actions.delete') }}</button></form></li>
                                     {% endif %}
                                 </ul>
                             </div>
@@ -1050,7 +1106,11 @@
 </div>
 </div>
 
-<!-- Side Menu für Datei-Details -->
+<!-- Datei/Ordner umbenennen läuft inline — keine Rename-Modals mehr -->
+
+</div></div><!-- /files-shell -->
+
+<!-- Side Menu für Datei-Details (außerhalb der Shell wegen Stacking-Context) -->
 <div class="side-menu-backdrop" id="sideMenuBackdrop" onclick="closeFileDetails()"></div>
 <div class="side-menu" id="sideMenu">
     <div class="side-menu-header">
@@ -1063,10 +1123,6 @@
         <!-- Inhalt wird dynamisch geladen -->
     </div>
 </div>
-
-<!-- Datei/Ordner umbenennen läuft inline — keine Rename-Modals mehr -->
-
-</div></div><!-- /files-shell -->
 
 <!-- Modals außerhalb der Shell (sonst hinter Backdrop wegen Stacking-Context) -->
 <div class="modal fade" id="uploadModal" tabindex="-1">
@@ -1467,6 +1523,80 @@ window.FILES_MOVE_DESTINATIONS_URL = {{ url_for('files.api_move_destinations')|t
 <script src="{{ url_for('static', filename='js/files-index.js') }}"></script>
 <script src="{{ url_for('static', filename='js/files-dati-update.js') }}"></script>
 <script src="{{ url_for('static', filename='js/files-bulk.js') }}"></script>
+<script>
+(function () {
+    document.querySelectorAll('[data-files-sidebar-groups]').forEach(function (container) {
+        var prefsUrl = container.getAttribute('data-prefs-url');
+        var dragged = null;
+
+        function savePrefs() {
+            if (!prefsUrl) return;
+            var order = [];
+            var collapsed = {};
+            container.querySelectorAll('[data-sidebar-group]').forEach(function (g) {
+                var k = g.getAttribute('data-sidebar-group');
+                order.push(k);
+                var body = g.querySelector('[data-sidebar-body]');
+                collapsed[k] = body ? body.classList.contains('d-none') : false;
+            });
+            fetch(prefsUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ order: order, collapsed: collapsed })
+            }).catch(function () {});
+        }
+
+        container.querySelectorAll('[data-sidebar-toggle]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var key = btn.getAttribute('data-sidebar-toggle');
+                var grp = btn.closest('[data-sidebar-group]');
+                var body = grp ? grp.querySelector('[data-sidebar-body="' + key + '"]') : null;
+                var icon = btn.querySelector('i');
+                if (!body) return;
+                var nowHidden = body.classList.toggle('d-none');
+                btn.setAttribute('aria-expanded', nowHidden ? 'false' : 'true');
+                if (icon) {
+                    icon.classList.toggle('bi-chevron-right', nowHidden);
+                    icon.classList.toggle('bi-chevron-down', !nowHidden);
+                }
+                savePrefs();
+            });
+        });
+
+        container.querySelectorAll('[data-sidebar-swap]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var groups = Array.prototype.slice.call(container.querySelectorAll('[data-sidebar-group]'));
+                if (groups.length === 2) {
+                    container.appendChild(groups[0]);
+                    savePrefs();
+                }
+            });
+        });
+
+        container.querySelectorAll('[data-sidebar-group]').forEach(function (grp) {
+            grp.addEventListener('dragstart', function (e) {
+                dragged = grp;
+                if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+            });
+            grp.addEventListener('dragover', function (e) {
+                if (dragged && dragged !== grp) e.preventDefault();
+            });
+            grp.addEventListener('drop', function (e) {
+                if (!dragged || dragged === grp) return;
+                e.preventDefault();
+                var groups = Array.prototype.slice.call(container.querySelectorAll('[data-sidebar-group]'));
+                if (groups.indexOf(dragged) < groups.indexOf(grp)) {
+                    container.insertBefore(dragged, grp.nextSibling);
+                } else {
+                    container.insertBefore(dragged, grp);
+                }
+                savePrefs();
+                dragged = null;
+            });
+        });
+    });
+})();
+</script>
 {% endblock %}
 
 

@@ -95,6 +95,14 @@ def normalize_view(view, private_enabled=None, team_enabled=None, public_enabled
         public_enabled = is_public_folders_enabled()
     view = (view or '').strip().lower()
 
+    from app.utils.nextcloud_settings import (
+        can_access_nextcloud_public,
+        get_files_storage_mode,
+        is_nextcloud_active,
+        is_nextcloud_private_enabled,
+        is_portal_storage_active,
+        get_nextcloud_team_mappings,
+    )
     from app.utils.user_content_access import (
         user_bypasses_content_restrictions,
         user_may_access_private,
@@ -102,38 +110,61 @@ def normalize_view(view, private_enabled=None, team_enabled=None, public_enabled
         user_may_access_team,
     )
 
-    allow_public = public_enabled
-    allow_private = private_enabled
-    allow_team = team_enabled
+    portal_active = is_portal_storage_active()
+    nc_active = is_nextcloud_active()
+
+    allow_public = public_enabled and portal_active
+    allow_private = private_enabled and portal_active
+    allow_team = team_enabled and portal_active
     if user and not user_bypasses_content_restrictions(user):
         allow_public = allow_public and user_may_access_public(user)
         allow_private = allow_private and user_may_access_private(user)
         allow_team = allow_team and user_may_access_team(user)
 
+    allow_nc_private = nc_active and is_nextcloud_private_enabled() and private_enabled
+    allow_nc_team = nc_active and team_enabled and bool(get_nextcloud_team_mappings())
+    allow_nc_public = nc_active and can_access_nextcloud_public(user)
+    if user and not user_bypasses_content_restrictions(user):
+        allow_nc_private = allow_nc_private and user_may_access_private(user)
+        allow_nc_team = allow_nc_team and user_may_access_team(user)
+
+    # In pure nextcloud mode, map generic view names to nc_*
+    if not portal_active and nc_active:
+        if view == 'ablage':
+            view = 'nc_ablage'
+        elif view == 'team':
+            view = 'nc_team'
+        elif view == 'public':
+            view = 'nc_public'
+
     allowed = {'trash'}
     if allow_public:
         allowed.add('public')
-    if private_enabled and allow_private:
+    if allow_private:
         allowed.update({'ablage', 'freigaben'})
-    if team_enabled and allow_team:
+    if allow_team:
         allowed.update({'team', 'freigaben'})
+    if allow_nc_private:
+        allowed.add('nc_ablage')
+    if allow_nc_team:
+        allowed.add('nc_team')
+    if allow_nc_public:
+        allowed.add('nc_public')
 
     if view in allowed:
         return view
-    if view == 'ablage':
-        return 'team' if (team_enabled and allow_team) else ('public' if allow_public else 'trash')
-    if view == 'freigaben':
-        return 'ablage' if (private_enabled and allow_private) else ('team' if (team_enabled and allow_team) else ('public' if allow_public else 'trash'))
-    if view == 'public' and not allow_public:
-        return 'team' if (team_enabled and allow_team) else ('ablage' if (private_enabled and allow_private) else 'trash')
-    if view == 'team' and not allow_team:
-        return 'ablage' if (private_enabled and allow_private) else ('public' if allow_public else 'trash')
-    if private_enabled and allow_private:
+    if allow_private:
         return 'ablage'
-    if team_enabled and allow_team:
+    if allow_team:
         return 'team'
     if allow_public:
         return 'public'
+    if allow_nc_private:
+        return 'nc_ablage'
+    if allow_nc_team:
+        return 'nc_team'
+    if allow_nc_public:
+        return 'nc_public'
     return 'trash'
 
 
@@ -142,6 +173,7 @@ def ensure_personal_root(user_id):
     root = Folder.query.filter_by(
         created_by=user_id,
         is_personal_root=True,
+        storage_backend='local',
     ).first()
     if root:
         if root.deleted_at is not None:
@@ -156,6 +188,7 @@ def ensure_personal_root(user_id):
         created_by=user_id,
         space='personal',
         is_personal_root=True,
+        storage_backend='local',
     )
     db.session.add(root)
     db.session.commit()
@@ -170,7 +203,7 @@ def ensure_team_root(team_id, created_by):
     if not team:
         return None
 
-    root = Folder.query.filter_by(team_id=team_id, is_team_root=True).first()
+    root = Folder.query.filter_by(team_id=team_id, is_team_root=True, storage_backend='local').first()
     if root:
         dirty = False
         if root.deleted_at is not None:
@@ -436,6 +469,11 @@ def can_view_folder(folder, user, private_enabled=None, team_enabled=None):
     if folder.deleted_at is not None:
         return False
 
+    if getattr(folder, 'storage_backend', 'local') == 'nextcloud' and (getattr(folder, 'space', '') == 'public'):
+        from app.utils.nextcloud_settings import can_access_nextcloud_public
+        if not can_access_nextcloud_public(user, write=False):
+            return False
+
     from app.utils.user_content_access import (
         user_bypasses_content_restrictions,
         user_may_access_private,
@@ -501,6 +539,11 @@ def can_view_file(file_obj, user, private_enabled=None, team_enabled=None):
     if file_obj.deleted_at is not None:
         return False
 
+    if getattr(file_obj, 'storage_backend', 'local') == 'nextcloud' and (getattr(file_obj, 'space', '') == 'public'):
+        from app.utils.nextcloud_settings import can_access_nextcloud_public
+        if not can_access_nextcloud_public(user, write=False):
+            return False
+
     from app.utils.user_content_access import (
         user_bypasses_content_restrictions,
         user_may_access_private,
@@ -556,6 +599,11 @@ def can_edit_folder(folder, user, private_enabled=None, team_enabled=None):
         return False
     if folder.deleted_at is not None:
         return False
+
+    if getattr(folder, 'storage_backend', 'local') == 'nextcloud' and (getattr(folder, 'space', '') == 'public'):
+        from app.utils.nextcloud_settings import can_access_nextcloud_public
+        if not can_access_nextcloud_public(user, write=True):
+            return False
     if getattr(folder, 'is_personal_root', False) and folder.created_by != getattr(user, 'id', None):
         return False
     if getattr(user, 'is_admin', False):
@@ -614,6 +662,15 @@ def can_edit_file(file_obj, user, private_enabled=None, team_enabled=None):
         return False
     if file_obj.deleted_at is not None:
         return False
+
+    if getattr(file_obj, 'storage_backend', 'local') == 'nextcloud' and (getattr(file_obj, 'space', '') == 'public'):
+        from app.utils.nextcloud_settings import can_access_nextcloud_public
+        if not can_access_nextcloud_public(user, write=False):
+            return False
+    if getattr(file_obj, 'storage_backend', 'local') == 'nextcloud' and (getattr(file_obj, 'space', '') == 'public'):
+        from app.utils.nextcloud_settings import can_access_nextcloud_public
+        if not can_access_nextcloud_public(user, write=True):
+            return False
     if getattr(user, 'is_admin', False):
         return True
     if private_enabled is None:
@@ -691,15 +748,55 @@ def resolve_default_parent_for_view(view, user_id, team_id=None):
     if view == 'team' and team_id:
         root = ensure_team_root(team_id, user_id)
         return root.id if root else None
+    if view in ('nc_ablage', 'nc_team', 'nc_public'):
+        from app.models.user import User
+        from app.utils.nextcloud_settings import (
+            get_nextcloud_private_user_path,
+            get_nextcloud_public_path,
+            get_team_nextcloud_mapping,
+        )
+        from app.utils.nextcloud_storage import ensure_nextcloud_root_folder
+
+        if view == 'nc_ablage':
+            u = User.query.get(user_id)
+            root = ensure_nextcloud_root_folder(
+                space='personal',
+                user_id=user_id,
+                remote_path=get_nextcloud_private_user_path(u) if u else f'/Ablage/user-{user_id}',
+                name='Meine Ablage',
+                create_remote_if_missing=True,
+            )
+            return root.id
+        if view == 'nc_team' and team_id:
+            mapping = get_team_nextcloud_mapping(team_id)
+            if not mapping:
+                return None
+            team_obj = Team.query.get(team_id)
+            root = ensure_nextcloud_root_folder(
+                space='team',
+                user_id=user_id,
+                remote_path=mapping['path'],
+                team_id=team_id,
+                name=team_obj.name if team_obj else f'Team {team_id}',
+            )
+            return root.id
+        if view == 'nc_public':
+            root = ensure_nextcloud_root_folder(
+                space='public',
+                user_id=user_id,
+                remote_path=get_nextcloud_public_path(),
+                name='Public',
+            )
+            return root.id
     return None  # public / freigaben root → public root (parent None)
 
 
 def resolve_space_for_parent(parent_folder, view):
     if parent_folder is not None:
         return parent_folder.space or 'public'
-    if view == 'ablage':
+    if view in ('ablage', 'nc_ablage'):
         return 'personal'
-    if view == 'team':
+    if view in ('team', 'nc_team'):
         return 'team'
     return 'public'
 
@@ -707,7 +804,7 @@ def resolve_space_for_parent(parent_folder, view):
 def resolve_team_id_for_parent(parent_folder, view, team_id=None):
     if parent_folder is not None:
         return getattr(parent_folder, 'team_id', None)
-    if view == 'team':
+    if view in ('team', 'nc_team'):
         return team_id
     return None
 
@@ -823,9 +920,26 @@ def list_move_destinations(user, exclude_folder_id=None):
     exclude_ids = _collect_descendant_folder_ids(exclude_folder_id) if exclude_folder_id else set()
     spaces = []
 
-    if is_private_folders_enabled():
-        from app.utils.user_content_access import user_may_access_private
-        if user_may_access_private(user):
+    from app.utils.nextcloud_settings import (
+        can_access_nextcloud_public,
+        get_nextcloud_private_user_path,
+        get_nextcloud_public_path,
+        get_team_nextcloud_mapping,
+        is_nextcloud_active,
+        is_nextcloud_private_enabled,
+        is_portal_storage_active,
+    )
+    from app.utils.user_content_access import (
+        user_may_access_private,
+        user_may_access_public,
+        user_may_access_team,
+        user_bypasses_content_restrictions,
+    )
+    portal_active = is_portal_storage_active()
+    nc_active = is_nextcloud_active()
+
+    if portal_active and is_private_folders_enabled():
+        if user_bypasses_content_restrictions(user) or user_may_access_private(user):
             personal_root = ensure_personal_root(user.id)
             folders = [
                 f for f in _folders_in_subtree(personal_root.id)
@@ -842,33 +956,34 @@ def list_move_destinations(user, exclude_folder_id=None):
                 'folders': _build_move_folder_tree(by_parent, personal_root.id, exclude_ids),
             })
 
-    if is_team_folders_enabled():
-        for team in user_file_teams(user):
-            team_root = ensure_team_root(team.id, user.id)
-            if not team_root:
-                continue
-            folders = [
-                f for f in _folders_in_subtree(team_root.id)
-                if can_view_folder(f, user, team_enabled=True)
-                or getattr(user, 'is_admin', False)
-            ]
-            by_parent = _build_folder_children_map(folders)
-            spaces.append({
-                'key': f'team-{team.id}',
-                'view': 'team',
-                'team_id': team.id,
-                'root_folder_id': team_root.id,
-                'label': team.name,
-                'color': getattr(team, 'color', None),
-                'folders': _build_move_folder_tree(by_parent, team_root.id, exclude_ids),
-            })
+    if portal_active and is_team_folders_enabled():
+        if user_bypasses_content_restrictions(user) or user_may_access_team(user):
+            for team in user_file_teams(user):
+                team_root = ensure_team_root(team.id, user.id)
+                if not team_root:
+                    continue
+                folders = [
+                    f for f in _folders_in_subtree(team_root.id)
+                    if can_view_folder(f, user, team_enabled=True)
+                    or getattr(user, 'is_admin', False)
+                ]
+                by_parent = _build_folder_children_map(folders)
+                spaces.append({
+                    'key': f'team-{team.id}',
+                    'view': 'team',
+                    'team_id': team.id,
+                    'root_folder_id': team_root.id,
+                    'label': team.name,
+                    'color': getattr(team, 'color', None),
+                    'folders': _build_move_folder_tree(by_parent, team_root.id, exclude_ids),
+                })
 
-    from app.utils.user_content_access import user_may_access_public
-    if user_may_access_public(user):
+    if portal_active and is_public_folders_enabled() and (user_bypasses_content_restrictions(user) or user_may_access_public(user)):
         public_folders = (
             _alive_folder_query()
             .filter(
                 Folder.space == 'public',
+                Folder.storage_backend == 'local',
                 Folder.is_personal_root.is_(False),
                 Folder.is_team_root.is_(False),
             )
@@ -888,6 +1003,77 @@ def list_move_destinations(user, exclude_folder_id=None):
             'folders': _build_move_folder_tree(by_parent, None, exclude_ids),
         })
 
+    if nc_active:
+        from app.utils.nextcloud_storage import ensure_nextcloud_root_folder
+        if is_nextcloud_private_enabled() and is_private_folders_enabled() and (user_bypasses_content_restrictions(user) or user_may_access_private(user)):
+            nc_personal = ensure_nextcloud_root_folder(
+                space='personal',
+                user_id=user.id,
+                remote_path=get_nextcloud_private_user_path(user),
+                name='Meine Ablage',
+            )
+            folders = [
+                f for f in _folders_in_subtree(nc_personal.id)
+                if can_view_folder(f, user, private_enabled=True) or getattr(user, 'is_admin', False)
+            ]
+            by_parent = _build_folder_children_map(folders)
+            spaces.append({
+                'key': 'nc_ablage',
+                'view': 'nc_ablage',
+                'team_id': None,
+                'root_folder_id': nc_personal.id,
+                'label': 'ablage',
+                'folders': _build_move_folder_tree(by_parent, nc_personal.id, exclude_ids),
+            })
+
+        if is_team_folders_enabled() and (user_bypasses_content_restrictions(user) or user_may_access_team(user)):
+            for team in user_file_teams(user):
+                mapping = get_team_nextcloud_mapping(team.id)
+                if not mapping:
+                    continue
+                nc_team_root = ensure_nextcloud_root_folder(
+                    space='team',
+                    user_id=user.id,
+                    remote_path=mapping['path'],
+                    team_id=team.id,
+                    name=team.name,
+                )
+                folders = [
+                    f for f in _folders_in_subtree(nc_team_root.id)
+                    if can_view_folder(f, user, team_enabled=True) or getattr(user, 'is_admin', False)
+                ]
+                by_parent = _build_folder_children_map(folders)
+                spaces.append({
+                    'key': f'nc_team-{team.id}',
+                    'view': 'nc_team',
+                    'team_id': team.id,
+                    'root_folder_id': nc_team_root.id,
+                    'label': f'{team.name} (Nextcloud)',
+                    'color': getattr(team, 'color', None),
+                    'folders': _build_move_folder_tree(by_parent, nc_team_root.id, exclude_ids),
+                })
+
+        if can_access_nextcloud_public(user, write=True):
+            nc_pub_root = ensure_nextcloud_root_folder(
+                space='public',
+                user_id=user.id,
+                remote_path=get_nextcloud_public_path(),
+                name='Public',
+            )
+            folders = [
+                f for f in _folders_in_subtree(nc_pub_root.id)
+                if can_view_folder(f, user) or getattr(user, 'is_admin', False)
+            ]
+            by_parent = _build_folder_children_map(folders)
+            spaces.append({
+                'key': 'nc_public',
+                'view': 'nc_public',
+                'team_id': None,
+                'root_folder_id': nc_pub_root.id,
+                'label': 'public',
+                'folders': _build_move_folder_tree(by_parent, nc_pub_root.id, exclude_ids),
+            })
+
     return spaces
 
 
@@ -898,6 +1084,95 @@ def list_view_contents(view, folder_id, user, team_id=None, *, offset=0, limit=N
     If limit is set, only a window of folders-then-files is returned and
     window_meta is filled with has_more / total.
     """
+    if view in ('nc_ablage', 'nc_team', 'nc_public'):
+        from app.utils.nextcloud_settings import (
+            can_access_nextcloud_public,
+            get_nextcloud_private_user_path,
+            get_nextcloud_public_path,
+            get_team_nextcloud_mapping,
+            is_nextcloud_private_enabled,
+        )
+        from app.utils.nextcloud_storage import (
+            ensure_nextcloud_root_folder,
+            is_nextcloud_folder,
+            sync_folder_children,
+        )
+
+        nc_root = None
+        if view == 'nc_ablage':
+            if not is_nextcloud_private_enabled():
+                return 'forbidden', [], [], view
+            nc_root = ensure_nextcloud_root_folder(
+                space='personal',
+                user_id=user.id,
+                remote_path=get_nextcloud_private_user_path(user),
+                name='Meine Ablage',
+                create_remote_if_missing=True,
+            )
+        elif view == 'nc_team':
+            mapping = get_team_nextcloud_mapping(team_id)
+            if not mapping or not user_may_use_file_team(user, team_id):
+                return 'forbidden', [], [], view
+            team_obj = Team.query.get(team_id)
+            nc_root = ensure_nextcloud_root_folder(
+                space='team',
+                user_id=user.id,
+                remote_path=mapping['path'],
+                team_id=team_id,
+                name=team_obj.name if team_obj else f'Team {team_id}',
+            )
+        elif view == 'nc_public':
+            if not can_access_nextcloud_public(user, write=False):
+                return 'forbidden', [], [], view
+            nc_root = ensure_nextcloud_root_folder(
+                space='public',
+                user_id=user.id,
+                remote_path=get_nextcloud_public_path(),
+                name='Public',
+            )
+
+        if folder_id:
+            current_folder = Folder.query.get_or_404(folder_id)
+            if not is_nextcloud_folder(current_folder) or not can_view_folder(current_folder, user, private_enabled=True, team_enabled=True):
+                return 'forbidden', [], [], view
+            target_folder = current_folder
+        else:
+            current_folder = None
+            target_folder = nc_root
+
+        try:
+            sync_folder_children(target_folder, user_id=user.id)
+        except Exception:
+            pass
+
+        folder_q = (
+            _alive_folder_query()
+            .filter(
+                Folder.parent_id == target_folder.id,
+                Folder.storage_backend == 'nextcloud',
+                Folder.is_personal_root.is_(False),
+                Folder.is_team_root.is_(False),
+            )
+            .order_by(Folder.name)
+        )
+        file_q = (
+            _alive_file_query()
+            .filter(
+                File.folder_id == target_folder.id,
+                File.storage_backend == 'nextcloud',
+            )
+            .order_by(File.name)
+        )
+        if limit is not None:
+            subfolders, files, has_more, total = window_folders_then_files(
+                folder_q, file_q, offset, limit,
+            )
+            if window_meta is not None:
+                window_meta['has_more'] = has_more
+                window_meta['total'] = total
+            return current_folder, subfolders, files, view
+        return current_folder, folder_q.all(), file_q.all(), view
+
     personal_root = ensure_personal_root(user.id) if view in ('ablage',) else None
     team_root = None
     if view == 'team':
@@ -1080,6 +1355,7 @@ def list_view_contents(view, folder_id, user, team_id=None, *, offset=0, limit=N
             .filter(
                 Folder.parent_id.is_(None),
                 Folder.space == 'public',
+                Folder.storage_backend == 'local',
                 Folder.is_personal_root.is_(False),
                 Folder.is_team_root.is_(False),
             )
@@ -1100,7 +1376,7 @@ def list_view_contents(view, folder_id, user, team_id=None, *, offset=0, limit=N
 
         files = (
             _alive_file_query()
-            .filter(File.folder_id.is_(None), File.space == 'public')
+            .filter(File.folder_id.is_(None), File.space == 'public', File.storage_backend == 'local')
             .order_by(File.name)
             .all()
         )
@@ -1220,16 +1496,20 @@ def restore_folder(folder):
 
 def hard_delete_file_disk_and_db(file_obj, os_module):
     import os as _os
-    paths = [file_obj.file_path] + [v.file_path for v in file_obj.versions]
-    for path in paths:
-        if not path:
-            continue
-        file_path = path if _os.path.isabs(path) else _os.path.join(_os.getcwd(), path)
-        if _os.path.exists(file_path):
-            try:
-                _os.remove(file_path)
-            except OSError:
-                pass
+    if getattr(file_obj, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.nextcloud_storage import delete_nextcloud_file_permanently
+        delete_nextcloud_file_permanently(file_obj)
+    else:
+        paths = [file_obj.file_path] + [v.file_path for v in file_obj.versions]
+        for path in paths:
+            if not path:
+                continue
+            file_path = path if _os.path.isabs(path) else _os.path.join(_os.getcwd(), path)
+            if _os.path.exists(file_path):
+                try:
+                    _os.remove(file_path)
+                except OSError:
+                    pass
     try:
         from app.utils.file_thumbnails import purge_thumbnails_for_file
         purge_thumbnails_for_file(file_obj.id)
@@ -1244,9 +1524,17 @@ def hard_delete_file_disk_and_db(file_obj, os_module):
 
 
 def hard_delete_folder_recursive(folder, os_module):
+    if getattr(folder, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.nextcloud_storage import delete_nextcloud_folder_permanently
+        delete_nextcloud_folder_permanently(folder)
     for file_obj in list(folder.files):
+        if getattr(folder, 'storage_backend', 'local') == 'nextcloud':
+            # Already deleted recursively on Nextcloud via parent folder DELETE
+            file_obj.remote_path = None
         hard_delete_file_disk_and_db(file_obj, os_module)
     for sub in list(folder.subfolders):
+        if getattr(folder, 'storage_backend', 'local') == 'nextcloud':
+            sub.remote_path = None
         hard_delete_folder_recursive(sub, os_module)
     try:
         from app.utils.files_trash_retention import _delete_shares_and_acls
@@ -1435,6 +1723,11 @@ def toggle_folder_favorite(user, folder_id):
         return False, False, 'Ungültiger Ordner.', 0
     if folder.deleted_at is not None:
         return False, False, 'Gelöschte Ordner können nicht favorisiert werden.', 0
+
+    if getattr(folder, 'storage_backend', 'local') == 'nextcloud' and (getattr(folder, 'space', '') == 'public'):
+        from app.utils.nextcloud_settings import can_access_nextcloud_public
+        if not can_access_nextcloud_public(user, write=False):
+            return False, False, 'Kein Zugriff auf diesen Ordner.', 0
     if not can_view_folder(folder, user):
         return False, False, 'Kein Zugriff auf diesen Ordner.', 0
 

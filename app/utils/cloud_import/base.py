@@ -16,6 +16,8 @@ class RemoteEntry:
     is_dir: bool
     size: int = 0
     path: str = ''  # provider-specific path or breadcrumb
+    etag: str = ''
+    content_type: str = ''
 
 
 class CloudProvider(Protocol):

@@ -78,7 +78,7 @@ def upload_file():
     files_view = normalize_view(request.form.get("view") or request.args.get("view"), user=current_user)
     team_id = _request_team_id()
     folder_id, upload_parent = _resolve_create_parent(files_view, folder_id, team_id)
-    if files_view == "team" and is_team_folders_enabled() and not upload_parent:
+    if files_view in ("team", "nc_team") and (is_team_folders_enabled() or files_view == "nc_team") and not upload_parent:
         flash("Keine Berechtigung für diese Team-Ablage.", "danger")
         return finish_upload(_safe_referrer_or(url_for("files.index")))
 
@@ -87,7 +87,7 @@ def upload_file():
     team_enabled = is_team_folders_enabled()
     if (
         not is_guest
-        and (private_enabled or team_enabled)
+        and (private_enabled or team_enabled or (upload_parent and getattr(upload_parent, "storage_backend", "local") == "nextcloud"))
         and upload_parent
         and not current_user.is_admin
         and not can_edit_folder(upload_parent, current_user)

@@ -41,24 +41,36 @@ class CalendarSyncScheduler(IntervalScheduler):
 
         # PERF-07: ohne aktive Quellen kein Sync-Log / kein HTTP
         active_count = CalendarSyncSource.query.filter_by(is_active=True).count()
-        self._has_active_sources = active_count > 0
-        if active_count == 0:
+        from app.utils.nextcloud_calendar_settings import is_nextcloud_calendar_active
+        nc_active = is_nextcloud_calendar_active()
+        self._has_active_sources = (active_count > 0) or nc_active
+        if active_count == 0 and not nc_active:
             logger.debug("Keine aktiven Kalender-Sync-Quellen — idle")
             return
 
-        logger.info(
-            "Starte automatische Kalender-Synchronisation (%s Quellen)...",
-            active_count,
-        )
-        results = sync_all_active_sources()
-        # Nach Sync erneut prüfen (Quellen können deaktiviert worden sein)
+        if active_count > 0:
+            logger.info(
+                "Starte automatische Kalender-Synchronisation (%s Quellen)...",
+                active_count,
+            )
+            results = sync_all_active_sources()
+            logger.info(
+                "Kalender-Sync fertig: %s OK, %s Fehler",
+                results.get("ok", 0),
+                results.get("fail", 0),
+            )
+
+        if nc_active:
+            from app.utils.nextcloud_calendar_sync import sync_all_nextcloud_calendars
+            nc_res = sync_all_nextcloud_calendars(force=True)
+            logger.info(
+                "Nextcloud-Kalender-Sync fertig: %s OK, %s Fehler",
+                nc_res.get("ok", 0),
+                nc_res.get("fail", 0),
+            )
+
         self._has_active_sources = (
-            CalendarSyncSource.query.filter_by(is_active=True).count() > 0
-        )
-        logger.info(
-            "Kalender-Sync fertig: %s OK, %s Fehler",
-            results.get("ok", 0),
-            results.get("fail", 0),
+            CalendarSyncSource.query.filter_by(is_active=True).count() > 0 or is_nextcloud_calendar_active()
         )
 
 

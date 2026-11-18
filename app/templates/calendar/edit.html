@@ -172,6 +172,11 @@
                     <div id="inviteeChips" class="calendar-invitee-chips d-flex flex-wrap gap-2 mt-2" aria-live="polite"></div>
                     <div id="inviteeHiddenInputs"></div>
                     <small class="form-text">{{ _('calendar.create.form.invitees_help') }}</small>
+                    <div class="mt-3">
+                        <label for="attendee_emails" class="form-label">{{ _('calendar.create.form.attendee_emails_label') }}</label>
+                        <input type="text" class="form-control" id="attendee_emails" name="attendee_emails" value="{{ existing_attendee_emails|default('') }}" autocomplete="off" placeholder="{{ _('calendar.create.form.attendee_emails_placeholder') }}">
+                        <small class="form-text">{{ _('calendar.create.form.attendee_emails_help') }}</small>
+                    </div>
                 </div>
             </div>
         </section>

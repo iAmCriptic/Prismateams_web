@@ -32,6 +32,9 @@
                     <div class="calendar-event-participant">
                         <div class="calendar-event-participant-name">
                             {{ participant.user.full_name }}
+                            {% if participant.user.email %}
+                            <span class="small text-body-secondary">({{ participant.user.email }})</span>
+                            {% endif %}
                             {% if participant.status == 'accepted' %}
                             <span class="badge bg-success">{{ _('calendar.view.statuses.accepted') }}</span>
                             {% elif participant.status == 'declined' %}
@@ -50,9 +53,27 @@
                         </form>
                         {% endif %}
                     </div>
-                    {% else %}
-                    <p class="form-text mb-0">—</p>
                     {% endfor %}
+                    {% for att in remote_attendees|default([]) %}
+                    <div class="calendar-event-participant">
+                        <div class="calendar-event-participant-name">
+                            {{ att.name or att.email }}
+                            {% if att.name and att.name != att.email %}
+                            <span class="small text-body-secondary">({{ att.email }})</span>
+                            {% endif %}
+                            {% if att.status == 'accepted' %}
+                            <span class="badge bg-success">{{ _('calendar.view.statuses.accepted') }}</span>
+                            {% elif att.status == 'declined' %}
+                            <span class="badge bg-danger">{{ _('calendar.view.statuses.declined') }}</span>
+                            {% else %}
+                            <span class="badge bg-warning">{{ _('calendar.view.statuses.pending') }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                    {% if not participants and not (remote_attendees|default([])) %}
+                    <p class="form-text mb-0">—</p>
+                    {% endif %}
                 </div>
             </section>
         </aside>
@@ -163,6 +184,12 @@
                         <i class="bi bi-x-circle"></i> {{ _('calendar.view.buttons.decline') }}
                     </button>
                 </form>
+                {% elif user_participation and user_participation.status == 'removed' %}
+                <div class="alert alert-warning mb-0">
+                    {{ _('calendar.view.alerts.removed') }}
+                </div>
+                {% endif %}
+                {% if not (user_participation and user_participation.status == 'removed') %}
                 {% if can_edit %}
                 <a href="{{ url_for('calendar.edit_event', event_id=event.id) }}" class="btn btn-outline-primary calendar-form-cancel">
                     <i class="bi bi-pencil"></i> {{ _('calendar.view.buttons.edit') }}
@@ -183,10 +210,6 @@
                 </form>
                 {% endif %}
                 {% endif %}
-                {% elif user_participation and user_participation.status == 'removed' %}
-                <div class="alert alert-warning mb-0">
-                    {{ _('calendar.view.alerts.removed') }}
-                </div>
                 {% endif %}
             </div>
         </div>

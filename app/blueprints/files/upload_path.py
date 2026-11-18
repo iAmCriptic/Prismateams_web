@@ -85,15 +85,21 @@ def ensure_nested_upload_folder_path(
                 parent_for_space = Folder.query.get(current_parent_id)
                 if parent_for_space:
                     parent_obj_cache[current_parent_id] = parent_for_space
-        new_folder = Folder(
-            name=folder_name_clean,
-            parent_id=current_parent_id,
-            created_by=created_by,
-            space=resolve_space_for_parent(parent_for_space, files_view or "public"),
-            team_id=resolve_team_id_for_parent(parent_for_space, files_view, team_id),
-        )
-        db.session.add(new_folder)
-        db.session.flush()
+        if parent_for_space and getattr(parent_for_space, "storage_backend", "local") == "nextcloud":
+            from app.utils.nextcloud_storage import create_nextcloud_folder
+            new_folder = create_nextcloud_folder(
+                parent_for_space, folder_name_clean, user_id=created_by
+            )
+        else:
+            new_folder = Folder(
+                name=folder_name_clean,
+                parent_id=current_parent_id,
+                created_by=created_by,
+                space=resolve_space_for_parent(parent_for_space, files_view or "public"),
+                team_id=resolve_team_id_for_parent(parent_for_space, files_view, team_id),
+            )
+            db.session.add(new_folder)
+            db.session.flush()
         siblings[folder_name_clean] = new_folder
         cache[new_folder.id] = {}
         parent_obj_cache[new_folder.id] = new_folder

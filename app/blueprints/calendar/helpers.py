@@ -108,15 +108,24 @@ def _selected_calendar_ids_from_request(user):
             session['calendar_selected_ids'] = c_ids
             return c_ids
     # Default calendars
+    from app.utils.nextcloud_calendar_settings import (
+        is_nextcloud_calendar_active,
+        is_portal_calendar_active,
+    )
     defaults = []
-    if is_calendar_personal_enabled() and user:
-        p = get_or_create_personal_calendar(user)
-        if p:
-            defaults.append(p.id)
-    if is_calendar_public_enabled():
-        pub = get_public_calendar()
-        if pub and pub.id not in defaults:
-            defaults.append(pub.id)
+    if is_portal_calendar_active():
+        if is_calendar_personal_enabled() and user:
+            p = get_or_create_personal_calendar(user)
+            if p:
+                defaults.append(p.id)
+        if is_calendar_public_enabled():
+            pub = get_public_calendar()
+            if pub and pub.id not in defaults:
+                defaults.append(pub.id)
+    if is_nextcloud_calendar_active():
+        for nc in Calendar.query.filter_by(storage_backend='nextcloud').order_by(Calendar.name.asc()).all():
+            if nc.id not in defaults:
+                defaults.append(nc.id)
     if not defaults:
         d = default_calendar_for_user(user)
         if d:
@@ -125,10 +134,27 @@ def _selected_calendar_ids_from_request(user):
 
 
 def _sidebar_context(user, selected_ids=None):
+    from app.utils.nextcloud_calendar_settings import (
+        get_calendar_storage_mode,
+        is_nextcloud_calendar_active,
+        is_portal_calendar_active,
+    )
+    nc_active = is_nextcloud_calendar_active()
+    portal_active = is_portal_calendar_active()
+    if nc_active:
+        try:
+            from app.utils.nextcloud_calendar_sync import sync_all_nextcloud_calendars
+            sync_all_nextcloud_calendars(force=False)
+        except Exception as exc:
+            logger.warning('Nextcloud calendar sync failed: %s', exc)
+
     multi = is_calendar_multi_enabled()
     if not multi:
         return {
             'calendar_multi_enabled': False,
+            'calendar_portal_active': portal_active,
+            'calendar_nextcloud_active': nc_active,
+            'calendar_storage_mode': get_calendar_storage_mode(),
             'calendar_personal_enabled': is_calendar_personal_enabled(),
             'calendar_team_enabled': is_calendar_team_enabled(),
             'calendar_public_enabled': is_calendar_public_enabled(),
@@ -147,6 +173,7 @@ def _sidebar_context(user, selected_ids=None):
         sidebar.get('personal')
         or sidebar.get('public')
         or (sidebar.get('teams')[0] if sidebar.get('teams') else None)
+        or (sidebar.get('nextcloud')[0] if sidebar.get('nextcloud') else None)
         or (sidebar.get('others')[0] if sidebar.get('others') else None)
     )
     focus_raw = request.args.get('focus', type=int)
@@ -164,6 +191,9 @@ def _sidebar_context(user, selected_ids=None):
     return {
         'active_view': active_view,
         'calendar_multi_enabled': True,
+        'calendar_portal_active': portal_active,
+        'calendar_nextcloud_active': nc_active,
+        'calendar_storage_mode': get_calendar_storage_mode(),
         'calendar_personal_enabled': is_calendar_personal_enabled(),
         'calendar_team_enabled': is_calendar_team_enabled(),
         'calendar_public_enabled': is_calendar_public_enabled(),
@@ -178,6 +208,7 @@ def _sidebar_context(user, selected_ids=None):
             'teams': [calendar_to_dict(c, user) for c in sidebar.get('teams') or []],
             'rooms': [calendar_to_dict(c, user) for c in sidebar.get('rooms') or []],
             'others': [calendar_to_dict(c, user) for c in sidebar.get('others') or []],
+            'nextcloud': [calendar_to_dict(c, user) for c in sidebar.get('nextcloud') or []],
         },
         'selected_calendar_ids': selected_ids,
         'focus_calendar_id': focus_cal.id if focus_cal else None,

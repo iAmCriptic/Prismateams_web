@@ -26,6 +26,13 @@ CATEGORY_DEFINITIONS = [
     {'key': 'assessment', 'icon': 'bi-clipboard2-check', 'label_key': 'settings.admin.backup.categories.assessment', 'help_key': 'settings.admin.backup.helps.assessment'},
     {'key': 'shortlinks', 'icon': 'bi-link-45deg', 'label_key': 'settings.admin.backup.categories.shortlinks', 'help_key': 'settings.admin.backup.helps.shortlinks'},
     {'key': 'excalidraw', 'icon': 'bi-pencil-square', 'label_key': 'settings.admin.backup.categories.excalidraw', 'help_key': 'settings.admin.backup.helps.excalidraw'},
+    {'key': 'teams', 'icon': 'bi-diagram-3', 'label_key': 'settings.admin.backup.categories.teams', 'help_key': 'settings.admin.backup.helps.teams'},
+    {'key': 'kanban', 'icon': 'bi-kanban', 'label_key': 'settings.admin.backup.categories.kanban', 'help_key': 'settings.admin.backup.helps.kanban'},
+    {'key': 'surveys', 'icon': 'bi-ui-checks', 'label_key': 'settings.admin.backup.categories.surveys', 'help_key': 'settings.admin.backup.helps.surveys'},
+    {'key': 'protocols', 'icon': 'bi-file-earmark-text', 'label_key': 'settings.admin.backup.categories.protocols', 'help_key': 'settings.admin.backup.helps.protocols'},
+    {'key': 'meetings', 'icon': 'bi-camera-video', 'label_key': 'settings.admin.backup.categories.meetings', 'help_key': 'settings.admin.backup.helps.meetings'},
+    {'key': 'duty_roster', 'icon': 'bi-calendar3-week', 'label_key': 'settings.admin.backup.categories.duty_roster', 'help_key': 'settings.admin.backup.helps.duty_roster'},
+    {'key': 'booking_personal', 'icon': 'bi-person-badge', 'label_key': 'settings.admin.backup.categories.booking_personal', 'help_key': 'settings.admin.backup.helps.booking_personal'},
 ]
 
 # Rückwärtskompatibel: key -> DE-Label (Fallback wenn i18n fehlt)
@@ -49,6 +56,13 @@ SUPPORTED_CATEGORIES = {
     'assessment': 'Bewertung',
     'shortlinks': 'Kurzlinks',
     'excalidraw': 'Excalidraw',
+    'teams': 'Teams',
+    'kanban': 'Kanban',
+    'surveys': 'Umfragen',
+    'protocols': 'Protokolle',
+    'meetings': 'Meetings',
+    'duty_roster': 'Dienstplan',
+    'booking_personal': 'Persönliche Buchungen',
 }
 
 

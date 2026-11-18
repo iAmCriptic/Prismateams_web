@@ -178,19 +178,6 @@ def onlyoffice_document(file_id):
         file.original_name,
     )
 
-    # Ensure we have an absolute path
-    if not os.path.isabs(file.file_path):
-        file_path = os.path.join(os.getcwd(), file.file_path)
-    else:
-        file_path = file.file_path
-    
-    # Check if file exists
-    if not os.path.exists(file_path):
-        logging.error(f"ONLYOFFICE file not found: {file_path} (file_id: {file_id}, original_name: {file.original_name})")
-        return jsonify({'error': 'File not found'}), 404
-    
-    logging.info(f"ONLYOFFICE serving file: {file.original_name} from {file_path} (size: {os.path.getsize(file_path)} bytes)")
-    
     # Determine MIME type
     file_ext = os.path.splitext(file.original_name)[1].lower()
     mime_types = {
@@ -202,7 +189,7 @@ def onlyoffice_document(file_id):
         '.md': 'text/markdown',
         '.markdown': 'text/markdown',
         '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        '.xls': 'application/vnd.ms-excel',
+        '.xls': 'application/ms-excel',
         '.ods': 'application/vnd.oasis.opendocument.spreadsheet',
         '.csv': 'text/csv',
         '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
@@ -211,14 +198,42 @@ def onlyoffice_document(file_id):
         '.pdf': 'application/pdf'
     }
     mimetype = mime_types.get(file_ext, 'application/octet-stream')
-    
-    # Create response with CORS headers for cross-origin requests
-    response = send_file(
-        file_path,
-        mimetype=mimetype,
-        download_name=file.original_name,
-        as_attachment=False
-    )
+
+    if getattr(file, 'storage_backend', 'local') == 'nextcloud':
+        import io
+        from app.utils.nextcloud_storage import read_file_bytes
+        try:
+            data = read_file_bytes(file)
+        except Exception as exc:
+            logging.error("ONLYOFFICE Nextcloud read failed for file %s: %s", file_id, exc)
+            return jsonify({'error': 'File not found'}), 404
+        response = send_file(
+            io.BytesIO(data),
+            mimetype=mimetype,
+            download_name=file.original_name,
+            as_attachment=False,
+        )
+    else:
+        # Ensure we have an absolute path
+        if not os.path.isabs(file.file_path):
+            file_path = os.path.join(os.getcwd(), file.file_path)
+        else:
+            file_path = file.file_path
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            logging.error(f"ONLYOFFICE file not found: {file_path} (file_id: {file_id}, original_name: {file.original_name})")
+            return jsonify({'error': 'File not found'}), 404
+        
+        logging.info(f"ONLYOFFICE serving file: {file.original_name} from {file_path} (size: {os.path.getsize(file_path)} bytes)")
+        
+        # Create response with CORS headers for cross-origin requests
+        response = send_file(
+            file_path,
+            mimetype=mimetype,
+            download_name=file.original_name,
+            as_attachment=False
+        )
     
     # Add CORS headers to allow OnlyOffice (auch wenn auf demselben Server über Proxy)
     # OnlyOffice läuft über einen Proxy, daher benötigen wir CORS-Header
@@ -669,6 +684,18 @@ def _download_onlyoffice_saved_content(saved_file_url):
 
 def _onlyoffice_save_callback_file(file, saved_content, increment_version=True):
     """Persist document bytes received from an OnlyOffice callback."""
+    if getattr(file, 'storage_backend', 'local') == 'nextcloud':
+        from app.utils.nextcloud_storage import write_file_bytes
+        write_file_bytes(file, saved_content)
+        if increment_version:
+            file.version_number += 1
+            db.session.commit()
+        try:
+            send_file_notification(file.id, 'modified')
+        except Exception as e:
+            logging.error("Fehler beim Senden der Datei-Benachrichtigung: %s", e)
+        return
+
     timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
     safe_name = _disk_safe_upload_basename(file.original_name)
     filename = f"{timestamp}_{safe_name}"
@@ -813,6 +840,19 @@ def onlyoffice_callback():
             if not saved:
                 logging.error('ONLYOFFICE callback: Save returned False for file %s', file_id)
                 return _onlyoffice_cors_response({'error': 1}, 500)
+            if status == 2 and getattr(file, 'storage_backend', 'local') == 'nextcloud':
+                from app.utils.nextcloud_storage import release_nextcloud_lock_if_unused
+                release_nextcloud_lock_if_unused(file)
+        elif status == 4:
+            file_id_raw = request.args.get('file_id')
+            if file_id_raw:
+                try:
+                    fobj = File.query.get(int(file_id_raw))
+                    if fobj and getattr(fobj, 'storage_backend', 'local') == 'nextcloud':
+                        from app.utils.nextcloud_storage import release_nextcloud_lock_if_unused
+                        release_nextcloud_lock_if_unused(fobj)
+                except (ValueError, TypeError):
+                    pass
 
         return _onlyoffice_cors_response({'error': 0})[0]
     except Exception as e:

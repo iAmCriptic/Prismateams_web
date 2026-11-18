@@ -16,6 +16,7 @@ from app.utils.module_visibility import (
     can_edit_item,
     can_view_item,
     parse_section_args,
+    parse_visibility_value,
     visibility_form_context,
     visibility_nav_context,
 )
@@ -226,24 +227,102 @@ def _scope_folder_query(folder):
 
 
 def _parse_folder_scope_from_form():
-    """Read visibility scope for new folders from form hidden fields."""
+    """Read visibility scope for folders from form select or hidden return fields."""
+    raw_visibility = (request.form.get('visibility') or '').strip()
+    if raw_visibility:
+        return parse_visibility_value(raw_visibility, 'credentials', current_user)
+
     raw_view = (request.form.get('return_view') or '').strip().lower()
     raw_team_id = request.form.get('return_team_id')
-    team_id = None
-    if raw_view == VISIBILITY_TEAM:
-        try:
-            team_id = int(raw_team_id or 0) or None
-        except (TypeError, ValueError):
-            team_id = None
-        if team_id:
-            return VISIBILITY_TEAM, team_id
-        return VISIBILITY_PRIVATE, None
-    if raw_view == VISIBILITY_PRIVATE:
-        return VISIBILITY_PRIVATE, None
-    if raw_view == VISIBILITY_PUBLIC:
-        return VISIBILITY_PUBLIC, None
+    if raw_view == VISIBILITY_TEAM and raw_team_id:
+        return parse_visibility_value(f'team:{raw_team_id}', 'credentials', current_user)
+    if raw_view in (VISIBILITY_PRIVATE, VISIBILITY_PUBLIC):
+        return parse_visibility_value(raw_view, 'credentials', current_user)
     # Unbekannt / leer → privat (S15: kein versehentliches Public)
     return VISIBILITY_PRIVATE, None
+
+
+def _build_storage_locations(allowed_visibilities, visibility_teams, folders):
+    """Build combined Bereich / Ordner options for the Speicherort select."""
+    grouped = _group_folders_by_scope(folders)
+    locations = []
+
+    if VISIBILITY_PRIVATE in allowed_visibilities:
+        private_label = translate('visibility.form.private')
+        locations.append({
+            'value': f'scope:{VISIBILITY_PRIVATE}',
+            'label': private_label,
+            'is_public': False,
+        })
+        for folder in grouped[VISIBILITY_PRIVATE]:
+            locations.append({
+                'value': f'folder:{folder.id}',
+                'label': f'{private_label} / {folder.name}',
+                'is_public': False,
+            })
+
+    if VISIBILITY_TEAM in allowed_visibilities:
+        for team in visibility_teams:
+            locations.append({
+                'value': f'scope:{VISIBILITY_TEAM}:{team.id}',
+                'label': team.name,
+                'is_public': False,
+            })
+            for folder in grouped['teams'].get(team.id, []):
+                locations.append({
+                    'value': f'folder:{folder.id}',
+                    'label': f'{team.name} / {folder.name}',
+                    'is_public': False,
+                })
+
+    if VISIBILITY_PUBLIC in allowed_visibilities:
+        public_opt_label = translate('visibility.form.public_credentials')
+        public_prefix = translate('visibility.nav.public')
+        locations.append({
+            'value': f'scope:{VISIBILITY_PUBLIC}',
+            'label': public_opt_label,
+            'is_public': True,
+        })
+        for folder in grouped[VISIBILITY_PUBLIC]:
+            locations.append({
+                'value': f'folder:{folder.id}',
+                'label': f'{public_prefix} / {folder.name}',
+                'is_public': True,
+            })
+
+    return locations
+
+
+def _parse_storage_location(user):
+    """Parse combined storage_location (`folder:<id>` or `scope:<vis>`) into (folder_id, visibility, team_id)."""
+    raw_loc = (request.form.get('storage_location') or '').strip()
+    if raw_loc.startswith('folder:'):
+        folder_id = parse_folder_id(raw_loc.split(':', 1)[1])
+        if folder_id:
+            folder = CredentialFolder.query.get(folder_id)
+            vis, team_id = _folder_scope(folder)
+            raw_vis = f'team:{team_id}' if vis == VISIBILITY_TEAM and team_id else vis
+            vis, team_id = parse_visibility_value(raw_vis, 'credentials', user)
+            return folder_id, vis, team_id
+        vis, team_id = parse_visibility_value(None, 'credentials', user)
+        return None, vis, team_id
+
+    if raw_loc.startswith('scope:'):
+        scope_raw = raw_loc.split(':', 1)[1]
+        vis, team_id = parse_visibility_value(scope_raw, 'credentials', user)
+        return None, vis, team_id
+
+    # Fallback for legacy form submissions with separate folder_id + visibility
+    folder_id = parse_folder_id(request.form.get('folder_id'))
+    if folder_id:
+        folder = CredentialFolder.query.get(folder_id)
+        vis, team_id = _folder_scope(folder)
+        raw_vis = f'team:{team_id}' if vis == VISIBILITY_TEAM and team_id else vis
+        vis, team_id = parse_visibility_value(raw_vis, 'credentials', user)
+        return folder_id, vis, team_id
+
+    vis, team_id = parse_visibility_value(request.form.get('visibility'), 'credentials', user)
+    return None, vis, team_id
 
 
 def _credentials_form_kwargs(item=None, folder_id=None):
@@ -270,6 +349,16 @@ def _credentials_form_kwargs(item=None, folder_id=None):
         preselect_team_id=pre_team_id,
     )
     ctx['scope_folders'] = all_folders
+    ctx['storage_locations'] = _build_storage_locations(
+        ctx['allowed_visibilities'],
+        ctx['visibility_teams'],
+        all_folders,
+    )
+    active_folder_id = item.folder_id if item is not None else folder_id
+    if active_folder_id and any(f.id == active_folder_id for f in all_folders):
+        ctx['selected_storage_location'] = f'folder:{active_folder_id}'
+    else:
+        ctx['selected_storage_location'] = f"scope:{ctx['selected_visibility']}"
     return ctx
 
 
@@ -374,7 +463,7 @@ def create():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '').strip()
         notes = request.form.get('notes', '').strip()
-        folder_id = parse_folder_id(request.form.get('folder_id'))
+        folder_id, visibility, team_id = _parse_storage_location(current_user)
         is_favorite = request.form.get('is_favorite') == 'on'
         
         if not all([website_url, website_name, username, password]):
@@ -392,10 +481,11 @@ def create():
             notes=notes,
             favicon_url=favicon_url,
             folder_id=folder_id,
+            visibility=visibility,
+            team_id=team_id,
             is_favorite=False,
             created_by=current_user.id
         )
-        apply_visibility_from_form(credential, 'credentials', current_user)
 
         try:
             key = get_encryption_key()
@@ -444,9 +534,11 @@ def edit(credential_id):
         credential.website_name = request.form.get('website_name', '').strip()
         credential.username = request.form.get('username', '').strip()
         credential.notes = request.form.get('notes', '').strip()
-        credential.folder_id = parse_folder_id(request.form.get('folder_id'))
+        folder_id, visibility, team_id = _parse_storage_location(current_user)
+        credential.folder_id = folder_id
+        credential.visibility = visibility
+        credential.team_id = team_id
         want_favorite = request.form.get('is_favorite') == 'on'
-        apply_visibility_from_form(credential, 'credentials', current_user)
         
         new_password = request.form.get('password', '').strip()
         if new_password:
@@ -462,7 +554,14 @@ def edit(credential_id):
         if credential.visibility == VISIBILITY_PUBLIC:
             flash(translate('credentials.flash.public_warning'), 'warning')
         folder = CredentialFolder.query.get(credential.folder_id) if credential.folder_id else None
-        return redirect(url_for('credentials.index', **_index_url_kwargs(folder=folder, folder_id=credential.folder_id)))
+        if folder:
+            redirect_kwargs = _index_url_kwargs(folder=folder, folder_id=credential.folder_id)
+        else:
+            redirect_kwargs = _index_url_kwargs(
+                view=credential.visibility,
+                team_id=credential.team_id if credential.visibility == VISIBILITY_TEAM else None,
+            )
+        return redirect(url_for('credentials.index', **redirect_kwargs))
     
     # Decrypt password for display
     decrypted_password = credential.get_password(key)
@@ -572,12 +671,9 @@ def create_folder():
     db.session.commit()
 
     flash(translate('credentials.flash.folder_created', folder_name=folder.name), 'success')
-    return_folder_id = parse_folder_id(request.form.get('return_folder_id'))
     return redirect(url_for('credentials.index', **_index_url_kwargs(
         folder=folder,
-        folder_id=return_folder_id,
-        view=request.form.get('return_view'),
-        team_id=request.form.get('return_team_id'),
+        folder_id=folder.id,
     )))
 
 
@@ -585,7 +681,7 @@ def create_folder():
 @login_required
 @check_module_access('module_credentials')
 def update_folder(folder_id):
-    """Rename folder and/or change color."""
+    """Rename folder, change color, and/or update visibility scope."""
     folder = CredentialFolder.query.get_or_404(folder_id)
     if not can_edit_item(current_user, folder, 'credentials'):
         return _credentials_denied()
@@ -598,6 +694,18 @@ def update_folder(folder_id):
 
     folder.name = folder_name[:120]
     folder.color = folder_color
+
+    raw_visibility = (request.form.get('visibility') or '').strip()
+    if raw_visibility:
+        new_vis, new_team_id = parse_visibility_value(raw_visibility, 'credentials', current_user)
+        if (new_vis, new_team_id) != _folder_scope(folder):
+            folder.visibility = new_vis
+            folder.team_id = new_team_id
+            Credential.query.filter_by(folder_id=folder.id).update({
+                'visibility': new_vis,
+                'team_id': new_team_id,
+            })
+
     db.session.commit()
 
     flash(translate('credentials.flash.folder_updated', folder_name=folder.name), 'success')
@@ -670,7 +778,12 @@ def move_credential(credential_id):
     if not can_edit_item(current_user, credential, 'credentials'):
         return jsonify({'success': False, 'error': translate('visibility.flash.access_denied')}), 403
     data = request.get_json(silent=True) or {}
-    credential.folder_id = parse_folder_id(data.get('folder_id'))
+    folder_id = parse_folder_id(data.get('folder_id'))
+    credential.folder_id = folder_id
+    if folder_id:
+        folder = CredentialFolder.query.get(folder_id)
+        if folder:
+            credential.visibility, credential.team_id = _folder_scope(folder)
     db.session.commit()
     return jsonify({'success': True})
 

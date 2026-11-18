@@ -50,6 +50,145 @@
         </div>
       </div>
     </section>
+
+    <section class="sp-group mt-3" id="calendar-nextcloud" data-settings-search-id="calendar-nextcloud" aria-labelledby="calendar-nextcloud-title">
+      <div class="sp-group-head">
+        <h2 id="calendar-nextcloud-title" class="sp-group-title"><i class="bi bi-cloud" aria-hidden="true"></i>{{ _('settings.admin.calendar_settings.nc_section_title') }}</h2>
+        {{ sp_info(_('settings.admin.calendar_settings.nc_section_help')) }}
+      </div>
+      <div class="sp-group-body">
+        {% if not nc_cal_configured %}
+        <div class="alert alert-warning d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3" role="status">
+          <span><i class="bi bi-exclamation-triangle me-2" aria-hidden="true"></i>{{ _('settings.admin.file_settings.nc_not_configured_hint') }}</span>
+          <a href="{{ url_for('settings.admin_integrations') }}#integrations-nextcloud" class="btn btn-sm btn-outline-secondary mod-pill-btn mod-pill-btn--outline-muted">
+            {{ _('settings.admin.file_settings.nc_open_integrations') }}
+          </a>
+        </div>
+        {% endif %}
+
+        <div class="sp-row">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.calendar_settings.nc_enabled_label') }}</span>
+            {{ sp_info(_('settings.admin.calendar_settings.nc_enabled_help')) }}
+          </div>
+          <div class="sp-row-control">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="calendar_nextcloud_enabled" name="calendar_nextcloud_enabled" {% if nc_cal_enabled %}checked{% endif %}>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.calendar_settings.nc_mode_label') }}</span>
+            {{ sp_info(_('settings.admin.calendar_settings.nc_mode_help')) }}
+          </div>
+          <div class="sp-row-control w-100 justify-content-start">
+            <div class="sp-seg sp-seg--wrap" role="radiogroup" aria-label="{{ _('settings.admin.calendar_settings.nc_mode_label') }}">
+              <input type="radio" class="btn-check" name="calendar_storage_mode" id="calendar_storage_mode_local" value="local" {% if nc_cal_mode == 'local' %}checked{% endif %}>
+              <label for="calendar_storage_mode_local">{{ app_name or 'PrismaTeams' }} {{ _('settings.admin.calendar_settings.nc_mode_local_suffix') }}</label>
+              <input type="radio" class="btn-check" name="calendar_storage_mode" id="calendar_storage_mode_nextcloud" value="nextcloud" {% if nc_cal_mode == 'nextcloud' %}checked{% endif %}>
+              <label for="calendar_storage_mode_nextcloud">{{ _('settings.admin.calendar_settings.nc_mode_nextcloud') }}</label>
+              <input type="radio" class="btn-check" name="calendar_storage_mode" id="calendar_storage_mode_hybrid" value="hybrid" {% if nc_cal_mode == 'hybrid' %}checked{% endif %}>
+              <label for="calendar_storage_mode_hybrid">{{ _('settings.admin.calendar_settings.nc_mode_hybrid') }}</label>
+            </div>
+          </div>
+        </div>
+
+        <hr class="my-2">
+
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.calendar_settings.nc_events_target_label') }}</span>
+            {{ sp_info(_('settings.admin.calendar_settings.nc_events_target_help')) }}
+          </div>
+          <div class="sp-row-control w-100 justify-content-start">
+            <div class="sp-seg sp-seg--wrap" role="radiogroup" aria-label="{{ _('settings.admin.calendar_settings.nc_events_target_label') }}">
+              <input type="radio" class="btn-check" name="calendar_events_sync_target" id="calendar_events_target_internal" value="internal" {% if nc_events_target != 'nextcloud' %}checked{% endif %}>
+              <label for="calendar_events_target_internal">{{ _('settings.admin.calendar_settings.nc_events_target_internal') }}</label>
+              <input type="radio" class="btn-check" name="calendar_events_sync_target" id="calendar_events_target_nextcloud" value="nextcloud" {% if nc_events_target == 'nextcloud' %}checked{% endif %}>
+              <label for="calendar_events_target_nextcloud">{{ _('settings.admin.calendar_settings.nc_events_target_nextcloud') }}</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="sp-row sp-row--stack" id="ncEventsInternalWrap">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.calendar_settings.nc_events_internal_cal_label') }}</span>
+          </div>
+          <div class="sp-row-control w-100 justify-content-start">
+            <select class="form-select" id="calendar_events_internal_id" name="calendar_events_internal_id" data-mod-pill-select>
+              <option value="">{{ _('settings.admin.calendar_settings.nc_events_internal_default') }}</option>
+              {% for cal in internal_calendars %}
+              <option value="{{ cal.id }}" {% if nc_events_internal_id == (cal.id|string) %}selected{% endif %}>{{ cal.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="sp-row sp-row--stack" id="ncEventsNextcloudWrap">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.calendar_settings.nc_events_nc_cal_label') }}</span>
+            {{ sp_info(_('settings.admin.calendar_settings.nc_events_nc_cal_help')) }}
+          </div>
+          <div class="sp-row-control w-100">
+            <div class="d-flex align-items-center gap-2 flex-wrap w-100">
+              <select class="form-select flex-grow-1" id="calendar_events_nextcloud_url" name="calendar_events_nextcloud_url" data-mod-pill-select>
+                <option value="">{{ _('settings.admin.calendar_settings.nc_events_nc_auto') }}</option>
+                {% for cal in nextcloud_calendars %}
+                {% if not cal.remote_read_only %}
+                <option value="{{ cal.remote_url }}" {% if nc_events_nc_url == cal.remote_url %}selected{% endif %}>{{ cal.name }}</option>
+                {% endif %}
+                {% endfor %}
+              </select>
+              <button type="button" class="btn btn-outline-secondary mod-pill-btn mod-pill-btn--outline-muted" id="ncLoadCalendarsBtn"
+                      data-load-url="{{ url_for('settings.admin_calendar_settings_nextcloud_calendars') }}">
+                <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>{{ _('settings.admin.calendar_settings.nc_load_calendars') }}
+              </button>
+            </div>
+            <span id="ncLoadCalendarsStatus" class="small text-body-secondary mt-1 d-block" role="status" aria-live="polite"></span>
+          </div>
+        </div>
+      </div>
+    </section>
   </form>
 </div>
+<script>
+(function () {
+    var btn = document.getElementById('ncLoadCalendarsBtn');
+    var sel = document.getElementById('calendar_events_nextcloud_url');
+    var status = document.getElementById('ncLoadCalendarsStatus');
+    if (btn && sel) {
+        btn.addEventListener('click', function () {
+            btn.disabled = true;
+            if (status) status.textContent = '{{ _("common.loading") }}';
+            fetch(btn.getAttribute('data-load-url'))
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (!data || !data.success) {
+                        if (status) status.textContent = (data && data.error) || 'Fehler';
+                        return;
+                    }
+                    var current = sel.value;
+                    sel.innerHTML = '<option value="">{{ _("settings.admin.calendar_settings.nc_events_nc_auto") }}</option>';
+                    (data.calendars || []).forEach(function (c) {
+                        if (c.read_only) return;
+                        var opt = document.createElement('option');
+                        opt.value = c.url;
+                        opt.textContent = c.name;
+                        if (c.url === current) opt.selected = true;
+                        sel.appendChild(opt);
+                    });
+                    if (status) status.textContent = (data.calendars || []).length + ' {{ _("settings.admin.calendar_settings.nc_calendars_loaded") }}';
+                })
+                .catch(function () {
+                    if (status) status.textContent = 'Verbindungsfehler';
+                })
+                .finally(function () {
+                    btn.disabled = false;
+                });
+        });
+    }
+})();
+</script>
 {% endblock %}

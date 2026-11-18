@@ -22,6 +22,11 @@ class EventService:
             except Exception:
                 calendar_id = None
             calendar_event = CalendarEvent(
+                title=EventService._calendar_title(event_obj.name, appointment.label),
+                description=appointment.description or event_obj.description,
+                start_time=appointment.start_time,
+                end_time=appointment.end_time,
+                location=appointment.location or event_obj.default_location,
                 created_by=actor_user_id,
                 recurrence_type='none',
                 calendar_id=calendar_id,
@@ -67,6 +72,13 @@ class EventService:
                 participant.status = target_status
                 participant.responded_at = datetime.utcnow()
 
+        if getattr(calendar_event.calendar, 'storage_backend', 'local') == 'nextcloud':
+            try:
+                from app.utils.nextcloud_calendar_sync import push_event_to_nextcloud
+                push_event_to_nextcloud(calendar_event)
+            except Exception:
+                pass
+
     @staticmethod
     def sync_calendar_for_event(event_obj, actor_user_id):
         for appointment in event_obj.appointments:
@@ -76,4 +88,7 @@ class EventService:
     def remove_orphan_calendar_entries(event_obj):
         for appointment in event_obj.appointments:
             if appointment.calendar_event:
+                if getattr(appointment.calendar_event.calendar, 'storage_backend', 'local') == 'nextcloud':
+                    from app.utils.nextcloud_calendar_sync import delete_event_from_nextcloud
+                    delete_event_from_nextcloud(appointment.calendar_event)
                 db.session.delete(appointment.calendar_event)

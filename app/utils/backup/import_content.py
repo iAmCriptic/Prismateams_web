@@ -131,8 +131,9 @@ def import_folders(folders_data: List[Dict], user_map: Dict[str, int], current_u
     return folder_map
 
 
-def import_public_shares(shares_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None):
+def import_public_shares(shares_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None, kanban_board_map: Optional[Dict[int, int]] = None):
     """Importiert öffentliche Freigabe-Links."""
+    from app.models.kanban import KanbanBoard
     from app.models.public_share import PublicShare
     from app.utils.public_share import sync_legacy_share_flags
 
@@ -147,6 +148,11 @@ def import_public_shares(shares_data: List[Dict], user_map: Dict[str, int], curr
             resource = File.query.filter_by(name=s_data['file_name'], folder_id=folder_id, is_current=True).first()
         elif resource_type == 'folder' and s_data.get('folder_name'):
             resource = Folder.query.filter_by(name=s_data['folder_name']).first()
+        elif resource_type == 'kanban_board':
+            old_bid = s_data.get('old_kanban_board_id')
+            new_bid = (kanban_board_map or {}).get(old_bid, old_bid)
+            if new_bid:
+                resource = KanbanBoard.query.get(new_bid)
 
         if not resource:
             continue
@@ -366,8 +372,10 @@ def import_wiki_tags(tags_data: List[Dict]) -> Dict[str, int]:
     return tag_map
 
 
-def import_wiki_pages(pages_data: List[Dict], category_map: Dict[str, int], tag_map: Dict[str, int], user_map: Dict[str, int], current_user_id: Optional[int] = None) -> Dict[str, int]:
+def import_wiki_pages(pages_data: List[Dict], category_map: Dict[str, int], tag_map: Dict[str, int], user_map: Dict[str, int], current_user_id: Optional[int] = None, team_map: Optional[Dict[str, int]] = None) -> Dict[str, int]:
     """Importiert Wiki-Seiten und gibt ein Mapping von Slug zu neuer ID zurück."""
+    from app.utils.backup.file_io import resolve_team_id
+
     page_map = {}  # slug -> neue_id
     
     for p_data in pages_data:
@@ -399,8 +407,9 @@ def import_wiki_pages(pages_data: List[Dict], category_map: Dict[str, int], tag_
             existing.version_number = p_data.get('version_number', 1)
             if p_data.get('visibility'):
                 existing.visibility = p_data['visibility']
-            if 'team_id' in p_data:
-                existing.team_id = p_data.get('team_id')
+            resolved_team_id = resolve_team_id(p_data.get('team_name'), team_map, p_data.get('team_id'))
+            if resolved_team_id is not None:
+                existing.team_id = resolved_team_id
             if p_data.get('updated_at'):
                 existing.updated_at = datetime.fromisoformat(p_data['updated_at'])
             page_map[p_data['slug']] = existing.id
@@ -433,7 +442,7 @@ def import_wiki_pages(pages_data: List[Dict], category_map: Dict[str, int], tag_
                 created_by=created_by_id,
                 version_number=p_data.get('version_number', 1),
                 visibility=p_data.get('visibility') or 'public',
-                team_id=p_data.get('team_id'),
+                team_id=resolve_team_id(p_data.get('team_name'), team_map, p_data.get('team_id')),
             )
             if p_data.get('created_at'):
                 page.created_at = datetime.fromisoformat(p_data['created_at'])
@@ -519,12 +528,12 @@ def import_wiki_page_versions(versions_data: List[Dict], page_map: Dict[str, int
         db.session.add(version)
 
 
-def import_comments(comments_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None) -> Dict[str, int]:
+def import_comments(comments_data: List[Dict], user_map: Dict[str, int], current_user_id: Optional[int] = None, kanban_card_map: Optional[Dict[int, int]] = None) -> Dict[str, int]:
     """Importiert Kommentare und gibt ein Mapping von content_ref zu neuer ID zurück."""
     comment_map = {}  # content_ref -> neue_id
     
     # Erste Runde: Importiere alle Kommentare ohne Parent-Referenzen
-    for c_data in comments_data:
+    for idx, c_data in enumerate(comments_data):
         author_email = c_data.get('author_email')
         if not author_email:
             if current_user_id:
@@ -554,6 +563,15 @@ def import_comments(comments_data: List[Dict], user_map: Dict[str, int], current
             wiki_obj = WikiPage.query.filter_by(slug=wiki_slug).first()
             if wiki_obj:
                 content_id = wiki_obj.id
+        elif c_data['content_type'] == 'kanban_card':
+            old_card_id = c_data.get('content_id')
+            if content_ref.startswith('kanban_card:'):
+                try:
+                    old_card_id = int(content_ref.split(':', 1)[1])
+                except ValueError:
+                    pass
+            if old_card_id is not None:
+                content_id = (kanban_card_map or {}).get(old_card_id, old_card_id)
         
         # Fallback: Verwende content_id aus Backup falls vorhanden
         if not content_id and c_data.get('content_id'):

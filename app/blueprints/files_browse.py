@@ -38,10 +38,23 @@ def register_browse_routes(files_bp):
 
         accessible_folder_ids = set()
         is_guest = _is_guest_user()
+        from app.utils.nextcloud_settings import (
+            can_access_nextcloud_public,
+            get_files_storage_mode,
+            get_nextcloud_team_mappings,
+            get_team_nextcloud_mapping,
+            is_nextcloud_active,
+            is_nextcloud_private_enabled,
+            is_portal_storage_active,
+        )
+        storage_mode = get_files_storage_mode()
+        portal_storage_active = is_portal_storage_active()
+        nc_active = is_nextcloud_active() and not is_guest
+
         private_enabled = is_private_folders_enabled() and not is_guest
         team_enabled = is_team_folders_enabled() and not is_guest
         public_enabled = is_public_folders_enabled()
-        spaces_enabled = (private_enabled or team_enabled)
+        spaces_enabled = (private_enabled or team_enabled or nc_active)
         files_team_id = parse_team_id(request.args.get('team_id')) if not is_guest else None
         # Gäste behalten die alte Root-Ansicht ohne Sidebar-Nav
         if is_guest:
@@ -59,6 +72,12 @@ def register_browse_routes(files_bp):
         if not is_guest and not request.args.get('view') and folder_id:
             target = Folder.query.get(folder_id)
             if target and target.deleted_at is None:
+                if getattr(target, 'storage_backend', 'local') == 'nextcloud':
+                    if target.space == 'team' and target.team_id:
+                        return redirect(url_for('files.browse_folder', folder_id=folder_id, view='nc_team', team_id=target.team_id))
+                    if target.space == 'personal':
+                        return redirect(url_for('files.browse_folder', folder_id=folder_id, view='nc_ablage'))
+                    return redirect(url_for('files.browse_folder', folder_id=folder_id, view='nc_public'))
                 if team_enabled and _folder_is_team_space(target):
                     tid = _folder_team_id(target)
                     if tid:
@@ -68,20 +87,23 @@ def register_browse_routes(files_bp):
                     if not folder_is_under_personal_root(target, personal_root.id):
                         return redirect(url_for('files.browse_folder', folder_id=folder_id, view='public'))
 
-        if files_view == 'team':
+        if files_view in ('team', 'nc_team'):
             if not files_team_id:
                 files_team_id = parse_team_id(session.get('files_last_team_id'))
-            if not user_may_use_file_team(current_user, files_team_id):
+            valid_team = user_may_use_file_team(current_user, files_team_id)
+            if files_view == 'nc_team' and valid_team:
+                valid_team = bool(get_team_nextcloud_mapping(files_team_id))
+            if not valid_team:
                 flash('Sie haben keinen Zugriff auf diese Team-Ablage.', 'danger')
-                fallback = 'ablage' if private_enabled else 'public'
+                fallback = 'ablage' if (private_enabled and portal_storage_active) else ('nc_ablage' if (nc_active and is_nextcloud_private_enabled()) else 'public')
                 return redirect(url_for('files.index', view=fallback))
 
         if not is_guest and files_view:
             session['files_last_view'] = files_view
             session['files_last_folder_id'] = folder_id
-            if files_view == 'team' and files_team_id:
+            if files_view in ('team', 'nc_team') and files_team_id:
                 session['files_last_team_id'] = files_team_id
-            elif files_view != 'team':
+            elif files_view not in ('team', 'nc_team'):
                 session.pop('files_last_team_id', None)
 
         browse_offset = max(0, request.args.get('offset', 0, type=int) or 0)
@@ -252,6 +274,8 @@ def register_browse_routes(files_bp):
                     break
                 if team_root_id and node.id == team_root_id:
                     break
+                if getattr(node, 'storage_backend', 'local') == 'nextcloud' and node.parent_id is None:
+                    break
                 ancestors.append(node)
                 node = node.parent
             ancestors.reverse()
@@ -298,9 +322,20 @@ def register_browse_routes(files_bp):
             favorite_folder_ids = {f['id'] for f in folder_favorites}
 
         nav_teams = user_file_teams(current_user) if team_enabled else []
+        nc_mappings = get_nextcloud_team_mappings() if nc_active else {}
+        nc_nav_teams = [t for t in nav_teams if nc_mappings.get(t.id, {}).get('enabled')] if (nc_active and team_enabled) else []
         files_team_name = None
-        if files_view == 'team' and files_team_id:
+        if files_view in ('team', 'nc_team') and files_team_id:
             files_team_name = next((t.name for t in nav_teams if t.id == files_team_id), None)
+
+        nc_private_enabled = nc_active and is_nextcloud_private_enabled() and private_enabled
+        nc_public_enabled = nc_active and can_access_nextcloud_public(current_user, write=False)
+        sidebar_order = session.get('files_sidebar_order')
+        if not isinstance(sidebar_order, list) or set(sidebar_order) != {'portal', 'nextcloud'}:
+            sidebar_order = ['portal', 'nextcloud']
+        sidebar_collapsed = session.get('files_sidebar_collapsed')
+        if not isinstance(sidebar_collapsed, dict):
+            sidebar_collapsed = {'portal': False, 'nextcloud': False}
 
         from app.utils.webdav import is_webdav_enabled
         files_webdav_enabled = is_webdav_enabled()
@@ -328,9 +363,18 @@ def register_browse_routes(files_bp):
             files_webdav_enabled=files_webdav_enabled,
             webdav_url=webdav_url,
             files_nav_teams=nav_teams,
+            files_nc_teams=nc_nav_teams,
             files_team_id=files_team_id,
             files_team_name=files_team_name,
             files_view=files_view,
+            files_storage_mode=storage_mode,
+            files_portal_storage_active=portal_storage_active,
+            files_nextcloud_active=nc_active,
+            files_nc_private_enabled=nc_private_enabled,
+            files_nc_public_enabled=nc_public_enabled,
+            files_sidebar_order=sidebar_order,
+            files_sidebar_collapsed=sidebar_collapsed,
+            current_view_is_nextcloud=bool(files_view and files_view.startswith('nc_')),
             create_types=create_types,
             onlyoffice_available=onlyoffice_available,
             breadcrumb_folders=breadcrumb_folders,
@@ -345,5 +389,22 @@ def register_browse_routes(files_bp):
             ),
             files_trash_retention_days=files_trash_retention_days,
         )
+
+    @files_bp.route('/api/sidebar-prefs', methods=['POST'])
+    @login_required
+    @check_module_access('module_files')
+    def api_sidebar_prefs():
+        from flask import jsonify
+        data = request.get_json(silent=True) or {}
+        order = data.get('order')
+        if isinstance(order, list) and set(order) == {'portal', 'nextcloud'}:
+            session['files_sidebar_order'] = list(order)
+        collapsed = data.get('collapsed')
+        if isinstance(collapsed, dict):
+            session['files_sidebar_collapsed'] = {
+                'portal': bool(collapsed.get('portal', False)),
+                'nextcloud': bool(collapsed.get('nextcloud', False)),
+            }
+        return jsonify({'success': True})
 
 
