@@ -1068,7 +1068,14 @@
         "can_access_private": "Acesso Private",
         "col_user": "Utilizador",
         "col_roles": "Função",
-        "badge_guest": "Convidado"
+        "badge_guest": "Convidado",
+        "badge_limited_admin": "Limitado ({count})",
+        "limited_admin_badge_title": "Acesso de administrador limitado a {count} cartão(ões) de configuração",
+        "limited_admin_title": "Acesso de administrador limitado",
+        "limited_admin_help": "Concede a este utilizador acesso específico a cartões individuais de definições de administrador sem direitos totais.",
+        "limited_admin_full_hint": "Este utilizador é administrador completo e tem acesso automático a todas as definições.",
+        "select_all": "Selecionar tudo",
+        "select_none": "Nenhum"
       },
       "whitelist": {
         "lead_short": "E-mails e domínios para ativação automática.",

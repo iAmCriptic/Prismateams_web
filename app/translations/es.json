@@ -1804,7 +1804,14 @@
         "can_access_public": "Acceso Public",
         "can_access_private": "Acceso Private",
         "col_user": "Usuario",
-        "col_roles": "Rol"
+        "col_roles": "Rol",
+        "badge_limited_admin": "Limitado ({count})",
+        "limited_admin_badge_title": "Acceso de administrador limitado a {count} tarjeta(s) de configuración",
+        "limited_admin_title": "Acceso de administrador limitado",
+        "limited_admin_help": "Otorga a este usuario acceso específico a tarjetas individuales de configuración de administrador sin derechos completos.",
+        "limited_admin_full_hint": "Este usuario es administrador completo y tiene acceso automático a toda la configuración.",
+        "select_all": "Seleccionar todo",
+        "select_none": "Ninguno"
       },
       "create_user": {
         "page_title": "Crear usuario - Administración",

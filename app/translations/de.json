@@ -1817,7 +1817,14 @@
         "can_access_team": "Team-Zugriff",
         "can_access_private": "Private-Zugriff",
         "col_user": "Benutzer",
-        "col_roles": "Rolle"
+        "col_roles": "Rolle",
+        "badge_limited_admin": "Limitiert ({count})",
+        "limited_admin_badge_title": "Limitierter Admin-Zugriff auf {count} Einstellungs-Karte(n)",
+        "limited_admin_title": "Limitierter Admin-Zugriff",
+        "limited_admin_help": "Gewährt diesem Benutzer ohne volle Admin-Rechte gezielt Zugriff auf einzelne Karten der Admin-Einstellungen (z. B. Helferverwaltung).",
+        "limited_admin_full_hint": "Dieser Benutzer ist Voll-Admin und hat automatisch Zugriff auf alle Admin-Einstellungen.",
+        "select_all": "Alle auswählen",
+        "select_none": "Keine"
       },
       "create_user": {
         "page_title": "Benutzer erstellen - Administration",

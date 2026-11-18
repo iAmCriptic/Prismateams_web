@@ -1817,7 +1817,14 @@
         "can_access_team": "Team access",
         "can_access_private": "Private access",
         "col_user": "User",
-        "col_roles": "Role"
+        "col_roles": "Role",
+        "badge_limited_admin": "Limited ({count})",
+        "limited_admin_badge_title": "Limited admin access to {count} settings card(s)",
+        "limited_admin_title": "Limited Admin Access",
+        "limited_admin_help": "Grants this user targeted access to individual admin settings cards (e.g. helper management) without full admin rights.",
+        "limited_admin_full_hint": "This user is a full admin and automatically has access to all admin settings.",
+        "select_all": "Select all",
+        "select_none": "None"
       },
       "create_user": {
         "page_title": "Create user - Administration",
