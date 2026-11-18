@@ -1199,36 +1199,50 @@
 </div>
 
 <!-- Internal ACL share modal -->
-<div class="modal fade" id="internalShareModal" tabindex="-1">
-  <div class="modal-dialog">
+<div class="modal fade" id="internalShareModal" tabindex="-1" aria-labelledby="internalShareModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">{{ _('files.index.acl.title') }}</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.cancel') }}"></button>
+      <div class="modal-header border-0 pb-0">
+        <h5 class="modal-title" id="internalShareModalLabel">
+          <i class="bi bi-people me-2" aria-hidden="true"></i>{{ _('files.index.acl.title') }}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body pt-3">
         <div class="d-flex gap-2 mb-3 flex-wrap">
-          <button type="button" class="btn btn-sm btn-outline-primary" id="aclShareAllBtn">{{ _('files.index.acl.share_all') }}</button>
+          <button type="button" class="btn mod-pill-btn mod-pill-btn--outline" id="aclShareAllBtn">
+            <i class="bi bi-globe2" aria-hidden="true"></i>
+            <span>{{ _('files.index.acl.share_all') }}</span>
+          </button>
         </div>
         <div class="mb-3">
-          <label for="aclUserSelect" class="form-label">{{ _('files.index.acl.share_user') }}</label>
-          <div class="input-group">
-            <select class="form-select" id="aclUserSelect"></select>
-            <select class="form-select" id="aclPermSelect" aria-label="{{ _('files.index.acl.permission_view') }} / {{ _('files.index.acl.permission_edit') }}" style="max-width:8rem">
+          <label for="aclUserSelect" class="form-label small fw-semibold">{{ _('files.index.acl.share_user') }}</label>
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <select class="form-select mod-pill-input flex-grow-1" id="aclUserSelect"></select>
+            <select class="form-select mod-pill-input w-auto" id="aclPermSelect" aria-label="{{ _('files.index.acl.permission_view') }} / {{ _('files.index.acl.permission_edit') }}">
               <option value="view">{{ _('files.index.acl.permission_view') }}</option>
               <option value="edit">{{ _('files.index.acl.permission_edit') }}</option>
             </select>
-            <button type="button" class="btn btn-accent" id="aclShareUserBtn">OK</button>
+            <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--accent" id="aclShareUserBtn">
+              <i class="bi bi-plus-lg" aria-hidden="true"></i>
+              <span>OK</span>
+            </button>
           </div>
         </div>
         <div class="mb-3" id="aclTeamShareWrap" hidden>
-          <label for="aclTeamSelect" class="form-label">{{ _('files.index.acl.share_team') }}</label>
-          <div class="input-group">
-            <select class="form-select" id="aclTeamSelect"></select>
-            <button type="button" class="btn btn-accent" id="aclShareTeamBtn">OK</button>
+          <label for="aclTeamSelect" class="form-label small fw-semibold">{{ _('files.index.acl.share_team') }}</label>
+          <div class="d-flex flex-wrap gap-2 align-items-center">
+            <select class="form-select mod-pill-input flex-grow-1" id="aclTeamSelect"></select>
+            <button type="button" class="btn btn-accent mod-pill-btn mod-pill-btn--accent" id="aclShareTeamBtn">
+              <i class="bi bi-plus-lg" aria-hidden="true"></i>
+              <span>OK</span>
+            </button>
           </div>
         </div>
         <div id="aclEntriesList" class="list-group list-group-flush"></div>
+      </div>
+      <div class="modal-footer border-0 pt-0 gap-2">
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('common.close') }}</button>
       </div>
     </div>
   </div>

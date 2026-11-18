@@ -1175,8 +1175,8 @@
             const perm = e.permission === 'edit' ? (i18n.permission_edit || 'edit') : (i18n.permission_view || 'view');
             const gid = e.share_all ? 'all' : (isTeam ? ('team:' + e.grantee_team_id) : String(e.grantee_user_id));
             return `<div class="list-group-item d-flex justify-content-between align-items-center px-0">
-                <span>${escapeHtml(label)} <span class="badge bg-secondary">${escapeHtml(perm)}</span></span>
-                <button type="button" class="btn btn-sm btn-outline-danger" data-acl-remove="${escapeHtml(gid)}">${escapeHtml(i18n.remove || 'Entfernen')}</button>
+                <span>${escapeHtml(label)} <span class="badge rounded-pill bg-secondary">${escapeHtml(perm)}</span></span>
+                <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--danger" data-acl-remove="${escapeHtml(gid)}">${escapeHtml(i18n.remove || 'Entfernen')}</button>
             </div>`;
         }).join('');
         list.querySelectorAll('[data-acl-remove]').forEach(btn => {
