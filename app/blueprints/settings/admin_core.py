@@ -16,6 +16,7 @@ import json
 import os
 import secrets
 import tempfile
+from app.utils.admin_cards import has_admin_card_access
 from app.utils.i18n import available_languages, translate
 from app.utils.totp import (
     generate_totp_secret,
@@ -47,7 +48,7 @@ from app.blueprints.settings._bp import (
 @login_required
 def admin_email_footer():
     """Configure email footer template (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -92,7 +93,7 @@ Gesendet von <user> (<email>)
 @login_required
 def admin_email_permissions():
     """Umleitung zur Benutzerverwaltung (E-Mail-Berechtigungen wurden in Rollenverwaltung verschoben)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -104,7 +105,7 @@ def admin_email_permissions():
 @login_required
 def toggle_email_read(user_id):
     """Toggle email read permission for a user (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         return redirect(url_for('settings.index'))
     
     perm = EmailPermission.query.filter_by(user_id=user_id).first()
@@ -126,7 +127,7 @@ def toggle_email_read(user_id):
 @login_required
 def toggle_email_send(user_id):
     """Toggle email send permission for a user (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_email'):
         return redirect(url_for('settings.index'))
     
     perm = EmailPermission.query.filter_by(user_id=user_id).first()
@@ -148,7 +149,7 @@ def toggle_email_send(user_id):
 @login_required
 def admin_system():
     """System settings (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_system'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -517,7 +518,7 @@ def admin_legal():
     """Datenschutz, Impressum & Nutzungsbedingungen bearbeiten (admin only)."""
     from app.utils.legal_pages import get_legal_content, set_legal_content
 
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_legal'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -550,7 +551,7 @@ def admin_registration():
         upsert_setting,
     )
 
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_registration'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -631,7 +632,7 @@ def _get_setting_value_for_admin(key: str) -> str:
 @login_required
 def admin_file_settings():
     """File settings (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_files'):
         flash(translate('settings.admin.file_settings.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -944,7 +945,7 @@ def admin_file_settings():
 @login_required
 def admin_file_settings_nextcloud_folders():
     """List Nextcloud directories for the admin folder picker."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_files'):
         return jsonify({'success': False, 'error': 'unauthorized'}), 403
     from app.utils.integrations import nextcloud_configured
     from app.utils.nextcloud_storage import get_portal_nextcloud_provider
@@ -973,7 +974,7 @@ def _upsert_bool_setting(key, enabled):
 @login_required
 def admin_calendar_settings():
     """Calendar module settings (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_calendar'):
         flash(translate('settings.admin.calendar_settings.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -1132,7 +1133,7 @@ def admin_calendar_settings():
 @login_required
 def admin_calendar_settings_nextcloud_calendars():
     """Discover Nextcloud CalDAV calendars for the admin settings dropdown."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_calendar'):
         return jsonify({'success': False, 'error': 'unauthorized'}), 403
     from app.utils.integrations import nextcloud_configured
     from app.utils.nextcloud_calendar_sync import sync_nextcloud_calendars
@@ -1162,7 +1163,7 @@ def admin_calendar_settings_nextcloud_calendars():
 @login_required
 def admin_modules():
     """Module settings (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_modules'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -1223,7 +1224,7 @@ def admin_modules():
 @login_required
 def admin_integrations():
     """Google Cloud + Microsoft Azure Verknüpfungen (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_integrations'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -1285,7 +1286,7 @@ def admin_integrations():
 @login_required
 def admin_integrations_nextcloud_test():
     """Test portal-wide Nextcloud WebDAV connection."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_integrations'):
         return jsonify({'success': False, 'error': 'unauthorized'}), 403
 
     from app.utils.cloud_import.nextcloud import NextcloudProvider
@@ -1335,7 +1336,7 @@ def _admin_backup_ctx():
 @login_required
 def admin_backup():
     """Backup Import/Export (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_backup'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -1435,7 +1436,7 @@ def admin_backup():
 @login_required
 def admin_whitelist():
     """Manage whitelist entries (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_whitelist'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -1449,7 +1450,7 @@ def admin_whitelist():
 @login_required
 def add_whitelist_entry():
     """Add a new whitelist entry (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_whitelist'):
         return redirect(url_for('settings.index'))
     
     entry = request.form.get('entry', '').strip()
@@ -1484,7 +1485,7 @@ def add_whitelist_entry():
 @login_required
 def toggle_whitelist_entry(entry_id):
     """Toggle whitelist entry active status (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_whitelist'):
         return redirect(url_for('settings.index'))
     
     result = WhitelistEntry.toggle_active(entry_id)
@@ -1503,7 +1504,7 @@ def toggle_whitelist_entry(entry_id):
 @login_required
 def delete_whitelist_entry(entry_id):
     """Delete a whitelist entry (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_whitelist'):
         return redirect(url_for('settings.index'))
     
     entry = WhitelistEntry.query.get(entry_id)
@@ -1525,7 +1526,7 @@ def delete_whitelist_entry(entry_id):
 @login_required
 def admin_inventory_settings():
     """Lagerverwaltung-Einstellungen (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_inventory'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -1584,7 +1585,7 @@ def admin_inventory_settings():
 @login_required
 def admin_inventory_dguv_cert():
     """Generate organisational DGUV signing certificate (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_inventory'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
 
@@ -1618,7 +1619,7 @@ def admin_inventory_dguv_cert():
 @login_required
 def admin_kanban_settings():
     """Legacy URL: Sichtbarkeit über Module, Import unter Board-Import."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_modules'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     from app.utils.common import is_module_enabled

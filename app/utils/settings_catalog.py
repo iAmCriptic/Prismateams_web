@@ -5,6 +5,7 @@ from __future__ import annotations
 from flask import url_for
 from flask_login import AnonymousUserMixin
 
+from app.utils.admin_cards import has_admin_card_access, has_any_admin_card_access
 from app.utils.common import is_module_enabled
 from app.utils.i18n import translate
 from app.utils.multi_mailboxes import is_email_multi_enabled, user_is_team_leader
@@ -137,7 +138,7 @@ def build_settings_catalog(user) -> list[dict]:
         ))
 
     is_leader = user_is_team_leader(user)
-    if is_leader and not user.is_admin:
+    if is_leader and not has_admin_card_access(user, 'admin_teams'):
         catalog.append(_entry(
             translate('settings.admin.cards.teams.title'),
             'settings.admin_teams',
@@ -145,132 +146,156 @@ def build_settings_catalog(user) -> list[dict]:
             'teams mitglieder teamleitung module teameinstellungen aktivieren deaktivieren',
         ))
 
-    if not user.is_admin:
+    if not has_any_admin_card_access(user):
         return catalog
 
-    catalog.append(_entry(
-        translate('settings.admin.cards.user_management.title'),
-        'settings.admin_users',
-        'admin',
-        'benutzer nutzer user rollen gast admin',
-    ))
-    catalog.append(_entry(
-        translate('settings.admin.cards.teams.title'),
-        'settings.admin_teams',
-        'admin',
-        'teams mitglieder teamleitung module teameinstellungen aktivieren deaktivieren',
-    ))
-    catalog.append(_entry(
-        translate('settings.admin.cards.whitelist.title'),
-        'settings.admin_whitelist',
-        'admin',
-        'whitelist freigabe email domain',
-    ))
-    catalog.append(_entry(
-        translate('settings.admin.cards.system_settings.title'),
-        'settings.admin_system',
-        'admin',
-        'system portal logo name zeitzone suche indexing',
-    ))
-    catalog.append(_entry(
-        translate('settings.admin.cards.legal.title'),
-        'settings.admin_legal',
-        'admin',
-        'rechtliches datenschutz impressum nutzungsbedingungen terms privacy',
-    ))
-    catalog.append(_entry(
-        translate('settings.admin.cards.modules.title'),
-        'settings.admin_modules',
-        'admin',
-        'module aktivieren deaktivieren private team public sichtbarkeit',
-    ))
-    catalog.append(_entry(
-        translate('settings.integrations.heading'),
-        'settings.admin_integrations',
-        'admin',
-        'verknüpfungen integration google microsoft oauth spotify deezer youtube',
-    ))
-    catalog.append(_entry(
-        'Spotify',
-        'settings.admin_integrations',
-        'admin',
-        'spotify musik oauth client connect',
-        anchor='spotify',
-    ))
-    catalog.append(_entry(
-        'Deezer',
-        'settings.admin_integrations',
-        'admin',
-        'deezer musik app id',
-        anchor='deezer',
-    ))
-    catalog.append(_entry(
-        'YouTube',
-        'settings.admin_integrations',
-        'admin',
-        'youtube musik google oauth',
-        anchor='youtube',
-    ))
-    catalog.append(_entry(
-        'Nextcloud',
-        'settings.admin_integrations',
-        'admin',
-        'nextcloud webdav cloud dateien speicher portalweit',
-        anchor='integrations-nextcloud',
-    ))
-    catalog.append(_entry(
-        translate('settings.admin.cards.backup.title'),
-        'settings.admin_backup',
-        'admin',
-        'backup import export sicherung',
-    ))
-    catalog.append(_entry(
-        translate('settings.admin.cards.registration_options.title'),
-        'settings.admin_registration',
-        'admin',
-        'registrierung bot schutz captcha recaptcha turnstile',
-    ))
+    if has_admin_card_access(user, 'admin_users'):
+        catalog.append(_entry(
+            translate('settings.admin.cards.user_management.title'),
+            'settings.admin_users',
+            'admin',
+            'benutzer nutzer user rollen gast admin',
+        ))
+    if has_admin_card_access(user, 'admin_teams'):
+        catalog.append(_entry(
+            translate('settings.admin.cards.teams.title'),
+            'settings.admin_teams',
+            'admin',
+            'teams mitglieder teamleitung module teameinstellungen aktivieren deaktivieren',
+        ))
+    if has_admin_card_access(user, 'admin_whitelist'):
+        catalog.append(_entry(
+            translate('settings.admin.cards.whitelist.title'),
+            'settings.admin_whitelist',
+            'admin',
+            'whitelist freigabe email domain',
+        ))
+    if has_admin_card_access(user, 'admin_system'):
+        catalog.append(_entry(
+            translate('settings.admin.cards.system_settings.title'),
+            'settings.admin_system',
+            'admin',
+            'system portal logo name zeitzone suche indexing',
+        ))
+    if has_admin_card_access(user, 'admin_legal'):
+        catalog.append(_entry(
+            translate('settings.admin.cards.legal.title'),
+            'settings.admin_legal',
+            'admin',
+            'rechtliches datenschutz impressum nutzungsbedingungen terms privacy',
+        ))
+    if has_admin_card_access(user, 'admin_modules'):
+        catalog.append(_entry(
+            translate('settings.admin.cards.modules.title'),
+            'settings.admin_modules',
+            'admin',
+            'module aktivieren deaktivieren private team public sichtbarkeit',
+        ))
+    if has_admin_card_access(user, 'admin_integrations'):
+        catalog.append(_entry(
+            translate('settings.integrations.heading'),
+            'settings.admin_integrations',
+            'admin',
+            'verknüpfungen integration google microsoft oauth spotify deezer youtube',
+        ))
+        catalog.append(_entry(
+            'Spotify',
+            'settings.admin_integrations',
+            'admin',
+            'spotify musik oauth client connect',
+            anchor='spotify',
+        ))
+        catalog.append(_entry(
+            'Deezer',
+            'settings.admin_integrations',
+            'admin',
+            'deezer musik app id',
+            anchor='deezer',
+        ))
+        catalog.append(_entry(
+            'YouTube',
+            'settings.admin_integrations',
+            'admin',
+            'youtube musik google oauth',
+            anchor='youtube',
+        ))
+        catalog.append(_entry(
+            'Nextcloud',
+            'settings.admin_integrations',
+            'admin',
+            'nextcloud webdav cloud dateien speicher portalweit',
+            anchor='integrations-nextcloud',
+        ))
+    if has_admin_card_access(user, 'admin_backup'):
+        catalog.append(_entry(
+            translate('settings.admin.cards.backup.title'),
+            'settings.admin_backup',
+            'admin',
+            'backup import export sicherung',
+        ))
+    if has_admin_card_access(user, 'admin_registration'):
+        catalog.append(_entry(
+            translate('settings.admin.cards.registration_options.title'),
+            'settings.admin_registration',
+            'admin',
+            'registrierung bot schutz captcha recaptcha turnstile',
+        ))
 
-    if is_module_enabled('module_booking'):
+    if is_module_enabled('module_booking') and has_admin_card_access(user, 'admin_booking'):
         catalog.append(_entry(
             translate('booking.admin.cards.booking_forms.title'),
             'settings.booking_forms',
             'admin',
             'booking buchung formulare',
         ))
-    if is_module_enabled('module_music'):
+    if is_module_enabled('module_music') and has_admin_card_access(user, 'admin_music'):
         catalog.append(_entry(
             translate('booking.admin.cards.music_module.title'),
             'settings.admin_music',
             'admin',
             'musik provider musicbrainz reihenfolge',
         ))
-    if is_module_enabled('module_email'):
+    if is_module_enabled('module_email') and has_admin_card_access(user, 'admin_email'):
         catalog.append(_entry(
             translate('settings.sidebar.email_module'),
             'settings.admin_email_module',
             'admin',
             'email postfach footer smtp',
         ))
-    if is_module_enabled('module_inventory'):
+    if is_module_enabled('module_inventory') and has_admin_card_access(user, 'admin_inventory'):
         catalog.append(_entry(
             translate('settings.sidebar.inventory'),
             'settings.admin_inventory_settings',
             'admin',
             'inventar lager qr ownership',
         ))
-    if is_module_enabled('module_calendar'):
+    if is_module_enabled('module_calendar') and has_admin_card_access(user, 'admin_calendar'):
         catalog.append(_entry(
             translate('settings.admin.cards.calendar_settings.title'),
             'settings.admin_calendar_settings',
             'admin',
             'kalender export import ical',
         ))
-    catalog.append(_entry(
-        translate('settings.admin.cards.file_settings.title'),
-        'settings.admin_file_settings',
-        'admin',
-        'dateien speicher sharing dropbox onlyoffice eurooffice euro-office format',
-    ))
+    if is_module_enabled('module_events') and has_admin_card_access(user, 'admin_events'):
+        catalog.append(_entry(
+            'Veranstaltungen',
+            'settings.admin_events_settings',
+            'admin',
+            'veranstaltungen events felder einstellungen',
+        ))
+    if is_module_enabled('module_helpers') and has_admin_card_access(user, 'admin_helpers'):
+        catalog.append(_entry(
+            translate('helpers.heading'),
+            'settings.admin_helpers_settings',
+            'admin',
+            'helferverwaltung helfer schichten bereiche marken einstellungen',
+        ))
+    if has_admin_card_access(user, 'admin_files'):
+        catalog.append(_entry(
+            translate('settings.admin.cards.file_settings.title'),
+            'settings.admin_file_settings',
+            'admin',
+            'dateien speicher sharing dropbox onlyoffice eurooffice euro-office format',
+        ))
 
     return catalog

@@ -30,12 +30,15 @@
   }
 
   function initCopyButtons() {
-    document.querySelectorAll('[data-copy-target]').forEach(function (btn) {
+    document.querySelectorAll('[data-copy-target], [data-copy-text]').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var targetId = btn.getAttribute('data-copy-target');
-        var el = document.getElementById(targetId);
-        if (!el) return;
-        var text = el.value || el.textContent || '';
+        var text = btn.getAttribute('data-copy-text') || '';
+        if (!text) {
+          var targetId = btn.getAttribute('data-copy-target');
+          var el = targetId ? document.getElementById(targetId) : null;
+          text = el ? (el.value || el.textContent || '') : '';
+        }
+        if (!text) return;
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(text).then(function () {
             var copiedLabel = btn.getAttribute('data-i18n-copied') || 'Kopiert';
@@ -202,6 +205,59 @@
     endEl.addEventListener('change', recalc);
   }
 
+  function initPlaceholderPills() {
+    var pills = document.querySelectorAll('.js-placeholder-pill[data-placeholder]');
+    var targets = [
+      document.getElementById('spHelperMailSubject'),
+      document.getElementById('spHelperMailBody')
+    ].filter(Boolean);
+    if (!pills.length || !targets.length) return;
+
+    var lastFocused = document.getElementById('spHelperMailBody') || targets[0];
+
+    function insertAtCursor(el, token) {
+      if (!el) return;
+      var start = typeof el.selectionStart === 'number' ? el.selectionStart : el.value.length;
+      var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : el.value.length;
+      el.value = el.value.slice(0, start) + token + el.value.slice(end);
+      var pos = start + token.length;
+      el.focus();
+      if (typeof el.setSelectionRange === 'function') {
+        el.setSelectionRange(pos, pos);
+      }
+    }
+
+    targets.forEach(function (el) {
+      el.addEventListener('focus', function () {
+        lastFocused = el;
+      });
+      el.addEventListener('dragover', function (e) {
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+      });
+      el.addEventListener('drop', function (e) {
+        var token = e.dataTransfer ? e.dataTransfer.getData('text/plain') : '';
+        if (!token || token.indexOf('{{') === -1) return;
+        e.preventDefault();
+        insertAtCursor(el, token);
+      });
+    });
+
+    pills.forEach(function (pill) {
+      pill.addEventListener('dragstart', function (e) {
+        var token = pill.getAttribute('data-placeholder') || '';
+        if (e.dataTransfer) {
+          e.dataTransfer.setData('text/plain', token);
+          e.dataTransfer.effectAllowed = 'copy';
+        }
+      });
+      pill.addEventListener('click', function () {
+        var token = pill.getAttribute('data-placeholder') || '';
+        insertAtCursor(lastFocused, token);
+      });
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     initSearchFilter();
     initCopyButtons();
@@ -210,5 +266,6 @@
     initEditShiftModal();
     bindAutoShiftHours('addShiftStart', 'addShiftEnd', 'addShiftHours');
     bindAutoShiftHours('editShiftStart', 'editShiftEnd', 'editShiftHours');
+    initPlaceholderPills();
   });
 })();

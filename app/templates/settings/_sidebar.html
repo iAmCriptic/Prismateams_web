@@ -138,7 +138,7 @@
     </a>
     {% endif %}
 
-    {% if show_teams_nav and not current_user.is_admin %}
+    {% if show_teams_nav and not has_admin_card('admin_teams') %}
     <hr class="settings-nav-divider">
     <div class="settings-nav-admin-heading">{{ _('settings.sidebar.team_lead_heading') }}</div>
     <a href="{{ url_for('settings.admin_teams') }}" class="nav-link mod-nav-link{% if teams_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
@@ -146,86 +146,113 @@
     </a>
     {% endif %}
 
-    {% if current_user.is_admin %}
+    {% if has_any_admin_card() %}
     <hr class="settings-nav-divider">
     <div class="settings-nav-admin-heading">{{ _('settings.sidebar.admin_heading') }}</div>
 
+    {% if has_admin_card('admin_users') or has_admin_card('admin_teams') or has_admin_card('admin_whitelist') %}
     <div class="settings-nav-section">
         <div class="settings-nav-section-title">{{ _('settings.admin.sections.users.title') }}</div>
     </div>
+    {% if has_admin_card('admin_users') %}
     <a href="{{ url_for('settings.admin_users') }}" class="nav-link mod-nav-link{% if users_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-people me-2"></i>{{ _('settings.admin.cards.user_management.title') }}
     </a>
+    {% endif %}
+    {% if has_admin_card('admin_teams') %}
     <a href="{{ url_for('settings.admin_teams') }}" class="nav-link mod-nav-link{% if teams_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-diagram-3 me-2"></i>{{ _('settings.admin.cards.teams.title') }}
     </a>
+    {% endif %}
+    {% if has_admin_card('admin_whitelist') %}
     <a href="{{ url_for('settings.admin_whitelist') }}" class="nav-link mod-nav-link{% if whitelist_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-shield-check me-2"></i>{{ _('settings.admin.cards.whitelist.title') }}
     </a>
+    {% endif %}
+    {% endif %}
 
+    {% if has_admin_card('admin_system') or has_admin_card('admin_legal') or has_admin_card('admin_modules') or has_admin_card('admin_integrations') or has_admin_card('admin_backup') or has_admin_card('admin_registration') %}
     <div class="settings-nav-section">
         <div class="settings-nav-section-title">{{ _('settings.admin.sections.system.title') }}</div>
     </div>
+    {% if has_admin_card('admin_system') %}
     <a href="{{ url_for('settings.admin_system') }}" class="nav-link mod-nav-link{% if system_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-gear me-2"></i>{{ _('settings.admin.cards.system_settings.title') }}
     </a>
+    {% endif %}
+    {% if has_admin_card('admin_legal') %}
     <a href="{{ url_for('settings.admin_legal') }}" class="nav-link mod-nav-link{% if legal_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-file-earmark-text me-2"></i>{{ _('settings.admin.cards.legal.title') }}
     </a>
+    {% endif %}
+    {% if has_admin_card('admin_modules') %}
     <a href="{{ url_for('settings.admin_modules') }}" class="nav-link mod-nav-link{% if modules_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-grid-3x3-gap me-2"></i>{{ _('settings.admin.cards.modules.title') }}
     </a>
+    {% endif %}
+    {% if has_admin_card('admin_integrations') %}
     <a href="{{ url_for('settings.admin_integrations') }}" class="nav-link mod-nav-link{% if integrations_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-link-45deg me-2"></i>{{ _('settings.integrations.heading') }}
     </a>
+    {% endif %}
+    {% if has_admin_card('admin_backup') %}
     <a href="{{ url_for('settings.admin_backup') }}" class="nav-link mod-nav-link{% if backup_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-archive me-2"></i>{{ _('settings.admin.cards.backup.title') }}
     </a>
+    {% endif %}
+    {% if has_admin_card('admin_registration') %}
     <a href="{{ url_for('settings.admin_registration') }}" class="nav-link mod-nav-link{% if registration_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-shield-lock me-2"></i>{{ _('settings.admin.cards.registration_options.title') }}
     </a>
+    {% endif %}
+    {% endif %}
 
+    {% set show_admin_modules_nav = (is_module_enabled('module_booking') and has_admin_card('admin_booking')) or (is_module_enabled('module_music') and has_admin_card('admin_music')) or (is_module_enabled('module_email') and has_admin_card('admin_email')) or (is_module_enabled('module_inventory') and has_admin_card('admin_inventory')) or (is_module_enabled('module_calendar') and has_admin_card('admin_calendar')) or (is_module_enabled('module_events') and has_admin_card('admin_events')) or (is_module_enabled('module_helpers') and has_admin_card('admin_helpers')) or has_admin_card('admin_files') %}
+    {% if show_admin_modules_nav %}
     <div class="settings-nav-section">
         <div class="settings-nav-section-title">{{ _('settings.sidebar.sections.modules') }}</div>
     </div>
-    {% if is_module_enabled('module_booking') %}
+    {% if is_module_enabled('module_booking') and has_admin_card('admin_booking') %}
     <a href="{{ url_for('settings.booking_rooms') }}" class="nav-link mod-nav-link{% if ep.startswith('settings.booking_') %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-door-open me-2"></i>{{ _('layout.nav.booking') }}
     </a>
     {% endif %}
-    {% if is_module_enabled('module_music') %}
+    {% if is_module_enabled('module_music') and has_admin_card('admin_music') %}
     <a href="{{ url_for('settings.admin_music') }}" class="nav-link mod-nav-link{% if music_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-music-note-beamed me-2"></i>{{ _('booking.admin.cards.music_module.title') }}
     </a>
     {% endif %}
-    {% if is_module_enabled('module_email') %}
+    {% if is_module_enabled('module_email') and has_admin_card('admin_email') %}
     <a href="{{ url_for('settings.admin_email_module') }}" class="nav-link mod-nav-link{% if email_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-envelope me-2"></i>{{ _('settings.sidebar.email_module') }}
     </a>
     {% endif %}
-    {% if is_module_enabled('module_inventory') %}
+    {% if is_module_enabled('module_inventory') and has_admin_card('admin_inventory') %}
     <a href="{{ url_for('settings.admin_inventory_settings') }}" class="nav-link mod-nav-link{% if inventory_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-box-seam me-2"></i>{{ _('settings.sidebar.inventory') }}
     </a>
     {% endif %}
-    {% if is_module_enabled('module_calendar') %}
+    {% if is_module_enabled('module_calendar') and has_admin_card('admin_calendar') %}
     <a href="{{ url_for('settings.admin_calendar_settings') }}" class="nav-link mod-nav-link{% if calendar_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-calendar-event me-2"></i>{{ _('settings.admin.cards.calendar_settings.title') }}
     </a>
     {% endif %}
-    {% if is_module_enabled('module_events') %}
+    {% if is_module_enabled('module_events') and has_admin_card('admin_events') %}
     <a href="{{ url_for('settings.admin_events_settings') }}" class="nav-link mod-nav-link{% if events_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-calendar2-week me-2"></i>Veranstaltungen
     </a>
     {% endif %}
-    {% if is_module_enabled('module_helpers') %}
+    {% if is_module_enabled('module_helpers') and has_admin_card('admin_helpers') %}
     <a href="{{ url_for('settings.admin_helpers_settings') }}" class="nav-link mod-nav-link{% if helpers_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-people-fill me-2"></i>{{ _('helpers.heading') }}
     </a>
     {% endif %}
+    {% if has_admin_card('admin_files') %}
     <a href="{{ url_for('settings.admin_file_settings') }}" class="nav-link mod-nav-link{% if files_active %} active{% endif %}"{% if dismiss_offcanvas %} data-settings-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-folder me-2"></i>{{ _('settings.admin.cards.file_settings.title') }}
     </a>
+    {% endif %}
+    {% endif %}
     {% endif %}
 </nav>
 </div>

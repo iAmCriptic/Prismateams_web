@@ -32,6 +32,29 @@ def ensure_helper_schema():
                 if col_name not in cols:
                     with db.engine.begin() as conn:
                         conn.execute(text(f'ALTER TABLE helper_events ADD COLUMN {col_name} {col_type}'))
+            # Vorlagen-Defaults für bestehende Zeilen nachziehen, falls NULL
+            default_subj = 'Dein Schichtplan für {{ event_name }}'
+            default_body = (
+                'Hallo {{ first_name }},\n\n'
+                'vielen Dank für deine Unterstützung bei {{ event_name }}!\n\n'
+                'Hier ist deine aktuelle Übersicht:\n'
+                'T-Shirt-Größe: {{ tshirt_size }}\n'
+                'Gesamtstunden: {{ total_hours }} Std.\n'
+                'Essensmarken: {{ food_vouchers }} | Getränkemarken: {{ drinks_vouchers }}\n\n'
+                'Deine Schichten:\n'
+                '{{ shifts_list }}\n\n'
+                'Bei Fragen melde dich gerne beim Orga-Team.\n\n'
+                'Liebe Grüße,\nDein Orga-Team'
+            )
+            with db.engine.begin() as conn:
+                conn.execute(
+                    text("UPDATE helper_events SET mail_template_subject = :s WHERE mail_template_subject IS NULL OR mail_template_subject = ''"),
+                    {'s': default_subj},
+                )
+                conn.execute(
+                    text("UPDATE helper_events SET mail_template_body = :b WHERE mail_template_body IS NULL OR mail_template_body = ''"),
+                    {'b': default_body},
+                )
         _schema_verified = True
     except Exception:
         pass

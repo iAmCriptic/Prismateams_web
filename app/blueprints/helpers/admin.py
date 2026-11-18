@@ -14,6 +14,7 @@ from app.models.helpers import (
     HelperFieldConfig,
     HelperVoucherRule,
 )
+from app.utils.admin_cards import has_admin_card_access
 from app.utils.i18n import translate
 from . import helpers_bp
 from .forms import parse_date_optional, parse_float_optional, parse_int_optional
@@ -21,7 +22,7 @@ from .views import _resolve_event_context
 
 
 def _require_admin():
-    if not getattr(current_user, 'is_admin', False):
+    if not has_admin_card_access(current_user, 'admin_helpers'):
         abort(403)
 
 
@@ -61,28 +62,32 @@ def update_event_settings(event_id):
     _require_admin()
     _, current_event = _resolve_event_context(event_id)
 
-    name = (request.form.get('name') or '').strip()
-    if name:
-        current_event.name = name
-    current_event.description = (request.form.get('description') or '').strip() or None
-    current_event.start_date = parse_date_optional(request.form.get('start_date'))
-    current_event.end_date = parse_date_optional(request.form.get('end_date'))
-    current_event.apply_enabled = request.form.get('apply_enabled') in ('1', 'true', 'on', 'yes')
+    section = (request.form.get('section') or 'all').strip()
 
-    calc_mode = (request.form.get('voucher_calc_mode') or 'per_shift').strip()
-    if calc_mode in ('per_shift', 'cumulative_per_person_day'):
-        current_event.voucher_calc_mode = calc_mode
+    if section in ('all', 'general'):
+        name = (request.form.get('name') or '').strip()
+        if name:
+            current_event.name = name
+        current_event.description = (request.form.get('description') or '').strip() or None
+        current_event.start_date = parse_date_optional(request.form.get('start_date'))
+        current_event.end_date = parse_date_optional(request.form.get('end_date'))
+        current_event.apply_enabled = request.form.get('apply_enabled') in ('1', 'true', 'on', 'yes')
 
-    if 'mailbox_id' in request.form:
-        current_event.mailbox_id = parse_int_optional(request.form.get('mailbox_id'))
-    if 'mail_template_subject' in request.form:
-        subj = (request.form.get('mail_template_subject') or '').strip()
-        if subj:
-            current_event.mail_template_subject = subj
-    if 'mail_template_body' in request.form:
-        body = (request.form.get('mail_template_body') or '').strip()
-        if body:
-            current_event.mail_template_body = body
+        calc_mode = (request.form.get('voucher_calc_mode') or 'per_shift').strip()
+        if calc_mode in ('per_shift', 'cumulative_per_person_day'):
+            current_event.voucher_calc_mode = calc_mode
+
+    if section in ('all', 'mail'):
+        if 'mailbox_id' in request.form:
+            current_event.mailbox_id = parse_int_optional(request.form.get('mailbox_id'))
+        if 'mail_template_subject' in request.form:
+            subj = (request.form.get('mail_template_subject') or '').strip()
+            if subj:
+                current_event.mail_template_subject = subj
+        if 'mail_template_body' in request.form:
+            body = (request.form.get('mail_template_body') or '').strip()
+            if body:
+                current_event.mail_template_body = body
 
     db.session.commit()
     flash(translate('helpers.flash.settings_saved'), 'success')

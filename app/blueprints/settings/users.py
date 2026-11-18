@@ -16,6 +16,11 @@ import json
 import os
 import secrets
 import tempfile
+from app.utils.admin_cards import (
+    get_admin_card_catalog_for_ui,
+    has_admin_card_access,
+    has_any_admin_card_access,
+)
 from app.utils.i18n import available_languages, translate
 from app.utils.totp import (
     generate_totp_secret,
@@ -47,7 +52,7 @@ from app.blueprints.settings._bp import (
 @login_required
 def admin():
     """Admin settings hub — redirects to Start dashboard (sidebar has all admin links)."""
-    if not current_user.is_admin:
+    if not has_any_admin_card_access(current_user):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     return redirect(url_for('settings.index') + '#admin')
@@ -57,11 +62,11 @@ def admin():
 @login_required
 def admin_users():
     """Manage users and roles (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_users'):
         flash(translate('settings.admin.users.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
-    from app.models.role import UserModuleRole
+    from app.models.role import UserAdminCardPermission, UserModuleRole
     
     # Liste aller Module für Rollenanzeige
     all_modules = [
@@ -120,10 +125,13 @@ def admin_users():
     from app.models.guest import GuestShareAccess
 
     role_map = defaultdict(dict)
+    admin_card_map = defaultdict(list)
     all_role_user_ids = [u.id for u in active_users] + [g.id for g in guest_users]
     if all_role_user_ids:
         for role in UserModuleRole.query.filter(UserModuleRole.user_id.in_(all_role_user_ids)).all():
             role_map[role.user_id][role.module_key] = role.has_access
+        for perm in UserAdminCardPermission.query.filter(UserAdminCardPermission.user_id.in_(all_role_user_ids)).all():
+            admin_card_map[perm.user_id].append(perm.card_key)
 
     users_with_roles = [
         {
@@ -133,6 +141,7 @@ def admin_users():
             'can_access_team': bool(getattr(user, 'can_access_team', True)),
             'can_access_private': bool(getattr(user, 'can_access_private', True)),
             'module_roles': role_map[user.id],
+            'admin_cards': admin_card_map[user.id],
         }
         for user in active_users
     ]
@@ -200,6 +209,7 @@ def admin_users():
                          guest_email_suffix=get_guest_email_suffix(),
                          all_teams=all_teams,
                          user_team_ids=user_team_ids,
+                         admin_card_catalog=get_admin_card_catalog_for_ui(),
                          now=now)
 
 
@@ -207,7 +217,7 @@ def admin_users():
 @login_required
 def create_user():
     """Create a new user account (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_users'):
         flash(translate('settings.admin.flash_unauthorized'), 'danger')
         return redirect(url_for('settings.index'))
     
@@ -588,7 +598,7 @@ def create_user():
 @login_required
 def guest_credentials_pdf():
     """PDF mit Gast-Zugangsdaten, QR und Login-Link (Admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_users'):
         return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
 
     data = request.get_json(silent=True) or {}
@@ -622,7 +632,7 @@ def guest_credentials_pdf():
 @login_required
 def guest_credentials_email():
     """Sendet Gast-Zugangsdaten manuell an eine Empfänger-Adresse (Admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_users'):
         return jsonify({'success': False, 'message': translate('settings.admin.flash_unauthorized')}), 403
 
     data = request.get_json(silent=True) or {}
@@ -655,7 +665,7 @@ def guest_credentials_email():
 @login_required
 def activate_user(user_id):
     """Activate a user (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_users'):
         return redirect(url_for('settings.index'))
     
     user = User.query.get_or_404(user_id)
@@ -709,7 +719,7 @@ def activate_user(user_id):
 @login_required
 def deactivate_user(user_id):
     """Deactivate a user (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_users'):
         return redirect(url_for('settings.index'))
     
     if user_id == current_user.id:
@@ -793,7 +803,7 @@ def remove_admin(user_id):
 @login_required
 def edit_guest_user(user_id):
     """Edit a guest account (admin only). JSON/AJAX für Modal; HTML-GET → Benutzerliste."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_users'):
         if request.args.get('format') == 'json' or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return jsonify({'success': False, 'error': translate('settings.admin.users.flash_unauthorized')}), 403
         return redirect(url_for('settings.index'))
@@ -974,7 +984,7 @@ def edit_guest_user(user_id):
 @login_required
 def delete_user(user_id):
     """Delete a user (admin only)."""
-    if not current_user.is_admin:
+    if not has_admin_card_access(current_user, 'admin_users'):
         return redirect(url_for('settings.index'))
     
     if user_id == current_user.id:
