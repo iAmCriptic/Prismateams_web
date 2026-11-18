@@ -383,6 +383,16 @@ def _is_image_name_or_mime(name: str | None, mime: str | None) -> bool:
     return ext in _IMAGE_EXTS
 
 
+def _safe_stored_filename(original: str, max_orig_len: int = 160) -> str:
+    """Build a UUID-prefixed filename that always stays well under 255 bytes."""
+    cleaned = secure_filename(original or '') or 'attachment'
+    stem, ext = os.path.splitext(cleaned)
+    ext = ext[:20]
+    max_stem = max(1, max_orig_len - len(ext))
+    safe_orig = (stem[:max_stem] + ext) or 'attachment'
+    return f'{uuid.uuid4().hex}_{safe_orig}'
+
+
 def _download_remote_file(
     url: str,
     *,
@@ -453,23 +463,32 @@ def _download_remote_file(
                     part = cd.split('filename=')[-1].strip().strip('"\'')
                     if part:
                         original = secure_filename(part) or original
-                stored = f'{uuid.uuid4().hex}_{original}'
+                stored = _safe_stored_filename(original)
                 path = os.path.join(dest_dir, stored)
                 size = 0
-                with open(path, 'wb') as out:
-                    for chunk in resp.iter_content(chunk_size=64 * 1024):
-                        if not chunk:
-                            continue
-                        size += len(chunk)
-                        if size > _DOWNLOAD_MAX_BYTES:
-                            out.close()
-                            try:
-                                os.remove(path)
-                            except OSError:
-                                pass
-                            logger.info('kanban import download too large: %s', current_url)
-                            return None
-                        out.write(chunk)
+                try:
+                    with open(path, 'wb') as out:
+                        for chunk in resp.iter_content(chunk_size=64 * 1024):
+                            if not chunk:
+                                continue
+                            size += len(chunk)
+                            if size > _DOWNLOAD_MAX_BYTES:
+                                out.close()
+                                try:
+                                    os.remove(path)
+                                except OSError:
+                                    pass
+                                logger.info('kanban import download too large: %s', current_url)
+                                return None
+                            out.write(chunk)
+                except OSError as exc:
+                    logger.warning('kanban import file write failed %s: %s', path, exc)
+                    try:
+                        if os.path.exists(path):
+                            os.remove(path)
+                    except OSError:
+                        pass
+                    return None
                 if size <= 0:
                     try:
                         os.remove(path)
@@ -719,6 +738,10 @@ def _import_trello_json(
     )
     list_card_pos: dict[int, int] = {}
 
+    # Commit board/lists/labels before card attachment downloads so no DB row locks
+    # (e.g. on users) are held during slow HTTP requests.
+    db.session.commit()
+
     for card_data in cards_sorted:
         id_list = card_data.get('idList')
         kl = list_map.get(id_list) or default_list
@@ -804,6 +827,8 @@ def _import_trello_json(
                 ))
 
         # attachments — download binaries when possible, else keep as links
+        # Commit pending card/checklist changes before remote HTTP downloads.
+        db.session.commit()
         cover_tid = card_data.get('idAttachmentCover')
         cover_new_id = None
         for att in card_data.get('attachments') or []:
@@ -970,6 +995,7 @@ def _import_trello_csv(
         # Card members/assignees are intentionally excluded from CSV import
 
         if c_att:
+            db.session.commit()
             first_image_cover = None
             for url in re.split(r'[\s,]+', (row.get(c_att) or '').strip()):
                 url = url.strip()
