@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import uuid
 import xml.etree.ElementTree as ET
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Optional
 from urllib.parse import quote, urljoin, urlparse
@@ -47,6 +48,7 @@ class RemoteCalEvent:
     recurrence_interval: int = 1
     recurrence_end_date: Optional[datetime] = None
     recurrence_days: Optional[str] = None
+    attendees: list[dict[str, str]] = field(default_factory=list)
 
 
 def _strip_etag(raw: str | None) -> str:
@@ -231,13 +233,18 @@ class NextcloudCalDAVClient:
             read_only = False
             priv_set = next((p.find('d:current-user-privilege-set', NS) for p in props if p.find('d:current-user-privilege-set', NS) is not None), None)
             if priv_set is not None:
-                has_write = (
-                    priv_set.find('.//d:write', NS) is not None
-                    or priv_set.find('.//d:write-content', NS) is not None
-                    or priv_set.find('.//d:all', NS) is not None
-                )
-                if not has_write:
-                    read_only = True
+                privs = priv_set.findall('.//d:privilege', NS)
+                if privs:
+                    has_write = (
+                        priv_set.find('.//d:write', NS) is not None
+                        or priv_set.find('.//d:write-content', NS) is not None
+                        or priv_set.find('.//d:write-properties', NS) is not None
+                        or priv_set.find('.//d:bind', NS) is not None
+                        or priv_set.find('.//d:all', NS) is not None
+                        or priv_set.find('.//cal:write', NS) is not None
+                    )
+                    if not has_write:
+                        read_only = True
 
             calendars.append(
                 RemoteCalendar(
@@ -404,6 +411,37 @@ class NextcloudCalDAVClient:
                     if until_list:
                         rec_end = _to_naive_portal_dt(until_list[0], is_end=True)
 
+                attendees: list[dict[str, str]] = []
+                raw_attendees = comp.get('ATTENDEE')
+                if raw_attendees:
+                    att_list = raw_attendees if isinstance(raw_attendees, list) else [raw_attendees]
+                    seen_emails: set[str] = set()
+                    partstat_map = {
+                        'ACCEPTED': 'accepted',
+                        'DECLINED': 'declined',
+                        'TENTATIVE': 'tentative',
+                        'NEEDS-ACTION': 'pending',
+                    }
+                    for att in att_list:
+                        val_str = str(att).strip()
+                        if val_str.lower().startswith('mailto:'):
+                            email = val_str[7:].strip().lower()
+                        elif '@' in val_str:
+                            email = val_str.lower()
+                        else:
+                            continue
+                        if not email or email in seen_emails:
+                            continue
+                        seen_emails.add(email)
+                        params = getattr(att, 'params', {}) or {}
+                        cn = str(params.get('CN') or '').strip()
+                        partstat = str(params.get('PARTSTAT') or 'NEEDS-ACTION').strip().upper()
+                        attendees.append({
+                            'email': email,
+                            'name': cn or email,
+                            'status': partstat_map.get(partstat, 'pending'),
+                        })
+
                 return RemoteCalEvent(
                     href=href,
                     etag=etag,
@@ -417,6 +455,7 @@ class NextcloudCalDAVClient:
                     recurrence_interval=rec_interval,
                     recurrence_end_date=rec_end,
                     recurrence_days=rec_days,
+                    attendees=attendees,
                 )
         except Exception as exc:
             logger.warning('Failed to parse CalDAV ICS from %s: %s', href, exc)
@@ -440,6 +479,49 @@ class NextcloudCalDAVClient:
             lines.append(f'DESCRIPTION:{_escape_ics_text(event.description)}')
         if getattr(event, 'location', None):
             lines.append(f'LOCATION:{_escape_ics_text(event.location)}')
+
+        creator = getattr(event, 'creator', None)
+        if creator and getattr(creator, 'email', None):
+            cn = (getattr(creator, 'full_name', None) or creator.email).replace('"', '').replace(';', ' ')
+            lines.append(f'ORGANIZER;CN="{cn}":mailto:{creator.email}')
+
+        status_to_partstat = {
+            'accepted': 'ACCEPTED',
+            'declined': 'DECLINED',
+            'tentative': 'TENTATIVE',
+            'pending': 'NEEDS-ACTION',
+        }
+        seen_att_emails: set[str] = set()
+        for part in getattr(event, 'participants', None) or []:
+            if getattr(part, 'status', None) == 'removed':
+                continue
+            u = getattr(part, 'user', None)
+            email = (getattr(u, 'email', None) or '').strip().lower()
+            if not email or email in seen_att_emails:
+                continue
+            seen_att_emails.add(email)
+            cn = (getattr(u, 'full_name', None) or email).replace('"', '').replace(';', ' ')
+            ps = status_to_partstat.get(getattr(part, 'status', 'pending'), 'NEEDS-ACTION')
+            lines.append(f'ATTENDEE;CN="{cn}";PARTSTAT={ps};ROLE=REQ-PARTICIPANT:mailto:{email}')
+
+        raw_ext = getattr(event, 'remote_attendees_json', None)
+        if raw_ext:
+            try:
+                ext_list = json.loads(raw_ext)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                ext_list = []
+            if isinstance(ext_list, list):
+                for item in ext_list:
+                    if not isinstance(item, dict):
+                        continue
+                    email = (item.get('email') or '').strip().lower()
+                    if not email or email in seen_att_emails:
+                        continue
+                    seen_att_emails.add(email)
+                    cn = (item.get('name') or email).replace('"', '').replace(';', ' ')
+                    ps = status_to_partstat.get(item.get('status', 'pending'), 'NEEDS-ACTION')
+                    lines.append(f'ATTENDEE;CN="{cn}";PARTSTAT={ps};ROLE=REQ-PARTICIPANT:mailto:{email}')
+
         rec = (getattr(event, 'recurrence_type', None) or 'none').lower()
         if rec in ('daily', 'weekly', 'monthly', 'yearly') and not getattr(event, 'is_recurring_instance', False):
             rule = f'FREQ={rec.upper()};INTERVAL={max(1, int(getattr(event, "recurrence_interval", 1) or 1))}'

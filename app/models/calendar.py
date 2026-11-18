@@ -78,6 +78,7 @@ class CalendarEvent(db.Model):
     ical_uid = db.Column(db.String(255), nullable=True, index=True)
     remote_href = db.Column(db.String(1024), nullable=True, index=True)
     remote_etag = db.Column(db.String(255), nullable=True)
+    remote_attendees_json = db.Column(db.Text, nullable=True)
     
     # Relationships
     creator = db.relationship('User', back_populates='created_events')

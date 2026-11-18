@@ -5254,7 +5254,10 @@
         "calendar_color_preset": "Kalenderfarbe",
         "invitees_label": "Personen einladen",
         "invitees_help": "Personen suchen und anklicken. Eingeladene erhalten eine Benachrichtigung und können zusagen oder absagen.",
-        "invitees_search": "Person suchen…"
+        "invitees_search": "Person suchen…",
+        "attendee_emails_label": "Weitere E-Mail-Teilnehmer (kommagetrennt)",
+        "attendee_emails_placeholder": "z. B. gast@firma.de, partner@example.com",
+        "attendee_emails_help": "Werden per E-Mail-Adresse mit Nextcloud-Teilnehmern verknüpft und als CalDAV-Teilnehmer gespeichert."
       },
       "buttons": {
         "submit": "Termin erstellen",

@@ -2,13 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from datetime import datetime, timedelta
 from typing import Optional
 
+from sqlalchemy import func
+
 from app import db
-from app.models.calendar import Calendar, CalendarEvent
+from app.models.calendar import Calendar, CalendarEvent, EventParticipant
 from app.models.user import User
 from app.utils.integrations import get_nextcloud_credentials, nextcloud_configured
 from app.utils.nextcloud_caldav import NextcloudCalDAVClient
@@ -151,6 +154,47 @@ def _default_creator_id() -> int:
     return any_u.id if any_u else 1
 
 
+def _sync_event_attendees(ev: CalendarEvent, attendees: list[dict[str, str]]) -> None:
+    """Link Nextcloud ATTENDEE emails to PrismaTeams Users and store external emails."""
+    if attendees is None:
+        return
+    emails = [a['email'].strip().lower() for a in attendees if a.get('email')]
+    users_by_email: dict[str, User] = {}
+    if emails:
+        for u in User.query.filter(func.lower(User.email).in_(emails), User.is_active.is_(True)).all():
+            if u.email:
+                users_by_email[u.email.strip().lower()] = u
+
+    existing_parts = {p.user_id: p for p in EventParticipant.query.filter_by(event_id=ev.id).all()} if ev.id else {}
+    seen_user_ids: set[int] = set()
+    external: list[dict[str, str]] = []
+
+    for att in attendees:
+        email = (att.get('email') or '').strip().lower()
+        if not email:
+            continue
+        status = att.get('status') or 'pending'
+        if status not in ('pending', 'accepted', 'declined', 'tentative'):
+            status = 'pending'
+        user = users_by_email.get(email)
+        if user:
+            seen_user_ids.add(user.id)
+            part = existing_parts.get(user.id)
+            if part is None:
+                db.session.add(EventParticipant(event_id=ev.id, user_id=user.id, status=status))
+            elif part.status != status:
+                part.status = status
+                part.responded_at = datetime.utcnow()
+        else:
+            external.append({
+                'email': email,
+                'name': (att.get('name') or email).strip(),
+                'status': status,
+            })
+
+    ev.remote_attendees_json = json.dumps(external, ensure_ascii=False) if external else None
+
+
 def sync_nextcloud_calendar_events(
     cal: Calendar,
     window_start: Optional[datetime] = None,
@@ -209,6 +253,8 @@ def sync_nextcloud_calendar_events(
                 remote_etag=re_ev.etag,
             )
             db.session.add(ev)
+            db.session.flush()
+            _sync_event_attendees(ev, getattr(re_ev, 'attendees', []) or [])
         elif not re_ev.etag or ev.remote_etag != re_ev.etag:
             ev.title = re_ev.title
             ev.description = re_ev.description
@@ -221,6 +267,7 @@ def sync_nextcloud_calendar_events(
             ev.ical_uid = re_ev.uid
             ev.remote_href = re_ev.href
             ev.remote_etag = re_ev.etag
+            _sync_event_attendees(ev, getattr(re_ev, 'attendees', []) or [])
 
     # Remove events deleted on Nextcloud within sync window
     to_delete = [

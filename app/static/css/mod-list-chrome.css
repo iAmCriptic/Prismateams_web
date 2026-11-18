@@ -315,7 +315,7 @@ tr.mod-list-row.is-selected {
     background: var(--bs-body-bg);
     border-left: 1px solid var(--bs-border-color);
     border-radius: 1.25rem 0 0 1.25rem;
-    z-index: 1055;
+    z-index: 1070;
     transition: right 0.3s ease;
     overflow-y: auto;
     box-shadow: -0.35rem 0 1.5rem rgba(0, 0, 0, 0.12);
@@ -345,7 +345,7 @@ tr.mod-list-row.is-selected {
     right: 0;
     bottom: 0;
     background: rgba(0, 0, 0, 0.28);
-    z-index: 1054;
+    z-index: 1065;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.3s ease, visibility 0.3s ease;

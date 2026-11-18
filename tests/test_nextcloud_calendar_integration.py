@@ -341,6 +341,60 @@ def test_create_update_delete_nextcloud_calendar_via_portal(app, client):
         assert remote_url not in fake.calendars
 
 
+def test_nextcloud_event_edit_and_email_attendee_sync(app, client):
+    _set_setting('nextcloud_url', 'https://cloud.example.com')
+    _set_setting('nextcloud_username', 'svc')
+    _set_setting('nextcloud_password_enc', 'dummy')
+    _set_setting(SETTING_NC_CAL_ENABLED, 'true')
+    _set_setting(SETTING_NC_CAL_MODE, 'hybrid')
+
+    alice = _create_user('alice_att', is_admin=False)
+    bob = _create_user('bob_att', is_admin=False)
+    fake = FakeCalDAVClient()
+    cal_url = 'https://cloud.example.com/remote.php/dav/calendars/svc/personal/'
+    fake.events[cal_url][0].attendees = [
+        {'email': bob.email, 'name': 'Bob Test', 'status': 'accepted'},
+        {'email': 'extern@partner.de', 'name': 'Extern Partner', 'status': 'pending'},
+    ]
+
+    with patch('app.utils.nextcloud_calendar_sync.get_portal_caldav_client', return_value=fake), \
+         patch('app.utils.integrations.nextcloud_configured', return_value=True):
+        sync_all_nextcloud_calendars(force=True)
+        ev = CalendarEvent.query.filter_by(ical_uid='nc-uid-1').first()
+        assert ev is not None
+        from app.models.calendar import EventParticipant
+        bob_part = EventParticipant.query.filter_by(event_id=ev.id, user_id=bob.id).first()
+        assert bob_part is not None
+        assert bob_part.status == 'accepted'
+        assert 'extern@partner.de' in (ev.remote_attendees_json or '')
+
+        # Alice edits the Nextcloud event and adds attendee emails
+        _login(client, alice)
+        day_str = (datetime.utcnow() + timedelta(days=3)).strftime('%Y-%m-%d')
+        e_resp = client.post(f'/calendar/edit/{ev.id}', data={
+            'title': 'Nextcloud Meeting Updated',
+            'description': 'Updated desc',
+            'location': 'Raum 2',
+            'start_date': day_str,
+            'start_time': '14:00',
+            'end_date': day_str,
+            'end_time': '15:00',
+            'invitee_ids': [str(bob.id)],
+            'attendee_emails': 'extern@partner.de, neu@kunde.de',
+        }, follow_redirects=False)
+        assert e_resp.status_code in (200, 302)
+        db.session.refresh(ev)
+        assert ev.title == 'Nextcloud Meeting Updated'
+        assert 'neu@kunde.de' in (ev.remote_attendees_json or '')
+
+        # Verify ICS serialization includes ATTENDEE mailto lines
+        from app.utils.nextcloud_caldav import NextcloudCalDAVClient
+        caldav = NextcloudCalDAVClient('https://cloud.example.com', 'svc', 'pw')
+        _, ics_text = caldav.build_ics_for_event(ev)
+        assert f'mailto:{bob.email}' in ics_text
+        assert 'mailto:neu@kunde.de' in ics_text
+
+
 def test_deleted_nextcloud_calendar_cleanup_and_recurring_delete(app, client):
     from app.models.calendar import Calendar, CalendarEvent, EventParticipant
     from app.utils.nextcloud_caldav import _strip_etag

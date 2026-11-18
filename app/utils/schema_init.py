@@ -659,6 +659,7 @@ def ensure_critical_columns(db) -> None:
             for col_name, ddl in (
                 ("remote_href", "VARCHAR(1024) NULL"),
                 ("remote_etag", "VARCHAR(255) NULL"),
+                ("remote_attendees_json", "TEXT NULL"),
             ):
                 if col_name not in ce_cols:
                     try:

@@ -4540,7 +4540,10 @@
         "calendar_color_preset": "Calendar color",
         "invitees_label": "Invite people",
         "invitees_help": "Search and click people. Invitees get a notification and can accept or decline.",
-        "invitees_search": "Search person…"
+        "invitees_search": "Search person…",
+        "attendee_emails_label": "Additional email attendees (comma-separated)",
+        "attendee_emails_placeholder": "e.g. guest@company.com, partner@example.com",
+        "attendee_emails_help": "Linked by email address with Nextcloud attendees and synced as CalDAV ATTENDEEs."
       },
       "buttons": {
         "submit": "Create event",

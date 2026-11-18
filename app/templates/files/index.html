@@ -1106,7 +1106,11 @@
 </div>
 </div>
 
-<!-- Side Menu für Datei-Details -->
+<!-- Datei/Ordner umbenennen läuft inline — keine Rename-Modals mehr -->
+
+</div></div><!-- /files-shell -->
+
+<!-- Side Menu für Datei-Details (außerhalb der Shell wegen Stacking-Context) -->
 <div class="side-menu-backdrop" id="sideMenuBackdrop" onclick="closeFileDetails()"></div>
 <div class="side-menu" id="sideMenu">
     <div class="side-menu-header">
@@ -1119,10 +1123,6 @@
         <!-- Inhalt wird dynamisch geladen -->
     </div>
 </div>
-
-<!-- Datei/Ordner umbenennen läuft inline — keine Rename-Modals mehr -->
-
-</div></div><!-- /files-shell -->
 
 <!-- Modals außerhalb der Shell (sonst hinter Backdrop wegen Stacking-Context) -->
 <div class="modal fade" id="uploadModal" tabindex="-1">
