@@ -88,6 +88,9 @@
         {% if is_module_enabled('module_events') %}
         {{ sp_hub_tile(url_for('settings.admin_events_settings'), 'bi-calendar2-week', 'Veranstaltungen', 'Benutzerdefinierte Felder & Einstellungen') }}
         {% endif %}
+        {% if is_module_enabled('module_helpers') %}
+        {{ sp_hub_tile(url_for('settings.admin_helpers_settings'), 'bi-people-fill', _('helpers.heading'), _('helpers.settings.general_heading')) }}
+        {% endif %}
         {{ sp_hub_tile(url_for('settings.admin_file_settings'), 'bi-folder', _('settings.admin.cards.file_settings.title'), _('settings.admin.cards.file_settings.short')) }}
       </div>
     </section>
@@ -106,6 +109,9 @@
         {% if current_user.is_admin %}
         <a href="{{ url_for('settings.admin_modules') }}" class="sp-sidepanel-link"><i class="bi bi-grid-3x3-gap"></i>{{ _('settings.admin.cards.modules.title') }}</a>
         <a href="{{ url_for('settings.admin_events_settings') }}" class="sp-sidepanel-link"><i class="bi bi-calendar2-week"></i>Veranstaltungen</a>
+        {% if is_module_enabled('module_helpers') %}
+        <a href="{{ url_for('settings.admin_helpers_settings') }}" class="sp-sidepanel-link"><i class="bi bi-people-fill"></i>{{ _('helpers.heading') }}</a>
+        {% endif %}
         {% endif %}
       </div>
     </div>

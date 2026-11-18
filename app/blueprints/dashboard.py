@@ -9,6 +9,7 @@ from app.models.wiki import WikiPage, WikiFavorite
 from app.models.inventory import BorrowTransaction
 from app.models.booking import BookingRequest
 from app.models.booking_personal import BookingPersonalEvent, BookingPersonalEntry
+from app.models.helpers import HelperEvent, Helper
 from app.models.contact import Contact
 from app.models.kanban import KanbanActivity, KanbanBoard, KanbanCard, KanbanCardAssignee, KanbanList
 from app.models.event import Event
@@ -65,6 +66,7 @@ WIDGET_MODULE_MAP = {
     'buchungen': 'module_booking',
     'raumbuchung_kommende': 'module_booking',
     'booking_personal': 'module_booking_personal',
+    'helpers': 'module_helpers',
     'kontakte': 'module_contacts',
     'kanban_aenderungen': 'module_kanban',
     'kanban_meine_karten': 'module_kanban',
@@ -82,6 +84,7 @@ WIDGET_METADATA = {
     'buchungen': {'icon': 'bi-calendar-check', 'category': 'planning'},
     'raumbuchung_kommende': {'icon': 'bi-door-open', 'category': 'planning'},
     'booking_personal': {'icon': 'bi-person-badge', 'category': 'planning'},
+    'helpers': {'icon': 'bi-people-fill', 'category': 'planning'},
     'nachrichten': {'icon': 'bi-chat-dots', 'category': 'communication'},
     'emails': {'icon': 'bi-envelope', 'category': 'communication'},
     'meetings': {'icon': 'bi-camera-video', 'category': 'communication'},
@@ -114,14 +117,14 @@ AVAILABLE_LINK_KEYS = [
 SIMPLE_WIDGET_TYPES = [
     'nachrichten', 'emails', 'dateien', 'passwoerter',
     'neue_wikieintraege', 'meine_wikis', 'meine_ausleihen', 'buchungen',
-    'raumbuchung_kommende', 'booking_personal', 'veranstaltungen',
+    'raumbuchung_kommende', 'booking_personal', 'helpers', 'veranstaltungen',
     'umfragen', 'protokolle', 'meetings', 'dienstplan', 'excalidraw',
     'kanban_aenderungen', 'kanban_meine_karten',
 ]
 
 ALL_WIDGET_TYPES = [
     'termine', 'veranstaltungen', 'dienstplan',
-    'buchungen', 'raumbuchung_kommende', 'booking_personal',
+    'buchungen', 'raumbuchung_kommende', 'booking_personal', 'helpers',
     'nachrichten', 'emails', 'meetings', 'kontakte',
     'kanban_meine_karten', 'kanban_aenderungen',
     'neue_wikieintraege', 'meine_wikis', 'protokolle', 'excalidraw',
@@ -580,6 +583,39 @@ def _load_widget_payload(user, widgets):
         except Exception as e:
             logger.warning(f"Fehler beim Laden der Booking-Events: {e}")
 
+    helper_events = []
+    if 'helpers' in enabled_types and has_module_access(user, 'module_helpers') and not getattr(user, 'is_guest', False):
+        try:
+            h_rows = (
+                HelperEvent.query
+                .filter_by(is_active=True)
+                .order_by(HelperEvent.start_date.asc().nullslast(), HelperEvent.created_at.desc())
+                .limit(DASHBOARD_WIDGET_LIST_LIMIT)
+                .all()
+            )
+            h_ids = [ev.id for ev in h_rows]
+            helper_counts = {}
+            if h_ids:
+                for ev_id, cnt in (
+                    db.session.query(Helper.event_id, func.count(Helper.id))
+                    .filter(Helper.event_id.in_(h_ids))
+                    .group_by(Helper.event_id)
+                    .all()
+                ):
+                    helper_counts[ev_id] = cnt
+            helper_events = [
+                {
+                    'id': ev.id,
+                    'name': ev.name,
+                    'start_date': ev.start_date,
+                    'end_date': ev.end_date,
+                    'helpers_count': helper_counts.get(ev.id, 0),
+                }
+                for ev in h_rows
+            ]
+        except Exception as e:
+            logger.warning(f"Fehler beim Laden der Helfer-Events: {e}")
+
     upcoming_events = []
     if 'veranstaltungen' in enabled_types and has_module_access(user, 'module_calendar'):
         try:
@@ -738,6 +774,8 @@ def _load_widget_payload(user, widgets):
             payload[wid] = {'requests': upcoming_room_bookings}
         elif wtype == 'booking_personal':
             payload[wid] = {'events': booking_personal_events}
+        elif wtype == 'helpers':
+            payload[wid] = {'events': helper_events}
         elif wtype == 'veranstaltungen':
             payload[wid] = {'events': upcoming_events}
         elif wtype == 'umfragen':

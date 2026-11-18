@@ -603,6 +603,45 @@ data-col-span="{{ col_span }}"
     {% endif %}
 </div>
 
+{% elif wtype == 'helpers' %}
+{% set h_events = data.get('events', []) %}
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="helpers"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('helpers.index') }}">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
+            <i class="bi bi-people-fill" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.helpers.title') }}</span>
+        </h3>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge">{{ h_events|length }}</span>
+        </div>
+    </div>
+    {% if h_events %}
+    <div class="dash-widget-list">
+        {% for ev in h_events %}
+        <a class="dash-widget-row" href="{{ url_for('helpers.index', event_id=ev.id) }}" data-stop-nav>
+            <div class="dash-widget-row-top">
+                <p class="dash-widget-row-title">{{ ev.name }}</p>
+                {% if ev.start_date %}
+                <span class="dash-widget-row-meta">{{ ev.start_date.strftime('%d.%m.') }}</span>
+                {% endif %}
+            </div>
+            <p class="dash-widget-row-sub">{{ _('dashboard.widgets.helpers.helpers_count', count=ev.helpers_count) }}</p>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.helpers.empty') }}</div>
+    {% endif %}
+</div>
+
 {% elif wtype == 'raumbuchung_kommende' %}
 {% set room_bookings = data.get('requests', []) %}
 <div class="dash-widget"

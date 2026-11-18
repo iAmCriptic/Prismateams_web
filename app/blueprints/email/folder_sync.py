@@ -56,86 +56,55 @@ class FolderFetch:
 
 def connect_folder_for_sync(folder_name, mail_conn=None, mailbox=None):
     """Step 1 — IMAP connect + SELECT. Returns (ok, msg, state|None)."""
+    from app.blueprints.email.imap_client import strip_inbox_prefix
 
     mailbox_id = mailbox.id if mailbox is not None else None
     owns_connection = mail_conn is None
     try:
         if owns_connection:
-            mail_conn = connect_imap(folder_name, mailbox=mailbox)
+            mail_conn = connect_imap('INBOX', mailbox=mailbox)
             if not mail_conn:
                 logging.error(f"IMAP-Verbindung fehlgeschlagen für Ordner '{folder_name}'")
                 return False, f"IMAP-Verbindung fehlgeschlagen für Ordner '{folder_name}'", None
-        else:
-            ok, messages = _select_imap_folder(mail_conn, folder_name)
-            if not ok:
-                error_msg = ''
-                try:
-                    if messages and len(messages) > 0:
-                        if isinstance(messages[0], bytes):
-                            error_msg = messages[0].decode('utf-8', errors='ignore')
-                        else:
-                            error_msg = str(messages[0])
-                except Exception:
-                    error_msg = 'Unbekannter Fehler'
-                is_archive_folder = folder_name in ['Archive', 'Archives']
-                if "doesn't exist" in error_msg or "Mailbox doesn't exist" in error_msg or "NONEXISTENT" in error_msg:
-                    if is_archive_folder:
-                        logging.debug(
-                            "IMAP folder '%s' does not exist on server, skipping sync: %s",
-                            folder_name, error_msg,
-                        )
-                    else:
-                        logging.info(
-                            "IMAP folder '%s' does not exist on server, skipping sync: %s",
-                            folder_name, error_msg,
-                        )
-                    return True, f"Ordner '{folder_name}' existiert nicht auf dem Server, übersprungen", None
-                logging.warning("IMAP folder selection failed for '%s': %s", folder_name, error_msg)
-                return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {error_msg}", None
     except Exception as conn_error:
         logging.error(f"Fehler beim Verbinden mit IMAP für Ordner '{folder_name}': {conn_error}")
         if owns_connection:
             _imap_logout(mail_conn)
         return False, f"IMAP-Verbindungsfehler: {str(conn_error)}", None
-    
+
     try:
-        # Haupt-Synchronisations-Logik
-        # Versuche Ordner zu öffnen (bei owns_connection bereits selected; nochmals absichern)
-        status, messages = mail_conn.select(folder_name)
-        if status != 'OK':
-            # Versuche mit Anführungszeichen (für Ordner mit Leerzeichen)
+        ok, messages = _select_imap_folder(mail_conn, folder_name)
+        if not ok:
+            error_msg = ''
             try:
-                status, messages = mail_conn.select(f'"{folder_name}"')
-            except Exception as quote_error:
-                logging.debug(f"Could not select folder '{folder_name}' with quotes: {quote_error}")
-            
-            if status != 'OK':
-                # Ordner existiert nicht auf dem Server - überspringen, aber in DB behalten
-                error_msg = ''
-                try:
-                    if messages and len(messages) > 0:
-                        if isinstance(messages[0], bytes):
-                            error_msg = messages[0].decode('utf-8', errors='ignore')
-                        else:
-                            error_msg = str(messages[0])
-                except Exception:
-                    error_msg = 'Unbekannter Fehler'
-                
-                # Prüfe ob es sich um einen Archiv-Ordner handelt (Archive oder Archives)
-                is_archive_folder = folder_name in ['Archive', 'Archives']
-                if "doesn't exist" in error_msg or "Mailbox doesn't exist" in error_msg or "NONEXISTENT" in error_msg:
-                    if is_archive_folder:
-                        logging.debug(f"IMAP folder '{folder_name}' does not exist on server, skipping sync (normal for empty archive folders): {error_msg}")
+                if messages and len(messages) > 0:
+                    if isinstance(messages[0], bytes):
+                        error_msg = messages[0].decode('utf-8', errors='ignore')
                     else:
-                        logging.info(f"IMAP folder '{folder_name}' does not exist on server, skipping sync: {error_msg}")
-                    if owns_connection:
-                        _imap_logout(mail_conn)
-                    return True, f"Ordner '{folder_name}' existiert nicht auf dem Server, übersprungen", None
+                        error_msg = str(messages[0])
+            except Exception:
+                error_msg = 'Unbekannter Fehler'
+
+            is_archive_folder = strip_inbox_prefix(folder_name) in ['Archive', 'Archives']
+            if "doesn't exist" in error_msg or "Mailbox doesn't exist" in error_msg or "NONEXISTENT" in error_msg:
+                if is_archive_folder:
+                    logging.debug(
+                        "IMAP folder '%s' does not exist on server, skipping sync: %s",
+                        folder_name, error_msg,
+                    )
                 else:
-                    logging.warning(f"IMAP folder selection failed for '{folder_name}': {error_msg}")
-                    if owns_connection:
-                        _imap_logout(mail_conn)
-                    return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {error_msg}", None
+                    logging.info(
+                        "IMAP folder '%s' does not exist on server, skipping sync: %s",
+                        folder_name, error_msg,
+                    )
+                if owns_connection:
+                    _imap_logout(mail_conn)
+                return True, f"Ordner '{folder_name}' existiert nicht auf dem Server, übersprungen", None
+
+            logging.warning("IMAP folder selection failed for '%s': %s", folder_name, error_msg)
+            if owns_connection:
+                _imap_logout(mail_conn)
+            return True, f"Ordner '{folder_name}' konnte nicht geöffnet werden, übersprungen: {error_msg}", None
     except Exception as e:
         logging.error(f"Exception while selecting folder '{folder_name}': {e}")
         import traceback

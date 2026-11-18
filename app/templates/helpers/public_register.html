@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="{{ current_language or 'de' }}" data-bs-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>{{ _('helpers.public.title') }} — {{ event.name }}</title>
+  {% include 'partials/vendor_bootstrap_css.html' %}
+  <link rel="stylesheet" href="{{ url_for('core_css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/helpers.css') }}">
+  {% include 'auth/_auth_bg.html' %}
+</head>
+<body class="helpers-public-page py-4 py-md-5">
+  <div class="container">
+    <div class="helpers-public-card shadow-lg">
+      <div class="helpers-public-accent-bar"></div>
+      <div class="p-4 p-md-5">
+        <div class="helpers-public-header pb-3 mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <div>
+            <div class="small text-muted text-uppercase fw-semibold mb-1">{{ _('helpers.heading') }}</div>
+            <h1 class="h3 mb-1">{{ event.name }}</h1>
+            {% if event.description %}
+            <p class="text-muted mb-0">{{ event.description }}</p>
+            {% endif %}
+          </div>
+          <div class="d-flex align-items-center gap-2 flex-shrink-0">
+            {% if portal_logo_filename %}
+            <img src="{{ url_for('settings.portal_logo', filename=portal_logo_filename) }}" alt="{{ app_name or 'Prismateams' }}" class="helpers-public-logo">
+            {% elif app_logo %}
+            <img src="{{ url_for('static', filename=app_logo) }}" alt="{{ app_name or 'Prismateams' }}" class="helpers-public-logo">
+            {% else %}
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="{{ app_name or 'Prismateams' }}" class="helpers-public-logo">
+            {% endif %}
+          </div>
+        </div>
+
+        {% if success %}
+        <div class="alert alert-success rounded-4 mb-0" role="alert">
+          <h2 class="h5 mb-1"><i class="bi bi-check-circle-fill me-2" aria-hidden="true"></i>{{ _('helpers.public.success_title') }}</h2>
+          <p class="mb-0">{{ _('helpers.public.success_body') }}</p>
+        </div>
+        {% else %}
+
+        {% if errors %}
+        <div class="alert alert-danger rounded-4" role="alert">
+          <ul class="mb-0 ps-3">
+            {% for err in errors %}
+            <li>{{ err }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('helpers.public_register', token=event.apply_token) }}" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+          <div class="row g-3 mb-4">
+            {% for fc in public_fields %}
+            {% set is_core = fc.field_key in ('first_name', 'last_name', 'email', 'phone', 'tshirt_size', 'allergies') %}
+            {% set field_name = fc.field_key if is_core else 'custom_' ~ fc.field_key %}
+            {% set current_val = submitted_data.get(field_name, '') if submitted_data else '' %}
+
+            <div class="{% if fc.field_type == 'textarea' %}col-12{% else %}col-md-6{% endif %}">
+              <label class="form-label fw-medium" for="pub_{{ field_name }}">
+                {{ fc.label }}{% if fc.is_required %} *{% endif %}
+              </label>
+
+              {% if fc.field_type == 'textarea' %}
+              <textarea class="form-control"
+                        id="pub_{{ field_name }}"
+                        name="{{ field_name }}"
+                        rows="2"
+                        {% if fc.is_required %}required{% endif %}>{{ current_val }}</textarea>
+
+              {% elif fc.field_type == 'select' %}
+              <select class="form-select mod-pill-input"
+                      id="pub_{{ field_name }}"
+                      name="{{ field_name }}"
+                      {% if fc.is_required %}required{% endif %}>
+                <option value="">{{ _('helpers.public.please_select') }}</option>
+                {% for opt in fc.get_options() %}
+                <option value="{{ opt }}" {% if current_val == opt %}selected{% endif %}>{{ opt }}</option>
+                {% endfor %}
+              </select>
+
+              {% elif fc.field_type == 'multiselect' %}
+              {% set selected_opts = submitted_data.getlist(field_name) if submitted_data else [] %}
+              <select class="form-select"
+                      id="pub_{{ field_name }}"
+                      name="{{ field_name }}"
+                      multiple
+                      {% if fc.is_required %}required{% endif %}>
+                {% for opt in fc.get_options() %}
+                <option value="{{ opt }}" {% if opt in selected_opts %}selected{% endif %}>{{ opt }}</option>
+                {% endfor %}
+              </select>
+
+              {% elif fc.field_type == 'checkbox' %}
+              <div class="form-check">
+                <input class="form-check-input"
+                       type="checkbox"
+                       id="pub_{{ field_name }}"
+                       name="{{ field_name }}"
+                       value="1"
+                       {% if current_val %}checked{% endif %}
+                       {% if fc.is_required %}required{% endif %}>
+                <label class="form-check-label" for="pub_{{ field_name }}">{{ fc.label }}</label>
+              </div>
+
+              {% else %}
+              <input type="{{ 'email' if fc.field_key == 'email' else ('number' if fc.field_type == 'number' else 'text') }}"
+                     class="form-control mod-pill-input"
+                     id="pub_{{ field_name }}"
+                     name="{{ field_name }}"
+                     value="{{ current_val }}"
+                     {% if fc.is_required %}required{% endif %}>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+
+          {% if selectable_areas %}
+          <div class="mb-4">
+            <div class="form-label fw-semibold mb-2">{{ _('helpers.public.areas_label') }}</div>
+            <div class="row g-2">
+              {% set selected_areas = submitted_data.getlist('area_ids') if submitted_data else [] %}
+              {% for area in selectable_areas %}
+              <div class="col-sm-6 col-md-4">
+                <div class="form-check p-2 border rounded-3">
+                  <input class="form-check-input ms-0 me-2"
+                         type="checkbox"
+                         id="area_{{ area.id }}"
+                         name="area_ids"
+                         value="{{ area.id }}"
+                         {% if (area.id|string) in selected_areas %}checked{% endif %}>
+                  <label class="form-check-label fw-medium" for="area_{{ area.id }}">{{ area.name }}</label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          <div class="mb-4">
+            <div class="form-label fw-semibold mb-2">{{ _('helpers.public.days_label') }}</div>
+            <div class="d-flex flex-wrap gap-3">
+              {% set selected_days = submitted_data.getlist('available_days') if submitted_data else [] %}
+              {% for day in day_options %}
+              <div class="form-check">
+                <input class="form-check-input"
+                       type="checkbox"
+                       id="day_{{ loop.index }}"
+                       name="available_days"
+                       value="{{ day }}"
+                       {% if day in selected_days %}checked{% endif %}>
+                <label class="form-check-label" for="day_{{ loop.index }}">{{ day }}</label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label class="form-label fw-medium" for="pub_wish_notes">{{ _('helpers.public.notes_label') }}</label>
+            <textarea class="form-control" id="pub_wish_notes" name="wish_notes" rows="2">{{ submitted_data.get('wish_notes', '') if submitted_data else '' }}</textarea>
+          </div>
+
+          <div class="mb-4 p-3 border rounded-3 bg-body-tertiary">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="pub_dsgvo" name="dsgvo_accepted" value="1" required>
+              <label class="form-check-label small" for="pub_dsgvo">
+                {{ _('helpers.public.dsgvo_label') }} *
+              </label>
+            </div>
+          </div>
+
+          <div class="d-flex justify-content-end">
+            <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent px-4">
+              <i class="bi bi-send" aria-hidden="true"></i>
+              <span>{{ _('helpers.public.submit') }}</span>
+            </button>
+          </div>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</body>
+</html>

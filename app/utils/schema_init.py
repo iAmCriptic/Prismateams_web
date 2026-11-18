@@ -475,6 +475,22 @@ def ensure_critical_columns(db) -> None:
                 except Exception as bpf_err:
                     logger.warning("Konnte booking_personal_fields.category nicht ergänzen: %s", bpf_err)
 
+        if "helper_events" in table_names:
+            he_cols = {c["name"] for c in inspector.get_columns("helper_events")}
+            he_col_defs = [
+                ("mailbox_id", "INTEGER NULL"),
+                ("mail_template_subject", "VARCHAR(255) NULL"),
+                ("mail_template_body", "TEXT NULL"),
+            ]
+            for col_name, col_type in he_col_defs:
+                if col_name not in he_cols:
+                    try:
+                        with db.engine.begin() as conn:
+                            conn.execute(text(f"ALTER TABLE helper_events ADD COLUMN {col_name} {col_type}"))
+                        logger.info("[OK] helper_events.%s ergänzt", col_name)
+                    except Exception as he_err:
+                        logger.warning("Konnte helper_events.%s nicht ergänzen: %s", col_name, he_err)
+
         # Raumbuchungssystem: booking_forms, booking_requests, approvals, events
         if "booking_forms" in table_names:
             bf_cols = {col["name"] for col in inspector.get_columns("booking_forms")}

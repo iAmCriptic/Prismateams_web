@@ -88,6 +88,7 @@ def admin_users():
         ('module_meetings', 'Meetings'),
         ('module_duty_roster', 'Dienstplan'),
         ('module_booking_personal', 'Booking'),
+        ('module_helpers', 'Helferverwaltung'),
     ]
     
     # Get all users, excluding guest accounts (system accounts)
@@ -530,6 +531,7 @@ def create_user():
                 'module_meetings',
                 'module_duty_roster',
                 'module_booking_personal',
+                'module_helpers',
             ]
             
             selected_modules = request.form.getlist('allowed_modules')
@@ -857,6 +859,7 @@ def edit_guest_user(user_id):
             'module_meetings',
             'module_duty_roster',
             'module_booking_personal',
+            'module_helpers',
         ]
 
         existing_roles = UserModuleRole.query.filter_by(user_id=user.id).all()

@@ -4,7 +4,7 @@
 import logging
 import os
 
-from flask import jsonify, request, redirect, url_for
+from flask import Request, jsonify, request, redirect, url_for
 
 from config import config
 
@@ -12,8 +12,20 @@ from app import csrf, db, login_manager, mail
 from app.factory._util import configure_app_logging, is_insecure_secret_key as _is_insecure_secret_key
 from app.utils.i18n import register_i18n
 
+
+class _BackupAwareRequest(Request):
+    """Erlaubt große .prismateams-Uploads beim Admin-/Setup-Backup-Import."""
+
+    @property
+    def max_content_length(self):
+        if self.method == 'POST' and self.path in ('/settings/admin/backup', '/setup/import-backup'):
+            return 10 * 1024 * 1024 * 1024
+        return super().max_content_length
+
+
 def configure_core(app, config_name, basedir):
     """Config, logging, CSRF, upload path, reverse-proxy."""
+    app.request_class = _BackupAwareRequest
     # Gmail/IMAP-Ordner: Namen mit "/" und "&" (modUTF7) sicher in URLs
     from app.utils.imap_folder_url import ImapFolderConverter
     app.url_map.converters['imap_folder'] = ImapFolderConverter

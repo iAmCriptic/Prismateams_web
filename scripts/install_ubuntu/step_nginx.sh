@@ -298,6 +298,24 @@ location /webdav {
     send_timeout 600;
 }
 
+# Backup Import/Export (unbegrenzte Dateigröße + längere Timeouts) — MUSS VOR / kommen!
+location ~ ^/(settings/admin/backup|setup/import-backup)$ {
+    proxy_pass http://teamportal_backend;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade \$http_upgrade;
+    proxy_set_header Connection \$connection_upgrade;
+    client_max_body_size 0;
+    proxy_request_buffering off;
+    proxy_connect_timeout 600;
+    proxy_send_timeout 1800;
+    proxy_read_timeout 1800;
+    send_timeout 1800;
+}
+
 # Hauptanwendung (MUSS ZULETZT kommen!)
 location / {
     proxy_pass http://teamportal_backend;

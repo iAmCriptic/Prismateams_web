@@ -41,6 +41,7 @@ MODULE_META = [
     {'key': 'module_meetings', 'icon': 'bi-camera-video', 'label': 'Meetings', 'settings_endpoint': None},
     {'key': 'module_duty_roster', 'icon': 'bi-calendar3', 'label': 'Dienstplan', 'settings_endpoint': None},
     {'key': 'module_booking_personal', 'icon': 'bi-person-badge', 'label': 'Booking', 'settings_endpoint': None},
+    {'key': 'module_helpers', 'icon': 'bi-people-fill', 'label': 'Helferverwaltung', 'settings_endpoint': 'settings.admin_helpers_settings'},
 ]
 
 

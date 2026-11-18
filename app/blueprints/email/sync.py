@@ -15,6 +15,7 @@ from app.blueprints.email.folder_sync import sync_emails_from_folder
 from app.blueprints.email.imap_client import (
     _imap_logout,
     _is_placeholder_imap_config,
+    _parse_imap_list_entry,
     _parse_imap_list_line,
     connect_imap,
     is_gmail_namespace_root,
@@ -25,6 +26,7 @@ from app.blueprints.email.mailbox import (
     _find_email_folder,
     _folder_mailbox_filter,
     _is_provider_namespace_folder,
+    _message_mailbox_filter,
 )
 
 def sync_imap_folders(mailbox=None):
@@ -58,6 +60,24 @@ def sync_imap_folders(mailbox=None):
             except Exception as ns_err:
                 logging.debug("IMAP LIST %s übersprungen: %s", ns, ns_err)
 
+        # IMAP NAMESPACE (RFC 2342): Manche Server (z.B. Courier/Dovecot mit INBOX.-Präfix)
+        # liefern unter LIST "" "*" nicht alle Namespace-Unterordner.
+        try:
+            ns_st, ns_data = mail_conn.namespace()
+            if ns_st == 'OK' and ns_data:
+                ns_raw = ns_data[0].decode('utf-8', errors='ignore') if isinstance(ns_data[0], bytes) else str(ns_data[0])
+                personal_match = re.match(r'^\s*\(\(([^)]*)\)', ns_raw)
+                if personal_match:
+                    prefix_match = re.search(r'"([^"]+)"', personal_match.group(1))
+                    if prefix_match:
+                        ns_prefix = prefix_match.group(1)
+                        if ns_prefix:
+                            st_ns, more_ns = mail_conn.list(f'"{ns_prefix}"', '*')
+                            if st_ns == 'OK' and more_ns:
+                                list_rows.extend(more_ns)
+        except Exception as ns_err:
+            logging.debug("IMAP NAMESPACE übersprungen: %s", ns_err)
+
         if not list_rows:
             return False, "Ordner-Liste konnte nicht abgerufen werden"
 
@@ -85,11 +105,15 @@ def sync_imap_folders(mailbox=None):
         
         for folder_info in unique_rows:
             try:
-                folder_name, separator = _parse_imap_list_line(folder_info)
+                folder_name, separator, is_noselect = _parse_imap_list_entry(folder_info)
                 folder_str = folder_info.decode('utf-8', errors='ignore') if isinstance(folder_info, bytes) else str(folder_info)
                 if not folder_name:
                     skipped_folders.append(folder_str)
                     logging.debug(f"Skipping unparsable/invalid folder line: '{folder_str}'")
+                    continue
+
+                if is_noselect:
+                    logging.debug(f"Skipping \\Noselect IMAP folder: '{folder_name}'")
                     continue
 
                 logging.info(f"Found folder: '{folder_name}'")
@@ -191,6 +215,25 @@ def sync_imap_folders(mailbox=None):
             for invalid_folder in invalid_folders:
                 logging.info(f"Removing invalid folder '{invalid_name}' from database")
                 db.session.delete(invalid_folder)
+
+        if synced_folders:
+            synced_set = set(synced_folders)
+            existing_db_folders = EmailFolder.query.filter(
+                _folder_mailbox_filter(mailbox_id)
+            ).all()
+            for db_folder in existing_db_folders:
+                if db_folder.name in synced_set or (db_folder.name or '').upper() == 'INBOX':
+                    continue
+                msg_count = (
+                    EmailMessage.query.filter_by(folder=db_folder.name)
+                    .filter(_message_mailbox_filter(mailbox_id))
+                    .count()
+                )
+                if msg_count == 0:
+                    logging.info(
+                        f"Removing non-existent empty folder '{db_folder.name}' from database (mailbox_id={mailbox_id})"
+                    )
+                    db.session.delete(db_folder)
         
         db.session.commit()
         if mailbox_id is None:

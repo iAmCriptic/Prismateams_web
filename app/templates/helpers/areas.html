@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% from "helpers/_sidebar.html" import helpers_sidebar, helpers_mobile_offcanvas, helpers_new_event_modal with context %}
+
+{% block title %}{{ _('helpers.nav.areas') }} — {{ current_event.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/helpers.css') }}">
+{% endblock %}
+
+{% block navbar_search %}
+<div class="mod-search" role="search">
+  <label class="mod-search-field" for="modSearchInput">
+    <i class="bi bi-search" aria-hidden="true"></i>
+    <input type="text" id="modSearchInput" class="mod-search-input" placeholder="{{ _('helpers.search_placeholder') }}" autocomplete="off" spellcheck="false">
+  </label>
+  <button type="button" class="btn mod-search-clear d-none" id="modSearchClear" aria-label="{{ _('common.cancel') }}">
+    <i class="bi bi-x-lg"></i>
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="helpers-shell mod-shell--nav">
+  {{ helpers_sidebar(events, current_event, active_nav) }}
+  {{ helpers_mobile_offcanvas(events, current_event, active_nav) }}
+
+  <main class="mod-main">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn mod-pill-btn mod-pill-btn--outline d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#helpersMobileNav" aria-label="{{ _('helpers.heading') }}">
+          <i class="bi bi-list"></i>
+        </button>
+        <div>
+          <h1 class="h4 mb-0">{{ current_event.name }} — {{ _('helpers.nav.areas') }}</h1>
+          <div class="small text-muted">{{ cards|length }} {{ _('helpers.areas.count_label') }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      {% for item in cards %}
+      {% set a = item.area %}
+      <div class="col-12 col-md-6 col-xl-4">
+        <a href="{{ url_for('helpers.area_detail', event_id=current_event.id, area_id=a.id) }}" class="text-decoration-none text-body d-block h-100">
+          <div class="helpers-area-card p-3 h-100 d-flex flex-column justify-content-between">
+            <div>
+              <div class="d-flex align-items-start justify-content-between gap-2 mb-2">
+                <h2 class="h5 mb-0">{{ a.name }}</h2>
+                {% if not a.is_public_selectable %}
+                <span class="badge bg-secondary">{{ _('helpers.areas.internal_only') }}</span>
+                {% endif %}
+              </div>
+              {% if a.description %}
+              <p class="small text-muted mb-3">{{ a.description }}</p>
+              {% endif %}
+            </div>
+
+            <div class="border-top pt-2 mt-2 small">
+              <div class="d-flex justify-content-between mb-1">
+                <span class="text-muted">{{ _('helpers.areas.shifts_filled') }}</span>
+                <span class="fw-semibold">
+                  {{ item.filled_slots }} / {{ item.total_slots }}
+                  {% if item.open_slots > 0 %}
+                  <span class="badge bg-warning text-dark ms-1">{{ item.open_slots }} {{ _('helpers.areas.open') }}</span>
+                  {% endif %}
+                </span>
+              </div>
+              <div class="d-flex justify-content-between mb-1">
+                <span class="text-muted">{{ _('helpers.areas.total_hours') }}</span>
+                <span class="fw-semibold">{{ item.total_hours }} {{ _('helpers.common.hours_short') }}</span>
+              </div>
+              <div class="d-flex justify-content-between mb-1">
+                <span class="text-muted">{{ _('helpers.areas.food_total') }}</span>
+                <span class="fw-semibold">
+                  {{ item.food_total }}
+                  <span class="text-muted fw-normal">(Fr {{ item.food_by_day['Fr'] }} · Sa {{ item.food_by_day['Sa'] }} · So {{ item.food_by_day['So'] }})</span>
+                </span>
+              </div>
+              <div class="d-flex justify-content-between">
+                <span class="text-muted">{{ _('helpers.areas.drinks_total') }}</span>
+                <span class="fw-semibold">
+                  {{ item.drinks_total }}
+                  <span class="text-muted fw-normal">(Fr {{ item.drinks_by_day['Fr'] }} · Sa {{ item.drinks_by_day['Sa'] }} · So {{ item.drinks_by_day['So'] }})</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </a>
+      </div>
+      {% else %}
+      <div class="col-12 text-center text-muted py-5">{{ _('helpers.areas.empty') }}</div>
+      {% endfor %}
+    </div>
+  </main>
+</div>
+
+{{ helpers_new_event_modal(events) }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/helpers.js') }}"></script>
+{% endblock %}

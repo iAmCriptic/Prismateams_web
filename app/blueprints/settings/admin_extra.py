@@ -213,6 +213,7 @@ def admin_roles_user_update(user_id):
             'module_meetings',
             'module_duty_roster',
             'module_booking_personal',
+            'module_helpers',
         ]
         
         # Aktualisiere Modul-Rollen
@@ -314,6 +315,7 @@ def admin_roles_default():
         ('module_meetings', 'Meetings'),
         ('module_duty_roster', 'Dienstplan'),
         ('module_booking_personal', 'Booking'),
+        ('module_helpers', 'Helferverwaltung'),
     ]
     
     from app.utils.access_control import load_default_module_roles, _roles_flag_enabled
@@ -1176,3 +1178,35 @@ def booking_room_delete(room_id):
         flash(f'Raum "{name}" wurde gelöscht.', 'success')
 
     return _settings_redirect('settings.booking_rooms')
+
+
+@settings_bp.route('/admin/helpers', methods=['GET'])
+@login_required
+def admin_helpers_settings():
+    """Admin-Einstellungen für das Modul Helferverwaltung innerhalb der Portal-Einstellungen."""
+    if not current_user.is_admin:
+        flash(translate('settings.admin.booking_forms.flash_unauthorized'), 'danger')
+        return redirect(url_for('settings.index'))
+
+    from app.models.email import Mailbox
+    from app.models.helpers import HelperEvent
+    from app.utils.helpers_seed import ensure_helper_schema, ensure_initial_helper_event
+
+    ensure_helper_schema()
+
+    events = HelperEvent.query.filter_by(is_active=True).order_by(HelperEvent.created_at.desc()).all()
+    if not events:
+        events = [ensure_initial_helper_event()]
+
+    selected_id = request.args.get('event_id', type=int)
+    current_event = next((ev for ev in events if ev.id == selected_id), None) or events[0]
+    public_url = url_for('helpers.public_register', token=current_event.apply_token, _external=True)
+    mailboxes = Mailbox.query.filter_by(is_active=True).order_by(Mailbox.name.asc()).all()
+
+    return render_template(
+        'settings/admin_helpers_settings.html',
+        events=events,
+        current_event=current_event,
+        public_url=public_url,
+        mailboxes=mailboxes,
+    )

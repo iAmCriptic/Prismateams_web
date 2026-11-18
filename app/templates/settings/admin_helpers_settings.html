@@ -1,0 +1,337 @@
+{% extends "settings/base_settings.html" %}
+
+{% block title %}{{ _('helpers.heading') }} — {{ _('helpers.nav.settings') }}{% endblock %}
+{% block settings_mobile_title %}{{ _('helpers.heading') }}{% endblock %}
+
+{% block settings_content %}
+<div class="sp-page sp-page--fluid">
+  <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+    <div>
+      <h1 class="sp-page-title mb-1"><i class="bi bi-people-fill me-2" aria-hidden="true"></i>{{ _('helpers.heading') }}</h1>
+      <p class="sp-page-subtitle mb-0">{{ _('helpers.settings.general_heading') }}</p>
+    </div>
+    <form method="GET" action="{{ url_for('settings.admin_helpers_settings') }}" class="d-flex align-items-center gap-2">
+      <select name="event_id" class="form-select form-select-sm mod-pill-input" onchange="this.form.submit()" aria-label="{{ _('helpers.sidebar.events') }}">
+        {% for ev in events %}
+        <option value="{{ ev.id }}" {% if ev.id == current_event.id %}selected{% endif %}>{{ ev.name }}</option>
+        {% endfor %}
+      </select>
+      <a href="{{ url_for('helpers.index', event_id=current_event.id) }}" class="btn mod-pill-btn mod-pill-btn--outline btn-sm">
+        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i>
+        <span>{{ _('helpers.nav.overview') }}</span>
+      </a>
+    </form>
+  </div>
+
+  <!-- 1. Allgemeine Einstellungen & Markenberechnung -->
+  <section class="sp-group mb-4">
+    <h2 class="sp-group-title">{{ _('helpers.settings.general_heading') }}</h2>
+    <div class="sp-card p-3">
+      <form method="POST" action="{{ url_for('helpers.update_event_settings', event_id=current_event.id) }}" class="row g-3">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="settings">
+        <div class="col-md-6">
+          <label class="form-label" for="spHelperEventName">{{ _('helpers.modal.event_name') }}</label>
+          <input type="text" class="form-control mod-pill-input" id="spHelperEventName" name="name" value="{{ current_event.name }}" required>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="spHelperStart">{{ _('helpers.modal.start_date') }}</label>
+          <input type="date" class="form-control mod-pill-input" id="spHelperStart" name="start_date" value="{{ current_event.start_date.isoformat() if current_event.start_date else '' }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label" for="spHelperEnd">{{ _('helpers.modal.end_date') }}</label>
+          <input type="date" class="form-control mod-pill-input" id="spHelperEnd" name="end_date" value="{{ current_event.end_date.isoformat() if current_event.end_date else '' }}">
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="spHelperCalcMode">{{ _('helpers.settings.calc_mode') }}</label>
+          <select class="form-select mod-pill-input" id="spHelperCalcMode" name="voucher_calc_mode">
+            <option value="per_shift" {% if current_event.voucher_calc_mode == 'per_shift' %}selected{% endif %}>{{ _('helpers.settings.calc_per_shift') }}</option>
+            <option value="cumulative_per_person_day" {% if current_event.voucher_calc_mode == 'cumulative_per_person_day' %}selected{% endif %}>{{ _('helpers.settings.calc_cumulative') }}</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="spHelperPublicUrl">{{ _('helpers.settings.public_url') }}</label>
+          <input type="text" class="form-control" id="spHelperPublicUrl" value="{{ public_url }}" readonly>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="spHelperMailbox">{{ _('helpers.mail.mailbox') }}</label>
+          <select class="form-select mod-pill-input" id="spHelperMailbox" name="mailbox_id">
+            <option value="">{{ _('helpers.mail.default_mailer') }}</option>
+            {% for mb in mailboxes %}
+            <option value="{{ mb.id }}" {% if current_event.mailbox_id == mb.id %}selected{% endif %}>{{ mb.name }} ({{ mb.email_address or mb.smtp_username or '' }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label" for="spHelperMailSubject">{{ _('helpers.mail.subject') }}</label>
+          <input type="text" class="form-control mod-pill-input" id="spHelperMailSubject" name="mail_template_subject" value="{{ current_event.mail_template_subject or '' }}">
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="spHelperMailBody">{{ _('helpers.mail.body') }}</label>
+          <textarea class="form-control" id="spHelperMailBody" name="mail_template_body" rows="6">{{ current_event.mail_template_body or '' }}</textarea>
+          <div class="form-text">{{ _('helpers.mail.placeholders_hint') }}: <code>{% raw %}{{ first_name }}, {{ last_name }}, {{ full_name }}, {{ event_name }}, {{ shifts_list }}, {{ total_hours }}, {{ food_vouchers }}, {{ drinks_vouchers }}, {{ tshirt_size }}{% endraw %}</code></div>
+        </div>
+        <div class="col-12">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="spHelperApplyEnabled" name="apply_enabled" value="1" {% if current_event.apply_enabled %}checked{% endif %}>
+            <label class="form-check-label" for="spHelperApplyEnabled">{{ _('helpers.settings.apply_enabled') }}</label>
+          </div>
+        </div>
+        <div class="col-12">
+          <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent">
+            <i class="bi bi-check2" aria-hidden="true"></i>
+            <span>{{ _('common.save') }}</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- 2. Dynamische Feld-Konfiguration -->
+  <section class="sp-group mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h2 class="sp-group-title mb-0">{{ _('helpers.settings.fields_heading') }}</h2>
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--accent btn-sm" data-bs-toggle="modal" data-bs-target="#spHelpersAddFieldModal">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+        <span>{{ _('helpers.settings.add_field') }}</span>
+      </button>
+    </div>
+    <div class="mod-list-table-wrap">
+      <table class="table mod-list-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{{ _('helpers.settings.field_label') }}</th>
+            <th>{{ _('helpers.settings.field_type') }}</th>
+            <th>{{ _('helpers.settings.is_public') }}</th>
+            <th>{{ _('helpers.settings.is_required') }}</th>
+            <th>{{ _('helpers.settings.admin_only') }}</th>
+            <th>{{ _('helpers.settings.show_in_overview') }}</th>
+            <th class="text-end">{{ _('common.actions') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fc in current_event.field_configs %}
+          <tr>
+            <td class="fw-semibold">{{ fc.label }} <span class="small text-muted">({{ fc.field_key }})</span></td>
+            <td class="small">{{ fc.field_type }}</td>
+            <td>{% if fc.is_public %}<i class="bi bi-check-lg text-success"></i>{% else %}—{% endif %}</td>
+            <td>{% if fc.is_required %}<i class="bi bi-check-lg text-success"></i>{% else %}—{% endif %}</td>
+            <td>{% if fc.admin_only %}<i class="bi bi-check-lg text-success"></i>{% else %}—{% endif %}</td>
+            <td>{% if fc.show_in_overview %}<i class="bi bi-check-lg text-success"></i>{% else %}—{% endif %}</td>
+            <td class="text-end">
+              {% if not fc.is_core %}
+              <form method="POST" action="{{ url_for('helpers.delete_field', field_id=fc.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="settings">
+                <button type="submit" class="btn mod-pill-btn mod-pill-btn--icon text-danger" aria-label="{{ _('common.delete') }}">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 3. Bereiche -->
+  <section class="sp-group mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h2 class="sp-group-title mb-0">{{ _('helpers.settings.areas_heading') }}</h2>
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--accent btn-sm" data-bs-toggle="modal" data-bs-target="#spHelpersAddAreaModal">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+        <span>{{ _('helpers.settings.add_area') }}</span>
+      </button>
+    </div>
+    <div class="mod-list-table-wrap">
+      <table class="table mod-list-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{{ _('helpers.areas.area') }}</th>
+            <th>{{ _('helpers.modal.description') }}</th>
+            <th>{{ _('helpers.settings.public_selectable') }}</th>
+            <th class="text-end">{{ _('common.actions') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for area in current_event.areas %}
+          <tr>
+            <td class="fw-semibold">{{ area.name }}</td>
+            <td class="small text-muted">{{ area.description or '—' }}</td>
+            <td>
+              {% if area.is_public_selectable %}
+              <span class="badge bg-success">{{ _('common.yes') }}</span>
+              {% else %}
+              <span class="badge bg-secondary">{{ _('helpers.areas.internal_only') }}</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              <form method="POST" action="{{ url_for('helpers.delete_area', area_id=area.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="settings">
+                <button type="submit" class="btn mod-pill-btn mod-pill-btn--icon text-danger" aria-label="{{ _('common.delete') }}">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- 4. Markenregeln -->
+  <section class="sp-group">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h2 class="sp-group-title mb-0">{{ _('helpers.settings.rules_heading') }}</h2>
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--accent btn-sm" data-bs-toggle="modal" data-bs-target="#spHelpersAddRuleModal">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+        <span>{{ _('helpers.settings.add_rule') }}</span>
+      </button>
+    </div>
+    <div class="mod-list-table-wrap">
+      <table class="table mod-list-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{{ _('helpers.settings.rule_name') }}</th>
+            <th>{{ _('helpers.settings.hours_range') }}</th>
+            <th>{{ _('helpers.table.food') }}</th>
+            <th>{{ _('helpers.table.drinks') }}</th>
+            <th>{{ _('helpers.settings.head_bonus') }}</th>
+            <th class="text-end">{{ _('common.actions') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for rule in current_event.voucher_rules %}
+          <tr>
+            <td class="fw-semibold">{{ rule.name }}</td>
+            <td class="small">{{ rule.min_hours }} – {{ rule.max_hours if rule.max_hours is not none else '∞' }} {{ _('helpers.common.hours_short') }}</td>
+            <td>{{ rule.food_count }}</td>
+            <td>{{ rule.drinks_count }}</td>
+            <td>+{{ rule.head_bonus_drinks }}</td>
+            <td class="text-end">
+              <form method="POST" action="{{ url_for('helpers.delete_voucher_rule', rule_id=rule.id) }}" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="next" value="settings">
+                <button type="submit" class="btn mod-pill-btn mod-pill-btn--icon text-danger" aria-label="{{ _('common.delete') }}">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- Modals außerhalb von .mod-shell--nav -->
+<div class="modal fade" id="spHelpersAddFieldModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="POST" action="{{ url_for('helpers.create_field', event_id=current_event.id) }}" class="modal-content rounded-4 border-0 shadow">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="settings">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ _('helpers.settings.add_field') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+      </div>
+      <div class="modal-body d-flex flex-column gap-3">
+        <div>
+          <label class="form-label" for="spAddFieldLabel">{{ _('helpers.settings.field_label') }} *</label>
+          <input type="text" class="form-control mod-pill-input" id="spAddFieldLabel" name="label" required>
+        </div>
+        <div>
+          <label class="form-label" for="spAddFieldType">{{ _('helpers.settings.field_type') }}</label>
+          <select class="form-select mod-pill-input" id="spAddFieldType" name="field_type">
+            <option value="text">text</option>
+            <option value="textarea">textarea</option>
+            <option value="number">number</option>
+            <option value="select">select</option>
+            <option value="multiselect">multiselect</option>
+            <option value="checkbox">checkbox</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label" for="spAddFieldOptions">{{ _('helpers.settings.field_options') }}</label>
+          <input type="text" class="form-control mod-pill-input" id="spAddFieldOptions" name="options">
+        </div>
+        <div class="d-flex flex-wrap gap-3">
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="spAddFieldPub" name="is_public" value="1" checked><label class="form-check-label" for="spAddFieldPub">{{ _('helpers.settings.is_public') }}</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="spAddFieldReq" name="is_required" value="1"><label class="form-check-label" for="spAddFieldReq">{{ _('helpers.settings.is_required') }}</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="spAddFieldAdm" name="admin_only" value="1"><label class="form-check-label" for="spAddFieldAdm">{{ _('helpers.settings.admin_only') }}</label></div>
+          <div class="form-check"><input class="form-check-input" type="checkbox" id="spAddFieldOvr" name="show_in_overview" value="1"><label class="form-check-label" for="spAddFieldOvr">{{ _('helpers.settings.show_in_overview') }}</label></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+        <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent">{{ _('common.save') }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade" id="spHelpersAddAreaModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="POST" action="{{ url_for('helpers.create_area', event_id=current_event.id) }}" class="modal-content rounded-4 border-0 shadow">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="settings">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ _('helpers.settings.add_area') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+      </div>
+      <div class="modal-body d-flex flex-column gap-3">
+        <div>
+          <label class="form-label" for="spAddAreaName">{{ _('helpers.areas.area') }} *</label>
+          <input type="text" class="form-control mod-pill-input" id="spAddAreaName" name="name" required>
+        </div>
+        <div>
+          <label class="form-label" for="spAddAreaDesc">{{ _('helpers.modal.description') }}</label>
+          <textarea class="form-control" id="spAddAreaDesc" name="description" rows="2"></textarea>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="spAddAreaPub" name="is_public_selectable" value="1" checked>
+          <label class="form-check-label" for="spAddAreaPub">{{ _('helpers.settings.public_selectable') }}</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+        <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent">{{ _('common.save') }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade" id="spHelpersAddRuleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <form method="POST" action="{{ url_for('helpers.create_voucher_rule', event_id=current_event.id) }}" class="modal-content rounded-4 border-0 shadow">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="next" value="settings">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ _('helpers.settings.add_rule') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label" for="spAddRuleName">{{ _('helpers.settings.rule_name') }} *</label>
+            <input type="text" class="form-control mod-pill-input" id="spAddRuleName" name="name" required>
+          </div>
+          <div class="col-6"><label class="form-label" for="spAddRuleMin">{{ _('helpers.settings.min_hours') }}</label><input type="number" step="0.1" min="0" value="0" class="form-control mod-pill-input" id="spAddRuleMin" name="min_hours"></div>
+          <div class="col-6"><label class="form-label" for="spAddRuleMax">{{ _('helpers.settings.max_hours') }}</label><input type="number" step="0.1" min="0" class="form-control mod-pill-input" id="spAddRuleMax" name="max_hours" placeholder="∞"></div>
+          <div class="col-4"><label class="form-label" for="spAddRuleFood">{{ _('helpers.table.food') }}</label><input type="number" min="0" value="1" class="form-control mod-pill-input" id="spAddRuleFood" name="food_count"></div>
+          <div class="col-4"><label class="form-label" for="spAddRuleDrinks">{{ _('helpers.table.drinks') }}</label><input type="number" min="0" value="3" class="form-control mod-pill-input" id="spAddRuleDrinks" name="drinks_count"></div>
+          <div class="col-4"><label class="form-label" for="spAddRuleHead">{{ _('helpers.settings.head_bonus') }}</label><input type="number" min="0" value="1" class="form-control mod-pill-input" id="spAddRuleHead" name="head_bonus_drinks"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+        <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent">{{ _('common.save') }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

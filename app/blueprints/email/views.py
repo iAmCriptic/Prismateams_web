@@ -64,6 +64,7 @@ from app.blueprints.email.mailbox import (
     _folder_tree_context,
     _message_mailbox_filter,
     _multi_mailbox_sidebar_trees,
+    _resolve_mailbox_folder,
     _resolve_request_mailbox,
     _restore_false_deleted_flags,
     check_email_permission,
@@ -162,9 +163,14 @@ def folder_view(folder_name):
 
     active_mailbox, mailbox_id = _resolve_request_mailbox('read')
     
-    # Check if folder exists, if not redirect to index
+    # Check if folder exists, if not try alias resolution or redirect to index
     folder_obj = _find_email_folder(folder_name, mailbox_id)
     if not folder_obj:
+        resolved = _resolve_mailbox_folder(folder_name, mailbox_id)
+        if resolved is not None and resolved.name != folder_name:
+            return redirect(
+                url_for('email.folder_view', folder_name=resolved.name, mailbox=mailbox_id or 'main')
+            )
         existing_emails = (
             EmailMessage.query.filter_by(folder=folder_name)
             .filter(_message_mailbox_filter(mailbox_id))

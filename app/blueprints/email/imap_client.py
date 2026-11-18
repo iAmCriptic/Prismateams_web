@@ -389,15 +389,54 @@ def connect_imap(folder='INBOX', mailbox=None):
         return None
 
 
+def _encode_imap_utf7(text: str) -> str:
+    """Encode a Unicode folder name to IMAP Modified UTF-7 (RFC 3501 Section 5.1.3)."""
+    import base64
+
+    if not text:
+        return ''
+    out = []
+    non_ascii = []
+
+    def _flush_non_ascii():
+        if not non_ascii:
+            return
+        raw = ''.join(non_ascii).encode('utf-16-be')
+        b64 = base64.b64encode(raw).decode('ascii').rstrip('=').replace('/', ',')
+        out.append(f'&{b64}-')
+        non_ascii.clear()
+
+    for ch in text:
+        code = ord(ch)
+        if 0x20 <= code <= 0x7E:
+            _flush_non_ascii()
+            out.append('&-' if ch == '&' else ch)
+        else:
+            non_ascii.append(ch)
+    _flush_non_ascii()
+    return ''.join(out)
+
+
 def _select_imap_folder(mail_conn, folder_name):
     """Select IMAP folder; returns (ok: bool, messages/error payload)."""
-    status, messages = mail_conn.select(folder_name)
-    if status != 'OK':
+    candidates = [folder_name, f'"{folder_name}"']
+    if folder_name and any(ord(c) > 0x7E for c in folder_name):
+        utf7 = _encode_imap_utf7(folder_name)
+        if utf7 and utf7 != folder_name:
+            candidates.extend([utf7, f'"{utf7}"'])
+
+    status = 'NO'
+    messages = []
+    for candidate in candidates:
         try:
-            status, messages = mail_conn.select(f'"{folder_name}"')
-        except Exception:
-            pass
-    return status == 'OK', messages
+            status, messages = mail_conn.select(candidate)
+            if status == 'OK':
+                return True, messages
+        except UnicodeEncodeError:
+            continue
+        except Exception as exc:
+            messages = [str(exc)]
+    return False, messages
 
 
 def is_sent_folder(folder_name):
@@ -681,39 +720,74 @@ def save_email_to_imap_sent(msg):
         return False, None
 
 
-def _parse_imap_list_line(folder_info):
+def _parse_imap_list_entry(folder_info):
     """
-    Parse IMAP LIST response line.
-    Supports both:
+    Parse IMAP LIST response entry.
+    Supports both bytes/str lines and literal tuples:
       (\\HasNoChildren) "/" INBOX
       (\\HasNoChildren) "/" "Sent Messages"
-    Returns (folder_name, separator) or (None, '/') if unusable.
+      (\\Noselect \\HasChildren) "." "[Gmail]"
+      (b'(\\HasNoChildren) "." {12}', b'Folder Name')
+    Returns (folder_name, separator, is_noselect) or (None, '/', False) if unusable.
     """
     import re
+
+    if isinstance(folder_info, tuple) and len(folder_info) >= 2:
+        header = folder_info[0].decode('utf-8', errors='ignore') if isinstance(folder_info[0], bytes) else str(folder_info[0])
+        literal = folder_info[1].decode('utf-8', errors='ignore') if isinstance(folder_info[1], bytes) else str(folder_info[1])
+        flags_match = re.match(r'^\s*\((?P<flags>[^)]*)\)\s+("(?P<sep1>[^"]*)"|(?P<sep2>\S+))', header)
+        flags_str = flags_match.group('flags') if flags_match else ''
+        is_noselect = '\\noselect' in flags_str.lower()
+        sep = '/'
+        if flags_match:
+            raw_sep = flags_match.group('sep1') if flags_match.group('sep1') is not None else (flags_match.group('sep2') or '/')
+            if raw_sep and raw_sep.upper() != 'NIL':
+                sep = raw_sep.strip() or '/'
+        name = (literal or '').strip()
+        if not name or name in ('/', '.'):
+            return None, sep, is_noselect
+        return name, sep, is_noselect
+
     if isinstance(folder_info, bytes):
         folder_str = folder_info.decode('utf-8', errors='ignore')
     else:
         folder_str = str(folder_info)
 
     match = re.match(
-        r'''^\s*\(.*\)\s+("(?P<sep1>[^"]*)"|(?P<sep2>\S+))\s+("(?P<name1>.*)"|(?P<name2>\S+))\s*$''',
+        r'''^\s*\((?P<flags>[^)]*)\)\s+("(?P<sep1>[^"]*)"|(?P<sep2>\S+))\s+("(?P<name1>.*)"|(?P<name2>\S+))\s*$''',
         folder_str,
     )
     if not match:
+        is_noselect = '\\noselect' in folder_str.lower()
         parts = folder_str.split('"')
         if len(parts) >= 3:
             sep = (parts[1] or '/').strip() or '/'
+            if sep.upper() == 'NIL':
+                sep = '/'
             name = (parts[-2] or '').strip()
             if name and name not in ('/', '.'):
-                return name, sep
-        return None, '/'
+                return name, sep, is_noselect
+        return None, '/', is_noselect
 
+    flags_str = match.group('flags') or ''
+    is_noselect = '\\noselect' in flags_str.lower()
     sep = match.group('sep1') if match.group('sep1') is not None else (match.group('sep2') or '/')
+    if sep and sep.upper() == 'NIL':
+        sep = '/'
     sep = (sep or '/').strip() or '/'
     name = match.group('name1') if match.group('name1') is not None else match.group('name2')
     name = (name or '').strip()
     if not name or name in ('/', '.'):
-        return None, sep
+        return None, sep, is_noselect
+    return name, sep, is_noselect
+
+
+def _parse_imap_list_line(folder_info):
+    """
+    Parse IMAP LIST response line.
+    Returns (folder_name, separator) or (None, '/') if unusable.
+    """
+    name, sep, _ = _parse_imap_list_entry(folder_info)
     return name, sep
 def delete_email_from_imap(email_id, folder_name):
     """Delete email from IMAP server."""

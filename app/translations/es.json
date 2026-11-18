@@ -37,7 +37,8 @@
       "protocols": "Actas",
       "meetings": "Reuniones",
       "duty_roster": "Horario de turnos",
-      "booking_personal": "Booking"
+      "booking_personal": "Booking",
+      "helpers": "Gestión de voluntarios"
     },
     "brand": {
       "separator": "–",
@@ -804,6 +805,11 @@
       "excalidraw": {
         "title": "Excalidraw Boards",
         "empty": "No boards available yet."
+      },
+      "helpers": {
+        "title": "Gestión de voluntarios",
+        "helpers_count": "{count} voluntarios",
+        "empty": "No hay eventos de voluntarios."
       }
     },
     "module_bar": {
@@ -1697,7 +1703,8 @@
         "module_meetings": "Reuniones (videollamadas)",
         "meetings_needs_mirotalk": "Requiere MIROTALK_URL en el .env. Sin MiroTalk el módulo permanece desactivado.",
         "module_duty_roster": "Horario de turnos",
-        "module_booking_personal": "Booking"
+        "module_booking_personal": "Booking",
+        "module_helpers": "Gestión de voluntarios"
       },
       "users": {
         "page_title": "Gestión de usuarios - Administración",
@@ -8068,6 +8075,216 @@
       "empty": "No hay planes publicados.",
       "filter_team": "Filtrar equipo",
       "all_teams": "Todos los equipos"
+    }
+  },
+  "helpers": {
+    "heading": "Helferverwaltung",
+    "search_placeholder": "Helfer, Bereich oder Rolle suchen...",
+    "sidebar": {
+      "events": "Veranstaltungen",
+      "no_events": "Keine Veranstaltungen vorhanden.",
+      "new_event": "NEU"
+    },
+    "nav": {
+      "overview": "Helfer-Übersicht",
+      "areas": "Bereiche & Schichten",
+      "bedarf": "T-Shirts & Marken",
+      "settings": "Admin-Einstellungen",
+      "public_form": "Öffentliche Anmeldung",
+      "ausgabe": "Control de entrega"
+    },
+    "modal": {
+      "new_event_title": "Neue Veranstaltung anlegen",
+      "event_name": "Veranstaltungsname",
+      "start_date": "Startdatum",
+      "end_date": "Enddatum",
+      "description": "Beschreibung",
+      "clone_config": "Konfiguration übernehmen von",
+      "clone_default": "Standard-Vorlage (Excel-Bereiche & Regeln)"
+    },
+    "common": {
+      "copied": "Kopiert!",
+      "hours_short": "Std."
+    },
+    "overview": {
+      "helpers_count": "registrierte Helfer",
+      "copy_public_link": "Anmelde-Link kopieren",
+      "add_helper": "Helfer anlegen",
+      "edit_helper": "Helfer bearbeiten",
+      "unassigned_badge": "Noch nicht eingeteilt",
+      "empty": "Noch keine Helfer für diese Veranstaltung registriert."
+    },
+    "filter": {
+      "all_areas": "Alle Bereiche",
+      "all_assignments": "Alle Einteilungen",
+      "only_assigned": "Nur eingeteilt",
+      "only_unassigned": "Nur nicht eingeteilt",
+      "all_statuses": "Alle Status",
+      "reset": "Zurücksetzen"
+    },
+    "status": {
+      "registered": "Angemeldet",
+      "confirmed": "Bestätigt",
+      "cancelled": "Abgesagt"
+    },
+    "table": {
+      "name": "Name",
+      "contact": "Kontakt",
+      "tshirt": "T-Shirt",
+      "wished_for": "Gemeldet für",
+      "assigned_to": "Eingeteilt in",
+      "vouchers": "Marken",
+      "food": "Essen",
+      "drinks": "Getränke"
+    },
+    "fields": {
+      "first_name": "Vorname",
+      "last_name": "Nachname",
+      "email": "E-Mail",
+      "phone": "Telefon",
+      "tshirt_size": "T-Shirt-Größe",
+      "allergies": "Unverträglichkeiten / Ernährung",
+      "status": "Status"
+    },
+    "areas": {
+      "area": "Bereich",
+      "count_label": "Bereiche",
+      "internal_only": "Nur intern",
+      "shifts_filled": "Schichten besetzt",
+      "open": "offen",
+      "total_hours": "Gesamtstunden",
+      "food_by_day": "Essensmarken (Fr/Sa/So)",
+      "food_total": "Essensmarken gesamt",
+      "drinks_total": "Getränkemarken gesamt",
+      "empty": "Keine Bereiche vorhanden.",
+      "export_csv": "CSV-Export",
+      "print": "Druckansicht",
+      "team_list": "Team-Liste des Bereichs",
+      "no_team_members": "Noch keine Helfer in diesem Bereich eingeteilt."
+    },
+    "shifts": {
+      "heading": "Schichtplan",
+      "add": "Schicht anlegen",
+      "edit": "Schicht bearbeiten",
+      "day": "Tag",
+      "date": "Datum",
+      "time": "Zeitraum",
+      "start_time": "Startzeit",
+      "end_time": "Endzeit",
+      "hours": "Stunden",
+      "role": "Rolle / Sub-Bereich",
+      "assigned_helper": "Helfer / Posten",
+      "group_count": "Anzahl (Sammelposten)",
+      "open_or_bulk": "-- Offen / Sammelposten (★ = Wunschbereich) --",
+      "bulk_post": "Sammelposten",
+      "open_slot": "Offen",
+      "is_head": "Bereichs-HEAD (Zuschlag)",
+      "food_override": "Essen (Override)",
+      "drinks_override": "Getränke (Override)",
+      "auto_placeholder": "Automatisch",
+      "override_hint": "Manuell überschrieben",
+      "empty": "Noch keine Schichten in diesem Bereich angelegt.",
+      "create_as_bulk": "Agrupar como puesto colectivo anónimo"
+    },
+    "bedarf": {
+      "subtitle": "T-Shirt-Bedarf & Essens-/Getränkemarken-Kalkulation",
+      "filter_all": "Alle Angemeldeten",
+      "filter_assigned": "Nur eingeteilte/bestätigte Helfer",
+      "tshirt_heading": "T-Shirt-Bedarf",
+      "no_tshirts": "Keine T-Shirt-Angaben vorhanden.",
+      "vouchers_heading": "Essens- & Getränkemarken",
+      "food_total": "Essen gesamt",
+      "drinks_total": "Getränke gesamt",
+      "by_day": "Aufschlüsselung nach Tag",
+      "food_fr": "Essen Fr",
+      "food_sa": "Essen Sa",
+      "food_so": "Essen So",
+      "checklist_heading": "Ausgabe-Checkliste pro Helfer",
+      "issued": "Ausgegeben",
+      "checklist_empty": "Noch keine Schichten oder Marken zugewiesen."
+    },
+    "settings": {
+      "general_heading": "Allgemeine Einstellungen & Markenberechnung",
+      "calc_mode": "Marken-Berechnungsmodus",
+      "calc_per_shift": "Pro Schicht einzeln berechnen",
+      "calc_cumulative": "Kumuliert pro Person und Tag berechnen",
+      "public_url": "Öffentlicher Anmelde-Link",
+      "apply_enabled": "Öffentliche Anmeldung für diese Veranstaltung aktivieren",
+      "fields_heading": "Dynamische Feld-Konfiguration (FieldConfig)",
+      "add_field": "Feld anlegen",
+      "field_label": "Feldname",
+      "field_type": "Feldtyp",
+      "field_options": "Optionen (kommagetrennt)",
+      "is_public": "Öffentlich",
+      "is_required": "Pflichtfeld",
+      "admin_only": "Nur Admin",
+      "admin_only_short": "Intern",
+      "show_in_overview": "In Übersicht",
+      "sort_order": "Sortierung",
+      "areas_heading": "Bereiche verwalten (Area)",
+      "add_area": "Bereich anlegen",
+      "public_selectable": "Öffentlich wählbar",
+      "rules_heading": "Essens- & Getränkemarken-Regeln (VoucherRule)",
+      "add_rule": "Regel anlegen",
+      "rule_name": "Regelbezeichnung",
+      "hours_range": "Stundenbereich",
+      "min_hours": "Min. Std.",
+      "max_hours": "Max. Std.",
+      "head_bonus": "HEAD-Bonus Getränke",
+      "global_rule": "Global (alle Bereiche)"
+    },
+    "public": {
+      "title": "Helfer-Anmeldung",
+      "please_select": "-- Bitte wählen --",
+      "areas_label": "Wunschbereiche (Mehrfachauswahl möglich)",
+      "days_label": "Verfügbare Tage",
+      "notes_label": "Anmerkungen / Zeitwünsche",
+      "dsgvo_label": "Ich stimme der Verarbeitung meiner angegebenen Daten zur Organisation und Schichtplanung der Veranstaltung gemäß DSGVO zu.",
+      "submit": "Anmeldung absenden",
+      "success_title": "Vielen Dank für deine Anmeldung!",
+      "success_body": "Deine Daten wurden erfolgreich übermittelt. Das Orga-Team meldet sich rechtzeitig vor der Veranstaltung bei dir."
+    },
+    "flash": {
+      "event_name_required": "Bitte einen Veranstaltungsnamen angeben.",
+      "event_created": "Veranstaltung erfolgreich angelegt.",
+      "helper_required_fields": "Vorname, Nachname und E-Mail sind Pflichtfelder.",
+      "duplicate_email": "Diese E-Mail-Adresse ist für diese Veranstaltung bereits registriert.",
+      "helper_created": "Helfer erfolgreich angelegt.",
+      "helper_updated": "Helferdaten gespeichert.",
+      "helper_deleted": "Helfer gelöscht.",
+      "shift_created": "Schicht angelegt.",
+      "shift_updated": "Schicht aktualisiert.",
+      "shift_deleted": "Schicht gelöscht.",
+      "settings_saved": "Einstellungen gespeichert.",
+      "field_label_required": "Bitte einen Feldnamen angeben.",
+      "field_created": "Feld angelegt.",
+      "field_updated": "Feld aktualisiert.",
+      "field_deleted": "Feld entfernt.",
+      "area_name_required": "Bitte einen Bereichsnamen angeben.",
+      "area_duplicate": "Dieser Bereich existiert bereits.",
+      "area_created": "Bereich angelegt.",
+      "area_updated": "Bereich aktualisiert.",
+      "area_deleted": "Bereich entfernt.",
+      "rule_created": "Markenregel angelegt.",
+      "rule_updated": "Markenregel aktualisiert.",
+      "rule_deleted": "Markenregel entfernt.",
+      "mail_sent": "Schichtplan-E-Mail erfolgreich gesendet.",
+      "mail_failed": "E-Mail konnte nicht gesendet werden."
+    },
+    "ausgabe": {
+      "subtitle": "Checkliste für Essens- und Getränkemarken sowie T-Shirt-Größen",
+      "filter_all": "Alle",
+      "filter_open": "Offen",
+      "filter_issued": "Ausgegeben",
+      "days_present": "Tage dabei"
+    },
+    "mail": {
+      "send_schedule": "Schichtplan per E-Mail senden",
+      "mailbox": "Absender-Postfach",
+      "default_mailer": "Standard-Portal-Mailer",
+      "subject": "E-Mail-Betreff (Schichtplan)",
+      "body": "E-Mail-Vorlage (Schichtplan)",
+      "placeholders_hint": "Verfügbare Platzhalter"
     }
   }
 }

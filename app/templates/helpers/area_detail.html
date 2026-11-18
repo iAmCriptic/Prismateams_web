@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+{% from "helpers/_sidebar.html" import helpers_sidebar, helpers_mobile_offcanvas, helpers_new_event_modal with context %}
+
+{% block title %}{{ area.name }} — {{ current_event.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/helpers.css') }}">
+{% endblock %}
+
+{% block navbar_search %}
+<div class="mod-search" role="search">
+  <label class="mod-search-field" for="modSearchInput">
+    <i class="bi bi-search" aria-hidden="true"></i>
+    <input type="text" id="modSearchInput" class="mod-search-input" placeholder="{{ _('helpers.search_placeholder') }}" autocomplete="off" spellcheck="false">
+  </label>
+  <button type="button" class="btn mod-search-clear d-none" id="modSearchClear" aria-label="{{ _('common.cancel') }}">
+    <i class="bi bi-x-lg"></i>
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="helpers-shell mod-shell--nav">
+  {{ helpers_sidebar(events, current_event, active_nav) }}
+  {{ helpers_mobile_offcanvas(events, current_event, active_nav) }}
+
+  <main class="mod-main">
+    <div class="mod-back-row mb-2">
+      <a href="{{ url_for('helpers.areas', event_id=current_event.id) }}" class="mod-back-link">
+        <i class="bi bi-arrow-left"></i>
+        <span>{{ _('layout.nav.back') }}</span>
+      </a>
+    </div>
+
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+      <div>
+        <h1 class="h4 mb-0">{{ area.name }}</h1>
+        {% if area.description %}<div class="small text-muted">{{ area.description }}</div>{% endif %}
+      </div>
+      <div class="d-flex flex-wrap gap-2 no-print">
+        <a href="{{ url_for('helpers.area_export_csv', event_id=current_event.id, area_id=area.id) }}" class="btn mod-pill-btn mod-pill-btn--outline">
+          <i class="bi bi-download"></i>
+          <span>{{ _('helpers.areas.export_csv') }}</span>
+        </a>
+        <a href="{{ url_for('helpers.area_export_pdf', event_id=current_event.id, area_id=area.id) }}" target="_blank" rel="noopener" class="btn mod-pill-btn mod-pill-btn--outline">
+          <i class="bi bi-file-earmark-pdf"></i>
+          <span>{{ _('helpers.areas.print') }}</span>
+        </a>
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--accent" data-bs-toggle="modal" data-bs-target="#helpersAddShiftModal">
+          <i class="bi bi-plus-lg"></i>
+          <span>{{ _('helpers.shifts.add') }}</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="helpers-kpi-card p-3">
+          <div class="small text-muted">{{ _('helpers.areas.shifts_filled') }}</div>
+          <div class="helpers-kpi-value">{{ detail.kpis.filled_slots }} / {{ detail.kpis.total_slots }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="helpers-kpi-card p-3">
+          <div class="small text-muted">{{ _('helpers.areas.total_hours') }}</div>
+          <div class="helpers-kpi-value">{{ detail.kpis.total_hours }} {{ _('helpers.common.hours_short') }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="helpers-kpi-card p-3">
+          <div class="small text-muted">{{ _('helpers.areas.food_total') }}</div>
+          <div class="helpers-kpi-value">{{ detail.kpis.food_total }}</div>
+          <div class="small text-muted">Fr {{ detail.kpis.food_by_day['Fr'] }} · Sa {{ detail.kpis.food_by_day['Sa'] }} · So {{ detail.kpis.food_by_day['So'] }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="helpers-kpi-card p-3">
+          <div class="small text-muted">{{ _('helpers.areas.drinks_total') }}</div>
+          <div class="helpers-kpi-value">{{ detail.kpis.drinks_total }}</div>
+          <div class="small text-muted">Fr {{ detail.kpis.drinks_by_day['Fr'] }} · Sa {{ detail.kpis.drinks_by_day['Sa'] }} · So {{ detail.kpis.drinks_by_day['So'] }}</div>
+        </div>
+      </div>
+    </div>
+
+    <h2 class="h5 mb-2">{{ _('helpers.shifts.heading') }}</h2>
+    <div class="mod-list-table-wrap mb-4">
+      <table class="table mod-list-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{{ _('helpers.shifts.day') }}</th>
+            <th>{{ _('helpers.shifts.time') }}</th>
+            <th>{{ _('helpers.shifts.hours') }}</th>
+            <th>{{ _('helpers.shifts.role') }}</th>
+            <th>{{ _('helpers.shifts.assigned_helper') }}</th>
+            <th>{{ _('helpers.table.food') }}</th>
+            <th>{{ _('helpers.table.drinks') }}</th>
+            <th class="text-end no-print">{{ _('common.actions') }}</th>
+          </tr>
+        </thead>
+        <tbody id="helpersTableBody">
+          {% for row in detail.shift_rows %}
+          {% set s = row.shift %}
+          <tr class="mod-list-row" data-search="{{ s.day_label }} {{ s.role_label or '' }} {{ s.helper.full_name if s.helper else '' }}">
+            <td>
+              <div class="fw-semibold">{{ s.day_label }}</div>
+              {% if s.date %}<div class="small text-muted">{{ s.date.strftime('%d.%m.%Y') }}</div>{% endif %}
+            </td>
+            <td class="small">{{ s.start_time or '—' }}{% if s.end_time %} – {{ s.end_time }}{% endif %}</td>
+            <td>{{ s.hours }} {{ _('helpers.common.hours_short') }}</td>
+            <td>
+              <span>{{ s.role_label or '—' }}</span>
+              {% if s.is_head_role %}<span class="badge helpers-badge-accent ms-1">HEAD</span>{% endif %}
+            </td>
+            <td>
+              {% if s.helper %}
+                <span class="fw-semibold">{{ s.helper.full_name }}</span>
+              {% elif s.group_count > 1 %}
+                <span class="badge bg-info text-dark">{{ s.group_count }}x {{ s.role_label or _('helpers.shifts.bulk_post') }}</span>
+              {% else %}
+                <span class="badge bg-warning text-dark">{{ _('helpers.shifts.open_slot') }}</span>
+              {% endif %}
+            </td>
+            <td>
+              {{ row.food }}
+              {% if s.food_override is not none %}<span class="badge bg-secondary ms-1" title="{{ _('helpers.shifts.override_hint') }}">*</span>{% endif %}
+            </td>
+            <td>
+              {{ row.drinks }}
+              {% if s.drinks_override is not none %}<span class="badge bg-secondary ms-1" title="{{ _('helpers.shifts.override_hint') }}">*</span>{% endif %}
+            </td>
+            <td class="text-end no-print">
+              <div class="mod-list-actions">
+                <div class="mod-list-hover-actions">
+                  <button type="button"
+                          class="btn btn-sm btn-link js-edit-shift-btn"
+                          data-bs-toggle="modal"
+                          data-bs-target="#helpersEditShiftModal"
+                          data-action="{{ url_for('helpers.update_shift', shift_id=s.id) }}"
+                          data-helper-id="{{ s.helper_id or '' }}"
+                          data-group-count="{{ s.group_count }}"
+                          data-role="{{ s.role_label or '' }}"
+                          data-day="{{ s.day_label }}"
+                          data-date="{{ s.date.isoformat() if s.date else '' }}"
+                          data-start="{{ s.start_time or '' }}"
+                          data-end="{{ s.end_time or '' }}"
+                          data-hours="{{ s.hours }}"
+                          data-is-head="{{ '1' if s.is_head else '0' }}"
+                          data-food-override="{{ s.food_override if s.food_override is not none else '' }}"
+                          data-drinks-override="{{ s.drinks_override if s.drinks_override is not none else '' }}"
+                          data-notes="{{ s.notes or '' }}"
+                          title="{{ _('common.edit') }}"
+                          aria-label="{{ _('common.edit') }}">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                </div>
+                <div class="dropdown d-inline-block">
+                  <button class="btn btn-sm btn-link"
+                          type="button"
+                          data-bs-toggle="dropdown"
+                          data-bs-popper-config='{"strategy":"fixed"}'
+                          aria-label="{{ _('common.actions') }}">
+                    <i class="bi bi-three-dots-vertical"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
+                    <li>
+                      <button type="button"
+                              class="dropdown-item js-edit-shift-btn"
+                              data-bs-toggle="modal"
+                              data-bs-target="#helpersEditShiftModal"
+                              data-action="{{ url_for('helpers.update_shift', shift_id=s.id) }}"
+                              data-helper-id="{{ s.helper_id or '' }}"
+                              data-group-count="{{ s.group_count }}"
+                              data-role="{{ s.role_label or '' }}"
+                              data-day="{{ s.day_label }}"
+                              data-date="{{ s.date.isoformat() if s.date else '' }}"
+                              data-start="{{ s.start_time or '' }}"
+                              data-end="{{ s.end_time or '' }}"
+                              data-hours="{{ s.hours }}"
+                              data-is-head="{{ '1' if s.is_head else '0' }}"
+                              data-food-override="{{ s.food_override if s.food_override is not none else '' }}"
+                              data-drinks-override="{{ s.drinks_override if s.drinks_override is not none else '' }}"
+                              data-notes="{{ s.notes or '' }}">
+                        <i class="bi bi-pencil me-2"></i>{{ _('common.edit') }}
+                      </button>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                      <form method="POST" action="{{ url_for('helpers.delete_shift', shift_id=s.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="dropdown-item text-danger">
+                          <i class="bi bi-trash me-2"></i>{{ _('common.delete') }}
+                        </button>
+                      </form>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">{{ _('helpers.shifts.empty') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <h2 class="h5 mb-2">{{ _('helpers.areas.team_list') }}</h2>
+    <div class="mod-list-table-wrap">
+      <table class="table mod-list-table align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{{ _('helpers.table.name') }}</th>
+            <th>{{ _('helpers.table.contact') }}</th>
+            <th>{{ _('helpers.fields.allergies') }}</th>
+            <th>{{ _('helpers.shifts.role') }}</th>
+            <th>{{ _('helpers.shifts.hours') }}</th>
+            <th>{{ _('helpers.table.vouchers') }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in detail.team_list %}
+          {% set h = item.helper %}
+          <tr>
+            <td class="fw-semibold">{{ h.full_name }}</td>
+            <td class="small">
+              <div>{{ h.email }}</div>
+              {% if h.phone %}<div class="text-muted">{{ h.phone }}</div>{% endif %}
+            </td>
+            <td class="small">{{ h.allergies or '—' }}</td>
+            <td class="small">{{ item.roles|join(', ') or '—' }}</td>
+            <td>{{ item.hours }} {{ _('helpers.common.hours_short') }}</td>
+            <td class="small">{{ item.food }} {{ _('helpers.table.food') }} / {{ item.drinks }} {{ _('helpers.table.drinks') }}</td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">{{ _('helpers.areas.no_team_members') }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+{{ helpers_new_event_modal(events) }}
+
+<div class="modal fade" id="helpersAddShiftModal" tabindex="-1" aria-labelledby="helpersAddShiftModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <form method="POST" action="{{ url_for('helpers.create_shift', event_id=current_event.id) }}" class="modal-content rounded-4 border-0 shadow">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="area_id" value="{{ area.id }}">
+      <div class="modal-header">
+        <h5 class="modal-title" id="helpersAddShiftModalLabel">{{ _('helpers.shifts.add') }} — {{ area.name }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label class="form-label" for="addShiftHelper">{{ _('helpers.shifts.assigned_helper') }}</label>
+            <select class="form-select mod-pill-input" id="addShiftHelper" name="helper_id">
+              <option value="">{{ _('helpers.shifts.open_or_bulk') }}</option>
+              {% for h, is_pref, _w in detail.prioritized_helpers %}
+              <option value="{{ h.id }}">
+                {% if is_pref %}★ {% endif %}{{ h.full_name }} ({{ h.email }})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="addShiftGroupCount">{{ _('helpers.shifts.group_count') }}</label>
+            <input type="number" min="1" value="1" class="form-control mod-pill-input" id="addShiftGroupCount" name="group_count">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="addShiftRole">{{ _('helpers.shifts.role') }}</label>
+            <input type="text" class="form-control mod-pill-input" id="addShiftRole" name="role_label" placeholder="z. B. HEAD, Mainstage, Secu">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="addShiftDay">{{ _('helpers.shifts.day') }}</label>
+            <select class="form-select mod-pill-input" id="addShiftDay" name="day_label">
+              <option value="Freitag">Freitag</option>
+              <option value="Samstag">Samstag</option>
+              <option value="Sonntag">Sonntag</option>
+              <option value="Aufbau/Davor">Aufbau/Davor</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="addShiftDate">{{ _('helpers.shifts.date') }}</label>
+            <input type="date" class="form-control mod-pill-input" id="addShiftDate" name="date">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="addShiftStart">{{ _('helpers.shifts.start_time') }}</label>
+            <input type="text" class="form-control mod-pill-input" id="addShiftStart" name="start_time" placeholder="11:00">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="addShiftEnd">{{ _('helpers.shifts.end_time') }}</label>
+            <input type="text" class="form-control mod-pill-input" id="addShiftEnd" name="end_time" placeholder="17:00">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="addShiftHours">{{ _('helpers.shifts.hours') }}</label>
+            <input type="number" step="0.25" min="0" value="6" class="form-control mod-pill-input" id="addShiftHours" name="hours">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="addShiftFoodOverride">{{ _('helpers.shifts.food_override') }}</label>
+            <input type="number" min="0" class="form-control mod-pill-input" id="addShiftFoodOverride" name="food_override" placeholder="{{ _('helpers.shifts.auto_placeholder') }}">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="addShiftDrinksOverride">{{ _('helpers.shifts.drinks_override') }}</label>
+            <input type="number" min="0" class="form-control mod-pill-input" id="addShiftDrinksOverride" name="drinks_override" placeholder="{{ _('helpers.shifts.auto_placeholder') }}">
+          </div>
+          <div class="col-md-4 d-flex align-items-end">
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="addShiftIsHead" name="is_head" value="1">
+              <label class="form-check-label" for="addShiftIsHead">{{ _('helpers.shifts.is_head') }}</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+        <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent">{{ _('common.save') }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade" id="helpersEditShiftModal" tabindex="-1" aria-labelledby="helpersEditShiftModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <form method="POST" action="" class="modal-content rounded-4 border-0 shadow">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header">
+        <h5 class="modal-title" id="helpersEditShiftModalLabel">{{ _('helpers.shifts.edit') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label class="form-label" for="editShiftHelper">{{ _('helpers.shifts.assigned_helper') }}</label>
+            <select class="form-select mod-pill-input" id="editShiftHelper" name="helper_id">
+              <option value="">{{ _('helpers.shifts.open_or_bulk') }}</option>
+              {% for h, is_pref, _w in detail.prioritized_helpers %}
+              <option value="{{ h.id }}">
+                {% if is_pref %}★ {% endif %}{{ h.full_name }} ({{ h.email }})
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="editShiftGroupCount">{{ _('helpers.shifts.group_count') }}</label>
+            <input type="number" min="1" class="form-control mod-pill-input" id="editShiftGroupCount" name="group_count">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="editShiftRole">{{ _('helpers.shifts.role') }}</label>
+            <input type="text" class="form-control mod-pill-input" id="editShiftRole" name="role_label">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="editShiftDay">{{ _('helpers.shifts.day') }}</label>
+            <select class="form-select mod-pill-input" id="editShiftDay" name="day_label">
+              <option value="Freitag">Freitag</option>
+              <option value="Samstag">Samstag</option>
+              <option value="Sonntag">Sonntag</option>
+              <option value="Aufbau/Davor">Aufbau/Davor</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="editShiftDate">{{ _('helpers.shifts.date') }}</label>
+            <input type="date" class="form-control mod-pill-input" id="editShiftDate" name="date">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="editShiftStart">{{ _('helpers.shifts.start_time') }}</label>
+            <input type="text" class="form-control mod-pill-input" id="editShiftStart" name="start_time">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="editShiftEnd">{{ _('helpers.shifts.end_time') }}</label>
+            <input type="text" class="form-control mod-pill-input" id="editShiftEnd" name="end_time">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="editShiftHours">{{ _('helpers.shifts.hours') }}</label>
+            <input type="number" step="0.25" min="0" class="form-control mod-pill-input" id="editShiftHours" name="hours">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="editShiftFoodOverride">{{ _('helpers.shifts.food_override') }}</label>
+            <input type="number" min="0" class="form-control mod-pill-input" id="editShiftFoodOverride" name="food_override">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label" for="editShiftDrinksOverride">{{ _('helpers.shifts.drinks_override') }}</label>
+            <input type="number" min="0" class="form-control mod-pill-input" id="editShiftDrinksOverride" name="drinks_override">
+          </div>
+          <div class="col-md-4 d-flex align-items-end">
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" id="editShiftIsHead" name="is_head" value="1">
+              <label class="form-check-label" for="editShiftIsHead">{{ _('helpers.shifts.is_head') }}</label>
+            </div>
+          </div>
+          <input type="hidden" id="editShiftNotes" name="notes">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+        <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent">{{ _('common.save') }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/helpers.js') }}"></script>
+{% endblock %}

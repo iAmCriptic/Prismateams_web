@@ -55,6 +55,7 @@ from .event import (
     EventTodoList,
     EventTodoItem,
     EventBookingPersonalLink,
+    EventHelperLink,
     EventCustomField,
     EventCustomFieldValue,
     EventLink,
@@ -112,6 +113,15 @@ from .booking_personal import (
     BookingPersonalFile,
     BookingPersonalTemplate,
 )
+from .helpers import (
+    HelperEvent,
+    Helper,
+    HelperArea,
+    HelperAreaWish,
+    HelperShift,
+    HelperFieldConfig,
+    HelperVoucherRule,
+)
 from .kanban import (
     KanbanBoard,
     KanbanBoardMember,
@@ -158,7 +168,7 @@ __all__ = [
     'PublicShare', 'ShareAccessLog',
     'OnlyOfficeSession',
     'ShortLink',
-    'Event', 'EventDay', 'EventAppointment', 'EventAssignment', 'EventInventoryNeed', 'EventContact', 'EventTimelineItem', 'EventTodoList', 'EventTodoItem', 'EventBookingPersonalLink',
+    'Event', 'EventDay', 'EventAppointment', 'EventAssignment', 'EventInventoryNeed', 'EventContact', 'EventTimelineItem', 'EventTodoList', 'EventTodoItem', 'EventBookingPersonalLink', 'EventHelperLink',
     'AssessmentUser', 'AssessmentRole', 'AssessmentUserRole', 'AssessmentUserList',
     'AssessmentStandType', 'AssessmentList', 'AssessmentListSubject',
     'AssessmentRoom', 'AssessmentStand', 'AssessmentCriterion',
@@ -184,6 +194,8 @@ __all__ = [
     'DutyPersonConfig', 'DutyExternalPerson', 'DutyRosterPlanner', 'DutyTimeEntry',
     'BookingPersonalEvent', 'BookingPersonalField', 'BookingPersonalEntry',
     'BookingPersonalFile', 'BookingPersonalTemplate',
+    'HelperEvent', 'Helper', 'HelperArea', 'HelperAreaWish',
+    'HelperShift', 'HelperFieldConfig', 'HelperVoucherRule',
     'BookingRoom', 'BookingForm', 'BookingFormField', 'BookingFormImage', 'BookingRequest', 'BookingRequestMessage', 'BookingRequestField', 'BookingRequestFile', 'BookingFormRole', 'BookingFormRoleUser', 'BookingRequestApproval',
 ]
 

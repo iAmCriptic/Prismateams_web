@@ -32,6 +32,7 @@ AVAILABLE_MODULES = [
     'module_meetings',
     'module_duty_roster',
     'module_booking_personal',
+    'module_helpers',
 ]
 
 DEFAULT_TIMEZONE = 'Europe/Berlin'
