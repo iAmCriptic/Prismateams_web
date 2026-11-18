@@ -882,6 +882,7 @@ __all__ = [
     '_redirect_to_files_context',
     '_get_safe_file_back_url',
     '_disk_safe_upload_basename',
+    '_unique_disk_filepath',
     '_process_file_upload',
     '_is_sharing_enabled',
     '_is_dropbox_enabled',
