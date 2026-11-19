@@ -132,11 +132,17 @@ def _allowed_sections(user):
     return sections
 
 
+def _visible_team_list(user):
+    """Teams the user is a member of and permitted to view or plan in Dienstplan."""
+    teams = get_user_teams(user)
+    return [
+        t for t in teams
+        if can_view_team_roster(user, t.id) or can_plan_team(user, t.id)
+    ]
+
+
 def _nav_context(section: str = 'team', team_id: int | None = None):
-    teams = get_user_teams(current_user)
-    if current_user.is_admin:
-        teams = Team.query.order_by(Team.name).all()
-    plan_teams = [t for t in teams if can_plan_team(current_user, t.id) or can_view_team_roster(current_user, t.id)]
+    plan_teams = _visible_team_list(current_user)
     return {
         'allowed_sections': _allowed_sections(current_user),
         'nav_teams': plan_teams,
@@ -303,10 +309,7 @@ def team_index():
     if blocked:
         return blocked
 
-    teams = get_user_teams(current_user)
-    if current_user.is_admin:
-        teams = Team.query.order_by(Team.name).all()
-    teams = [t for t in teams if can_view_team_roster(current_user, t.id) or can_plan_team(current_user, t.id)]
+    teams = _visible_team_list(current_user)
     if not teams:
         flash(translate('duty_roster.flash.no_team'), 'info')
         return render_template(

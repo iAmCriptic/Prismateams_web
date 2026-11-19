@@ -8547,5 +8547,87 @@
       "body": "Email Template (Shift Schedule)",
       "placeholders_hint": "Available placeholders"
     }
+  },
+  "share_target": {
+    "title": "Save Shared Content",
+    "subtitle": "Choose where to save the shared files, links, or text.",
+    "loading": "Loading…",
+    "saving": "Saving…",
+    "submit": "Save",
+    "preview": {
+      "heading": "Shared Content",
+      "title_label": "Title",
+      "title_placeholder": "Optional title",
+      "url_label": "Link (URL)",
+      "text_label": "Text / Note",
+      "text_placeholder": "Shared text"
+    },
+    "destination": {
+      "heading": "Where would you like to add this content?",
+      "files_title": "Upload to Folder",
+      "files_desc": "Save in the Files module",
+      "kanban_title": "Add to Kanban",
+      "kanban_desc": "Choose board, list & card",
+      "events_title": "Add to Event",
+      "events_desc": "Event folder, link or to-do",
+      "chat_title": "Send to Chat",
+      "chat_desc": "Channel or direct message"
+    },
+    "files": {
+      "space_label": "Space",
+      "folder_label": "Target Folder",
+      "root_folder": "(Root folder)",
+      "filename_label": "Filename",
+      "filename_hint": "Links and texts are saved as .md or .txt files.",
+      "default_note_name": "note"
+    },
+    "kanban": {
+      "board_label": "Board",
+      "list_label": "List",
+      "card_mode_label": "Card",
+      "mode_new": "Create new card",
+      "mode_existing": "Add to existing card",
+      "card_title_label": "Card title",
+      "card_title_placeholder": "Title of the new card",
+      "card_desc_label": "Description",
+      "card_desc_placeholder": "Optional description",
+      "card_label": "Existing card",
+      "select_board": "Select board…",
+      "select_list": "Select list…",
+      "select_card": "Select card…",
+      "no_boards": "No editable boards available",
+      "no_lists": "No lists in this board",
+      "no_cards": "No cards in this list"
+    },
+    "errors": {
+      "empty": "No content available to save.",
+      "generic": "An error occurred while saving.",
+      "no_target": "Please select a destination first.",
+      "no_modules": "You currently do not have access to Files, Kanban, Events, or Chat.",
+      "card_title_required": "Please enter a title for the new card.",
+      "select_card_required": "Please select an existing card."
+    },
+    "success": {
+      "files": "Successfully saved to the selected folder.",
+      "kanban": "Successfully added to Kanban.",
+      "open_target": "Open target",
+      "events": "Successfully added to the event.",
+      "chat": "Successfully sent to chat."
+    },
+    "events": {
+      "event_label": "Event",
+      "select_event": "Select event…",
+      "no_events": "No editable events available",
+      "hint": "Files are uploaded to the linked event folder, links added as event links, and text as a to-do item.",
+      "todo_list_label": "To-do list (for shared text)",
+      "auto_todo_list": "Default list (“Tasks”)"
+    },
+    "chat": {
+      "channel_label": "Chat / Channel",
+      "select_chat": "Select chat…",
+      "no_chats": "No chats available",
+      "message_label": "Message",
+      "message_placeholder": "Optional message with the file…"
+    }
   }
 }

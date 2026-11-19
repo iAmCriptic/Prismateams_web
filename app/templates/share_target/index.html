@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('share_target.title') }}{% endblock %}
+
+{% block styles %}
+<style>
+  .share-target-wrap {
+    max-width: 760px;
+    margin: 0 auto;
+  }
+  .share-target-card {
+    background: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 1rem;
+  }
+  .share-target-dest-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    text-align: left;
+    padding: 0.9rem 1rem;
+    border-radius: 0.85rem;
+    border: 1.5px solid var(--bs-border-color);
+    background: var(--bs-tertiary-bg);
+    color: var(--bs-body-color);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+    cursor: pointer;
+  }
+  .share-target-dest-btn:hover {
+    border-color: var(--accent-color, var(--bs-primary));
+  }
+  .share-target-dest-btn.is-active {
+    border-color: var(--accent-color, var(--bs-primary));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, transparent);
+  }
+  .share-target-dest-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.65rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    flex-shrink: 0;
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 14%, transparent);
+    color: var(--accent-color, var(--bs-primary));
+  }
+  .share-target-file-item {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.65rem;
+    background: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div
+  id="shareTargetApp"
+  class="container py-4 share-target-wrap"
+  data-share-id="{{ share_id }}"
+  data-has-error="{{ '1' if has_error else '0' }}"
+  data-can-files="{{ '1' if can_files else '0' }}"
+  data-can-kanban="{{ '1' if can_kanban else '0' }}"
+  data-can-events="{{ '1' if can_events else '0' }}"
+  data-can-chat="{{ '1' if can_chat else '0' }}"
+  data-fallback-title="{{ fallback_title }}"
+  data-fallback-text="{{ fallback_text }}"
+  data-fallback-url="{{ fallback_url }}"
+  data-files-destinations-url="{{ url_for('files.api_move_destinations') }}"
+  data-files-upload-url="{{ url_for('files.upload_file') }}"
+  data-files-index-url="{{ url_for('files.index') }}"
+  data-kanban-boards-url="{{ url_for('share_target.api_kanban_boards') }}"
+  data-kanban-board-api-tpl="/kanban/api/boards/__ID__"
+  data-kanban-list-cards-tpl="/kanban/api/lists/__ID__/cards"
+  data-kanban-card-api-tpl="/kanban/api/cards/__ID__"
+  data-kanban-card-attachments-tpl="/kanban/api/cards/__ID__/attachments"
+  data-events-url="{{ url_for('share_target.api_events') }}"
+  data-event-ensure-folder-tpl="/share-target/api/events/__ID__/ensure-folder"
+  data-event-add-tpl="/share-target/api/events/__ID__/add"
+  data-event-view-tpl="/events/__ID__"
+  data-chats-url="{{ url_for('share_target.api_chats') }}"
+  data-chat-send-tpl="/chat/__ID__/send"
+  data-chat-view-tpl="/chat/__ID__"
+  data-i18n-root-folder="{{ _('share_target.files.root_folder') }}"
+  data-i18n-select-board="{{ _('share_target.kanban.select_board') }}"
+  data-i18n-select-list="{{ _('share_target.kanban.select_list') }}"
+  data-i18n-select-card="{{ _('share_target.kanban.select_card') }}"
+  data-i18n-no-boards="{{ _('share_target.kanban.no_boards') }}"
+  data-i18n-no-lists="{{ _('share_target.kanban.no_lists') }}"
+  data-i18n-no-cards="{{ _('share_target.kanban.no_cards') }}"
+  data-i18n-loading="{{ _('share_target.loading') }}"
+  data-i18n-saving="{{ _('share_target.saving') }}"
+  data-i18n-error-empty="{{ _('share_target.errors.empty') }}"
+  data-i18n-error-generic="{{ _('share_target.errors.generic') }}"
+  data-i18n-error-no-target="{{ _('share_target.errors.no_target') }}"
+  data-i18n-error-card-title="{{ _('share_target.errors.card_title_required') }}"
+  data-i18n-error-select-card="{{ _('share_target.errors.select_card_required') }}"
+  data-i18n-success-files="{{ _('share_target.success.files') }}"
+  data-i18n-success-kanban="{{ _('share_target.success.kanban') }}"
+  data-i18n-success-events="{{ _('share_target.success.events') }}"
+  data-i18n-success-chat="{{ _('share_target.success.chat') }}"
+  data-i18n-select-event="{{ _('share_target.events.select_event') }}"
+  data-i18n-no-events="{{ _('share_target.events.no_events') }}"
+  data-i18n-auto-todo-list="{{ _('share_target.events.auto_todo_list') }}"
+  data-i18n-select-chat="{{ _('share_target.chat.select_chat') }}"
+  data-i18n-no-chats="{{ _('share_target.chat.no_chats') }}"
+  data-i18n-open-target="{{ _('share_target.success.open_target') }}"
+  data-i18n-default-note-name="{{ _('share_target.files.default_note_name') }}"
+>
+  <div class="d-flex align-items-center justify-content-between mb-3">
+    <a href="{{ url_for('dashboard.index') }}" class="mod-back-link text-decoration-none">
+      <i class="bi bi-arrow-left me-1"></i>{{ _('layout.nav.back') }}
+    </a>
+  </div>
+
+  <div class="share-target-card p-4 shadow-sm">
+    <div class="d-flex align-items-center gap-3 mb-3">
+      <div class="share-target-dest-icon">
+        <i class="bi bi-share"></i>
+      </div>
+      <div>
+        <h1 class="h4 mb-0">{{ _('share_target.title') }}</h1>
+        <p class="text-body-secondary small mb-0">{{ _('share_target.subtitle') }}</p>
+      </div>
+    </div>
+
+    <div id="shareAlertBox" class="alert alert-danger d-none" role="alert"></div>
+
+    <div id="shareSuccessBox" class="alert alert-success d-none" role="status">
+      <div class="d-flex flex-column flex-sm-row align-items-sm-center justify-content-between gap-2">
+        <span id="shareSuccessText"></span>
+        <a id="shareSuccessLink" href="#" class="mod-pill-btn mod-pill-btn--primary text-decoration-none">
+          <i class="bi bi-box-arrow-up-right me-1"></i>{{ _('share_target.success.open_target') }}
+        </a>
+      </div>
+    </div>
+
+    <div id="shareFormArea">
+      <!-- Vorschau der geteilten Inhalte -->
+      <div class="mb-4">
+        <h2 class="h6 text-uppercase text-body-secondary mb-2">{{ _('share_target.preview.heading') }}</h2>
+
+        <div id="shareFilesPreview" class="d-none mb-3">
+          <div id="shareFilesList" class="d-flex flex-column gap-2"></div>
+        </div>
+
+        <div id="shareMetaFields" class="row g-2">
+          <div class="col-12" id="shareTitleGroup">
+            <label for="shareInputTitle" class="form-label small mb-1">{{ _('share_target.preview.title_label') }}</label>
+            <input type="text" id="shareInputTitle" class="form-control mod-pill-input" placeholder="{{ _('share_target.preview.title_placeholder') }}">
+          </div>
+          <div class="col-12 d-none" id="shareUrlGroup">
+            <label for="shareInputUrl" class="form-label small mb-1">{{ _('share_target.preview.url_label') }}</label>
+            <input type="url" id="shareInputUrl" class="form-control mod-pill-input" placeholder="https://...">
+          </div>
+          <div class="col-12 d-none" id="shareTextGroup">
+            <label for="shareInputText" class="form-label small mb-1">{{ _('share_target.preview.text_label') }}</label>
+            <textarea id="shareInputText" class="form-control" rows="3" placeholder="{{ _('share_target.preview.text_placeholder') }}"></textarea>
+          </div>
+        </div>
+      </div>
+
+      {% if not can_files and not can_kanban and not can_events and not can_chat %}
+        <div class="alert alert-warning mb-0">
+          {{ _('share_target.errors.no_modules') }}
+        </div>
+      {% else %}
+        <!-- Ziel-Auswahl: Ordner, Kanban, Veranstaltungen, Chat -->
+        <div class="mb-4">
+          <h2 class="h6 text-uppercase text-body-secondary mb-2">{{ _('share_target.destination.heading') }}</h2>
+          <div class="row g-2">
+            {% if can_files %}
+            <div class="col-12 col-sm-6">
+              <button type="button" id="destBtnFiles" class="share-target-dest-btn" data-dest="files">
+                <span class="share-target-dest-icon"><i class="bi bi-folder2-open"></i></span>
+                <span>
+                  <span class="d-block fw-semibold">{{ _('share_target.destination.files_title') }}</span>
+                  <span class="d-block small text-body-secondary">{{ _('share_target.destination.files_desc') }}</span>
+                </span>
+              </button>
+            </div>
+            {% endif %}
+            {% if can_kanban %}
+            <div class="col-12 col-sm-6">
+              <button type="button" id="destBtnKanban" class="share-target-dest-btn" data-dest="kanban">
+                <span class="share-target-dest-icon"><i class="bi bi-kanban"></i></span>
+                <span>
+                  <span class="d-block fw-semibold">{{ _('share_target.destination.kanban_title') }}</span>
+                  <span class="d-block small text-body-secondary">{{ _('share_target.destination.kanban_desc') }}</span>
+                </span>
+              </button>
+            </div>
+            {% endif %}
+            {% if can_events %}
+            <div class="col-12 col-sm-6">
+              <button type="button" id="destBtnEvents" class="share-target-dest-btn" data-dest="events">
+                <span class="share-target-dest-icon"><i class="bi bi-calendar-event"></i></span>
+                <span>
+                  <span class="d-block fw-semibold">{{ _('share_target.destination.events_title') }}</span>
+                  <span class="d-block small text-body-secondary">{{ _('share_target.destination.events_desc') }}</span>
+                </span>
+              </button>
+            </div>
+            {% endif %}
+            {% if can_chat %}
+            <div class="col-12 col-sm-6">
+              <button type="button" id="destBtnChat" class="share-target-dest-btn" data-dest="chat">
+                <span class="share-target-dest-icon"><i class="bi bi-chat-dots"></i></span>
+                <span>
+                  <span class="d-block fw-semibold">{{ _('share_target.destination.chat_title') }}</span>
+                  <span class="d-block small text-body-secondary">{{ _('share_target.destination.chat_desc') }}</span>
+                </span>
+              </button>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Panel: Dateien / Ordner -->
+        {% if can_files %}
+        <div id="panelFiles" class="d-none mb-4 p-3 rounded-3 border bg-body-tertiary">
+          <div class="row g-3">
+            <div class="col-12 col-sm-6">
+              <label for="shareSpaceSelect" class="form-label small mb-1">{{ _('share_target.files.space_label') }}</label>
+              <select id="shareSpaceSelect" class="form-select"></select>
+            </div>
+            <div class="col-12 col-sm-6">
+              <label for="shareFolderSelect" class="form-label small mb-1">{{ _('share_target.files.folder_label') }}</label>
+              <select id="shareFolderSelect" class="form-select"></select>
+            </div>
+            <div class="col-12 d-none" id="shareNoteFilenameGroup">
+              <label for="shareNoteFilename" class="form-label small mb-1">{{ _('share_target.files.filename_label') }}</label>
+              <input type="text" id="shareNoteFilename" class="form-control mod-pill-input" placeholder="notiz.md">
+              <div class="form-text">{{ _('share_target.files.filename_hint') }}</div>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Panel: Kanban -->
+        {% if can_kanban %}
+        <div id="panelKanban" class="d-none mb-4 p-3 rounded-3 border bg-body-tertiary">
+          <div class="row g-3">
+            <div class="col-12 col-sm-6">
+              <label for="shareBoardSelect" class="form-label small mb-1">{{ _('share_target.kanban.board_label') }}</label>
+              <select id="shareBoardSelect" class="form-select"></select>
+            </div>
+            <div class="col-12 col-sm-6">
+              <label for="shareListSelect" class="form-label small mb-1">{{ _('share_target.kanban.list_label') }}</label>
+              <select id="shareListSelect" class="form-select" disabled></select>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label small mb-1">{{ _('share_target.kanban.card_mode_label') }}</label>
+              <div class="d-flex flex-wrap gap-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="kanbanCardMode" id="kanbanModeNew" value="new" checked>
+                  <label class="form-check-label" for="kanbanModeNew">{{ _('share_target.kanban.mode_new') }}</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" name="kanbanCardMode" id="kanbanModeExisting" value="existing">
+                  <label class="form-check-label" for="kanbanModeExisting">{{ _('share_target.kanban.mode_existing') }}</label>
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12" id="kanbanNewCardFields">
+              <div class="mb-2">
+                <label for="shareCardTitle" class="form-label small mb-1">{{ _('share_target.kanban.card_title_label') }}</label>
+                <input type="text" id="shareCardTitle" class="form-control mod-pill-input" placeholder="{{ _('share_target.kanban.card_title_placeholder') }}">
+              </div>
+              <div>
+                <label for="shareCardDesc" class="form-label small mb-1">{{ _('share_target.kanban.card_desc_label') }}</label>
+                <textarea id="shareCardDesc" class="form-control" rows="3" placeholder="{{ _('share_target.kanban.card_desc_placeholder') }}"></textarea>
+              </div>
+            </div>
+
+            <div class="col-12 d-none" id="kanbanExistingCardFields">
+              <label for="shareCardSelect" class="form-label small mb-1">{{ _('share_target.kanban.card_label') }}</label>
+              <select id="shareCardSelect" class="form-select" disabled></select>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Panel: Veranstaltungen -->
+        {% if can_events %}
+        <div id="panelEvents" class="d-none mb-4 p-3 rounded-3 border bg-body-tertiary">
+          <div class="row g-3">
+            <div class="col-12">
+              <label for="shareEventSelect" class="form-label small mb-1">{{ _('share_target.events.event_label') }}</label>
+              <select id="shareEventSelect" class="form-select"></select>
+              <div class="form-text">{{ _('share_target.events.hint') }}</div>
+            </div>
+            <div class="col-12 d-none" id="shareEventTodoListGroup">
+              <label for="shareEventTodoListSelect" class="form-label small mb-1">{{ _('share_target.events.todo_list_label') }}</label>
+              <select id="shareEventTodoListSelect" class="form-select"></select>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <!-- Panel: Chat -->
+        {% if can_chat %}
+        <div id="panelChat" class="d-none mb-4 p-3 rounded-3 border bg-body-tertiary">
+          <div class="row g-3">
+            <div class="col-12">
+              <label for="shareChatSelect" class="form-label small mb-1">{{ _('share_target.chat.channel_label') }}</label>
+              <select id="shareChatSelect" class="form-select"></select>
+            </div>
+            <div class="col-12">
+              <label for="shareChatMessage" class="form-label small mb-1">{{ _('share_target.chat.message_label') }}</label>
+              <textarea id="shareChatMessage" class="form-control" rows="2" placeholder="{{ _('share_target.chat.message_placeholder') }}"></textarea>
+            </div>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="d-flex justify-content-end gap-2">
+          <a href="{{ url_for('dashboard.index') }}" class="mod-pill-btn mod-pill-btn--outline-muted text-decoration-none">
+            {{ _('common.cancel') }}
+          </a>
+          <button type="button" id="shareSubmitBtn" class="mod-pill-btn mod-pill-btn--primary" disabled>
+            <i class="bi bi-check2-circle me-1"></i><span id="shareSubmitLabel">{{ _('share_target.submit') }}</span>
+          </button>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/share-target.js') }}"></script>
+{% endblock %}

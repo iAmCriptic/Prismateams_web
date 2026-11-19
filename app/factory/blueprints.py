@@ -38,6 +38,7 @@ def register_blueprints(app):
     from app.blueprints.duty_roster import duty_roster_bp
     from app.blueprints.booking_personal import booking_personal_bp
     from app.blueprints.helpers import helpers_bp
+    from app.blueprints.share_target import share_target_bp
     
     app.register_blueprint(setup_bp)
     app.register_blueprint(auth_bp)
@@ -77,6 +78,7 @@ def register_blueprints(app):
     app.register_blueprint(duty_roster_bp)
     app.register_blueprint(booking_personal_bp, url_prefix='/booking-personal')
     app.register_blueprint(helpers_bp)
+    app.register_blueprint(share_target_bp)
 
     # Server-to-server callbacks ohne Browser-CSRF-Token.
     # Euro-Office: CSRF-Exempt nötig; kompensierendes Control ist JWT
