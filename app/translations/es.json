@@ -359,6 +359,32 @@
       "flash_code_required": "Introduce un código de invitación.",
       "flash_code_invalid": "Este código de invitación no es válido, ha caducado o se ha agotado.",
       "code_team_portal_hint": "Con este código recibirás una cuenta completa en el portal y te unirás al equipo «{team}»."
+    },
+    "maintenance": {
+      "title": "Mantenimiento",
+      "subtitle": "Temporalmente fuera de línea",
+      "heading": "Tareas de mantenimiento – temporalmente fuera de línea",
+      "description": "Este portal se encuentra actualmente en mantenimiento y no está disponible temporalmente.",
+      "retry_hint": "Por favor, inténtelo de nuevo más tarde.",
+      "admin_recover_link": "Recuperación de administrador",
+      "api_error": "El sistema se encuentra actualmente en modo de mantenimiento."
+    },
+    "recover": {
+      "title": "Recuperación del sistema",
+      "subtitle": "Acceso de administrador en modo sin conexión",
+      "email_label": "Correo electrónico del administrador",
+      "submit": "Iniciar sesión como administrador",
+      "status_active_title": "El modo sin conexión está activo (Bloqueo)",
+      "status_active_desc": "El acceso normal está bloqueado actualmente. Puede finalizar el bloqueo ahora para restablecer el acceso.",
+      "end_lockdown_btn": "Finalizar bloqueo",
+      "status_inactive_title": "El sistema está en línea",
+      "status_inactive_desc": "El modo sin conexión está desactivado actualmente. Todos los usuarios pueden iniciar sesión normalmente.",
+      "go_to_dashboard": "Ir al panel",
+      "go_to_system_settings": "Ir a configuración del sistema",
+      "admin_only_title": "Se requiere acceso de administrador",
+      "admin_only_error": "Solo los administradores pueden utilizar el acceso de recuperación.",
+      "logout_switch_admin": "Cerrar sesión e iniciar sesión como administrador",
+      "lockdown_ended": "Bloqueo finalizado. Se ha desactivado el modo sin conexión."
     }
   },
   "dashboard": {
@@ -2223,7 +2249,12 @@
         "section_team_invites": "Invitaciones de equipo",
         "team_invite_info": "Controla los permisos de nuevos usuarios al registrarse mediante códigos de invitación.",
         "team_invite_allow_portal_user": "Permitir cuentas completas del portal mediante códigos de equipo",
-        "team_invite_allow_portal_user_help": "Permite a los equipos crear códigos que otorgan acceso completo al portal (Público/Privado) en lugar de solo acceso de invitado al equipo."
+        "team_invite_allow_portal_user_help": "Permite a los equipos crear códigos que otorgan acceso completo al portal (Público/Privado) en lugar de solo acceso de invitado al equipo.",
+        "section_offline_mode": "Modo sin conexión",
+        "offline_mode_help": "Cuando el modo sin conexión está activado, se muestra una pantalla de mantenimiento en lugar del inicio de sesión normal. Los administradores pueden iniciar sesión mediante /recover y finalizar el bloqueo.",
+        "offline_mode_label": "Activar modo sin conexión (Mantenimiento)",
+        "offline_mode_hint": "Bloquea el inicio de sesión y el acceso al portal para todos los usuarios que no sean administradores.",
+        "offline_mode_recover_hint": "Enlace de recuperación para administradores: {recover_url}"
       },
       "legal": {
         "page_title": "Avisos legales - Administración",
@@ -6800,6 +6831,9 @@
       "save_continue_btn": "Save & Continue",
       "flash_saved": "Main email configuration saved.",
       "flash_incomplete": "Please enter at least SMTP server, email address, and password."
+    },
+    "step1": {
+      "import_backup_instead": "¿Importar copia de seguridad en su lugar?"
     }
   },
   "media_downloader": {

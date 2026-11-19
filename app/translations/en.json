@@ -381,6 +381,32 @@
       "flash_code_required": "Please enter an invitation code.",
       "flash_code_invalid": "This invitation code is invalid, expired, or used up.",
       "code_team_portal_hint": "With this code you will receive a full portal account and become a member of team '{team}'."
+    },
+    "maintenance": {
+      "title": "Maintenance",
+      "subtitle": "Temporarily offline",
+      "heading": "Maintenance – temporarily offline",
+      "description": "This portal is currently undergoing maintenance and is temporarily unavailable.",
+      "retry_hint": "Please try again later.",
+      "admin_recover_link": "Administrator recovery",
+      "api_error": "The system is currently in maintenance mode."
+    },
+    "recover": {
+      "title": "System Recovery",
+      "subtitle": "Administrator access in offline mode",
+      "email_label": "Administrator Email Address",
+      "submit": "Sign in as Administrator",
+      "status_active_title": "Offline mode is active (Lockdown)",
+      "status_active_desc": "Regular access is currently blocked. You can end the lockdown now to restore portal access for all users.",
+      "end_lockdown_btn": "End Lockdown",
+      "status_inactive_title": "System is online",
+      "status_inactive_desc": "Offline mode is currently disabled. All users can sign in normally.",
+      "go_to_dashboard": "Go to Dashboard",
+      "go_to_system_settings": "Go to System Settings",
+      "admin_only_title": "Administrator Access Required",
+      "admin_only_error": "Only administrators can use the recovery access.",
+      "logout_switch_admin": "Sign out and sign in as Administrator",
+      "lockdown_ended": "Lockdown ended. Offline mode has been disabled."
     }
   },
   "dashboard": {
@@ -2302,7 +2328,12 @@
         "section_team_invites": "Team Invites",
         "team_invite_info": "Controls new user permissions when registering via team invite codes.",
         "team_invite_allow_portal_user": "Allow full portal accounts via team invite codes",
-        "team_invite_allow_portal_user_help": "Allows teams to generate invite codes giving new users full portal access (Public/Private) instead of team-only guest access."
+        "team_invite_allow_portal_user_help": "Allows teams to generate invite codes giving new users full portal access (Public/Private) instead of team-only guest access.",
+        "section_offline_mode": "Offline Mode",
+        "offline_mode_help": "When offline mode is enabled, a maintenance screen is shown instead of the normal login page. Administrators can still sign in via /recover and end the lockdown.",
+        "offline_mode_label": "Enable Offline Mode (Maintenance)",
+        "offline_mode_hint": "Blocks regular login and portal access for all non-administrators.",
+        "offline_mode_recover_hint": "Admin recovery link while offline mode is active: {recover_url}"
       },
       "legal": {
         "page_title": "Legal notice & terms - Administration",
@@ -6998,6 +7029,9 @@
       "save_continue_btn": "Save & Continue",
       "flash_saved": "Main email configuration saved.",
       "flash_incomplete": "Please enter at least SMTP server, email address, and password."
+    },
+    "step1": {
+      "import_backup_instead": "Import backup instead?"
     }
   },
   "media_downloader": {

@@ -1,0 +1,33 @@
+{% set force_light_theme = true %}
+{% extends "base.html" %}
+{% from 'auth/_auth_shell.html' import auth_shell with context %}
+
+{% block title %}{{ _('auth.maintenance.title') }} - {{ app_name or 'Prismateams' }}{% endblock %}
+
+{% block content %}
+{% call auth_shell(_('auth.maintenance.title'), _('auth.maintenance.subtitle'), body_class='auth-maintenance', show_legal=false, brand_icon='bi-cone-striped') %}
+<div class="alert alert-permanent portal-msg portal-msg--warning mb-4" role="status">
+    <div class="portal-msg__body">
+        <div class="portal-msg__icon" aria-hidden="true">
+            <i class="bi bi-wrench-adjustable-circle"></i>
+        </div>
+        <div class="portal-msg__content">
+            <p class="portal-msg__title fw-semibold mb-1">{{ _('auth.maintenance.heading') }}</p>
+            <p class="portal-msg__text mb-0">{{ _('auth.maintenance.description') }}</p>
+        </div>
+    </div>
+</div>
+
+<p class="text-muted small mb-4">
+    {{ _('auth.maintenance.retry_hint') }}
+</p>
+
+<hr class="my-4">
+
+<div class="text-center">
+    <a href="{{ url_for('auth.recover') }}" class="text-muted small text-decoration-none">
+        <i class="bi bi-shield-lock me-1" aria-hidden="true"></i>{{ _('auth.maintenance.admin_recover_link') }}
+    </a>
+</div>
+{% endcall %}
+{% endblock %}

@@ -106,6 +106,7 @@ def _clear_pending_2fa_login():
     session.pop('pending_2fa_remember', None)
     session.pop('pending_2fa_next', None)
     session.pop('pending_2fa_recovery_sent_at', None)
+    session.pop('pending_2fa_recover', None)
 
 
 def _login_2fa_template_context(user, has_passkeys):
@@ -867,6 +868,139 @@ def login():
         return _finalize_portal_login(user, remember=remember, next_page=next_page)
     
     return render_template('auth/login.html', **_auth_template_kwargs())
+
+
+@auth_bp.route('/recover', methods=['GET', 'POST'])
+@limiter.limit("5 per 15 minutes", methods=["POST"])
+def recover():
+    """Admin-Wiederherstellungs-Login und Beenden des Offline-Modus (/recover)."""
+    from app.utils.offline_mode import is_offline_mode_enabled
+
+    offline_enabled = is_offline_mode_enabled()
+
+    if current_user.is_authenticated:
+        is_portal_admin = (
+            getattr(current_user, 'is_admin', False)
+            and session.get('user_scope') != 'assessment'
+        )
+        return render_template(
+            'auth/recover.html',
+            **_auth_template_kwargs(
+                offline_mode_enabled=offline_enabled,
+                non_admin_authenticated=not is_portal_admin,
+            ),
+        )
+
+    if request.method == 'GET':
+        _clear_pending_2fa_login()
+        return render_template(
+            'auth/recover.html',
+            **_auth_template_kwargs(offline_mode_enabled=offline_enabled),
+        )
+
+    bot_ok, _ = validate_bot_protection(request, 'login')
+    if not bot_ok:
+        flash(translate('auth.flash.bot_protection_failed'), 'danger')
+        return render_template(
+            'auth/recover.html',
+            **_auth_template_kwargs(offline_mode_enabled=offline_enabled),
+        )
+
+    login_input = request.form.get('email', '').strip()
+    email = login_input.lower()
+    password = request.form.get('password', '')
+    remember = request.form.get('remember', False) == 'on'
+
+    if not email or not password:
+        flash(translate('auth.flash.enter_email_password'), 'danger')
+        return render_template(
+            'auth/recover.html',
+            **_auth_template_kwargs(offline_mode_enabled=offline_enabled),
+        )
+
+    user = User.query.filter_by(email=email).first()
+
+    if user and user.failed_login_until and datetime.utcnow() < user.failed_login_until:
+        remaining_seconds = int((user.failed_login_until - datetime.utcnow()).total_seconds())
+        flash(translate('auth.flash.account_locked', seconds=remaining_seconds), 'danger')
+        return render_template(
+            'auth/recover.html',
+            **_auth_template_kwargs(offline_mode_enabled=offline_enabled),
+        )
+
+    from app.services.company_mail_auth import (
+        is_company_email,
+        is_company_email_auth_enabled,
+        verify_mailbox_credentials,
+        sync_credentials_if_needed,
+    )
+
+    is_comp = is_company_email_auth_enabled() and is_company_email(email)
+    credentials_ok = False
+    if is_comp:
+        mail_ok, err_code, _ = verify_mailbox_credentials(email, password)
+        if mail_ok and user:
+            sync_credentials_if_needed(user, password)
+            credentials_ok = True
+        elif err_code == 'CONNECTION_ERROR' and user and user.is_admin and user.check_password(password):
+            credentials_ok = True
+    elif user and user.check_password(password):
+        credentials_ok = True
+
+    if not credentials_ok:
+        if user:
+            user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+            if user.failed_login_attempts >= 5:
+                user.failed_login_until = datetime.utcnow() + timedelta(minutes=15)
+                user.failed_login_attempts = 0
+            db.session.commit()
+        flash(translate('auth.flash.invalid_credentials'), 'danger')
+        return render_template(
+            'auth/recover.html',
+            **_auth_template_kwargs(offline_mode_enabled=offline_enabled),
+        )
+
+    user.failed_login_attempts = 0
+    user.failed_login_until = None
+    db.session.commit()
+
+    if not user.is_active:
+        flash(translate('auth.flash.account_not_activated'), 'warning')
+        return render_template(
+            'auth/recover.html',
+            **_auth_template_kwargs(offline_mode_enabled=offline_enabled),
+        )
+
+    if not getattr(user, 'is_admin', False):
+        flash(translate('auth.recover.admin_only_error'), 'danger')
+        return render_template(
+            'auth/recover.html',
+            **_auth_template_kwargs(offline_mode_enabled=offline_enabled),
+        )
+
+    if user.totp_enabled and user.totp_secret:
+        session['pending_2fa_user_id'] = user.id
+        session['pending_2fa_remember'] = remember
+        session['pending_2fa_next'] = url_for('auth.recover')
+        session['pending_2fa_recover'] = True
+        flash(translate('auth.flash.enter_2fa_code'), 'info')
+        return redirect(url_for('auth.login_2fa'))
+
+    return _finalize_portal_login(user, remember=remember, next_page=url_for('auth.recover'))
+
+
+@auth_bp.route('/recover/disable', methods=['POST'])
+@login_required
+def recover_disable():
+    """Beendet den Offline-Modus (nur Administratoren)."""
+    if not getattr(current_user, 'is_admin', False) or session.get('user_scope') == 'assessment':
+        flash(translate('auth.recover.admin_only_error'), 'danger')
+        return redirect(url_for('auth.recover'))
+
+    from app.utils.offline_mode import disable_offline_mode
+    disable_offline_mode()
+    flash(translate('auth.recover.lockdown_ended'), 'success')
+    return redirect(url_for('dashboard.index'))
 
 
 @auth_bp.route('/google/login')

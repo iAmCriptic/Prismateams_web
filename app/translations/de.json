@@ -381,6 +381,32 @@
       "flash_code_required": "Bitte gib einen Einladungscode ein.",
       "flash_code_invalid": "Dieser Einladungscode ist ungültig, abgelaufen oder aufgebraucht.",
       "code_team_portal_hint": "Mit diesem Code erhältst du einen vollwertigen Portal-Account und wirst Mitglied im Team „{team}“."
+    },
+    "maintenance": {
+      "title": "Wartungsarbeiten",
+      "subtitle": "Vorübergehend offline",
+      "heading": "Wartungsarbeiten – vorübergehend offline",
+      "description": "Dieses Portal befindet sich derzeit im Wartungsmodus und ist vorübergehend nicht erreichbar.",
+      "retry_hint": "Bitte versuchen Sie es zu einem späteren Zeitpunkt erneut.",
+      "admin_recover_link": "Administrator-Wiederherstellung",
+      "api_error": "Das System befindet sich derzeit im Wartungsmodus."
+    },
+    "recover": {
+      "title": "System-Wiederherstellung",
+      "subtitle": "Administrator-Zugang im Offline-Modus",
+      "email_label": "Administrator E-Mail-Adresse",
+      "submit": "Als Administrator anmelden",
+      "status_active_title": "Offline-Modus ist aktiv (Lockdown)",
+      "status_active_desc": "Der reguläre Zugang ist derzeit gesperrt. Sie können den Lockdown jetzt beenden, um das Portal wieder für alle Benutzer freizugeben.",
+      "end_lockdown_btn": "Lockdown beenden",
+      "status_inactive_title": "System ist online",
+      "status_inactive_desc": "Der Offline-Modus ist derzeit deaktiviert. Alle Benutzer können sich regulär anmelden.",
+      "go_to_dashboard": "Zum Dashboard",
+      "go_to_system_settings": "Zu den Systemeinstellungen",
+      "admin_only_title": "Kein Administrator-Zugang",
+      "admin_only_error": "Nur Administratoren können den Wiederherstellungs-Zugang nutzen.",
+      "logout_switch_admin": "Abmelden und als Administrator anmelden",
+      "lockdown_ended": "Lockdown beendet. Der Offline-Modus wurde deaktiviert."
     }
   },
   "dashboard": {
@@ -2001,7 +2027,12 @@
         "section_team_invites": "Teameinladungen",
         "team_invite_info": "Steuert die Rechte neuer Nutzer bei der Registrierung über Team-Einladungscodes.",
         "team_invite_allow_portal_user": "Vollwertige Portal-Accounts über Team-Codes erlauben",
-        "team_invite_allow_portal_user_help": "Teams können bei Bedarf Einladungscodes erstellen, die neuen Mitarbeitern vollen Portal-Zugriff (Public/Private) anstelle von reinem Gast-/Team-Zugriff zuweisen."
+        "team_invite_allow_portal_user_help": "Teams können bei Bedarf Einladungscodes erstellen, die neuen Mitarbeitern vollen Portal-Zugriff (Public/Private) anstelle von reinem Gast-/Team-Zugriff zuweisen.",
+        "section_offline_mode": "Offline-Modus",
+        "offline_mode_help": "Wenn der Offline-Modus aktiviert ist, wird statt dem normalen Anmeldebildschirm eine Wartungsseite angezeigt. Administratoren können sich weiterhin über /recover anmelden und den Lockdown beenden.",
+        "offline_mode_label": "Offline-Modus aktivieren (Wartungsarbeiten)",
+        "offline_mode_hint": "Sperrt den regulären Login und das Portal für alle Nicht-Administratoren.",
+        "offline_mode_recover_hint": "Admin-Wiederherstellungslink bei aktivem Offline-Modus: {recover_url}"
       },
       "legal": {
         "page_title": "Rechtliche Hinweise - Administration",
@@ -6998,6 +7029,9 @@
       "save_continue_btn": "Speichern & Weiter",
       "flash_saved": "Haupt-E-Mail-Konfiguration gespeichert.",
       "flash_incomplete": "Bitte geben Sie mindestens SMTP-Server, E-Mail-Adresse und Passwort an."
+    },
+    "step1": {
+      "import_backup_instead": "Backup stattdessen einspielen?"
     }
   },
   "assessment": {

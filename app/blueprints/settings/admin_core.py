@@ -439,6 +439,10 @@ def admin_system():
                 description='Erlaube Teameinladungen mit vollwertigen Portalnutzer-Rechten'
             ))
 
+        from app.utils.offline_mode import set_offline_mode_enabled
+        offline_mode_enabled = request.form.get('offline_mode_enabled') == 'on'
+        set_offline_mode_enabled(offline_mode_enabled)
+
         from app.utils.access_log_retention import (
             set_session_record_retention_days,
             set_share_access_log_retention_days,
@@ -495,10 +499,13 @@ def admin_system():
     share_access_log_retention_days = get_share_access_log_retention_days()
     from app.models.team import is_team_invite_portal_user_allowed
     from app.utils.main_mail_config import get_main_mail_config, is_main_mail_configured
+    from app.utils.offline_mode import is_offline_mode_enabled
     team_invite_allow_portal_user = is_team_invite_portal_user_allowed()
+    offline_mode_enabled = is_offline_mode_enabled()
     
     return render_template('settings/admin_system.html', 
                          team_invite_allow_portal_user=team_invite_allow_portal_user,
+                         offline_mode_enabled=offline_mode_enabled,
                          portal_name=portal_name, 
                          portal_logo=portal_logo,
                          default_accent_color=default_accent_color,

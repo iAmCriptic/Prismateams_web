@@ -188,6 +188,32 @@
       "flash_code_required": "Introduza um código de convite.",
       "flash_code_invalid": "Este código de convite é inválido, expirou ou esgotou.",
       "code_team_portal_hint": "Com este código recebes uma conta completa no portal e tornas-te membro da equipa «{team}»."
+    },
+    "maintenance": {
+      "title": "Manutenção",
+      "subtitle": "Temporariamente offline",
+      "heading": "Manutenção – temporariamente offline",
+      "description": "Este portal está atualmente em manutenção e temporariamente indisponível.",
+      "retry_hint": "Por favor, tente novamente mais tarde.",
+      "admin_recover_link": "Recuperação de administrador",
+      "api_error": "O sistema está atualmente em modo de manutenção."
+    },
+    "recover": {
+      "title": "Recuperação do sistema",
+      "subtitle": "Acesso de administrador no modo offline",
+      "email_label": "E-mail do administrador",
+      "submit": "Entrar como administrador",
+      "status_active_title": "O modo offline está ativo (Bloqueio)",
+      "status_active_desc": "O acesso regular está bloqueado no momento. Você pode encerrar o bloqueio agora para restaurar o acesso.",
+      "end_lockdown_btn": "Encerrar bloqueio",
+      "status_inactive_title": "O sistema está online",
+      "status_inactive_desc": "O modo offline está desativado no momento. Todos os usuários podem entrar normalmente.",
+      "go_to_dashboard": "Ir para o painel",
+      "go_to_system_settings": "Ir para configurações do sistema",
+      "admin_only_title": "Acesso de administrador necessário",
+      "admin_only_error": "Apenas administradores podem usar o acesso de recuperação.",
+      "logout_switch_admin": "Sair e entrar como administrador",
+      "lockdown_ended": "Bloqueio encerrado. O modo offline foi desativado."
     }
   },
   "dashboard": {
@@ -1095,7 +1121,12 @@
         "section_team_invites": "Convites de equipa",
         "team_invite_info": "Controla as permissões de novos utilizadores ao registarem-se através de códigos de convite.",
         "team_invite_allow_portal_user": "Permitir contas completas no portal através de códigos de equipa",
-        "team_invite_allow_portal_user_help": "Permite às equipas criar códigos de convite com acesso completo ao portal (Público/Privado) em vez de apenas acesso de convidado."
+        "team_invite_allow_portal_user_help": "Permite às equipas criar códigos de convite com acesso completo ao portal (Público/Privado) em vez de apenas acesso de convidado.",
+        "section_offline_mode": "Modo offline",
+        "offline_mode_help": "Quando o modo offline está ativado, uma tela de manutenção é exibida em vez da tela de login normal. Administradores podem entrar via /recover e encerrar o bloqueio.",
+        "offline_mode_label": "Ativar modo offline (Manutenção)",
+        "offline_mode_hint": "Bloqueia o login regular e o acesso ao portal para todos os não administradores.",
+        "offline_mode_recover_hint": "Link de recuperação de administrador: {recover_url}"
       },
       "backup": {
         "lead_short": "Exportar e importar backups do portal.",
@@ -2398,6 +2429,9 @@
       "save_continue_btn": "Save & Continue",
       "flash_saved": "Main email configuration saved.",
       "flash_incomplete": "Please enter at least SMTP server, email address, and password."
+    },
+    "step1": {
+      "import_backup_instead": "Importar backup em vez disso?"
     }
   },
   "helpers": {
