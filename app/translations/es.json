@@ -8331,5 +8331,87 @@
       "body": "E-Mail-Vorlage (Schichtplan)",
       "placeholders_hint": "Verfügbare Platzhalter"
     }
+  },
+  "share_target": {
+    "title": "Guardar contenido compartido",
+    "subtitle": "Elige dónde guardar los archivos, enlaces o textos compartidos.",
+    "loading": "Cargando…",
+    "saving": "Guardando…",
+    "submit": "Guardar",
+    "preview": {
+      "heading": "Contenido compartido",
+      "title_label": "Título",
+      "title_placeholder": "Título opcional",
+      "url_label": "Enlace (URL)",
+      "text_label": "Texto / Nota",
+      "text_placeholder": "Texto compartido"
+    },
+    "destination": {
+      "heading": "¿Dónde quieres añadir este contenido?",
+      "files_title": "Subir a carpeta",
+      "files_desc": "Guardar en el módulo de Archivos",
+      "kanban_title": "Añadir a Kanban",
+      "kanban_desc": "Elegir tablero, lista y tarjeta",
+      "events_title": "Añadir a evento",
+      "events_desc": "Carpeta, enlace o tarea del evento",
+      "chat_title": "Enviar al chat",
+      "chat_desc": "Canal o mensaje directo"
+    },
+    "files": {
+      "space_label": "Espacio",
+      "folder_label": "Carpeta de destino",
+      "root_folder": "(Carpeta raíz)",
+      "filename_label": "Nombre del archivo",
+      "filename_hint": "Los enlaces y textos se guardan como archivos .md o .txt.",
+      "default_note_name": "nota"
+    },
+    "kanban": {
+      "board_label": "Tablero",
+      "list_label": "Lista",
+      "card_mode_label": "Tarjeta",
+      "mode_new": "Crear nueva tarjeta",
+      "mode_existing": "Añadir a tarjeta existente",
+      "card_title_label": "Título de la tarjeta",
+      "card_title_placeholder": "Título de la nueva tarjeta",
+      "card_desc_label": "Descripción",
+      "card_desc_placeholder": "Descripción opcional",
+      "card_label": "Tarjeta existente",
+      "select_board": "Seleccionar tablero…",
+      "select_list": "Seleccionar lista…",
+      "select_card": "Seleccionar tarjeta…",
+      "no_boards": "No hay tableros editables disponibles",
+      "no_lists": "No hay listas en este tablero",
+      "no_cards": "No hay tarjetas en esta lista"
+    },
+    "errors": {
+      "empty": "No hay contenido para guardar.",
+      "generic": "Se produjo un error al guardar.",
+      "no_target": "Por favor, selecciona primero un destino.",
+      "no_modules": "Actualmente no tienes acceso a Archivos, Kanban, Eventos ni Chat.",
+      "card_title_required": "Introduce un título para la nueva tarjeta.",
+      "select_card_required": "Selecciona una tarjeta existente."
+    },
+    "success": {
+      "files": "Guardado correctamente en la carpeta seleccionada.",
+      "kanban": "Añadido correctamente a Kanban.",
+      "open_target": "Abrir destino",
+      "events": "Añadido correctamente al evento.",
+      "chat": "Enviado correctamente al chat."
+    },
+    "events": {
+      "event_label": "Evento",
+      "select_event": "Seleccionar evento…",
+      "no_events": "No hay eventos editables disponibles",
+      "hint": "Los archivos se suben a la carpeta del evento, los enlaces como enlace del evento y el texto como tarea.",
+      "todo_list_label": "Lista de tareas (para texto compartido)",
+      "auto_todo_list": "Lista predeterminada («Tareas»)"
+    },
+    "chat": {
+      "channel_label": "Chat / Canal",
+      "select_chat": "Seleccionar chat…",
+      "no_chats": "No hay chats disponibles",
+      "message_label": "Mensaje",
+      "message_placeholder": "Mensaje opcional con el archivo…"
+    }
   }
 }

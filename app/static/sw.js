@@ -163,10 +163,97 @@ function networkFirstWithCache(request, fetchOptions) {
     });
 }
 
+const SHARE_TARGET_DB_NAME = 'prismateams-share-target';
+const SHARE_TARGET_STORE = 'shares';
+const SHARE_TARGET_MAX_AGE_MS = 60 * 60 * 1000;
+
+function openShareTargetDb() {
+  return new Promise(function(resolve, reject) {
+    const req = indexedDB.open(SHARE_TARGET_DB_NAME, 1);
+    req.onupgradeneeded = function() {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(SHARE_TARGET_STORE)) {
+        db.createObjectStore(SHARE_TARGET_STORE, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = function() { resolve(req.result); };
+    req.onerror = function() { reject(req.error); };
+  });
+}
+
+async function saveShareTargetPayload(payload) {
+  const db = await openShareTargetDb();
+  return new Promise(function(resolve, reject) {
+    const tx = db.transaction(SHARE_TARGET_STORE, 'readwrite');
+    const store = tx.objectStore(SHARE_TARGET_STORE);
+    const now = Date.now();
+    // Alte Einträge bereinigen
+    const cursorReq = store.openCursor();
+    cursorReq.onsuccess = function() {
+      const cursor = cursorReq.result;
+      if (cursor) {
+        if (!cursor.value || !cursor.value.createdAt || (now - cursor.value.createdAt) > SHARE_TARGET_MAX_AGE_MS) {
+          cursor.delete();
+        }
+        cursor.continue();
+      }
+    };
+    store.put(payload);
+    tx.oncomplete = function() { db.close(); resolve(); };
+    tx.onerror = function() { db.close(); reject(tx.error); };
+  });
+}
+
+async function handleShareTargetPost(request) {
+  try {
+    const formData = await request.formData();
+    const title = (formData.get('title') || '').toString();
+    const text = (formData.get('text') || '').toString();
+    const url = (formData.get('url') || '').toString();
+    const rawFiles = formData.getAll('files') || [];
+    const files = [];
+    for (let i = 0; i < rawFiles.length; i++) {
+      const item = rawFiles[i];
+      if (item && typeof item === 'object' && typeof item.arrayBuffer === 'function' && (item.size > 0 || item.name)) {
+        files.push({
+          name: item.name || ('shared-file-' + (i + 1)),
+          type: item.type || 'application/octet-stream',
+          size: item.size || 0,
+          lastModified: item.lastModified || Date.now(),
+          blob: item
+        });
+      }
+    }
+    const shareId = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    await saveShareTargetPayload({
+      id: shareId,
+      title: title,
+      text: text,
+      url: url,
+      files: files,
+      createdAt: Date.now()
+    });
+    return Response.redirect('/share-target?id=' + encodeURIComponent(shareId), 303);
+  } catch (err) {
+    console.error('Service Worker: Fehler beim Verarbeiten von Share Target:', err);
+    return Response.redirect('/share-target?error=1', 303);
+  }
+}
+
 // Fetch Event - Network-First Strategie: Cache nur als Backup bei Offline
 self.addEventListener('fetch', function(event) {
   const requestUrl = new URL(event.request.url);
-  
+
+  // Web Share Target POST abfangen und in IndexedDB zwischenspeichern
+  if (
+    event.request.method === 'POST' &&
+    requestUrl.origin === self.location.origin &&
+    requestUrl.pathname === '/share-target'
+  ) {
+    event.respondWith(handleShareTargetPost(event.request));
+    return;
+  }
+
   // Nur GET-Requests behandeln
   if (event.request.method !== 'GET') {
     return;

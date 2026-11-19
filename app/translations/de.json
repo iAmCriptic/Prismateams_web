@@ -8547,5 +8547,87 @@
       "body": "E-Mail-Vorlage (Schichtplan)",
       "placeholders_hint": "Verfügbare Platzhalter"
     }
+  },
+  "share_target": {
+    "title": "Geteilte Inhalte speichern",
+    "subtitle": "Wählen Sie aus, wo die geteilten Dateien, Links oder Texte gespeichert werden sollen.",
+    "loading": "Wird geladen…",
+    "saving": "Wird gespeichert…",
+    "submit": "Speichern",
+    "preview": {
+      "heading": "Geteilter Inhalt",
+      "title_label": "Titel",
+      "title_placeholder": "Optionaler Titel",
+      "url_label": "Link (URL)",
+      "text_label": "Text / Notiz",
+      "text_placeholder": "Geteilter Text"
+    },
+    "destination": {
+      "heading": "Wohin möchten Sie den Inhalt hinzufügen?",
+      "files_title": "In Ordner hochladen",
+      "files_desc": "Im Dateien-Modul ablegen",
+      "kanban_title": "Zu Kanban hinzufügen",
+      "kanban_desc": "Board, Liste & Karte wählen",
+      "events_title": "Zu Veranstaltung hinzufügen",
+      "events_desc": "Event-Ordner, Link oder To-Do",
+      "chat_title": "In Chat senden",
+      "chat_desc": "Kanal oder Direktnachricht"
+    },
+    "files": {
+      "space_label": "Bereich",
+      "folder_label": "Zielordner",
+      "root_folder": "(Stammordner)",
+      "filename_label": "Dateiname",
+      "filename_hint": "Links und Texte werden als .md- oder .txt-Datei gespeichert.",
+      "default_note_name": "notiz"
+    },
+    "kanban": {
+      "board_label": "Board",
+      "list_label": "Liste",
+      "card_mode_label": "Karte",
+      "mode_new": "Neue Karte erstellen",
+      "mode_existing": "Zu bestehender Karte hinzufügen",
+      "card_title_label": "Kartentitel",
+      "card_title_placeholder": "Titel der neuen Karte",
+      "card_desc_label": "Beschreibung",
+      "card_desc_placeholder": "Optionale Beschreibung",
+      "card_label": "Bestehende Karte",
+      "select_board": "Board auswählen…",
+      "select_list": "Liste auswählen…",
+      "select_card": "Karte auswählen…",
+      "no_boards": "Keine bearbeitbaren Boards verfügbar",
+      "no_lists": "Keine Listen in diesem Board",
+      "no_cards": "Keine Karten in dieser Liste"
+    },
+    "errors": {
+      "empty": "Keine Inhalte zum Speichern vorhanden.",
+      "generic": "Beim Speichern ist ein Fehler aufgetreten.",
+      "no_target": "Bitte wählen Sie zuerst ein Ziel aus.",
+      "no_modules": "Sie haben derzeit keinen Zugriff auf Dateien, Kanban, Veranstaltungen oder Chat.",
+      "card_title_required": "Bitte geben Sie einen Titel für die neue Karte ein.",
+      "select_card_required": "Bitte wählen Sie eine bestehende Karte aus."
+    },
+    "success": {
+      "files": "Erfolgreich im ausgewählten Ordner gespeichert.",
+      "kanban": "Erfolgreich zu Kanban hinzugefügt.",
+      "open_target": "Ziel öffnen",
+      "events": "Erfolgreich zur Veranstaltung hinzugefügt.",
+      "chat": "Erfolgreich im Chat gesendet."
+    },
+    "events": {
+      "event_label": "Veranstaltung",
+      "select_event": "Veranstaltung auswählen…",
+      "no_events": "Keine bearbeitbaren Veranstaltungen verfügbar",
+      "hint": "Dateien werden im verknüpften Veranstaltungsordner hochgeladen, Links als Event-Link und Texte als To-Do hinzugefügt.",
+      "todo_list_label": "To-Do-Liste (für geteilten Text)",
+      "auto_todo_list": "Standard-Liste („Aufgaben“)"
+    },
+    "chat": {
+      "channel_label": "Chat / Kanal",
+      "select_chat": "Chat auswählen…",
+      "no_chats": "Keine Chats verfügbar",
+      "message_label": "Nachricht",
+      "message_placeholder": "Optionale Nachricht zur Datei…"
+    }
   }
 }

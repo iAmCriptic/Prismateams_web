@@ -2643,5 +2643,87 @@
       "body": "E-Mail-Vorlage (Schichtplan)",
       "placeholders_hint": "Verfügbare Platzhalter"
     }
+  },
+  "share_target": {
+    "title": "Guardar conteúdo partilhado",
+    "subtitle": "Escolha onde guardar os ficheiros, ligações ou textos partilhados.",
+    "loading": "A carregar…",
+    "saving": "A guardar…",
+    "submit": "Guardar",
+    "preview": {
+      "heading": "Conteúdo partilhado",
+      "title_label": "Título",
+      "title_placeholder": "Título opcional",
+      "url_label": "Ligação (URL)",
+      "text_label": "Texto / Nota",
+      "text_placeholder": "Texto partilhado"
+    },
+    "destination": {
+      "heading": "Onde pretende adicionar este conteúdo?",
+      "files_title": "Carregar para pasta",
+      "files_desc": "Guardar no módulo Ficheiros",
+      "kanban_title": "Adicionar ao Kanban",
+      "kanban_desc": "Escolher quadro, lista e cartão",
+      "events_title": "Adicionar a evento",
+      "events_desc": "Pasta, ligação ou tarefa do evento",
+      "chat_title": "Enviar para o chat",
+      "chat_desc": "Canal ou mensagem direta"
+    },
+    "files": {
+      "space_label": "Espaço",
+      "folder_label": "Pasta de destino",
+      "root_folder": "(Pasta raiz)",
+      "filename_label": "Nome do ficheiro",
+      "filename_hint": "Ligações e textos são guardados como ficheiros .md ou .txt.",
+      "default_note_name": "nota"
+    },
+    "kanban": {
+      "board_label": "Quadro",
+      "list_label": "Lista",
+      "card_mode_label": "Cartão",
+      "mode_new": "Criar novo cartão",
+      "mode_existing": "Adicionar a cartão existente",
+      "card_title_label": "Título do cartão",
+      "card_title_placeholder": "Título do novo cartão",
+      "card_desc_label": "Descrição",
+      "card_desc_placeholder": "Descrição opcional",
+      "card_label": "Cartão existente",
+      "select_board": "Selecionar quadro…",
+      "select_list": "Selecionar lista…",
+      "select_card": "Selecionar cartão…",
+      "no_boards": "Sem quadros editáveis disponíveis",
+      "no_lists": "Sem listas neste quadro",
+      "no_cards": "Sem cartões nesta lista"
+    },
+    "errors": {
+      "empty": "Nenhum conteúdo disponível para guardar.",
+      "generic": "Ocorreu um erro ao guardar.",
+      "no_target": "Selecione primeiro um destino.",
+      "no_modules": "Atualmente não tem acesso a Ficheiros, Kanban, Eventos nem Chat.",
+      "card_title_required": "Introduza um título para o novo cartão.",
+      "select_card_required": "Selecione um cartão existente."
+    },
+    "success": {
+      "files": "Guardado com sucesso na pasta selecionada.",
+      "kanban": "Adicionado com sucesso ao Kanban.",
+      "open_target": "Abrir destino",
+      "events": "Adicionado com sucesso ao evento.",
+      "chat": "Enviado com sucesso no chat."
+    },
+    "events": {
+      "event_label": "Evento",
+      "select_event": "Selecionar evento…",
+      "no_events": "Sem eventos editáveis disponíveis",
+      "hint": "Os ficheiros são carregados para a pasta do evento, as ligações como ligação do evento e o texto como tarefa.",
+      "todo_list_label": "Lista de tarefas (para texto partilhado)",
+      "auto_todo_list": "Lista predefinida (“Tarefas”)"
+    },
+    "chat": {
+      "channel_label": "Chat / Canal",
+      "select_chat": "Selecionar chat…",
+      "no_chats": "Sem chats disponíveis",
+      "message_label": "Mensagem",
+      "message_placeholder": "Mensagem opcional com o ficheiro…"
+    }
   }
 }
