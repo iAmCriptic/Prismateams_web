@@ -338,6 +338,7 @@ def register():
         # Check company email restriction & mailbox validation
         from app.services.company_mail_auth import (
             is_company_email,
+            is_company_email_auth_enabled,
             is_company_email_register_only,
             get_configured_company_domains,
             verify_mailbox_credentials,
@@ -345,13 +346,14 @@ def register():
         )
 
         is_comp_mail = is_company_email(email)
-        if is_company_email_register_only() and not is_comp_mail:
+        register_only = is_company_email_register_only()
+        if register_only and not is_comp_mail:
             domains_str = ", ".join(get_configured_company_domains())
             flash(translate('auth.flash.only_company_email_allowed', domains=domains_str), 'danger')
             return render_template('auth/register.html', **_google_register_template_kwargs())
 
         mailbox_verified = False
-        if is_comp_mail:
+        if (is_company_email_auth_enabled() or register_only) and is_comp_mail:
             mail_ok, err_code, _ = verify_mailbox_credentials(email, password)
             if not mail_ok:
                 if err_code == 'AUTH_FAILED':

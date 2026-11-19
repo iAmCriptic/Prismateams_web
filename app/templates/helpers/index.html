@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% from "helpers/_sidebar.html" import helpers_sidebar, helpers_mobile_offcanvas, helpers_new_event_modal with context %}
 
-{% block title %}{{ _('helpers.heading') }} — {{ current_event.name }}{% endblock %}
+{% block title %}{{ _('helpers.heading') }}{% if current_event %} — {{ current_event.name }}{% endif %}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/helpers.css') }}">
@@ -32,6 +32,22 @@
   {{ helpers_mobile_offcanvas(events, current_event, active_nav) }}
 
   <main class="mod-main">
+    {% if not current_event %}
+    <div class="d-flex align-items-center gap-2 mb-3 d-lg-none">
+      <button class="btn mod-pill-btn mod-pill-btn--outline" type="button" data-bs-toggle="offcanvas" data-bs-target="#helpersMobileNav" aria-label="{{ _('helpers.heading') }}">
+        <i class="bi bi-list"></i>
+      </button>
+      <h1 class="h4 mb-0">{{ _('helpers.heading') }}</h1>
+    </div>
+    <div class="text-center py-5">
+      <i class="bi bi-calendar2-plus fs-1 text-muted d-block mb-3" aria-hidden="true"></i>
+      <h2 class="h5 mb-2">{{ _('helpers.sidebar.no_events') }}</h2>
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--accent mt-2" data-bs-toggle="modal" data-bs-target="#helpersNewEventModal">
+        <i class="bi bi-plus-lg"></i>
+        <span>{{ _('helpers.modal.new_event_title') }}</span>
+      </button>
+    </div>
+    {% else %}
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
       <div class="d-flex align-items-center gap-2">
         <button class="btn mod-pill-btn mod-pill-btn--outline d-lg-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#helpersMobileNav" aria-label="{{ _('helpers.heading') }}">
@@ -262,12 +278,14 @@
         </tbody>
       </table>
     </div>
+    {% endif %}
   </main>
 </div>
 
 <!-- Modals außerhalb von .mod-shell--nav gemäß STYLEGUIDE.md -->
 {{ helpers_new_event_modal(events) }}
 
+{% if current_event %}
 <div class="modal fade" id="helpersAddHelperModal" tabindex="-1" aria-labelledby="helpersAddHelperModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <form method="POST" action="{{ url_for('helpers.create_helper', event_id=current_event.id) }}" class="modal-content rounded-4 border-0 shadow">
@@ -485,6 +503,7 @@
     </form>
   </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}

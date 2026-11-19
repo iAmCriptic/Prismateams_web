@@ -225,7 +225,9 @@
       "flash_company_email_only": "Registration is only allowed with a company email address ({domains}).",
       "flash_company_mail_failed": "Authentication with company mail server failed ({error}). Please verify email and password.",
       "flash_company_mail_success": "Registration successful! Your account and corporate mailbox are active. You can now log in.",
-      "company_email_hint": "Registration only permitted with authorized company email ({domains})."
+      "company_email_hint": "Registration only permitted with authorized company email ({domains}).",
+      "company_email_only_hint": "Registration only permitted with authorized company email",
+      "company_mailbox_login_note": "Please use your corporate mailbox password."
     },
     "confirm_email": {
       "title": "Confirm email",
@@ -299,7 +301,17 @@
       "2fa_recovery_mail_not_configured": "Email is not configured. Please contact an administrator.",
       "2fa_recovery_rate_limited": "Please wait a moment before requesting a new code.",
       "2fa_recovery_disabled": "Email recovery for 2FA is disabled on this system.",
-      "account_locked": "Your account has been locked for {seconds} seconds due to too many failed login attempts."
+      "account_locked": "Your account has been locked for {seconds} seconds due to too many failed login attempts.",
+      "register_success_company_mailbox": "Registration successful! Your account and corporate mailbox are active.",
+      "only_company_email_allowed": "Registration is only allowed with a company email address ({domains}).",
+      "mailbox_login_failed": "Corporate mailbox login failed. Please check your email and password.",
+      "mailbox_server_unreachable": "The company mail server is currently unreachable. Please try again later.",
+      "mailbox_config_missing": "The company mail server is not configured. Please contact an administrator.",
+      "mailbox_verification_failed": "Corporate mailbox verification failed. Please contact an administrator.",
+      "admin_mailserver_down_login_notice": "The company mail server is currently unreachable. You were signed in as an administrator using your local password.",
+      "user_mailserver_down_login_notice": "The company mail server is currently unreachable. You were signed in using offline mode.",
+      "mailserver_unreachable_login_blocked": "The company mail server is currently unreachable. Sign-in is temporarily unavailable.",
+      "company_mailbox_blocked_or_invalid": "Corporate mailbox login failed or account locked."
     },
     "bot_protection": {
       "recaptcha_required": "Please confirm that you are not a robot."

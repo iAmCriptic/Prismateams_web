@@ -3952,4 +3952,44 @@ a.sp-dir-card:hover {
   margin-left: auto;
 }
 
+/* ——— Admin: Neuen Benutzer anlegen ——— */
+.settings-admin-create .sp-row:not(.sp-row--stack) .sp-row-control {
+  min-width: min(100%, 20rem);
+}
+
+.settings-admin-create .sp-row-control .input-group > .form-control:not(:last-child) {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.settings-admin-create .sp-row-control .input-group > .input-group-text:last-child,
+.settings-admin-create .sp-row-control .input-group > .btn:last-child {
+  border-top-right-radius: var(--mod-radius-pill, 1.5rem);
+  border-bottom-right-radius: var(--mod-radius-pill, 1.5rem);
+  border-color: var(--sp-border);
+}
+
+.settings-admin-create-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.95rem 1.25rem;
+}
+
+.settings-admin-create-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 0.25rem;
+}
+
+.settings-admin-create-credentials-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+}
+
 

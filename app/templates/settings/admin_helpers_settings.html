@@ -10,6 +10,7 @@
       <h1 class="sp-page-title"><i class="bi bi-people-fill" aria-hidden="true"></i><span>{{ _('helpers.heading') }}</span></h1>
       <p class="sp-page-lead mb-0">{{ _('helpers.settings.general_heading') }}</p>
     </div>
+    {% if current_event %}
     <form method="GET" action="{{ url_for('settings.admin_helpers_settings') }}" class="d-flex align-items-center gap-2 flex-nowrap">
       <select name="event_id" class="form-select form-select-sm mod-pill-input w-auto pe-5" onchange="this.form.submit()" aria-label="{{ _('helpers.sidebar.events') }}">
         {% for ev in events %}
@@ -21,8 +22,20 @@
         <span>{{ _('helpers.nav.overview') }}</span>
       </a>
     </form>
+    {% endif %}
   </header>
 
+  {% if not current_event %}
+  <div class="sp-group">
+    <div class="sp-group-body p-4 text-center">
+      <p class="text-muted mb-3">{{ _('helpers.sidebar.no_events') }}</p>
+      <a href="{{ url_for('helpers.index') }}" class="btn mod-pill-btn mod-pill-btn--accent">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+        <span>{{ _('helpers.modal.new_event_title') }}</span>
+      </a>
+    </div>
+  </div>
+  {% else %}
   <div class="row g-4 align-items-start">
     <!-- 1. Allgemeine Einstellungen & Markenberechnung -->
     <div class="col-12 col-xl-6">
@@ -319,9 +332,11 @@
   </section>
     </div>
   </div>
+  {% endif %}
 </div>
 
 <!-- Modals außerhalb von .mod-shell--nav -->
+{% if current_event %}
 <div class="modal fade" id="spHelpersAddFieldModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <form method="POST" action="{{ url_for('helpers.create_field', event_id=current_event.id) }}" class="modal-content rounded-4 border-0 shadow">
@@ -426,6 +441,7 @@
     </form>
   </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}

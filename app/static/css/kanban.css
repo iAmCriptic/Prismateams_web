@@ -814,7 +814,9 @@ body:has(.kanban-board-page) {
   overflow-anchor: none;
   flex: 1 1 auto;
   min-height: 0;
-  overscroll-behavior: contain;
+  overscroll-behavior-x: auto;
+  overscroll-behavior-y: contain;
+  touch-action: pan-x pan-y;
 }
 
 .kanban-list-col__footer {
@@ -830,6 +832,7 @@ body:has(.kanban-board-page) {
   cursor: pointer;
   border: 1px solid transparent;
   color: var(--kanban-surface-text);
+  touch-action: pan-x pan-y;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -846,6 +849,7 @@ body:has(.kanban-board-page) {
 
 .kanban-card.sortable-chosen {
   box-shadow: 0 14px 28px rgba(0, 0, 0, 0.35);
+  touch-action: none;
 }
 
 .kanban-card.sortable-drag {

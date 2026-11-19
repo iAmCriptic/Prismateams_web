@@ -225,7 +225,9 @@
       "flash_company_email_only": "Die Registrierung ist nur mit einer Unternehmens-E-Mail-Adresse erlaubt ({domains}).",
       "flash_company_mail_failed": "Anmeldung am Unternehmens-Mailserver fehlgeschlagen ({error}). Bitte prüfen Sie E-Mail und Passwort.",
       "flash_company_mail_success": "Registrierung erfolgreich! Ihr Konto und Firmenpostfach wurden aktiviert. Sie können sich nun anmelden.",
-      "company_email_hint": "Registrierung nur mit autorisierter Firmen-E-Mail möglich ({domains})."
+      "company_email_hint": "Registrierung nur mit autorisierter Firmen-E-Mail möglich ({domains}).",
+      "company_email_only_hint": "Registrierung nur mit autorisierter Firmen-E-Mail möglich",
+      "company_mailbox_login_note": "Bitte verwenden Sie Ihr Firmenpostfach-Passwort."
     },
     "confirm_email": {
       "title": "E-Mail bestätigen",
@@ -321,7 +323,17 @@
       "account_locked": "Ihr Konto wurde aufgrund zu vieler fehlgeschlagener Login-Versuche für {seconds} Sekunden gesperrt.",
       "bot_protection_failed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
       "picture_invalid_type": "Ungültiger Dateityp. Nur PNG, JPG, JPEG und GIF sind erlaubt.",
-      "picture_too_large": "Das Profilbild ist zu groß. Maximale Größe: 5 MB."
+      "picture_too_large": "Das Profilbild ist zu groß. Maximale Größe: 5 MB.",
+      "register_success_company_mailbox": "Registrierung erfolgreich! Ihr Konto und Firmenpostfach wurden aktiviert.",
+      "only_company_email_allowed": "Die Registrierung ist nur mit einer Unternehmens-E-Mail-Adresse erlaubt ({domains}).",
+      "mailbox_login_failed": "Anmeldung am Firmenpostfach fehlgeschlagen. Bitte prüfen Sie E-Mail und Passwort.",
+      "mailbox_server_unreachable": "Der Unternehmens-Mailserver ist derzeit nicht erreichbar. Bitte versuchen Sie es später erneut.",
+      "mailbox_config_missing": "Die Unternehmens-Mailserver-Konfiguration fehlt. Bitte wenden Sie sich an einen Administrator.",
+      "mailbox_verification_failed": "Die Überprüfung des Firmenpostfachs ist fehlgeschlagen. Bitte wenden Sie sich an einen Administrator.",
+      "admin_mailserver_down_login_notice": "Der Unternehmens-Mailserver ist derzeit nicht erreichbar. Sie wurden als Administrator über Ihr lokales Passwort angemeldet.",
+      "user_mailserver_down_login_notice": "Der Unternehmens-Mailserver ist derzeit nicht erreichbar. Sie wurden im Offline-Modus angemeldet.",
+      "mailserver_unreachable_login_blocked": "Der Unternehmens-Mailserver ist derzeit nicht erreichbar. Die Anmeldung ist vorübergehend nicht möglich.",
+      "company_mailbox_blocked_or_invalid": "Anmeldung am Firmenpostfach fehlgeschlagen oder Konto gesperrt."
     },
     "bot_protection": {
       "recaptcha_required": "Bitte bestätigen Sie, dass Sie kein Roboter sind."
