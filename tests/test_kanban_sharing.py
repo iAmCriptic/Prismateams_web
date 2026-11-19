@@ -280,3 +280,102 @@ def test_board_security_enumeration_protection(client, app, kanban_users_and_boa
     assert resp_owner_num.status_code == 200
 
 
+def test_admin_board_access_restricted_to_own_teams(client, app, kanban_users_and_boards):
+    """Admins must not automatically access other users' private boards or non-member team boards."""
+    from app.utils.kanban_access import (
+        accessible_boards_query,
+        can_edit_board,
+        can_manage_board,
+        can_view_board,
+    )
+
+    user1, user2, private_board, team_board, other_team = kanban_users_and_boards
+
+    with app.app_context():
+        admin_user = User(
+            email='admin_kanban@example.com',
+            first_name='Admin',
+            last_name='Kanban',
+            is_active=True,
+            is_admin=True,
+            has_full_access=True,
+            is_email_confirmed=True,
+        )
+        admin_user.set_password('Password123!@#')
+        db.session.add(admin_user)
+        db.session.flush()
+
+        own_team = Team(name='Admin Own Team', leader_id=user2.id)
+        db.session.add(own_team)
+        db.session.flush()
+        db.session.add(TeamMember(team_id=own_team.id, user_id=admin_user.id))
+
+        own_team_board = KanbanBoard(
+            title='Admin Team Board',
+            created_by=user2.id,
+            visibility='team',
+            team_id=own_team.id,
+        )
+        public_board = KanbanBoard(
+            title='Company Public Board',
+            created_by=user1.id,
+            visibility='public',
+        )
+        db.session.add_all([own_team_board, public_board])
+        db.session.commit()
+
+        admin_id = admin_user.id
+        own_team_board_id = own_team_board.id
+        public_board_id = public_board.id
+
+        # Helper-level checks
+        assert can_view_board(admin_user, private_board) is False
+        assert can_edit_board(admin_user, private_board) is False
+        assert can_manage_board(admin_user, private_board) is False
+
+        assert can_view_board(admin_user, team_board) is False
+        assert can_edit_board(admin_user, team_board) is False
+        assert can_manage_board(admin_user, team_board) is False
+
+        assert can_view_board(admin_user, own_team_board) is True
+        assert can_edit_board(admin_user, own_team_board) is True
+        assert can_manage_board(admin_user, own_team_board) is True
+
+        assert can_view_board(admin_user, public_board) is True
+
+        visible_ids = {b.id for b in accessible_boards_query(admin_user).all()}
+        assert private_board.id not in visible_ids
+        assert team_board.id not in visible_ids
+        assert own_team_board_id in visible_ids
+        assert public_board_id in visible_ids
+
+    _login(client, 'admin_kanban@example.com')
+
+    # Admin cannot view or modify other user's private board
+    assert client.get(f'/kanban/board/{private_board.id}').status_code == 404
+    assert client.get(f'/kanban/api/boards/{private_board.id}').status_code == 404
+    assert client.patch(f'/kanban/api/boards/{private_board.id}', json={'background': 'coral'}).status_code == 404
+
+    # Admin cannot view or modify non-member team board
+    assert client.get(f'/kanban/board/{team_board.id}').status_code == 404
+    assert client.get(f'/kanban/api/boards/{team_board.id}').status_code == 404
+    assert client.patch(f'/kanban/api/boards/{team_board.id}', json={'background': 'coral'}).status_code == 404
+
+    # Admin CAN view and manage board of their own team
+    assert client.get(f'/kanban/board/{own_team_board_id}').status_code == 200
+    patch_own = client.patch(f'/kanban/api/boards/{own_team_board_id}', json={'background': 'slate'})
+    assert patch_own.status_code == 200
+    assert patch_own.get_json().get('board', {}).get('background') == 'slate'
+
+    # Closed non-member team board must also remain inaccessible (including SSE)
+    with app.app_context():
+        from datetime import datetime
+        b = KanbanBoard.query.get(team_board.id)
+        b.closed_at = datetime.utcnow()
+        db.session.commit()
+
+    assert client.get(f'/kanban/board/{team_board.id}').status_code == 404
+    assert client.get(f'/sse/events/kanban/{team_board.id}').status_code == 403
+
+
+

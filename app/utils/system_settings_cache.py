@@ -6,7 +6,7 @@ import threading
 import time
 from typing import Any, Optional
 
-from flask import g, has_request_context
+from flask import g, has_app_context, has_request_context
 
 _G_KEY = "_system_settings_map"
 _listeners_registered = False
@@ -94,7 +94,7 @@ def invalidate_system_settings_cache() -> None:
     """Drop request- and process-scoped settings maps (e.g. after a write)."""
     global _process_map, _process_loaded_at
 
-    if has_request_context() and hasattr(g, _G_KEY):
+    if has_app_context() and hasattr(g, _G_KEY):
         delattr(g, _G_KEY)
 
     with _process_lock:

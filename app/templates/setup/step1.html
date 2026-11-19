@@ -64,7 +64,10 @@
                 </div>
 
                 <div class="setup-actions">
-                    <span></span>
+                    <a href="{{ url_for('setup.import_backup') }}" class="setup-backup-instead-link">
+                        <i class="bi bi-archive" aria-hidden="true"></i>
+                        <span>{{ _('setup.step1.import_backup_instead') }}</span>
+                    </a>
                     <button type="submit" class="btn setup-btn setup-btn--accent">
                         Weiter <i class="bi bi-arrow-right"></i>
                     </button>

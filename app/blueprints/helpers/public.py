@@ -8,7 +8,7 @@ from flask import abort, render_template, request
 
 from app import db
 from app.models.helpers import Helper, HelperArea, HelperAreaWish, HelperEvent
-from app.utils.helpers_seed import ensure_initial_helper_event
+from app.utils.helpers_seed import ensure_helper_schema
 from app.utils.i18n import translate
 from . import helpers_bp
 from .forms import validate_public_registration
@@ -17,6 +17,7 @@ DEFAULT_DAY_OPTIONS = ['Freitag', 'Samstag', 'Sonntag', 'Aufbau / Abbau']
 
 
 def _resolve_public_event(token=None):
+    ensure_helper_schema()
     if token:
         event = HelperEvent.query.filter_by(apply_token=token, is_active=True).first()
         if not event or not event.apply_enabled:
@@ -29,9 +30,7 @@ def _resolve_public_event(token=None):
         .first()
     )
     if event is None:
-        event = ensure_initial_helper_event()
-        if not event.apply_enabled:
-            abort(404)
+        abort(404)
     return event
 
 

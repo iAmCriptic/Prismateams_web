@@ -237,9 +237,16 @@ def test_tshirt_filter_prioritized_helpers_and_csv_export(app):
 
 def test_protected_routes_and_event_link(client, app):
     _enable_helpers_module()
-    ev = ensure_initial_helper_event()
     non_admin = _create_user(email_prefix='helfer_user', is_admin=False)
     admin = _create_user(email_prefix='helfer_admin', is_admin=True)
+
+    # Ohne bestehendes Event darf /helfer/ KEIN Event automatisch anlegen
+    _login(client, non_admin)
+    assert HelperEvent.query.count() == 0
+    assert client.get('/helfer/').status_code == 200
+    assert HelperEvent.query.count() == 0
+
+    ev = ensure_initial_helper_event()
 
     # Nicht-Admin darf /helfer/ aufrufen, aber nicht /settings
     _login(client, non_admin)

@@ -6,6 +6,7 @@ from app.utils.backup.constants import (
     SUPPORTED_BACKUP_VERSIONS,
     SUPPORTED_CATEGORIES,
 )
+from app.utils.backup.estimate import estimate_backup_sizes
 from app.utils.backup.export import export_backup
 from app.utils.backup.import_core import import_backup
 
@@ -14,6 +15,7 @@ __all__ = [
     "CATEGORY_DEFINITIONS",
     "SUPPORTED_BACKUP_VERSIONS",
     "SUPPORTED_CATEGORIES",
+    "estimate_backup_sizes",
     "export_backup",
     "import_backup",
 ]

@@ -225,7 +225,9 @@
       "flash_company_email_only": "Registration is only allowed with a company email address ({domains}).",
       "flash_company_mail_failed": "Authentication with company mail server failed ({error}). Please verify email and password.",
       "flash_company_mail_success": "Registration successful! Your account and corporate mailbox are active. You can now log in.",
-      "company_email_hint": "Registration only permitted with authorized company email ({domains})."
+      "company_email_hint": "Registration only permitted with authorized company email ({domains}).",
+      "company_email_only_hint": "Registration only permitted with authorized company email",
+      "company_mailbox_login_note": "Please use your corporate mailbox password."
     },
     "confirm_email": {
       "title": "Confirm email",
@@ -299,7 +301,17 @@
       "2fa_recovery_mail_not_configured": "Email is not configured. Please contact an administrator.",
       "2fa_recovery_rate_limited": "Please wait a moment before requesting a new code.",
       "2fa_recovery_disabled": "Email recovery for 2FA is disabled on this system.",
-      "account_locked": "Your account has been locked for {seconds} seconds due to too many failed login attempts."
+      "account_locked": "Your account has been locked for {seconds} seconds due to too many failed login attempts.",
+      "register_success_company_mailbox": "Registration successful! Your account and corporate mailbox are active.",
+      "only_company_email_allowed": "Registration is only allowed with a company email address ({domains}).",
+      "mailbox_login_failed": "Corporate mailbox login failed. Please check your email and password.",
+      "mailbox_server_unreachable": "The company mail server is currently unreachable. Please try again later.",
+      "mailbox_config_missing": "The company mail server is not configured. Please contact an administrator.",
+      "mailbox_verification_failed": "Corporate mailbox verification failed. Please contact an administrator.",
+      "admin_mailserver_down_login_notice": "The company mail server is currently unreachable. You were signed in as an administrator using your local password.",
+      "user_mailserver_down_login_notice": "The company mail server is currently unreachable. You were signed in using offline mode.",
+      "mailserver_unreachable_login_blocked": "The company mail server is currently unreachable. Sign-in is temporarily unavailable.",
+      "company_mailbox_blocked_or_invalid": "Corporate mailbox login failed or account locked."
     },
     "bot_protection": {
       "recaptcha_required": "Please confirm that you are not a robot."
@@ -369,6 +381,32 @@
       "flash_code_required": "Please enter an invitation code.",
       "flash_code_invalid": "This invitation code is invalid, expired, or used up.",
       "code_team_portal_hint": "With this code you will receive a full portal account and become a member of team '{team}'."
+    },
+    "maintenance": {
+      "title": "Maintenance",
+      "subtitle": "Temporarily offline",
+      "heading": "Maintenance – temporarily offline",
+      "description": "This portal is currently undergoing maintenance and is temporarily unavailable.",
+      "retry_hint": "Please try again later.",
+      "admin_recover_link": "Administrator recovery",
+      "api_error": "The system is currently in maintenance mode."
+    },
+    "recover": {
+      "title": "System Recovery",
+      "subtitle": "Administrator access in offline mode",
+      "email_label": "Administrator Email Address",
+      "submit": "Sign in as Administrator",
+      "status_active_title": "Offline mode is active (Lockdown)",
+      "status_active_desc": "Regular access is currently blocked. You can end the lockdown now to restore portal access for all users.",
+      "end_lockdown_btn": "End Lockdown",
+      "status_inactive_title": "System is online",
+      "status_inactive_desc": "Offline mode is currently disabled. All users can sign in normally.",
+      "go_to_dashboard": "Go to Dashboard",
+      "go_to_system_settings": "Go to System Settings",
+      "admin_only_title": "Administrator Access Required",
+      "admin_only_error": "Only administrators can use the recovery access.",
+      "logout_switch_admin": "Sign out and sign in as Administrator",
+      "lockdown_ended": "Lockdown ended. Offline mode has been disabled."
     }
   },
   "dashboard": {
@@ -2290,7 +2328,12 @@
         "section_team_invites": "Team Invites",
         "team_invite_info": "Controls new user permissions when registering via team invite codes.",
         "team_invite_allow_portal_user": "Allow full portal accounts via team invite codes",
-        "team_invite_allow_portal_user_help": "Allows teams to generate invite codes giving new users full portal access (Public/Private) instead of team-only guest access."
+        "team_invite_allow_portal_user_help": "Allows teams to generate invite codes giving new users full portal access (Public/Private) instead of team-only guest access.",
+        "section_offline_mode": "Offline Mode",
+        "offline_mode_help": "When offline mode is enabled, a maintenance screen is shown instead of the normal login page. Administrators can still sign in via /recover and end the lockdown.",
+        "offline_mode_label": "Enable Offline Mode (Maintenance)",
+        "offline_mode_hint": "Blocks regular login and portal access for all non-administrators.",
+        "offline_mode_recover_hint": "Admin recovery link while offline mode is active: {recover_url}"
       },
       "legal": {
         "page_title": "Legal notice & terms - Administration",
@@ -2667,7 +2710,11 @@
           "duty_roster": "Duty rosters, shifts, person configurations, external persons, and time tracking",
           "booking_personal": "Personal booking events, fields, entries, files, and templates"
         },
-        "lead_short": "Export and import portal backups."
+        "lead_short": "Export and import portal backups.",
+        "estimated_size_label": "Estimated backup size:",
+        "estimated_size_none": "No categories selected",
+        "importing_title": "Restoring backup…",
+        "importing_hint": "Please wait and do not close this window. Depending on the size, this may take a few moments."
       },
       "whitelist": {
         "page_title": "Whitelist - Administration",
@@ -6982,6 +7029,9 @@
       "save_continue_btn": "Save & Continue",
       "flash_saved": "Main email configuration saved.",
       "flash_incomplete": "Please enter at least SMTP server, email address, and password."
+    },
+    "step1": {
+      "import_backup_instead": "Import backup instead?"
     }
   },
   "media_downloader": {

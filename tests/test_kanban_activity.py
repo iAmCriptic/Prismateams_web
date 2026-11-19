@@ -21,7 +21,7 @@ def kanban_user_and_board(app):
     board = KanbanBoard(
         title='Activity Test Board',
         created_by=user.id,
-        visibility='organization',
+        visibility='public',
     )
     db.session.add(board)
     db.session.commit()

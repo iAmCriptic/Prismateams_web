@@ -1,205 +1,285 @@
 {% extends "settings/base_settings.html" %}
+{% from 'settings/_macros.html' import sp_info %}
 
 {% block title %}{{ _('settings.admin.create_user.page_title') }}{% endblock %}
 {% block settings_mobile_title %}{{ _('settings.admin.create_user.heading') }}{% endblock %}
 
 {% block settings_content %}
-<div class="settings-admin-create">
-    <a href="{{ url_for('settings.admin_users') }}" class="settings-subpage-back">
-        <i class="bi bi-arrow-left" aria-hidden="true"></i>
-        <span>{{ _('layout.nav.back') }}</span>
-    </a>
-    <div class="settings-admin-create-header">
-        <div>
-            <h1 class="settings-admin-create-title">{{ _('settings.admin.create_user.heading') }}</h1>
-            <p class="settings-admin-create-subtitle">{{ _('settings.admin.create_user.subtitle') }}</p>
-        </div>
+<div class="sp-page settings-admin-create">
+    <div class="mod-back-row">
+        <a href="{{ url_for('settings.admin_users') }}" class="mod-back-link">
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+            <span>{{ _('layout.nav.back') }}</span>
+        </a>
     </div>
 
-    <div class="settings-admin-create-type" role="group" aria-label="{{ _('settings.admin.create_user.account_type') }}">
+    <header class="sp-page-header">
+        <h1 class="sp-page-title">
+            <i class="bi bi-person-plus" aria-hidden="true"></i>
+            <span>{{ _('settings.admin.create_user.heading') }}</span>
+        </h1>
+        <p class="sp-page-lead">{{ _('settings.admin.create_user.subtitle') }}</p>
+    </header>
+
+    <div class="sp-seg mb-3" role="group" aria-label="{{ _('settings.admin.create_user.account_type') }}">
         <input type="radio" class="btn-check" name="create_type_toggle" id="type_full" value="full" checked>
-        <label class="settings-admin-create-type-btn" for="type_full">
+        <label for="type_full">
             <i class="bi bi-person-check" aria-hidden="true"></i>
             {{ _('settings.admin.create_user.tab_full') }}
         </label>
         <input type="radio" class="btn-check" name="create_type_toggle" id="type_guest" value="guest">
-        <label class="settings-admin-create-type-btn" for="type_guest">
+        <label for="type_guest">
             <i class="bi bi-person-dash" aria-hidden="true"></i>
             {{ _('settings.admin.create_user.tab_guest') }}
         </label>
     </div>
 
-    <form method="POST" action="{{ url_for('settings.create_user') }}" id="createUserForm" class="settings-admin-create-form">
+    <form method="POST" action="{{ url_for('settings.create_user') }}" id="createUserForm" class="settings-admin-create-form" data-sp-no-autosave>
         <input type="hidden" name="account_type" id="account_type" value="full">
 
         {# —— Vollwertig —— #}
         <div id="panel-full" class="settings-admin-create-panel" data-account-type="full">
-            <section class="settings-admin-create-card">
-                <h2 class="settings-admin-create-section-title">{{ _('settings.admin.create_user.section_details') }}</h2>
-                <div class="settings-admin-create-fields">
-                    <div class="settings-admin-create-field">
-                        <label for="first_name" class="form-label">{{ _('settings.admin.create_user.first_name') }} <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control settings-admin-create-input" id="first_name" name="first_name" data-panel="full" autocomplete="given-name">
-                    </div>
-                    <div class="settings-admin-create-field">
-                        <label for="last_name" class="form-label">{{ _('settings.admin.create_user.last_name') }} <span class="text-danger">*</span></label>
-                        <input type="text" class="form-control settings-admin-create-input" id="last_name" name="last_name" data-panel="full" autocomplete="family-name">
-                    </div>
-                    <div class="settings-admin-create-field">
-                        <div class="settings-admin-create-label-row">
-                            <label for="email" class="form-label mb-0">{{ _('settings.admin.create_user.email') }} <span class="text-danger">*</span></label>
-                            <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.email_help') }}" aria-label="{{ _('settings.admin.create_user.email_help') }}">
-                                <i class="bi bi-info-circle" aria-hidden="true"></i>
-                            </button>
+            <section class="sp-group">
+                <div class="sp-group-head">
+                    <h2 class="sp-group-title">
+                        <i class="bi bi-person-vcard" aria-hidden="true"></i>
+                        {{ _('settings.admin.create_user.section_details') }}
+                    </h2>
+                </div>
+                <div class="sp-group-body">
+                    <div class="sp-row">
+                        <label for="first_name" class="sp-row-label">
+                            <span class="sp-row-label-text">{{ _('settings.admin.create_user.first_name') }} <span class="text-danger">*</span></span>
+                        </label>
+                        <div class="sp-row-control">
+                            <input type="text" class="form-control" id="first_name" name="first_name" data-panel="full" autocomplete="given-name">
                         </div>
-                        <input type="email" class="form-control settings-admin-create-input" id="email" name="email" data-panel="full" autocomplete="email">
                     </div>
-                    <div class="settings-admin-create-field">
-                        <label for="phone" class="form-label">{{ _('settings.admin.create_user.phone') }}</label>
-                        <input type="text" class="form-control settings-admin-create-input" id="phone" name="phone" data-panel="full" autocomplete="tel">
+                    <div class="sp-row">
+                        <label for="last_name" class="sp-row-label">
+                            <span class="sp-row-label-text">{{ _('settings.admin.create_user.last_name') }} <span class="text-danger">*</span></span>
+                        </label>
+                        <div class="sp-row-control">
+                            <input type="text" class="form-control" id="last_name" name="last_name" data-panel="full" autocomplete="family-name">
+                        </div>
+                    </div>
+                    <div class="sp-row">
+                        <label for="email" class="sp-row-label">
+                            <span class="sp-row-label-text">{{ _('settings.admin.create_user.email') }} <span class="text-danger">*</span></span>
+                            {{ sp_info(_('settings.admin.create_user.email_help')) }}
+                        </label>
+                        <div class="sp-row-control">
+                            <input type="email" class="form-control" id="email" name="email" data-panel="full" autocomplete="email">
+                        </div>
+                    </div>
+                    <div class="sp-row">
+                        <label for="phone" class="sp-row-label">
+                            <span class="sp-row-label-text">{{ _('settings.admin.create_user.phone') }}</span>
+                        </label>
+                        <div class="sp-row-control">
+                            <input type="text" class="form-control" id="phone" name="phone" data-panel="full" autocomplete="tel">
+                        </div>
+                    </div>
+                    <div class="sp-row">
+                        <p class="sp-row-meta mb-0">{{ _('settings.admin.create_user.full_hint') }}</p>
                     </div>
                 </div>
-                <p class="settings-admin-create-hint">{{ _('settings.admin.create_user.full_hint') }}</p>
             </section>
-            <button type="submit" class="btn btn-accent settings-admin-create-submit" data-submit-for="full">
-                <i class="bi bi-person-plus" aria-hidden="true"></i>
-                {{ _('settings.admin.create_user.submit_full') }}
-            </button>
+            <div class="settings-admin-create-actions">
+                <button type="submit" class="btn btn-accent rounded-pill mod-pill-btn" data-submit-for="full" data-sp-keep-submit>
+                    <i class="bi bi-person-plus" aria-hidden="true"></i>
+                    {{ _('settings.admin.create_user.submit_full') }}
+                </button>
+            </div>
         </div>
 
         {# —— Gast —— #}
         <div id="panel-guest" class="settings-admin-create-panel" data-account-type="guest" hidden>
-            <div class="settings-admin-create-top-grid">
-                <section class="settings-admin-create-card">
-                    <h2 class="settings-admin-create-section-title">{{ _('settings.admin.create_user.section_details') }}</h2>
-                    <div class="settings-admin-create-fields">
-                        <div class="settings-admin-create-field">
-                            <label for="guest_first_name" class="form-label">{{ _('settings.admin.create_user.first_name') }} <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control settings-admin-create-input" id="guest_first_name" name="first_name" data-panel="guest" autocomplete="off" disabled>
+            <section class="sp-group">
+                <div class="sp-group-head">
+                    <h2 class="sp-group-title">
+                        <i class="bi bi-person-vcard" aria-hidden="true"></i>
+                        {{ _('settings.admin.create_user.section_details') }}
+                    </h2>
+                </div>
+                <div class="sp-group-body">
+                    <div class="sp-row">
+                        <label for="guest_first_name" class="sp-row-label">
+                            <span class="sp-row-label-text">{{ _('settings.admin.create_user.first_name') }} <span class="text-danger">*</span></span>
+                        </label>
+                        <div class="sp-row-control">
+                            <input type="text" class="form-control" id="guest_first_name" name="first_name" data-panel="guest" autocomplete="off" disabled>
                         </div>
-                        <div class="settings-admin-create-field">
-                            <label for="guest_last_name" class="form-label">{{ _('settings.admin.create_user.last_name') }} <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control settings-admin-create-input" id="guest_last_name" name="last_name" data-panel="guest" autocomplete="off" disabled>
+                    </div>
+                    <div class="sp-row">
+                        <label for="guest_last_name" class="sp-row-label">
+                            <span class="sp-row-label-text">{{ _('settings.admin.create_user.last_name') }} <span class="text-danger">*</span></span>
+                        </label>
+                        <div class="sp-row-control">
+                            <input type="text" class="form-control" id="guest_last_name" name="last_name" data-panel="guest" autocomplete="off" disabled>
                         </div>
-                        <div class="settings-admin-create-field">
-                            <div class="settings-admin-create-label-row">
-                                <label for="guest_username" class="form-label mb-0">{{ _('settings.admin.create_user.guest_username') }} <span class="text-danger">*</span></label>
-                            <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.guest_username_help', domain=guest_email_domain) }}" aria-label="{{ _('settings.admin.create_user.guest_username_help', domain=guest_email_domain) }}">
-                                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                    </div>
+                    <div class="sp-row">
+                        <label for="guest_username" class="sp-row-label">
+                            <span class="sp-row-label-text">{{ _('settings.admin.create_user.guest_username') }} <span class="text-danger">*</span></span>
+                            {{ sp_info(_('settings.admin.create_user.guest_username_help', domain=guest_email_domain)) }}
+                        </label>
+                        <div class="sp-row-control">
+                            <div class="input-group settings-admin-create-username">
+                                <input type="text" class="form-control" id="guest_username" name="guest_username" data-panel="guest" pattern="[a-zA-Z0-9._\-]+" autocomplete="off" disabled>
+                                <span class="input-group-text">{{ guest_email_suffix }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sp-row">
+                        <label for="guest_expires_at" class="sp-row-label">
+                            <span class="sp-row-label-text">{{ _('settings.admin.create_user.expires') }}</span>
+                            {{ sp_info(_('settings.admin.create_user.expires_help')) }}
+                        </label>
+                        <div class="sp-row-control">
+                            <input type="datetime-local" class="form-control" id="guest_expires_at" name="guest_expires_at" data-panel="guest" disabled>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <aside class="sp-group settings-admin-create-credentials" id="guest-credentials-panel" hidden>
+                <div class="sp-group-head">
+                    <h2 class="sp-group-title">
+                        <i class="bi bi-key" aria-hidden="true"></i>
+                        {{ _('settings.admin.create_user.guest_modal_title') }}
+                    </h2>
+                </div>
+                <div class="sp-group-body">
+                    <div class="sp-row sp-row--stack">
+                        <p class="sp-row-meta mb-1">{{ _('settings.admin.create_user.guest_modal_note') }}</p>
+                        <p class="fw-semibold mb-0" id="guest-full-name"></p>
+                    </div>
+                    <div class="sp-row">
+                        <label class="sp-row-label" for="guest-username-display">
+                            <span class="sp-row-label-text">{{ _('settings.admin.create_user.guest_modal_username') }}</span>
+                        </label>
+                        <div class="sp-row-control">
+                            <div class="input-group">
+                                <input type="text" class="form-control font-monospace" id="guest-username-display" readonly>
+                                <button class="btn btn-outline-secondary settings-admin-create-copy" type="button" data-copy="guest-username-display">{{ _('settings.admin.create_user.copy') }}</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sp-row">
+                        <label class="sp-row-label" for="guest-password-display">
+                            <span class="sp-row-label-text">{{ _('settings.admin.create_user.guest_modal_password') }}</span>
+                        </label>
+                        <div class="sp-row-control">
+                            <div class="input-group">
+                                <input type="text" class="form-control font-monospace" id="guest-password-display" readonly>
+                                <button class="btn btn-outline-secondary settings-admin-create-copy" type="button" data-copy="guest-password-display">{{ _('settings.admin.create_user.copy') }}</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sp-row">
+                        <label class="sp-row-label" for="guest-email-recipient">
+                            <span class="sp-row-label-text">{{ _('settings.admin.create_user.guest_email_modal_label') }}</span>
+                        </label>
+                        <div class="sp-row-control">
+                            <input type="email" class="form-control" id="guest-email-recipient"
+                                   placeholder="{{ _('settings.admin.create_user.guest_email_modal_placeholder') }}" autocomplete="email">
+                        </div>
+                    </div>
+                    <div class="sp-row sp-row--stack">
+                        <p class="sp-row-meta mb-2" id="guest-login-hint"></p>
+                        <div class="settings-admin-create-credentials-actions">
+                            <button type="button" class="btn btn-outline-secondary rounded-pill mod-pill-btn" id="guest-inline-print">
+                                <i class="bi bi-printer" aria-hidden="true"></i>
+                                <span>{{ _('settings.admin.create_user.guest_modal_print') }}</span>
                             </button>
-                            </div>
-                            <div class="settings-admin-create-username">
-                                <input type="text" class="form-control settings-admin-create-input" id="guest_username" name="guest_username" data-panel="guest" pattern="[a-zA-Z0-9._\-]+" autocomplete="off" disabled>
-                                <span class="settings-admin-create-username-suffix">{{ guest_email_suffix }}</span>
-                            </div>
-                        </div>
-                        <div class="settings-admin-create-field">
-                            <div class="settings-admin-create-label-row">
-                                <label for="guest_expires_at" class="form-label mb-0">{{ _('settings.admin.create_user.expires') }}</label>
-                                <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.expires_help') }}" aria-label="{{ _('settings.admin.create_user.expires_help') }}">
-                                    <i class="bi bi-info-circle" aria-hidden="true"></i>
-                                </button>
-                            </div>
-                            <input type="datetime-local" class="form-control settings-admin-create-input" id="guest_expires_at" name="guest_expires_at" data-panel="guest" disabled>
+                            <button type="button" class="btn btn-outline-secondary rounded-pill mod-pill-btn" id="guest-inline-email">
+                                <i class="bi bi-envelope" aria-hidden="true"></i>
+                                <span>{{ _('settings.admin.create_user.guest_modal_email') }}</span>
+                            </button>
+                            <button type="button" class="btn btn-accent rounded-pill mod-pill-btn" id="guest-inline-done">{{ _('settings.admin.create_user.guest_modal_done') }}</button>
                         </div>
                     </div>
-                </section>
-                <aside class="settings-admin-create-card settings-admin-create-credentials" id="guest-credentials-panel" hidden>
-                    <h2 class="settings-admin-create-section-title">{{ _('settings.admin.create_user.guest_modal_title') }}</h2>
-                    <p class="settings-admin-create-hint">{{ _('settings.admin.create_user.guest_modal_note') }}</p>
-                    <p class="settings-admin-create-guest-name" id="guest-full-name"></p>
-                    <div class="settings-admin-create-field">
-                        <label class="form-label" for="guest-username-display">{{ _('settings.admin.create_user.guest_modal_username') }}</label>
-                        <div class="settings-admin-create-cred-row">
-                            <input type="text" class="form-control settings-admin-create-input font-monospace" id="guest-username-display" readonly>
-                            <button class="btn settings-admin-create-copy" type="button" data-copy="guest-username-display">{{ _('settings.admin.create_user.copy') }}</button>
-                        </div>
+                </div>
+            </aside>
+
+            <section class="sp-group">
+                <div class="sp-group-head">
+                    <h2 class="sp-group-title">
+                        <i class="bi bi-share" aria-hidden="true"></i>
+                        {{ _('settings.admin.create_user.shares_title') }}
+                    </h2>
+                    {{ sp_info(_('settings.admin.create_user.shares_help')) }}
+                </div>
+                <div class="sp-group-body">
+                    {% if assignable_shares %}
+                    <div class="settings-admin-create-chips">
+                        {% for share in assignable_shares %}
+                        <input type="checkbox" class="btn-check" name="share_tokens" value="{{ share.token }}" id="share_{{ share.token_prefix }}_{{ loop.index }}" data-panel="guest" disabled autocomplete="off">
+                        <label class="settings-admin-roles-chip" for="share_{{ share.token_prefix }}_{{ loop.index }}">{{ share.label }} ({{ share.token_prefix }}…)</label>
+                        {% endfor %}
                     </div>
-                    <div class="settings-admin-create-field">
-                        <label class="form-label" for="guest-password-display">{{ _('settings.admin.create_user.guest_modal_password') }}</label>
-                        <div class="settings-admin-create-cred-row">
-                            <input type="text" class="form-control settings-admin-create-input font-monospace" id="guest-password-display" readonly>
-                            <button class="btn settings-admin-create-copy" type="button" data-copy="guest-password-display">{{ _('settings.admin.create_user.copy') }}</button>
-                        </div>
+                    {% else %}
+                    <div class="sp-row">
+                        <p class="sp-row-meta mb-0">{{ _('settings.admin.create_user.shares_empty') }}</p>
                     </div>
-                    <p class="settings-admin-create-hint" id="guest-login-hint"></p>
-                    <div class="settings-admin-create-field">
-                        <label class="form-label" for="guest-email-recipient">{{ _('settings.admin.create_user.guest_email_modal_label') }}</label>
-                        <input type="email" class="form-control settings-admin-create-input" id="guest-email-recipient"
-                               placeholder="{{ _('settings.admin.create_user.guest_email_modal_placeholder') }}" autocomplete="email">
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="sp-group">
+                <div class="sp-group-head">
+                    <h2 class="sp-group-title">
+                        <i class="bi bi-chat-dots" aria-hidden="true"></i>
+                        {{ _('settings.admin.create_user.chats_title') }}
+                    </h2>
+                    {{ sp_info(_('settings.admin.create_user.chats_help')) }}
+                </div>
+                <div class="sp-group-body">
+                    {% if all_chats %}
+                    <div class="settings-admin-create-chips">
+                        {% for chat in all_chats %}
+                        <input type="checkbox" class="btn-check" name="chat_ids" value="{{ chat.id }}" id="chat_{{ chat.id }}" data-panel="guest" disabled autocomplete="off">
+                        <label class="settings-admin-roles-chip" for="chat_{{ chat.id }}">
+                            {{ chat.name }}{% if chat.is_main_chat %} · {{ _('settings.admin.create_user.main_chat') }}{% endif %}
+                        </label>
+                        {% endfor %}
                     </div>
-                    <div class="settings-admin-create-credentials-actions">
-                        <button type="button" class="btn btn-outline-secondary" id="guest-inline-print">
-                            <i class="bi bi-printer me-1" aria-hidden="true"></i>{{ _('settings.admin.create_user.guest_modal_print') }}
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" id="guest-inline-email">
-                            <i class="bi bi-envelope me-1" aria-hidden="true"></i>{{ _('settings.admin.create_user.guest_modal_email') }}
-                        </button>
-                        <button type="button" class="btn btn-accent" id="guest-inline-done">{{ _('settings.admin.create_user.guest_modal_done') }}</button>
+                    {% else %}
+                    <div class="sp-row">
+                        <p class="sp-row-meta mb-0">{{ _('settings.admin.create_user.chats_empty') }}</p>
                     </div>
-                </aside>
+                    {% endif %}
+                </div>
+            </section>
+
+            <section class="sp-group">
+                <div class="sp-group-head">
+                    <h2 class="sp-group-title">
+                        <i class="bi bi-grid" aria-hidden="true"></i>
+                        {{ _('settings.admin.create_user.modules_title') }}
+                    </h2>
+                    {{ sp_info(_('settings.admin.create_user.modules_help')) }}
+                </div>
+                <div class="sp-group-body">
+                    <div class="settings-admin-create-chips">
+                        {% for module_key, module_name in guest_modules %}
+                        <input type="checkbox" class="btn-check" name="allowed_modules" value="{{ module_key }}" id="module_{{ module_key }}" data-panel="guest" disabled autocomplete="off">
+                        <label class="settings-admin-roles-chip" for="module_{{ module_key }}">{{ module_name }}</label>
+                        {% endfor %}
+                    </div>
+                    <div class="sp-row">
+                        <p class="sp-row-meta mb-0">{{ _('settings.admin.create_user.guest_hint') }}</p>
+                    </div>
+                </div>
+            </section>
+
+            <div class="settings-admin-create-actions">
+                <button type="submit" class="btn btn-accent rounded-pill mod-pill-btn" data-submit-for="guest" id="guest-submit-btn" data-sp-keep-submit>
+                    <i class="bi bi-person-dash" aria-hidden="true"></i>
+                    {{ _('settings.admin.create_user.submit_guest') }}
+                </button>
             </div>
-
-            <section class="settings-admin-create-card">
-                <div class="settings-admin-create-card-head">
-                    <h2 class="settings-admin-create-section-title mb-0">{{ _('settings.admin.create_user.shares_title') }}</h2>
-                    <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.shares_help') }}" aria-label="{{ _('settings.admin.create_user.shares_help') }}">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
-                </div>
-                {% if assignable_shares %}
-                <div class="settings-admin-create-chips">
-                    {% for share in assignable_shares %}
-                    <input type="checkbox" class="btn-check" name="share_tokens" value="{{ share.token }}" id="share_{{ share.token_prefix }}_{{ loop.index }}" data-panel="guest" disabled autocomplete="off">
-                    <label class="settings-admin-create-chip" for="share_{{ share.token_prefix }}_{{ loop.index }}">{{ share.label }} ({{ share.token_prefix }}…)</label>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="settings-admin-create-empty">{{ _('settings.admin.create_user.shares_empty') }}</p>
-                {% endif %}
-            </section>
-
-            <section class="settings-admin-create-card">
-                <div class="settings-admin-create-card-head">
-                    <h2 class="settings-admin-create-section-title mb-0">{{ _('settings.admin.create_user.chats_title') }}</h2>
-                    <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.chats_help') }}" aria-label="{{ _('settings.admin.create_user.chats_help') }}">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
-                </div>
-                {% if all_chats %}
-                <div class="settings-admin-create-chips">
-                    {% for chat in all_chats %}
-                    <input type="checkbox" class="btn-check" name="chat_ids" value="{{ chat.id }}" id="chat_{{ chat.id }}" data-panel="guest" disabled autocomplete="off">
-                    <label class="settings-admin-create-chip" for="chat_{{ chat.id }}">
-                        {{ chat.name }}{% if chat.is_main_chat %} · {{ _('settings.admin.create_user.main_chat') }}{% endif %}
-                    </label>
-                    {% endfor %}
-                </div>
-                {% else %}
-                <p class="settings-admin-create-empty">{{ _('settings.admin.create_user.chats_empty') }}</p>
-                {% endif %}
-            </section>
-
-            <section class="settings-admin-create-card">
-                <div class="settings-admin-create-card-head">
-                    <h2 class="settings-admin-create-section-title mb-0">{{ _('settings.admin.create_user.modules_title') }}</h2>
-                    <button type="button" class="settings-admin-create-info" data-bs-toggle="tooltip" title="{{ _('settings.admin.create_user.modules_help') }}" aria-label="{{ _('settings.admin.create_user.modules_help') }}">
-                        <i class="bi bi-info-circle" aria-hidden="true"></i>
-                    </button>
-                </div>
-                <div class="settings-admin-create-chips">
-                    {% for module_key, module_name in guest_modules %}
-                    <input type="checkbox" class="btn-check" name="allowed_modules" value="{{ module_key }}" id="module_{{ module_key }}" data-panel="guest" disabled autocomplete="off">
-                    <label class="settings-admin-create-chip" for="module_{{ module_key }}">{{ module_name }}</label>
-                    {% endfor %}
-                </div>
-                <p class="settings-admin-create-hint">{{ _('settings.admin.create_user.guest_hint') }}</p>
-            </section>
-
-            <button type="submit" class="btn btn-accent settings-admin-create-submit" data-submit-for="guest" id="guest-submit-btn">
-                <i class="bi bi-person-dash" aria-hidden="true"></i>
-                {{ _('settings.admin.create_user.submit_guest') }}
-            </button>
         </div>
     </form>
 </div>

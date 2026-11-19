@@ -87,6 +87,8 @@
     </div>
 </div>
 
+{% include 'partials/backup_import_overlay.html' %}
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
@@ -105,6 +107,22 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     });
+
+    var backupForm = document.getElementById('backupForm');
+    var importOverlay = document.getElementById('backupImportOverlay');
+    if (backupForm && importOverlay) {
+        backupForm.addEventListener('submit', function (evt) {
+            if (evt.submitter && evt.submitter.value && evt.submitter.value !== 'import') {
+                return;
+            }
+            importOverlay.hidden = false;
+        });
+        window.addEventListener('pageshow', function (evt) {
+            if (evt.persisted) {
+                importOverlay.hidden = true;
+            }
+        });
+    }
 
     var body = document.body;
     {% if color_gradient %}

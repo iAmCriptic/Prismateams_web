@@ -68,16 +68,13 @@ def before_request():
 def _resolve_event_context(event_id=None):
     ensure_helper_schema()
     events = HelperEvent.query.filter_by(is_active=True).order_by(HelperEvent.created_at.desc()).all()
-    if not events:
-        initial = ensure_initial_helper_event()
-        events = [initial]
 
     current_event = None
     if event_id is not None:
         current_event = HelperEvent.query.filter_by(id=event_id, is_active=True).first()
         if current_event is None:
             abort(404)
-    else:
+    elif events:
         current_event = events[0]
     return events, current_event
 
@@ -92,6 +89,22 @@ def index(event_id=None):
     area_filter = parse_int_optional(request.args.get('area_id'))
     status_filter = request.args.get('status', '').strip()
     assignment_filter = request.args.get('assignment', '').strip()
+
+    if current_event is None:
+        return render_template(
+            'helpers/index.html',
+            events=events,
+            current_event=None,
+            active_nav='index',
+            rows=[],
+            overview_fields=[],
+            all_active_fields=[],
+            areas=[],
+            search_query=search_query,
+            area_filter=area_filter,
+            status_filter=status_filter,
+            assignment_filter=assignment_filter,
+        )
 
     rows, overview_fields = get_helper_overview_data(
         current_event,

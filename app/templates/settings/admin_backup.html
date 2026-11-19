@@ -6,6 +6,7 @@
 
 {% block settings_content %}
 {% set cats = category_definitions if category_definitions is defined else [] %}
+{% set cat_sizes = category_sizes if category_sizes is defined else {} %}
 <div class="sp-page sp-page--fluid settings-admin-backup">
   <header class="sp-page-header">
     <h1 class="sp-page-title"><i class="bi bi-archive" aria-hidden="true"></i><span>{{ _('settings.admin.backup.heading') }}</span></h1>
@@ -35,10 +36,17 @@
               <div class="settings-admin-backup-chips sp-chip-grid" role="group" aria-label="{{ _('settings.admin.backup.categories_label') }}">
                 {% for cat in cats %}
                 {% set cid = 'export_' ~ cat.key %}
+                {% set csize = cat_sizes.get(cat.key, 0) %}
                 <div class="settings-admin-backup-chip-wrap">
                   <label class="sp-chip settings-admin-backup-chip">
-                    <input type="checkbox" name="export_categories" value="{{ cat.key }}" id="{{ cid }}" autocomplete="off">
-                    <span><i class="bi {{ cat.icon }}" aria-hidden="true"></i> {{ _(cat.label_key) }}</span>
+                    <input type="checkbox" name="export_categories" value="{{ cat.key }}" id="{{ cid }}" data-backup-size="{{ csize }}" autocomplete="off">
+                    <span>
+                      <i class="bi {{ cat.icon }}" aria-hidden="true"></i>
+                      {{ _(cat.label_key) }}
+                      {% if csize > 0 %}
+                      <span class="settings-admin-backup-chip-size" data-backup-bytes="{{ csize }}"></span>
+                      {% endif %}
+                    </span>
                   </label>
                   {{ sp_info(_(cat.help_key)) }}
                 </div>
@@ -55,6 +63,15 @@
             <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
             {{ _('settings.admin.backup.credentials_warn') }}
           </p>
+
+          <div class="settings-admin-backup-estimate" id="backupSizeEstimate" aria-live="polite">
+            <i class="bi bi-hdd" aria-hidden="true"></i>
+            <span>{{ _('settings.admin.backup.estimated_size_label') }}</span>
+            <strong id="backupSizeValue"
+                    data-empty-label="{{ _('settings.admin.backup.estimated_size_none') }}">
+              {{ _('settings.admin.backup.estimated_size_none') }}
+            </strong>
+          </div>
 
           <div class="sp-row">
             <div class="sp-row-control" style="justify-content:flex-start;width:100%">
@@ -135,12 +152,52 @@
   </div>
 </div>
 
+{% include 'partials/backup_import_overlay.html' %}
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.settings-admin-backup [data-bs-toggle="tooltip"]').forEach(function (el) {
         if (typeof bootstrap !== 'undefined' && bootstrap.Tooltip) {
             new bootstrap.Tooltip(el);
         }
+    });
+
+    function formatBackupBytes(bytes) {
+        if (!bytes || bytes <= 0) return '0 B';
+        var units = ['B', 'KB', 'MB', 'GB', 'TB'];
+        var idx = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+        var val = bytes / Math.pow(1024, idx);
+        var formatted = idx === 0 ? String(Math.round(val)) : val.toLocaleString(undefined, {
+            minimumFractionDigits: val < 10 ? 1 : 0,
+            maximumFractionDigits: 1
+        });
+        return formatted + ' ' + units[idx];
+    }
+
+    document.querySelectorAll('.settings-admin-backup-chip-size[data-backup-bytes]').forEach(function (el) {
+        var bytes = Number(el.getAttribute('data-backup-bytes') || 0);
+        if (bytes > 0) {
+            el.textContent = '(~' + formatBackupBytes(bytes) + ')';
+        }
+    });
+
+    var sizeValueEl = document.getElementById('backupSizeValue');
+    function updateEstimatedBackupSize() {
+        if (!sizeValueEl) return;
+        var checked = document.querySelectorAll('input[name="export_categories"]:checked');
+        if (checked.length === 0) {
+            sizeValueEl.textContent = sizeValueEl.getAttribute('data-empty-label') || '0 B';
+            return;
+        }
+        var total = 0;
+        checked.forEach(function (cb) {
+            total += Number(cb.getAttribute('data-backup-size') || 0);
+        });
+        sizeValueEl.textContent = '~ ' + formatBackupBytes(total);
+    }
+
+    document.querySelectorAll('input[name="export_categories"]').forEach(function (cb) {
+        cb.addEventListener('change', updateEstimatedBackupSize);
     });
 
     document.querySelectorAll('[data-backup-select]').forEach(function (btn) {
@@ -151,8 +208,26 @@ document.addEventListener('DOMContentLoaded', function () {
             document.querySelectorAll('input[name="' + type + '_categories"]').forEach(function (cb) {
                 cb.checked = checked;
             });
+            if (type === 'export') {
+                updateEstimatedBackupSize();
+            }
         });
     });
+
+    updateEstimatedBackupSize();
+
+    var importForm = document.getElementById('importForm');
+    var importOverlay = document.getElementById('backupImportOverlay');
+    if (importForm && importOverlay) {
+        importForm.addEventListener('submit', function () {
+            importOverlay.hidden = false;
+        });
+        window.addEventListener('pageshow', function (evt) {
+            if (evt.persisted) {
+                importOverlay.hidden = true;
+            }
+        });
+    }
 });
 </script>
 {% endblock %}

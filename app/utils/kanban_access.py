@@ -207,8 +207,6 @@ def can_view_board(user, board: KanbanBoard, *, allow_closed: bool = False) -> b
         return False
     if not is_kanban_module_enabled() or not has_module_access(user, 'module_kanban'):
         return False
-    if getattr(user, 'is_admin', False):
-        return True
 
     allowed = set(get_allowed_visibilities(user))
 
@@ -241,8 +239,6 @@ def can_view_board(user, board: KanbanBoard, *, allow_closed: bool = False) -> b
 def can_edit_board(user, board: KanbanBoard) -> bool:
     if not can_view_board(user, board):
         return False
-    if getattr(user, 'is_admin', False):
-        return True
     if board.created_by and board.created_by == getattr(user, 'id', None):
         return True
     if board.visibility == VISIBILITY_TEAM and board.team_id:
@@ -265,8 +261,6 @@ def can_manage_board(user, board: KanbanBoard) -> bool:
     """Settings, members, shares, close/reopen board."""
     if not can_view_board(user, board, allow_closed=True):
         return False
-    if getattr(user, 'is_admin', False):
-        return True
     if board.created_by and board.created_by == getattr(user, 'id', None):
         return True
 
@@ -299,9 +293,6 @@ def accessible_boards_query(user, *, include_closed: bool = False):
     q = KanbanBoard.query
     if not include_closed:
         q = q.filter(KanbanBoard.closed_at.is_(None))
-
-    if getattr(user, 'is_admin', False):
-        return q
 
     team_ids = list(user_team_ids(user))
     member_board_ids = [

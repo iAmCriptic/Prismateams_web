@@ -328,11 +328,11 @@ def chat_events(chat_id):
 def kanban_events(board_id):
     """SSE-Endpoint für Kanban-Board-Live-Updates."""
     from app.models.kanban import KanbanBoard
-    from app.utils.kanban_access import can_view_board
+    from app.utils.kanban_access import can_manage_board, can_view_board
 
     board = KanbanBoard.query.get_or_404(board_id)
     if not can_view_board(current_user, board) and not (
-        board.closed_at and getattr(current_user, 'is_admin', False)
+        board.closed_at and can_manage_board(current_user, board)
     ):
         return jsonify({'error': 'Forbidden'}), 403
 

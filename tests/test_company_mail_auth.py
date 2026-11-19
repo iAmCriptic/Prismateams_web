@@ -397,3 +397,36 @@ def test_login_password_auto_sync_when_changed_on_mailserver(client, app):
             assert user.check_password('NeuesPasswort123!') is True
             db.session.refresh(mb)
             assert decrypt_password(mb.imap_password_enc) == 'NeuesPasswort123!'
+
+
+def test_register_skips_imap_when_company_mail_auth_disabled_with_whitelist(client, app):
+    with app.app_context():
+        _ensure_admin()
+        _set_setting('company_email_auth_enabled', 'False')
+        _set_setting('company_email_register_only', 'False')
+        db.session.add(WhitelistEntry(
+            entry='@firma.de',
+            entry_type='domain',
+            is_active=True,
+        ))
+        db.session.commit()
+
+        with patch('imaplib.IMAP4_SSL') as mock_imap_ssl, \
+             patch('imaplib.IMAP4') as mock_imap:
+            resp = client.post('/register', data={
+                'email': 'dienst@firma.de',
+                'first_name': 'Max',
+                'last_name': 'Dienst',
+                'password': 'SecurePass1234!',
+                'password_confirm': 'SecurePass1234!',
+            }, follow_redirects=True)
+
+            assert resp.status_code == 200
+            mock_imap_ssl.assert_not_called()
+            mock_imap.assert_not_called()
+
+            user = User.query.filter_by(email='dienst@firma.de').first()
+            assert user is not None
+            assert user.is_active is True
+            assert Mailbox.query.filter_by(owner_id=user.id).first() is None
+

@@ -5,7 +5,7 @@
 # ------------------------------------------
 # Stage 1: Build-Umgebung
 # ------------------------------------------
-FROM python:3.12-slim-bookworm AS builder
+FROM python:3.12-slim-trixie AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -26,17 +26,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 
-# Venv vorbereiten und Pakete installieren
+# Venv vorbereiten und Pakete installieren (pip/wheel danach für minimales Runtime-Venv entfernen)
 RUN python -m venv /opt/venv \
     && /opt/venv/bin/pip install --upgrade pip setuptools wheel \
-    && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt
+    && /opt/venv/bin/pip install --no-cache-dir -r requirements.txt \
+    && /opt/venv/bin/pip uninstall -y pip wheel
 
 # ------------------------------------------
 # Stage 2: Minimales Runtime-Image
 # ------------------------------------------
 FROM mwader/static-ffmpeg:latest AS ffmpeg-source
 
-FROM python:3.12-slim-bookworm AS runner
+FROM python:3.12-slim-trixie AS runner
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -47,14 +48,18 @@ WORKDIR /app
 
 # Basis-OS absichern & updaten (kein curl nötig, da Healthcheck nativ über Python läuft)
 RUN apt-get update && apt-get upgrade -y && apt-get dist-upgrade -y \
+    && apt-get autoremove -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Veraltete Base-Image-Tools (insbesondere ungepatchtes setuptools 70.3.0 aus dem Python-Base-Image) entfernen.
-# Die Anwendung läuft vollkommen autark und sicher im gepatchten /opt/venv.
-RUN rm -rf /usr/local/lib/python3.12/site-packages/setuptools* \
+# Veraltete Base-Image-Tools (inkl. ensurepip-Bundles mit älterem setuptools/pip/wheel)
+# vollständig entfernen. Die Anwendung läuft autark im gepatchten /opt/venv.
+RUN rm -rf /usr/local/lib/python3.12/ensurepip \
+           /usr/local/lib/python3.12/site-packages/setuptools* \
            /usr/local/lib/python3.12/site-packages/pip* \
-           /usr/local/lib/python3.12/site-packages/wheel*
+           /usr/local/lib/python3.12/site-packages/wheel* \
+           /usr/local/bin/pip* \
+           /root/.cache
 
 # Statisches, gehärtetes FFmpeg ohne anfällige Debian-Codec-Pakete (libtiff etc.) übernehmen
 COPY --from=ffmpeg-source /ffmpeg /ffprobe /usr/local/bin/

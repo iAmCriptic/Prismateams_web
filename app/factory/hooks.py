@@ -330,6 +330,78 @@ def register_request_hooks(app):
         except Exception as exc:
             app.logger.warning("Session-Tracking konnte nicht aktualisiert werden: %s", exc)
 
+    @app.before_request
+    def enforce_offline_mode():
+        """Blockiert normale Zugriffe im Offline-/Wartungsmodus und zeigt die Wartungsseite."""
+        from flask import make_response, render_template
+        from flask_login import current_user
+        from app.utils.offline_mode import is_offline_mode_enabled
+
+        if not is_offline_mode_enabled():
+            return
+
+        if request.path.startswith('/socket.io/'):
+            return
+
+        if (
+            request.path.startswith('/assets/')
+            or request.path.startswith('/static/')
+            or request.path in {'/sw.js', '/favicon.ico', '/robots.txt', '/manifest.json', '/offline'}
+        ):
+            return
+
+        endpoint = request.endpoint or ''
+        if (
+            endpoint.startswith('static')
+            or endpoint.startswith('setup.')
+            or endpoint in {
+                'manifest',
+                'core_css',
+                'service_worker',
+                'robots_txt',
+                'settings.portal_logo',
+                'settings.auth_brand_image',
+                'auth.recover',
+                'auth.recover_disable',
+                'auth.logout',
+            }
+        ):
+            return
+
+        if (
+            endpoint in {'auth.login_2fa', 'auth.login_2fa_recovery'}
+            and session.get('pending_2fa_user_id')
+            and session.get('pending_2fa_recover')
+        ):
+            return
+
+        if (
+            current_user.is_authenticated
+            and getattr(current_user, 'is_admin', False)
+            and session.get('user_scope') != 'assessment'
+        ):
+            return
+
+        wants_json = (
+            request.path.startswith('/api/')
+            or request.path.startswith('/files/api/')
+            or request.is_json
+            or request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+        )
+        if wants_json:
+            return jsonify({
+                'error': translate('auth.maintenance.api_error'),
+                'offline_mode': True,
+            }), 503
+
+        from app.blueprints.auth import _auth_template_kwargs
+        resp = make_response(
+            render_template('auth/maintenance.html', **_auth_template_kwargs()),
+            503,
+        )
+        resp.headers['Retry-After'] = '300'
+        return resp
+
     @app.after_request
     def apply_search_indexing_headers(response):
         if request.endpoint in ('robots_txt', 'sitemap_xml'):

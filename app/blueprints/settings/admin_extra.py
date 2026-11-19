@@ -1211,17 +1211,15 @@ def admin_helpers_settings():
 
     from app.models.email import Mailbox
     from app.models.helpers import HelperEvent
-    from app.utils.helpers_seed import ensure_helper_schema, ensure_initial_helper_event
+    from app.utils.helpers_seed import ensure_helper_schema
 
     ensure_helper_schema()
 
     events = HelperEvent.query.filter_by(is_active=True).order_by(HelperEvent.created_at.desc()).all()
-    if not events:
-        events = [ensure_initial_helper_event()]
 
     selected_id = request.args.get('event_id', type=int)
-    current_event = next((ev for ev in events if ev.id == selected_id), None) or events[0]
-    public_url = url_for('helpers.public_register', token=current_event.apply_token, _external=True)
+    current_event = (next((ev for ev in events if ev.id == selected_id), None) or events[0]) if events else None
+    public_url = url_for('helpers.public_register', token=current_event.apply_token, _external=True) if current_event else ''
     mailboxes = Mailbox.query.filter_by(is_active=True).order_by(Mailbox.name.asc()).all()
 
     return render_template(
