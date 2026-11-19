@@ -8,7 +8,13 @@ from app.models.notification import NotificationSettings, ChatNotificationSettin
 from app.models.chat import Chat, ChatMember
 from app.models.whitelist import WhitelistEntry
 from app.utils.notifications import get_or_create_notification_settings, sync_user_notification_flags
-from app.utils.backup import export_backup, import_backup, SUPPORTED_CATEGORIES, CATEGORY_DEFINITIONS
+from app.utils.backup import (
+    export_backup,
+    import_backup,
+    estimate_backup_sizes,
+    SUPPORTED_CATEGORIES,
+    CATEGORY_DEFINITIONS,
+)
 from werkzeug.utils import secure_filename
 from datetime import datetime
 from collections import defaultdict
@@ -1329,6 +1335,7 @@ def _admin_backup_ctx():
     return {
         'categories': SUPPORTED_CATEGORIES,
         'category_definitions': CATEGORY_DEFINITIONS,
+        'category_sizes': estimate_backup_sizes(),
     }
 
 

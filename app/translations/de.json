@@ -2273,7 +2273,11 @@
           "duty_roster": "Dienstpläne, Schichten, Personen-Konfigurationen, externe Personen und Zeiterfassung",
           "booking_personal": "Persönliche Buchungs-Events, Felder, Einträge, Dateien und Vorlagen"
         },
-        "lead_short": "Portal-Backup exportieren und importieren."
+        "lead_short": "Portal-Backup exportieren und importieren.",
+        "estimated_size_label": "Ungefähre Backup-Größe:",
+        "estimated_size_none": "Keine Kategorien ausgewählt",
+        "importing_title": "Backup wird eingespielt…",
+        "importing_hint": "Bitte warten und dieses Fenster nicht schließen. Je nach Größe kann der Vorgang einige Augenblicke dauern."
       },
       "whitelist": {
         "page_title": "Whitelist - Administration",

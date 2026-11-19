@@ -3182,6 +3182,36 @@ a.sp-dir-card:hover {
   color: #d97706;
 }
 
+.settings-admin-backup-chip-size {
+  font-size: 0.74rem;
+  color: var(--bs-secondary-color);
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+.settings-admin-backup-estimate {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--sp-radius-sm);
+  border: 1px solid var(--sp-border);
+  background: var(--sp-surface-subtle, var(--bs-tertiary-bg));
+  font-size: 0.84rem;
+  color: var(--bs-secondary-color);
+  margin-bottom: 0.75rem;
+}
+
+.settings-admin-backup-estimate .bi {
+  color: var(--accent-color, var(--bs-primary));
+}
+
+.settings-admin-backup-estimate strong {
+  color: var(--bs-body-color);
+  font-variant-numeric: tabular-nums;
+}
+
 .settings-admin-legal-textarea {
   min-height: 22rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

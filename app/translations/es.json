@@ -2564,7 +2564,11 @@
           "shortlinks": "Enlaces cortos.",
           "excalidraw": "Dibujos, escenas y versiones."
         },
-        "lead_short": "Exportar e importar copias de seguridad del portal."
+        "lead_short": "Exportar e importar copias de seguridad del portal.",
+        "estimated_size_label": "Tamaño aproximado:",
+        "estimated_size_none": "Ninguna categoría seleccionada",
+        "importing_title": "Restaurando copia de seguridad…",
+        "importing_hint": "Espere y no cierre esta ventana. Según el tamaño, este proceso puede tardar unos momentos."
       },
       "whitelist": {
         "page_title": "Lista blanca - Administración",

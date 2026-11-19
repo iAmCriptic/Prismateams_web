@@ -2679,7 +2679,11 @@
           "duty_roster": "Duty rosters, shifts, person configurations, external persons, and time tracking",
           "booking_personal": "Personal booking events, fields, entries, files, and templates"
         },
-        "lead_short": "Export and import portal backups."
+        "lead_short": "Export and import portal backups.",
+        "estimated_size_label": "Estimated backup size:",
+        "estimated_size_none": "No categories selected",
+        "importing_title": "Restoring backup…",
+        "importing_hint": "Please wait and do not close this window. Depending on the size, this may take a few moments."
       },
       "whitelist": {
         "page_title": "Whitelist - Administration",

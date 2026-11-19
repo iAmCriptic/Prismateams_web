@@ -1098,7 +1098,11 @@
         "team_invite_allow_portal_user_help": "Permite às equipas criar códigos de convite com acesso completo ao portal (Público/Privado) em vez de apenas acesso de convidado."
       },
       "backup": {
-        "lead_short": "Exportar e importar backups do portal."
+        "lead_short": "Exportar e importar backups do portal.",
+        "estimated_size_label": "Tamanho aproximado:",
+        "estimated_size_none": "Nenhuma categoria selecionada",
+        "importing_title": "Restaurando backup…",
+        "importing_hint": "Aguarde e não feche esta janela. Dependendo do tamanho, isso pode levar alguns instantes."
       },
       "registration": {
         "lead_short": "Captcha e honeypot para login e formulários."

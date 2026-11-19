@@ -429,3 +429,56 @@ def test_backup_upload_allows_large_request_body(app):
             assert request.max_content_length == 1024
     finally:
         app.config['MAX_CONTENT_LENGTH'] = orig_limit
+
+
+def test_estimate_backup_sizes_and_admin_backup_ui(app, client):
+    from app import db
+    from app.models import File, User
+    from app.utils.backup import CATEGORY_DEFINITIONS, estimate_backup_sizes
+
+    with app.app_context():
+        admin = User(
+            email='backup_size_admin@example.com',
+            first_name='Backup',
+            last_name='Admin',
+            is_admin=True,
+            is_super_admin=True,
+            is_active=True,
+            is_email_confirmed=True,
+        )
+        admin.set_password('Secret123!')
+        db.session.add(admin)
+        db.session.flush()
+
+        sample_file = File(
+            name='demo.bin',
+            original_name='demo.bin',
+            file_path='/tmp/demo.bin',
+            file_size=12000,
+            mime_type='application/octet-stream',
+            uploaded_by=admin.id,
+        )
+        db.session.add(sample_file)
+        db.session.commit()
+
+        sizes = estimate_backup_sizes()
+        expected_keys = {c['key'] for c in CATEGORY_DEFINITIONS}
+        assert set(sizes.keys()) == expected_keys
+        assert all(isinstance(v, int) and v >= 0 for v in sizes.values())
+        assert sizes['files'] >= 16000
+        assert sizes['users'] > 0
+
+        client.post('/login', data={
+            'email': 'backup_size_admin@example.com',
+            'password': 'Secret123!',
+        }, follow_redirects=False)
+
+        from flask import url_for
+        with app.test_request_context():
+            backup_url = url_for('settings.admin_backup')
+        resp = client.get(backup_url)
+        assert resp.status_code == 200, f"Unexpected status {resp.status_code}, Location={resp.headers.get('Location')}"
+        html = resp.get_data(as_text=True)
+        assert 'id="backupSizeEstimate"' in html
+        assert 'id="backupImportOverlay"' in html
+        assert 'data-backup-size="' in html
