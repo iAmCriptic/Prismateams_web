@@ -85,6 +85,12 @@ PasskeyAuthResult PasskeyAuthenticator::Authenticate(HWND hWndParent, const std:
     if (SUCCEEDED(hr) && pAssertion) {
         result.success = true;
         result.clientDataJson = clientDataStr;
+        if (pAssertion->Credential.pbId && pAssertion->Credential.cbId > 0) {
+            result.credentialId.assign(
+                reinterpret_cast<char*>(pAssertion->Credential.pbId),
+                pAssertion->Credential.cbId
+            );
+        }
         if (pAssertion->pbAuthenticatorData && pAssertion->cbAuthenticatorData > 0) {
             result.authenticatorData.assign(
                 reinterpret_cast<char*>(pAssertion->pbAuthenticatorData),
@@ -95,6 +101,12 @@ PasskeyAuthResult PasskeyAuthenticator::Authenticate(HWND hWndParent, const std:
             result.signature.assign(
                 reinterpret_cast<char*>(pAssertion->pbSignature),
                 pAssertion->cbSignature
+            );
+        }
+        if (pAssertion->pbUserId && pAssertion->cbUserId > 0) {
+            result.userHandle.assign(
+                reinterpret_cast<char*>(pAssertion->pbUserId),
+                pAssertion->cbUserId
             );
         }
         fnFreeAssertion(pAssertion);

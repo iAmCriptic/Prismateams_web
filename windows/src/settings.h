@@ -11,7 +11,9 @@ struct AppSettings {
     bool autoMountDrive = true;
     bool autoStartWithWindows = false;
     bool minimizeToTray = true;
+    std::wstring themeMode = L"system"; // system | light | dark | oled
     std::wstring lastUserEmail = L"";
+    std::wstring portalName = L"";
 };
 
 class SettingsManager {
@@ -26,6 +28,9 @@ public:
 
     std::wstring GetConfigFilePath() const;
     std::wstring GetAppDataDirectory() const;
+    std::wstring GetPortalLogoFilePath() const;
+    std::wstring LoadPortalLogoDataUri() const;
+    bool SavePortalLogoFromDataUri(const std::wstring& dataUri) const;
 
     bool SetAutoStart(bool enable);
     bool IsAutoStartEnabled() const;

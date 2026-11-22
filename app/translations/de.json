@@ -483,257 +483,73 @@
       "prev": "Zurück",
       "next": "Weiter",
       "welcome": {
-        "title": "Willkommen zu Version 3.3",
-        "text": "PrismaTeams {version} bringt zwei neue Module sowie wichtige Verbesserungen für Media Download und Einstellungen.",
+        "title": "Willkommen zu Version {version}",
+        "text": "PrismaTeams {version} bringt die neuen Module Helferverwaltung und Booking, einen direkten Trello-Import für Kanban, eine Nextcloud-Verknüpfung für Dateien & Kalender, den neuen Windows Client sowie zahlreiche Bugfixes.",
         "highlights": {
-          "modules": "Zwei neue Module: Umfragen und Excalidraw – erstellen, teilen und auswerten.",
-          "media_downloader": "Media Download überarbeitet – läuft nun auch in Rechenzentrumsumgebungen zuverlässig.",
-          "settings": "Einstellungen aufgeräumt – übersichtlichere Struktur und Suche über alle Optionen."
+          "helpers": "Neues Modul Helferverwaltung – Schichten, Einsatzbereiche, Anmeldung und Einsatzpläne zentral organisieren.",
+          "booking": "Neues Modul Booking – Räume, Ressourcen und Buchungsanfragen strukturiert verwalten.",
+          "kanban": "Kanban – direkter Trello-Import sowie wichtige Bugfixes und Fehlerbehebungen.",
+          "nextcloud": "Dateien & Kalender – neue Verknüpfungsmöglichkeit mit Nextcloud.",
+          "windows_client": "Neuer PrismaTeams Windows Client – nutze PrismaTeams jetzt als native Windows-App."
         }
       },
       "modules": {
-        "general": {
-          "title": "Allgemein",
-          "teaser": "Design, Nav & System",
-          "items": {
-            "design": "Neue Designsprache über das gesamte Portal – klarer, ruhiger und konsistenter.",
-            "accent": "Akzentfarben werden zuverlässiger und an mehr Stellen angewendet.",
-            "alerts": "Alert-Bubbles angepasst, damit Layout weniger springt.",
-            "navigation": "Desktop-Sidebar und Mobile-Navigation überarbeitet.",
-            "context_menus": "Kontextmenüs in vielen Modulen für schnellere Aktionen.",
-            "setup": "Setup-Assistent und Erstkonfiguration verbessert.",
-            "push": "Web-Push-Subscriptions und Benachrichtigungen erweitert (inkl. Admin-Verwaltung).",
-            "email_templates": "Einheitliches E-Mail-Template-System für alle Systemmails.",
-            "pdf": "PDF-Generator überarbeitet (Inventar, Events, Booking, QR).",
-            "i18n": "Übersetzungen und Mehrsprachigkeit weiter ausgebaut."
-          }
-        },
-        "settings": {
-          "title": "Einstellungen",
-          "teaser": "Aufgeräumt & Suche",
-          "items": {
-            "search": "Neue Suche über alle Einstellungsseiten – schnell zur richtigen Option.",
-            "structure": "Übersichtlichere Struktur und gruppierte Bereiche.",
-            "navigation": "Verbesserte Sidebar-Navigation für Nutzer und Admins.",
-            "catalog": "Durchsuchbarer Einstellungskatalog mit rollenbasierter Filterung."
-          }
-        },
-        "surveys": {
-          "title": "Umfragen",
+        "helpers": {
+          "title": "Helferverwaltung",
           "teaser": "Neues Modul",
           "items": {
-            "module": "Neues Umfragemodul mit Formular-Builder und öffentlichem Ausfüll-Link.",
-            "builder": "Seiten, Fragentypen, Logikregeln und Vorschau im Builder.",
-            "public": "Öffentlich ausfüllbar mit E-Mail-Verifizierung und Bot-Schutz.",
-            "results": "Ergebnisse mit Diagrammen und Auswertung."
-          }
-        },
-        "excalidraw": {
-          "title": "Excalidraw",
-          "teaser": "Neues Modul",
-          "items": {
-            "module": "Neues Zeichenmodul mit integriertem Excalidraw-Editor.",
-            "collab": "Live-Kollaboration für gemeinsames Zeichnen im Team.",
-            "versions": "Versionsverlauf und automatisches Speichern.",
-            "sharing": "Freigabelinks mit Sichtbarkeit und optionalem Passwort."
-          }
-        },
-        "dashboard": {
-          "title": "Dashboard",
-          "teaser": "Neues & Widgets",
-          "items": {
-            "whats_new": "„Neues“ zeigt die Highlights jeder Version.",
-            "widgets": "Widgets und Schnellzugriff um neue Module ergänzt.",
-            "quick_access": "Dashboard-Bearbeitung unterstützt Events, Assessment, Musik, Media Download und mehr.",
-            "design": "Design- und Layout-Anpassungen für die Startseite."
-          }
-        },
-        "security": {
-          "title": "Sicherheit",
-          "teaser": "2FA, Gäste & Schutz",
-          "items": {
-            "twofa": "Zwei-Faktor-Authentifizierung (TOTP) für den Login.",
-            "rate_limit": "Rate-Limiting gegen Brute-Force bei Anmeldeversuchen.",
-            "bot": "Bot-Schutz mit Google reCAPTCHA oder Cloudflare Turnstile (Login/Registrierung).",
-            "password_reset": "Passwort-Reset per E-Mail.",
-            "sessions": "Session-Tracking und Geräteübersicht.",
-            "guests": "Gast-Accounts mit modulbasierter Zugriffskontrolle.",
-            "api_2fa": "API-Login mit optionaler 2FA-Unterstützung."
-          }
-        },
-        "chat": {
-          "title": "Chats",
-          "teaser": "Design, Pins & Stabilität",
-          "items": {
-            "design": "Designupdate für Desktop und Mobile.",
-            "pins": "Chats anpinnen (bis zu 6 pro Benutzer).",
-            "settings": "Chat-Einstellungen und Navigation verbessert.",
-            "socket": "Socket.IO / Redis-Stabilität für Echtzeitnachrichten.",
-            "fixes": "Bugfixes und UI-Verbesserungen."
-          }
-        },
-        "files": {
-          "title": "Dateien",
-          "teaser": "Privat, Limits & Freigaben",
-          "items": {
-            "design": "Design-Erneuerung für eine klarere Dateiübersicht.",
-            "private": "Private Ordner, Bereiche, Papierkorb und ACL.",
-            "upload": "Upload-Anzeige und Konfliktbehandlung (neue Version).",
-            "favorites": "Bis zu 10 Ordner als Favoriten speichern.",
-            "shares": "Freigaben überarbeitet (Labels, Dropbox-Mode, Briefkästen).",
-            "locks": "Exklusive Soft-Locks für Text-/Markdown-Editor.",
-            "dropbox": "Dropbox-Upload und -Integration verbessert.",
-            "admin_settings": "Neue Admin-Einstellungen für das Dateimodul.",
-            "upload_limit": "Größere Uploads möglich – je nach Admin-Einstellung.",
-            "user_quota": "Speicherlimit pro Benutzer einstellbar.",
-            "fixes": "Bugfixes und Fehlerbehebungen."
-          }
-        },
-        "calendar": {
-          "title": "Kalender",
-          "teaser": "Multi-Kalender & Sync",
-          "items": {
-            "day_view": "Tagesansicht für den schnellen Überblick.",
-            "external_sync": "Externe Kalender können synchronisiert werden.",
-            "embed": "Einbinden und Export/Import einfacher gemacht.",
-            "multi_mode": "Multi-Kalender-Modus für Personen und Teams.",
-            "context": "Kontextmenü: Termin direkt aus der Ansicht anlegen.",
-            "design": "Design- und OLED-Anpassungen.",
-            "fixes": "Fehlerbehebungen und Verbesserungen."
-          }
-        },
-        "events": {
-          "title": "Veranstaltungen",
-          "teaser": "Neues Modul & Scanner",
-          "items": {
-            "new_module": "Eigenes Veranstaltungsmodul mit Terminen, Zuweisungen und Bedarf.",
-            "design": "Designupdate der Event-Oberflächen.",
-            "scanner": "Appointment-Scanner für schnellere Erfassung.",
-            "inventory_link": "Checkouts können mit Event und Termin verknüpft werden.",
-            "pdf": "PDF-Generierung für Events überarbeitet.",
-            "fixes": "Anpassungen und Fehlerbehebungen."
-          }
-        },
-        "email": {
-          "title": "E-Mail",
-          "teaser": "Multi-Postfächer & Teams",
-          "items": {
-            "multi_mailbox": "Neue Multi-Postfächer – mehrere Mailboxen parallel nutzen und verwalten.",
-            "team": "Erste Integration von Team-Funktionalitäten im E-Mail-Modul."
-          }
-        },
-        "contacts": {
-          "title": "Kontakte",
-          "teaser": "Design & Favoriten",
-          "items": {
-            "design": "Designupdate der Kontaktübersicht.",
-            "favorites": "Persönliche Favoriten pro Benutzer.",
-            "context": "Kontextmenüs für schnelle Aktionen.",
-            "fixes": "Bugfixes und Fehlerbehebungen."
-          }
-        },
-        "credentials": {
-          "title": "Zugangsdaten",
-          "teaser": "Design & Favoriten",
-          "items": {
-            "design": "Designupdate.",
-            "favorites": "Persönliche Favoriten pro Benutzer.",
-            "badges": "Provider-Badges und verbesserte Suche.",
-            "context": "Kontextmenüs für schnelle Aktionen.",
-            "fixes": "Bugfixes und Fehlerbehebungen."
-          }
-        },
-        "manuals": {
-          "title": "Handbücher",
-          "teaser": "Ordner & Design",
-          "items": {
-            "design": "Designanpassungen.",
-            "folders": "Ordnerstruktur für Handbücher/Anleitungen.",
-            "fixes": "Bugfixes und Fehlerbehebungen."
-          }
-        },
-        "inventory": {
-          "title": "Inventar",
-          "teaser": "Checkout & Scanner",
-          "items": {
-            "design": "Designanpassungen und klarere Abläufe.",
-            "checkout": "Neues Checkout-System (Ausleihe/Rückgabe) inkl. Kontaktdaten.",
-            "product_fields": "Mehr Produktfelder: Gewicht, Maße, Preise, DGUV, Barcode, Schadenfoto.",
-            "event_link": "Checkout mit Veranstaltung und Termin verknüpfbar.",
-            "stocktake": "Inventur mit gezählter Menge.",
-            "scanner": "Scanner- und Checkout-UX verbessert.",
-            "colors": "Farbcodes besser lesbar bei kleinen Unterschieden.",
-            "pdf": "Belege und PDFs überarbeitet.",
-            "fixes": "API-Kompatibilität und weitere Bugfixes."
+            "overview": "Neues Modul zur zentralen Organisation von Helferinnen und Helfern rund um Events und Veranstaltungen.",
+            "shifts": "Einsatzbereiche, Zeitfenster und automatische Stundenberechnung übersichtlich planen.",
+            "registration": "Öffentlicher Anmelde-Link mit individuell konfigurierbaren Formularfeldern.",
+            "vouchers_mail": "Integrierte Gutscheinregeln sowie direkter E-Mail-Versand von persönlichen Einsatzplänen."
           }
         },
         "booking": {
-          "title": "Buchungen",
-          "teaser": "Formulare & Nachrichten",
-          "items": {
-            "module": "Buchungsmodul mit öffentlichen Formularen und Genehmigung.",
-            "forms": "Anpassbare Formulare, Uploads und Antragsteller-Felder.",
-            "roles": "Rollenbasierte Freigabe und Secondary Logo.",
-            "messages": "Nachrichten-Thread zwischen Staff und Antragsteller.",
-            "notifications": "Benachrichtigungen für Buchungen und Nachrichten.",
-            "pdf_mail": "PDF-Export und neue Mail-Templates inkl. Staff-Nachricht.",
-            "design": "Design- und Navigationsverbesserungen."
-          }
-        },
-        "music": {
-          "title": "Musik",
-          "teaser": "Wünsche & Public Links",
-          "items": {
-            "module": "Musikmodul für Wünsche und Team-Playlists.",
-            "design": "Designupdate der Musik-Oberfläche.",
-            "wishlist": "Wunschliste und Wunschverwaltung verbessert.",
-            "public": "Öffentliche URLs / Wishlist-Seiten.",
-            "oauth": "Admin-Einstellungen und OAuth-Anbindung.",
-            "fixes": "Bugfixes und Stabilitätsverbesserungen."
-          }
-        },
-        "assessment": {
-          "title": "Bewertung",
-          "teaser": "Neues Modul & Jury",
-          "items": {
-            "module": "Neues Bewertungsmodul für Jury und Wettbewerbe.",
-            "design": "Eigenes Design und isolierte Jury-Ansicht.",
-            "jury": "Jury-Accounts ohne volles Portal-Konto.",
-            "plans": "Bewertungspläne, Kriterien und Stände.",
-            "ranking": "Rankings und Auswertungen.",
-            "excel": "Excel-Uploads und Datenübernahme.",
-            "fixes": "Bugfixes und Admin-/Settings-Verbesserungen."
-          }
-        },
-        "shortlinks": {
-          "title": "Shortlinks",
+          "title": "Booking",
           "teaser": "Neues Modul",
           "items": {
-            "module": "Neues Shortlinks-Modul für kurze, teilbare Links.",
-            "design": "Design und Sidebar-Navigation.",
-            "sharing": "Anbindung an Datei-Freigaben und Teilen.",
-            "fixes": "Bugfixes und UX-Verbesserungen."
+            "overview": "Neues Buchungsmodul für Räume, Ressourcen und Events – sowohl intern als auch über öffentliche Buchungsformulare.",
+            "requests": "Strukturierte Anfrageverwaltung mit Genehmigung, Ablehnung und rollenbasierten Freigaben.",
+            "communication": "Integriertes Rückfragen- und Datei-Postfach sowie automatische E-Mail-Benachrichtigungen.",
+            "export_personal": "PDF-Export für Buchungsbestätigungen und Unterstützung für Personal-Booking."
           }
         },
-        "media_downloader": {
-          "title": "Media Download",
-          "teaser": "Rechenzentrum & Stabilität",
+        "kanban": {
+          "title": "Kanban",
+          "teaser": "Trello-Import & Fixes",
           "items": {
-            "datacenter": "Überarbeitet für Rechenzentrumsumgebungen – Downloads auch ohne Server-YT-DLP.",
-            "client": "Clientseitiger Download direkt im Browser.",
-            "playlists": "Playlist-Support und Vorschau.",
-            "stability": "Stabilere Jobs, abbrechen und klareres Fehlerfeedback."
+            "trello_connect": "Direkter Trello-Import in den Kanban-Einstellungen: Trello-Konto einfach per API-Key und Token verbinden.",
+            "trello_import": "Boards direkt auswählen und inklusive Listen, Karten und Sichtbarkeit importieren.",
+            "bugfixes": "Verschiedene Bugfixes und Fehlerbehebungen bei Darstellung, Kartenaktionen und Bedienung."
           }
         },
-        "wiki": {
-          "title": "Wiki",
-          "teaser": "Versionen & Favoriten",
+        "files_calendar": {
+          "title": "Dateien & Kalender",
+          "teaser": "Nextcloud-Verknüpfung",
           "items": {
-            "design": "Design- und Navigationsanpassungen.",
-            "versions": "Versionsverwaltung und Verlauf.",
-            "favorites": "Favoriten für schnellen Zugriff.",
-            "fixes": "Bugfixes und Verbesserungen."
+            "nextcloud_connect": "Neue Verknüpfungsmöglichkeit mit Nextcloud für eine nahtlose Zusammenarbeit über Systemgrenzen hinweg.",
+            "calendar_sync": "Kalender-Synchronisation via CalDAV: Nextcloud-Kalender und Termine direkt abrufen und abgleichen.",
+            "files_sync": "Direkte Anbindung von Nextcloud-Dateien und -Ordnern im Dateien-Modul."
           }
+        },
+        "bugfixes": {
+          "title": "Bugfixes & Verbesserungen",
+          "teaser": "Stabilität & Feinschliff",
+          "items": {
+            "stability": "Generelle Bugfixes und Fehlerbehebungen im gesamten Portal für noch höhere Zuverlässigkeit.",
+            "sync_forms": "Verbesserte Stabilität bei Formularen, Berechtigungen und Synchronisationsprozessen.",
+            "ui_polish": "Kleinere Detailverbesserungen bei Oberfläche, Navigation und Performance."
+          }
+        },
+        "windows_client": {
+          "title": "Windows Client",
+          "teaser": "Native Windows-App",
+          "items": {
+            "overview": "Release des offiziellen PrismaTeams Windows Clients als eigenständige, native Windows-App.",
+            "native_app": "Direkter Zugriff auf alle Module im eigenen App-Fenster mit Taskleisten-Integration – ganz ohne Browser-Tab.",
+            "workflow": "Schneller Start und optimierte Desktop-Nutzung für den täglichen Einsatz."
+          },
+          "download_cta": "Windows Installer auf GitHub herunterladen"
         }
       }
     },
@@ -1592,7 +1408,9 @@
       "inventory": {
         "title": "Lager / Ausleihen",
         "toggle": "Bei neuen Ausleihen",
-        "help": "Glocke und Push bei neuen Ausleihen — ohne Dauer-Polling im Hintergrund"
+        "help": "Glocke und Push bei neuen Ausleihen — ohne Dauer-Polling im Hintergrund",
+        "dguv_toggle": "Fällige DGUV-Prüfungen",
+        "dguv_help": "Tägliche Erinnerung mit der Anzahl fälliger DGUV-Prüfungen"
       },
       "email": {
         "title": "E-Mail-Benachrichtigungen",
@@ -7419,7 +7237,9 @@
     },
     "inventory": {
       "borrow_title": "Neue Ausleihe",
-      "borrow_body": "{event} – {borrower} ({count} Artikel)"
+      "borrow_body": "{event} – {borrower} ({count} Artikel)",
+      "dguv_due_title": "DGUV-Prüfungen fällig",
+      "dguv_due_body": "Es sind {count} Produkte zur DGUV-Prüfung fällig."
     },
     "kanban": {
       "upload_title": "Neuer Anhang auf {board}",
@@ -8344,7 +8164,8 @@
     "sidebar": {
       "events": "Veranstaltungen",
       "no_events": "Keine Veranstaltungen vorhanden.",
-      "new_event": "NEU"
+      "new_event": "NEU",
+      "new_event_btn": "Neue Veranstaltung"
     },
     "nav": {
       "overview": "Helfer-Übersicht",
@@ -8471,7 +8292,7 @@
       "calc_cumulative": "Kumuliert pro Person und Tag berechnen",
       "public_url": "Öffentlicher Anmelde-Link",
       "apply_enabled": "Öffentliche Anmeldung für diese Veranstaltung aktivieren",
-      "fields_heading": "Dynamische Feld-Konfiguration (FieldConfig)",
+      "fields_heading": "Dynamische Feld-Konfiguration",
       "add_field": "Feld anlegen",
       "field_label": "Feldname",
       "field_type": "Feldtyp",
@@ -8482,17 +8303,18 @@
       "admin_only_short": "Intern",
       "show_in_overview": "In Übersicht",
       "sort_order": "Sortierung",
-      "areas_heading": "Bereiche verwalten (Area)",
+      "areas_heading": "Bereiche verwalten",
       "add_area": "Bereich anlegen",
       "public_selectable": "Öffentlich wählbar",
-      "rules_heading": "Essens- & Getränkemarken-Regeln (VoucherRule)",
+      "rules_heading": "Essens- & Getränkemarken-Regeln",
       "add_rule": "Regel anlegen",
       "rule_name": "Regelbezeichnung",
       "hours_range": "Stundenbereich",
       "min_hours": "Min. Std.",
       "max_hours": "Max. Std.",
       "head_bonus": "HEAD-Bonus Getränke",
-      "global_rule": "Global (alle Bereiche)"
+      "global_rule": "Global (alle Bereiche)",
+      "active_event": "Veranstaltung"
     },
     "public": {
       "title": "Helfer-Anmeldung",
@@ -8545,7 +8367,8 @@
       "default_mailer": "Standard-Portal-Mailer",
       "subject": "E-Mail-Betreff (Schichtplan)",
       "body": "E-Mail-Vorlage (Schichtplan)",
-      "placeholders_hint": "Verfügbare Platzhalter"
+      "placeholders_hint": "Verfügbare Platzhalter",
+      "heading": "E-Mail-Vorlage & Versand"
     }
   },
   "share_target": {

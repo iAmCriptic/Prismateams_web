@@ -52,7 +52,7 @@ Frische 26.04-VMs scheitern oft nicht an der App, sondern an Systemunterschieden
 - **cloud-init / apt-Sperre:** Wartet auf cloud-init, stoppt `unattended-upgrades` und nutzt `DPkg::Lock::Timeout`. `needrestart` startet Dienste nicht interaktiv (kein hängendes TUI in der VM).
 - **universe/multiverse:** Wird vor den Paketen aktiviert. `mysql-server` 8.4 liegt in universe.
 - **MySQL 8.4:** Kein `mysql_native_password` (Plugin in 8.4 deaktiviert). Root/App-User bekommen das Server-Default (`caching_sha2_password`). PyMySQL kommt damit klar.
-- **Python 3.14:** System-`pip` wird nicht angefasst (PEP 668). Dependencies nur im venv, bevorzugt als Wheel (`greenlet` 3.5.x / `eventlet` 0.41 für 3.14).
+- **Python 3.14:** System-`pip` wird nicht angefasst (PEP 668). Dependencies nur im venv, bevorzugt als Wheel (`greenlet` 3.5.x für 3.14).
 - **Docker:** Zuerst Docker-CE-Repo mit Codename `resolute`. Fehlt das Repo oder die Pakete, Fallback auf `noble`, danach Ubuntu-Paket `docker.io`.
 
 ## Voraussetzungen

@@ -34,6 +34,29 @@ std::wstring SettingsManager::GetConfigFilePath() const {
     return GetAppDataDirectory() + L"\\config.ini";
 }
 
+std::wstring SettingsManager::GetPortalLogoFilePath() const {
+    return GetAppDataDirectory() + L"\\portal_logo.b64";
+}
+
+std::wstring SettingsManager::LoadPortalLogoDataUri() const {
+    std::wstring path = GetPortalLogoFilePath();
+    if (!fs::exists(path)) return L"";
+    std::wifstream in(path);
+    if (!in.is_open()) return L"";
+    std::wstringstream ss;
+    ss << in.rdbuf();
+    return ss.str();
+}
+
+bool SettingsManager::SavePortalLogoFromDataUri(const std::wstring& dataUri) const {
+    if (dataUri.rfind(L"data:image/", 0) != 0) return false;
+    std::wstring path = GetPortalLogoFilePath();
+    std::wofstream out(path, std::ios::trunc);
+    if (!out.is_open()) return false;
+    out << dataUri;
+    return true;
+}
+
 bool SettingsManager::Load() {
     std::wstring path = GetConfigFilePath();
     if (!fs::exists(path)) {
@@ -60,9 +83,17 @@ bool SettingsManager::Load() {
     // Minimize to tray
     m_settings.minimizeToTray = (GetPrivateProfileIntW(L"UI", L"MinimizeToTray", 1, path.c_str()) != 0);
 
+    // Theme mode
+    GetPrivateProfileStringW(L"UI", L"ThemeMode", L"system", buffer, 1024, path.c_str());
+    m_settings.themeMode = buffer;
+
     // Last user
     GetPrivateProfileStringW(L"Auth", L"LastEmail", L"", buffer, 1024, path.c_str());
     m_settings.lastUserEmail = buffer;
+
+    // Portal branding
+    GetPrivateProfileStringW(L"UI", L"PortalName", L"", buffer, 1024, path.c_str());
+    m_settings.portalName = buffer;
 
     m_settings.autoStartWithWindows = IsAutoStartEnabled();
 
@@ -78,6 +109,8 @@ bool SettingsManager::Save() {
     WritePrivateProfileStringW(L"WebDAV", L"DriveLetter", driveStr, path.c_str());
     WritePrivateProfileStringW(L"WebDAV", L"AutoMount", m_settings.autoMountDrive ? L"1" : L"0", path.c_str());
     WritePrivateProfileStringW(L"UI", L"MinimizeToTray", m_settings.minimizeToTray ? L"1" : L"0", path.c_str());
+    WritePrivateProfileStringW(L"UI", L"ThemeMode", m_settings.themeMode.c_str(), path.c_str());
+    WritePrivateProfileStringW(L"UI", L"PortalName", m_settings.portalName.c_str(), path.c_str());
     WritePrivateProfileStringW(L"Auth", L"LastEmail", m_settings.lastUserEmail.c_str(), path.c_str());
 
     SetAutoStart(m_settings.autoStartWithWindows);

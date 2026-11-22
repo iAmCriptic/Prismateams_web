@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "helpers/_sidebar.html" import helpers_sidebar, helpers_mobile_offcanvas, helpers_new_event_modal with context %}
+{% from "helpers/_sidebar.html" import helpers_sidebar, helpers_mobile_offcanvas, helpers_new_event_modal, helpers_add_helper_modal with context %}
 
 {% block title %}{{ _('helpers.nav.areas') }} — {{ current_event.name }}{% endblock %}
 
@@ -95,6 +95,7 @@
 </div>
 
 {{ helpers_new_event_modal(events) }}
+{{ helpers_add_helper_modal(current_event) }}
 {% endblock %}
 
 {% block extra_js %}

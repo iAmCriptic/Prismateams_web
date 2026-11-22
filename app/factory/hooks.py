@@ -230,7 +230,11 @@ def register_request_hooks(app):
         if request.path.startswith('/socket.io/'):
             return
 
-        if request.endpoint and request.endpoint.startswith('static'):
+        if (
+            (request.endpoint and request.endpoint.startswith('static'))
+            or request.path.startswith('/assets/')
+            or request.path.startswith('/static/')
+        ):
             return
 
         # Assessment-Logins: separates Tracking (kein FK auf users.id).

@@ -17,6 +17,8 @@ public:
 
     void Initialize(std::function<void(bool success)> onComplete);
     void Navigate(const std::wstring& url);
+    void ShowLoginScreen();
+    void PushStateSync();
     void Resize(int width, int height);
     void Reload();
     void GoBack();

@@ -35,6 +35,7 @@ public:
     bool CheckServerReachable(std::wstring& outServerTitle);
 
     LoginResult Login(const std::wstring& email, const std::wstring& password, const std::wstring& totpCode = L"");
+    LoginResult PasskeyLogin(HWND hWndParent);
     bool VerifyStoredSession();
     WebDavCredentialsResult FetchWebDavCredentials();
     bool Logout();

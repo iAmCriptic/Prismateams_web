@@ -6,7 +6,6 @@
 
 #include "webview_controller.h"
 #include "tray_icon.h"
-#include "native_login_view.h"
 
 namespace Prismateams {
 
@@ -24,6 +23,12 @@ const int IDM_POPUP_RELOAD   = 2104;
 const int IDM_POPUP_HOME     = 2105;
 const int IDM_POPUP_EXPLORER = 2106;
 
+// Async UI messages
+const UINT WM_APP_SESSION_VERIFIED = WM_APP + 101;
+const UINT WM_APP_POST_JSON        = WM_APP + 102;
+const UINT WM_APP_LOGIN_SUCCESS    = WM_APP + 103;
+const UINT WM_APP_WEBDAV_SYNC      = WM_APP + 104;
+
 class App {
 public:
     static App& Instance();
@@ -36,8 +41,11 @@ public:
     void OnLoginSuccess();
     void OnLogout();
     void SetDarkMode(bool isDark);
+    void ApplyThemeMode(const std::wstring& themeMode);
     bool IsDarkMode() const { return m_isDarkMode; }
     void ShowTrayNotification(const std::wstring& title, const std::wstring& message);
+    void UpdatePortalBranding(const std::wstring& portalName, const std::wstring& logoDataUri);
+    void ResetPortalBranding();
 
 private:
     App() = default;
@@ -56,7 +64,6 @@ private:
     HWND m_hWndMain = nullptr;
 
     // Sub-views
-    std::unique_ptr<NativeLoginView> m_nativeLoginView;
     std::unique_ptr<WebViewController> m_webViewController;
     std::unique_ptr<TrayIcon> m_trayIcon;
 
@@ -68,6 +75,7 @@ private:
     // Theme GDI objects
     HBRUSH m_hBrNavbar = nullptr;
     HFONT m_hFontNav = nullptr;
+    HICON m_hPortalIcon = nullptr;
 };
 
 } // namespace Prismateams

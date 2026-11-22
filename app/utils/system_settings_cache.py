@@ -18,15 +18,13 @@ _process_map: Optional[dict[str, Any]] = None
 _process_loaded_at: float = 0.0
 
 
-def _load_settings_from_db() -> dict[str, Any]:
-    mapping: dict[str, Any] = {}
+def _load_settings_from_db() -> Optional[dict[str, Any]]:
     try:
         from app.models.settings import SystemSettings
 
-        mapping = {row.key: row.value for row in SystemSettings.query.all()}
+        return {row.key: row.value for row in SystemSettings.query.all()}
     except Exception:
-        mapping = {}
-    return mapping
+        return None
 
 
 def _get_process_cached_map() -> dict[str, Any]:
@@ -42,6 +40,12 @@ def _get_process_cached_map() -> dict[str, Any]:
             return _process_map
 
         mapping = _load_settings_from_db()
+        if mapping is None:
+            # DB-Fehler/Startup-Race nie als leeres Dict cachen (sonst Default-Logo/-Name für 45s)
+            return _process_map if _process_map is not None else {}
+        if not mapping:
+            # Leere Tabelle nicht cachen, damit nach Migration/Setup sofort echte Werte greifen
+            return {}
         _process_map = mapping
         _process_loaded_at = now
         return mapping
@@ -51,12 +55,12 @@ def get_settings_map() -> dict[str, Any]:
     """Return all system settings as key → value (request + process cache)."""
     if has_request_context():
         cached = getattr(g, _G_KEY, None)
-        if isinstance(cached, dict):
+        if isinstance(cached, dict) and cached:
             return cached
 
     mapping = _get_process_cached_map()
 
-    if has_request_context():
+    if has_request_context() and mapping:
         setattr(g, _G_KEY, mapping)
     return mapping
 

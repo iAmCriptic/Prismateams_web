@@ -837,7 +837,9 @@
     },
     "inventory": {
       "borrow_title": "Novo empréstimo",
-      "borrow_body": "{event} – {borrower} ({count} artigos)"
+      "borrow_body": "{event} – {borrower} ({count} artigos)",
+      "dguv_due_title": "Inspeções DGUV vencidas",
+      "dguv_due_body": "Há {count} produtos com inspeção DGUV vencida."
     },
     "kanban": {
       "upload_title": "Novo anexo em {board}",
@@ -1275,6 +1277,10 @@
         "reminder_8h_short": "8 h",
         "reminder_1d_short": "1 dia",
         "reminder_2d_short": "2 dias"
+      },
+      "inventory": {
+        "dguv_toggle": "Inspeções DGUV vencidas",
+        "dguv_help": "Lembrete diário com a quantidade de inspeções DGUV vencidas"
       }
     },
     "profile": {
@@ -2440,7 +2446,8 @@
     "sidebar": {
       "events": "Veranstaltungen",
       "no_events": "Keine Veranstaltungen vorhanden.",
-      "new_event": "NEU"
+      "new_event": "NEU",
+      "new_event_btn": "Novo evento"
     },
     "nav": {
       "overview": "Helfer-Übersicht",
@@ -2567,7 +2574,7 @@
       "calc_cumulative": "Kumuliert pro Person und Tag berechnen",
       "public_url": "Öffentlicher Anmelde-Link",
       "apply_enabled": "Öffentliche Anmeldung für diese Veranstaltung aktivieren",
-      "fields_heading": "Dynamische Feld-Konfiguration (FieldConfig)",
+      "fields_heading": "Configuração dinâmica de campos",
       "add_field": "Feld anlegen",
       "field_label": "Feldname",
       "field_type": "Feldtyp",
@@ -2578,17 +2585,18 @@
       "admin_only_short": "Intern",
       "show_in_overview": "In Übersicht",
       "sort_order": "Sortierung",
-      "areas_heading": "Bereiche verwalten (Area)",
+      "areas_heading": "Gerenciar áreas",
       "add_area": "Bereich anlegen",
       "public_selectable": "Öffentlich wählbar",
-      "rules_heading": "Essens- & Getränkemarken-Regeln (VoucherRule)",
+      "rules_heading": "Regras de vales de comida e bebida",
       "add_rule": "Regel anlegen",
       "rule_name": "Regelbezeichnung",
       "hours_range": "Stundenbereich",
       "min_hours": "Min. Std.",
       "max_hours": "Max. Std.",
       "head_bonus": "HEAD-Bonus Getränke",
-      "global_rule": "Global (alle Bereiche)"
+      "global_rule": "Global (alle Bereiche)",
+      "active_event": "Evento"
     },
     "public": {
       "title": "Helfer-Anmeldung",
@@ -2641,7 +2649,8 @@
       "default_mailer": "Standard-Portal-Mailer",
       "subject": "E-Mail-Betreff (Schichtplan)",
       "body": "E-Mail-Vorlage (Schichtplan)",
-      "placeholders_hint": "Verfügbare Platzhalter"
+      "placeholders_hint": "Verfügbare Platzhalter",
+      "heading": "Modelo de e-mail e envio"
     }
   },
   "share_target": {

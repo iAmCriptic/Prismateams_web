@@ -97,7 +97,7 @@ def register_push_routes(api_bp, require_api_auth):
 
             public_key = current_app.config.get("VAPID_PUBLIC_KEY")
             if not public_key:
-                return jsonify({"error": "VAPID Keys nicht konfiguriert", "message": "Bitte konfigurieren Sie VAPID Keys in der .env Datei"}), 500
+                return jsonify({"error": "VAPID Keys nicht konfiguriert", "message": "Bitte konfigurieren Sie VAPID Keys in der .env Datei"}), 404
 
             key_out = _normalize_vapid_public_key(public_key)
             return jsonify({"public_key": key_out})

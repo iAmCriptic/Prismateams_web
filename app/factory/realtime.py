@@ -157,6 +157,7 @@ def init_realtime(app, config_name):
 
     socketio_base = {
         'cors_allowed_origins': socketio_cors,
+        'async_mode': 'threading',
         'logger': False,
         'engineio_logger': False,
         'ping_timeout': 60,
@@ -173,7 +174,6 @@ def init_realtime(app, config_name):
             init_kwargs = dict(socketio_base)
             init_kwargs.update({
                 'message_queue': redis_url,
-                'async_mode': 'threading',
             })
             socketio.init_app(app, **init_kwargs)
             logger.info(

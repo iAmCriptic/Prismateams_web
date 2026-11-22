@@ -123,7 +123,7 @@
       {% if kanban_module_enabled %}
       <section class="sp-group" id="notif-kanban" data-settings-search-id="notif-kanban">
         <div class="sp-group-head d-flex flex-wrap align-items-center justify-content-between gap-2">
-          <h2 class="sp-group-title mb-0"><i class="bi bi-kanban" aria-hidden="true"></i>{{ _('settings.notifications.kanban.title') }}</h2>
+          <h2 class="sp-group-title mb-0"><i class="bi bi-kanban" aria-hidden="true"></i>{{ _('settings.notifications.kanban.title') }}{{ sp_info(_('settings.notifications.kanban.help')) }}</h2>
           <div class="notif-channel-bar">
             <label class="notif-channel-pill" title="{{ _('settings.notifications.channels.portal_help') }}">
               <i class="bi bi-bell" aria-hidden="true"></i>
@@ -138,7 +138,6 @@
           </div>
         </div>
         <div class="sp-group-body">
-          <p class="text-muted small mb-3">{{ _('settings.notifications.kanban.help') }}</p>
           <div class="sp-row">
             <div class="sp-row-label">
               <span class="sp-row-label-text">{{ _('settings.notifications.kanban.uploads') }}</span>
@@ -180,7 +179,7 @@
       {% if chat_module_enabled %}
       <section class="sp-group" id="notif-chat" data-settings-search-id="notif-chat">
         <div class="sp-group-head d-flex flex-wrap align-items-center justify-content-between gap-2">
-          <h2 class="sp-group-title mb-0"><i class="bi bi-chat-dots" aria-hidden="true"></i>{{ _('settings.notifications.chat.title') }}</h2>
+          <h2 class="sp-group-title mb-0"><i class="bi bi-chat-dots" aria-hidden="true"></i>{{ _('settings.notifications.chat.title') }}{{ sp_info(_('settings.notifications.chat.help')) }}</h2>
           <div class="notif-channel-bar">
             <label class="notif-channel-pill" title="{{ _('settings.notifications.channels.portal_help') }}">
               <i class="bi bi-bell" aria-hidden="true"></i>
@@ -195,7 +194,6 @@
           </div>
         </div>
         <div class="sp-group-body">
-          <p class="text-muted small mb-3">{{ _('settings.notifications.chat.help') }}</p>
           <div class="sp-row sp-row--stack">
             <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.notifications.chat.table_title') }}</span></div>
             <div class="sp-row-control">
@@ -222,7 +220,7 @@
       {% if email_module_enabled %}
       <section class="sp-group" id="notif-email" data-settings-search-id="notif-email">
         <div class="sp-group-head d-flex flex-wrap align-items-center justify-content-between gap-2">
-          <h2 class="sp-group-title mb-0"><i class="bi bi-envelope" aria-hidden="true"></i>{{ _('settings.notifications.email.title') }}</h2>
+          <h2 class="sp-group-title mb-0"><i class="bi bi-envelope" aria-hidden="true"></i>{{ _('settings.notifications.email.title') }}{{ sp_info(_('settings.notifications.email.help')) }}</h2>
           <div class="notif-channel-bar">
             <label class="notif-channel-pill" title="{{ _('settings.notifications.channels.portal_help') }}">
               <i class="bi bi-bell" aria-hidden="true"></i>
@@ -236,16 +234,13 @@
             </label>
           </div>
         </div>
-        <div class="sp-group-body">
-          <p class="text-muted small mb-0">{{ _('settings.notifications.email.help') }}</p>
-        </div>
       </section>
       {% endif %}
 
       {# 4. Kommentare & Erwähnungen #}
       <section class="sp-group" id="notif-comments" data-settings-search-id="notif-comments">
         <div class="sp-group-head d-flex flex-wrap align-items-center justify-content-between gap-2">
-          <h2 class="sp-group-title mb-0"><i class="bi bi-chat-left-text" aria-hidden="true"></i>{{ _('settings.notifications.comments.title') }}</h2>
+          <h2 class="sp-group-title mb-0"><i class="bi bi-chat-left-text" aria-hidden="true"></i>{{ _('settings.notifications.comments.title') }}{{ sp_info(_('settings.notifications.comments.help')) }}</h2>
           <div class="notif-channel-bar">
             <label class="notif-channel-pill" title="{{ _('settings.notifications.channels.portal_help') }}">
               <i class="bi bi-bell" aria-hidden="true"></i>
@@ -260,7 +255,6 @@
           </div>
         </div>
         <div class="sp-group-body">
-          <p class="text-muted small mb-3">{{ _('settings.notifications.comments.help') }}</p>
           <div class="sp-row">
             <div class="sp-row-label">
               <span class="sp-row-label-text">{{ _('settings.notifications.comments.mentions') }}</span>
@@ -290,7 +284,7 @@
       {% if inventory_module_enabled %}
       <section class="sp-group" id="notif-inventory" data-settings-search-id="notif-inventory">
         <div class="sp-group-head d-flex flex-wrap align-items-center justify-content-between gap-2">
-          <h2 class="sp-group-title mb-0"><i class="bi bi-box-seam" aria-hidden="true"></i>{{ _('settings.notifications.inventory.title') }}</h2>
+          <h2 class="sp-group-title mb-0"><i class="bi bi-box-seam" aria-hidden="true"></i>{{ _('settings.notifications.inventory.title') }}{{ sp_info(_('settings.notifications.inventory.help')) }}</h2>
           <div class="notif-channel-bar">
             <label class="notif-channel-pill" title="{{ _('settings.notifications.channels.portal_help') }}">
               <i class="bi bi-bell" aria-hidden="true"></i>
@@ -305,7 +299,6 @@
           </div>
         </div>
         <div class="sp-group-body">
-          <p class="text-muted small mb-3">{{ _('settings.notifications.inventory.help') }}</p>
           <div class="sp-row">
             <div class="sp-row-label">
               <span class="sp-row-label-text">{{ _('settings.notifications.inventory.toggle') }}</span>
@@ -313,6 +306,17 @@
             <div class="sp-row-control">
               <div class="form-check form-switch mb-0">
                 <input class="form-check-input" type="checkbox" id="inventory_notifications_enabled" name="inventory_notifications_enabled" {% if settings.inventory_notifications_enabled %}checked{% endif %}>
+              </div>
+            </div>
+          </div>
+          <div class="sp-row">
+            <div class="sp-row-label">
+              <span class="sp-row-label-text">{{ _('settings.notifications.inventory.dguv_toggle') }}</span>
+              <span class="sp-row-meta">{{ _('settings.notifications.inventory.dguv_help') }}</span>
+            </div>
+            <div class="sp-row-control">
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="inventory_dguv_notifications" name="inventory_dguv_notifications" {% if settings.inventory_dguv_notifications %}checked{% endif %}>
               </div>
             </div>
           </div>
@@ -324,7 +328,7 @@
       {% if booking_module_enabled %}
       <section class="sp-group" id="notif-booking" data-settings-search-id="notif-booking">
         <div class="sp-group-head d-flex flex-wrap align-items-center justify-content-between gap-2">
-          <h2 class="sp-group-title mb-0"><i class="bi bi-calendar2-check" aria-hidden="true"></i>{{ _('settings.notifications.booking.title') }}</h2>
+          <h2 class="sp-group-title mb-0"><i class="bi bi-calendar2-check" aria-hidden="true"></i>{{ _('settings.notifications.booking.title') }}{{ sp_info(_('settings.notifications.booking.help')) }}</h2>
           <div class="notif-channel-bar">
             <label class="notif-channel-pill" title="{{ _('settings.notifications.channels.portal_help') }}">
               <i class="bi bi-bell" aria-hidden="true"></i>
@@ -339,7 +343,6 @@
           </div>
         </div>
         <div class="sp-group-body">
-          <p class="text-muted small mb-3">{{ _('settings.notifications.booking.help') }}</p>
           <div class="sp-row">
             <div class="sp-row-label">
               <span class="sp-row-label-text">{{ _('settings.notifications.booking.toggle') }}</span>
@@ -366,7 +369,7 @@
       {# 7. Raumbuchungen & Ressourcen #}
       <section class="sp-group" id="notif-room-booking" data-settings-search-id="notif-room-booking">
         <div class="sp-group-head d-flex flex-wrap align-items-center justify-content-between gap-2">
-          <h2 class="sp-group-title mb-0"><i class="bi bi-door-open" aria-hidden="true"></i>{{ _('settings.notifications.room_booking.title') }}</h2>
+          <h2 class="sp-group-title mb-0"><i class="bi bi-door-open" aria-hidden="true"></i>{{ _('settings.notifications.room_booking.title') }}{{ sp_info(_('settings.notifications.room_booking.help')) }}</h2>
           <div class="notif-channel-bar">
             <label class="notif-channel-pill" title="{{ _('settings.notifications.channels.portal_help') }}">
               <i class="bi bi-bell" aria-hidden="true"></i>
@@ -381,7 +384,6 @@
           </div>
         </div>
         <div class="sp-group-body">
-          <p class="text-muted small mb-3">{{ _('settings.notifications.room_booking.help') }}</p>
           <div class="sp-row">
             <div class="sp-row-label">
               <span class="sp-row-label-text">{{ _('settings.notifications.room_booking.new') }}</span>
@@ -412,7 +414,7 @@
       {% if surveys_module_enabled %}
       <section class="sp-group" id="notif-surveys" data-settings-search-id="notif-surveys">
         <div class="sp-group-head d-flex flex-wrap align-items-center justify-content-between gap-2">
-          <h2 class="sp-group-title mb-0"><i class="bi bi-ui-checks-grid" aria-hidden="true"></i>{{ _('settings.notifications.surveys.title') }}</h2>
+          <h2 class="sp-group-title mb-0"><i class="bi bi-ui-checks-grid" aria-hidden="true"></i>{{ _('settings.notifications.surveys.title') }}{{ sp_info(_('settings.notifications.surveys.help')) }}</h2>
           <div class="notif-channel-bar">
             <label class="notif-channel-pill" title="{{ _('settings.notifications.channels.portal_help') }}">
               <i class="bi bi-bell" aria-hidden="true"></i>
@@ -427,7 +429,6 @@
           </div>
         </div>
         <div class="sp-group-body">
-          <p class="text-muted small mb-3">{{ _('settings.notifications.surveys.help') }}</p>
           <div class="sp-row">
             <div class="sp-row-label">
               <span class="sp-row-label-text">{{ _('settings.notifications.surveys.new') }}</span>
@@ -458,7 +459,7 @@
       {% if calendar_module_enabled %}
       <section class="sp-group sp-group--span2" id="notif-calendar" data-settings-search-id="notif-calendar">
         <div class="sp-group-head d-flex flex-wrap align-items-center justify-content-between gap-2">
-          <h2 class="sp-group-title mb-0"><i class="bi bi-calendar-event" aria-hidden="true"></i>{{ _('settings.notifications.calendar.title') }}</h2>
+          <h2 class="sp-group-title mb-0"><i class="bi bi-calendar-event" aria-hidden="true"></i>{{ _('settings.notifications.calendar.title') }}{{ sp_info(_('settings.notifications.calendar.help')) }}</h2>
           <div class="notif-channel-bar">
             <label class="notif-channel-pill" title="{{ _('settings.notifications.channels.portal_help') }}">
               <i class="bi bi-bell" aria-hidden="true"></i>
@@ -473,7 +474,6 @@
           </div>
         </div>
         <div class="sp-group-body">
-          <p class="text-muted small mb-3">{{ _('settings.notifications.calendar.help') }}</p>
           <div class="sp-row sp-row--stack">
             <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.notifications.calendar.filter_question') }}</span></div>
             <div class="sp-row-control">
@@ -533,7 +533,7 @@
       {% if files_module_enabled %}
       <section class="sp-group" id="notif-files" data-settings-search-id="notif-files">
         <div class="sp-group-head d-flex flex-wrap align-items-center justify-content-between gap-2">
-          <h2 class="sp-group-title mb-0"><i class="bi bi-folder" aria-hidden="true"></i>{{ _('settings.notifications.files.title') }}</h2>
+          <h2 class="sp-group-title mb-0"><i class="bi bi-folder" aria-hidden="true"></i>{{ _('settings.notifications.files.title') }}{{ sp_info(_('settings.notifications.files.help')) }}</h2>
           <div class="notif-channel-bar">
             <label class="notif-channel-pill" title="{{ _('settings.notifications.channels.portal_help') }}">
               <i class="bi bi-bell" aria-hidden="true"></i>
@@ -548,7 +548,6 @@
           </div>
         </div>
         <div class="sp-group-body">
-          <p class="text-muted small mb-3">{{ _('settings.notifications.files.help') }}</p>
           <div class="sp-row">
             <div class="sp-row-label">
               <span class="sp-row-label-text">{{ _('settings.notifications.files.new') }}</span>

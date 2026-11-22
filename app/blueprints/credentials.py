@@ -500,8 +500,6 @@ def create():
         db.session.commit()
 
         flash(translate('credentials.flash.saved', website_name=website_name), 'success')
-        if credential.visibility == VISIBILITY_PUBLIC:
-            flash(translate('credentials.flash.public_warning'), 'warning')
         folder = CredentialFolder.query.get(folder_id) if folder_id else None
         if folder:
             redirect_kwargs = _index_url_kwargs(folder=folder, folder_id=folder_id)
@@ -551,8 +549,6 @@ def edit(credential_id):
         db.session.commit()
         
         flash(translate('credentials.flash.updated', website_name=credential.website_name), 'success')
-        if credential.visibility == VISIBILITY_PUBLIC:
-            flash(translate('credentials.flash.public_warning'), 'warning')
         folder = CredentialFolder.query.get(credential.folder_id) if credential.folder_id else None
         if folder:
             redirect_kwargs = _index_url_kwargs(folder=folder, folder_id=credential.folder_id)

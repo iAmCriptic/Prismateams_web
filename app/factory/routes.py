@@ -20,18 +20,17 @@ def register_app_routes(app):
     def manifest():
         import json
         from flask import url_for
-        from app.models.settings import SystemSettings
-        
-        portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-        portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else app.config.get('APP_NAME', 'Prismateams')
-        
+        from app.utils.system_settings_cache import get_setting
+
+        portal_name = get_setting('portal_name') or app.config.get('APP_NAME', 'Prismateams')
+
         # Standard Logo-URL
         logo_url = url_for('static', filename='img/logo.png')
-        
+
         # Portal-Logo prüfen
-        portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
-        if portal_logo_setting and portal_logo_setting.value:
-            logo_url = url_for('settings.portal_logo', filename=portal_logo_setting.value)
+        portal_logo = get_setting('portal_logo')
+        if portal_logo:
+            logo_url = url_for('settings.portal_logo', filename=portal_logo)
         
         manifest_path = os.path.join(app.static_folder, 'manifest.json')
         try:
@@ -78,18 +77,17 @@ def register_app_routes(app):
     def portal_info():
         """API-Endpoint für Portal-Informationen (für Service Worker)."""
         from flask import url_for
-        from app.models.settings import SystemSettings
-        
-        portal_name_setting = SystemSettings.query.filter_by(key='portal_name').first()
-        portal_name = portal_name_setting.value if portal_name_setting and portal_name_setting.value else app.config.get('APP_NAME', 'Prismateams')
-        
+        from app.utils.system_settings_cache import get_setting
+
+        portal_name = get_setting('portal_name') or app.config.get('APP_NAME', 'Prismateams')
+
         # Standard Logo-URL
         logo_url = url_for('static', filename='img/logo.png', _external=False)
-        
+
         # Portal-Logo prüfen
-        portal_logo_setting = SystemSettings.query.filter_by(key='portal_logo').first()
-        if portal_logo_setting and portal_logo_setting.value:
-            logo_url = url_for('settings.portal_logo', filename=portal_logo_setting.value, _external=False)
+        portal_logo = get_setting('portal_logo')
+        if portal_logo:
+            logo_url = url_for('settings.portal_logo', filename=portal_logo, _external=False)
         
         return jsonify({
             'name': portal_name,

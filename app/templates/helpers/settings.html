@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "helpers/_sidebar.html" import helpers_sidebar, helpers_mobile_offcanvas, helpers_new_event_modal with context %}
+{% from "helpers/_sidebar.html" import helpers_sidebar, helpers_mobile_offcanvas, helpers_new_event_modal, helpers_add_helper_modal with context %}
 
 {% block title %}{{ _('helpers.nav.settings') }} — {{ current_event.name }}{% endblock %}
 
@@ -113,10 +113,7 @@
             <tbody>
               {% for fc in current_event.field_configs %}
               <tr>
-                <td class="fw-semibold">
-                  {{ fc.label }}
-                  <div class="small text-muted">{{ fc.field_key }}</div>
-                </td>
+                <td class="fw-semibold">{{ fc.label }}</td>
                 <td class="small">{{ fc.field_type }}</td>
                 <td>{% if fc.is_public %}<i class="bi bi-check-lg text-success"></i>{% else %}—{% endif %}</td>
                 <td>{% if fc.is_required %}<i class="bi bi-check-lg text-success"></i>{% else %}—{% endif %}</td>
@@ -240,6 +237,7 @@
 </div>
 
 {{ helpers_new_event_modal(events) }}
+{{ helpers_add_helper_modal(current_event) }}
 
 <div class="modal fade" id="helpersAddFieldModal" tabindex="-1" aria-labelledby="helpersAddFieldModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">

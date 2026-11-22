@@ -991,6 +991,53 @@ def send_inventory_borrow_notification(checkout, *, actor_id: Optional[int] = No
     return sent_count
 
 
+def send_inventory_dguv_due_notification() -> int:
+    """Tägliche Zusammenfassung (In-App + Push) über die Anzahl fälliger DGUV-Prüfungen."""
+    from datetime import date as date_cls
+    from app.utils.common import is_module_enabled
+    from app.utils.inventory_features import is_inventory_dguv_enabled
+
+    if not is_module_enabled('module_inventory') or not is_inventory_dguv_enabled():
+        return 0
+
+    from app.models.inventory import Product
+
+    today = date_cls.today()
+    due_count = Product.query.filter(
+        Product.dguv_next_check.isnot(None),
+        Product.dguv_next_check <= today,
+        Product.status != 'retired',
+    ).count()
+    if due_count <= 0:
+        return 0
+
+    url = "/inventory/dashboard"
+    sent_count = 0
+    for user in _iter_module_notification_recipients(
+        'module_inventory',
+        'inventory_dguv_notifications',
+    ):
+        title = _user_translate(user, 'notifications.inventory.dguv_due_title')
+        body = _user_translate(user, 'notifications.inventory.dguv_due_body', count=due_count)
+        dedup_key = f"inventory_dguv_due:{today.isoformat()}:{user.id}"
+        if notify_user(
+            user.id,
+            title=title,
+            body=body,
+            url=url,
+            notification_type='inventory',
+            dedup_key=dedup_key,
+            data={
+                'due_count': due_count,
+                'date': today.isoformat(),
+                'type': 'inventory_dguv_due',
+            },
+        ):
+            sent_count += 1
+
+    return sent_count
+
+
 def send_booking_request_notification(booking_request) -> int:
     """In-App-Glocke + Push bei neuer Buchungsanfrage (laut Benachrichtigungseinstellung)."""
     form = booking_request.form
@@ -1168,7 +1215,13 @@ def send_survey_notification(
     from app.utils.access_control import has_module_access
 
     survey_title = getattr(survey, 'title', 'Neue Umfrage')
-    url = f"/surveys/{survey.id}"
+    public_token = getattr(survey, 'public_token', None)
+    if event_kind == 'response':
+        url = f"/surveys/{survey.id}/results"
+    elif public_token:
+        url = f"/surveys/fill/{public_token}"
+    else:
+        url = "/surveys/"
 
     if event_kind == 'response':
         recipient_id = target_user_id or getattr(survey, 'created_by', None)
@@ -1196,7 +1249,9 @@ def send_survey_notification(
             data={'survey_id': survey.id, 'type': 'survey', 'event_kind': 'response'},
         ) else 0
 
-    # Neue Umfrage: An alle aktiven Nutzer mit Modulzugang
+    # Neue Umfrage: An alle aktiven Nutzer mit Modulzugang (nicht bei privaten Umfragen)
+    if getattr(survey, 'visibility', None) == 'private':
+        return 0
     sent_count = 0
     creator_id = getattr(survey, 'created_by', None)
     users = User.query.filter_by(is_active=True).all()

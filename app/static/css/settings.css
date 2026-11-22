@@ -3037,17 +3037,18 @@ a.sp-dir-card:hover {
 
 .settings-admin-modules-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(18.5rem, 1fr));
-  gap: 0.75rem 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr));
+  gap: 0.85rem 1rem;
   width: 100%;
 }
 
 .settings-admin-modules-grid--visibility {
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(16.5rem, 1fr));
 }
 
 .settings-admin-group-body,
-.settings-admin-teams .sp-group-body:not(.p-0) {
+.settings-admin-teams .sp-group-body:not(.p-0),
+.settings-admin-modules .sp-group-body:not(.p-0) {
   padding: 1.25rem 1.5rem !important;
 }
 
@@ -3060,19 +3061,61 @@ a.sp-dir-card:hover {
   align-items: center;
   justify-content: space-between;
   flex-direction: row-reverse;
+  gap: 0.85rem;
   margin: 0 !important;
-  padding: 0.65rem 1.4rem !important;
-  border-radius: var(--mod-radius-pill, 2rem);
+  padding: 0.7rem 1.15rem !important;
+  border-radius: var(--mod-radius-pill, 1.5rem);
   border: 1px solid var(--sp-border, var(--bs-border-color));
-  background: color-mix(in srgb, var(--bs-body-bg, #fff) 92%, var(--accent-color, var(--bs-primary)) 3%);
-  min-height: 2.85rem;
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--accent-color, var(--bs-primary)) 3%);
+  min-height: 3rem;
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sp-row.settings-admin-modules-switch {
+  flex-direction: row;
 }
 
 .settings-admin-modules-switch:hover {
   border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 40%, transparent);
   background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, transparent);
+}
+
+.settings-admin-modules-switch--disabled {
+  opacity: 0.72;
+  cursor: not-allowed;
+}
+
+.settings-admin-modules-switch--disabled:hover {
+  border-color: var(--sp-border, var(--bs-border-color));
+  background: color-mix(in srgb, var(--bs-body-bg) 92%, var(--accent-color, var(--bs-primary)) 3%);
+}
+
+.settings-admin-modules-switch--disabled .sp-row-label-text,
+.settings-admin-modules-switch--disabled .form-check-input {
+  cursor: not-allowed;
+}
+
+.sp-row.settings-admin-modules-switch .sp-row-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.2rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.sp-row.settings-admin-modules-switch .sp-row-control {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.sp-row.settings-admin-modules-switch .form-switch {
+  padding-left: 0;
+  min-height: auto;
 }
 
 .settings-admin-modules-switch .form-check-input {
@@ -3082,6 +3125,10 @@ a.sp-dir-card:hover {
   cursor: pointer;
   width: 2.35em;
   height: 1.3em;
+}
+
+.sp-row.settings-admin-modules-switch .form-check-input {
+  margin: 0 !important;
 }
 
 .settings-admin-modules-switch .form-check-label {
@@ -3099,11 +3146,15 @@ a.sp-dir-card:hover {
 .settings-admin-modules-switch .sp-row-label-text {
   display: inline-flex;
   align-items: center;
-  gap: 0.65rem;
-  white-space: nowrap;
+  gap: 0.6rem;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.settings-admin-modules-switch .sp-row-label-text > span {
   overflow: hidden;
   text-overflow: ellipsis;
-  padding-left: 0.15rem;
+  white-space: nowrap;
 }
 
 .settings-admin-modules-switch .sp-row-label-text .bi {
@@ -3111,6 +3162,16 @@ a.sp-dir-card:hover {
   font-size: 1.1rem;
   color: var(--accent-color, var(--bs-primary));
   flex-shrink: 0;
+}
+
+.sp-row.settings-admin-modules-switch .sp-row-meta {
+  margin: 0;
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.settings-admin-modules-warning {
+  color: var(--bs-warning-text-emphasis);
 }
 
 .sp-group .mod-list-table th:first-child,
@@ -3819,6 +3880,53 @@ a.sp-dir-card:hover {
 .mailbox-color-dot { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 50%; }
 .mailbox-logo-thumb { max-height: 3rem; border-radius: 0.25rem; }
 .mailbox-logo-thumb--sm { max-height: 1.75rem; vertical-align: middle; }
+
+.settings-mailboxes-page.sp-page--fluid {
+  max-width: none;
+  width: 100%;
+}
+
+.settings-mailboxes-page .sp-row-label {
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.settings-mailboxes-lead {
+  margin: 0;
+  padding: 0.85rem 1.25rem 0.45rem;
+  color: var(--sp-muted);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.settings-mailboxes-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2.25rem 1.25rem;
+  gap: 0.75rem;
+}
+
+.settings-mailboxes-empty__icon {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.35rem;
+  color: var(--accent-color, var(--bs-primary));
+  background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 22%, transparent);
+}
+
+.settings-mailboxes-empty__text {
+  margin: 0;
+  color: var(--sp-muted);
+  font-size: 0.92rem;
+}
 
 /* ─── Notification Settings Redesign ─── */
 .notif-snooze-banner {

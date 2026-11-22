@@ -21,6 +21,8 @@ set(SOURCES
     src/main.cpp
     src/app.h
     src/app.cpp
+    src/desktop_ui.h
+    src/desktop_ui.cpp
     src/native_login_view.h
     src/native_login_view.cpp
     src/native_settings_window.h

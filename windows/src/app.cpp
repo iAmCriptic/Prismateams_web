@@ -3,15 +3,21 @@
 #include "auth_manager.h"
 #include "webdav_manager.h"
 #include "file_router.h"
-#include "native_settings_window.h"
 #include "../resources/resource.h"
 
 #include <dwmapi.h>
 #include <windowsx.h>
 #include <shellapi.h>
+#include <shlwapi.h>
+#include <wincrypt.h>
+#include <gdiplus.h>
+#include <thread>
+#include <vector>
 
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "uxtheme.lib")
+#pragma comment(lib, "gdiplus.lib")
+#pragma comment(lib, "crypt32.lib")
 
 namespace Prismateams {
 
@@ -26,6 +32,7 @@ App& App::Instance() {
 App::~App() {
     if (m_hBrNavbar) DeleteObject(m_hBrNavbar);
     if (m_hFontNav) DeleteObject(m_hFontNav);
+    if (m_hPortalIcon) DestroyIcon(m_hPortalIcon);
 }
 
 void App::CheckSystemTheme() {
@@ -45,9 +52,9 @@ void App::SetDarkMode(bool isDark) {
     if (m_hBrNavbar) DeleteObject(m_hBrNavbar);
 
     if (m_isDarkMode) {
-        m_hBrNavbar = CreateSolidBrush(RGB(22, 22, 32));      // Dark background
+        m_hBrNavbar = CreateSolidBrush(RGB(26, 26, 26));      // Styleguide Dark --portal-bg #1a1a1a
     } else {
-        m_hBrNavbar = CreateSolidBrush(RGB(248, 250, 252));    // Light background
+        m_hBrNavbar = CreateSolidBrush(RGB(240, 242, 245));   // Styleguide Light --portal-bg #f0f2f5
     }
 
     if (!m_hFontNav) {
@@ -58,12 +65,17 @@ void App::SetDarkMode(bool isDark) {
     if (m_hWndMain) {
         BOOL val = m_isDarkMode ? TRUE : FALSE;
         DwmSetWindowAttribute(m_hWndMain, 20 /* DWMWA_USE_IMMERSIVE_DARK_MODE */, &val, sizeof(val));
-
-        if (m_nativeLoginView) {
-            m_nativeLoginView->SetTheme(m_isDarkMode);
-        }
-
         InvalidateRect(m_hWndMain, nullptr, TRUE);
+    }
+}
+
+void App::ApplyThemeMode(const std::wstring& themeMode) {
+    if (themeMode == L"light") {
+        SetDarkMode(false);
+    } else if (themeMode == L"dark" || themeMode == L"oled") {
+        SetDarkMode(true);
+    } else {
+        CheckSystemTheme();
     }
 }
 
@@ -74,7 +86,7 @@ int App::Run(HINSTANCE hInstance, const std::wstring& cmdLine, int nCmdShow) {
     SettingsManager::Instance().Load();
     AuthManager::Instance().SetServerUrl(SettingsManager::Instance().Get().serverUrl);
 
-    CheckSystemTheme();
+    ApplyThemeMode(SettingsManager::Instance().Get().themeMode);
 
     // Parse command line
     if (!cmdLine.empty()) {
@@ -102,14 +114,7 @@ int App::Run(HINSTANCE hInstance, const std::wstring& cmdLine, int nCmdShow) {
     m_trayIcon = std::make_unique<TrayIcon>(m_hWndMain, m_hInstance);
     m_trayIcon->Create();
 
-    // Native Login View (created as child view)
-    m_nativeLoginView = std::make_unique<NativeLoginView>(m_hWndMain, m_hInstance);
-    m_nativeLoginView->Create();
-    m_nativeLoginView->SetOnLoginSuccess([this]() {
-        OnLoginSuccess();
-    });
-
-    // Initialize WebView2
+    // Initialize WebView2 (serves both the Styleguide Login Screen and the Portal)
     m_webViewController = std::make_unique<WebViewController>(m_hWndMain);
     m_webViewController->Initialize([this](bool success) {
         if (!success) {
@@ -122,13 +127,17 @@ int App::Run(HINSTANCE hInstance, const std::wstring& cmdLine, int nCmdShow) {
             return;
         }
 
-        // Verify existing stored session
-        if (AuthManager::Instance().VerifyStoredSession()) {
-            OnLoginSuccess();
-        } else {
-            // Not authenticated: Show NATIVE LOGIN VIEW
-            OnLogout();
-        }
+        // Show Login Screen immediately so UI never blocks, then verify stored session asynchronously
+        m_webViewController->SetVisible(true);
+        m_webViewController->ShowLoginScreen();
+
+        HWND hMain = m_hWndMain;
+        std::thread([hMain]() {
+            bool ok = AuthManager::Instance().VerifyStoredSession();
+            if (IsWindow(hMain)) {
+                PostMessageW(hMain, WM_APP_SESSION_VERIFIED, ok ? 1 : 0, 0);
+            }
+        }).detach();
     });
 
     // Message Loop
@@ -174,6 +183,7 @@ bool App::CreateMainWindow(int nCmdShow) {
     // Enable Windows 11 drop shadow and rounded corners on frameless window
     MARGINS margins = { 1, 1, 1, 1 };
     DwmExtendFrameIntoClientArea(m_hWndMain, &margins);
+    DragAcceptFiles(m_hWndMain, TRUE);
 
     if (nCmdShow != SW_HIDE) {
         ShowWindow(m_hWndMain, nCmdShow);
@@ -184,18 +194,19 @@ bool App::CreateMainWindow(int nCmdShow) {
 }
 
 void App::LayoutViews(int width, int height) {
-    if (m_nativeLoginView && !m_isAuthenticated) {
-        m_nativeLoginView->Resize(width, height);
-        SetWindowPos(m_nativeLoginView->GetHwnd(), nullptr, 0, 0, width, height, SWP_NOZORDER);
-    }
-
-    if (m_webViewController && m_isAuthenticated) {
+    if (m_webViewController) {
         m_webViewController->Resize(width, height);
     }
 }
 
 void App::OpenNativeSettings() {
-    NativeSettingsWindow::Show(m_hWndMain, m_hInstance, m_isDarkMode);
+    if (m_hWndMain) {
+        ShowWindow(m_hWndMain, SW_RESTORE);
+        SetForegroundWindow(m_hWndMain);
+    }
+    if (m_webViewController && m_isAuthenticated) {
+        m_webViewController->PostJsonMessage(L"{\"type\":\"open_settings_modal\"}");
+    }
 }
 
 void App::ShowTrayNotification(const std::wstring& title, const std::wstring& message) {
@@ -204,33 +215,108 @@ void App::ShowTrayNotification(const std::wstring& title, const std::wstring& me
     }
 }
 
-void App::OnLoginSuccess() {
-    m_isAuthenticated = true;
+void App::UpdatePortalBranding(const std::wstring& portalName, const std::wstring& logoDataUri) {
+    bool changed = false;
+    auto& s = SettingsManager::Instance().Get();
 
-    // Auto mount WebDAV drive if enabled in settings
-    if (SettingsManager::Instance().Get().autoMountDrive) {
-        auto creds = AuthManager::Instance().FetchWebDavCredentials();
-        if (creds.success) {
-            wchar_t assigned = L'P';
-            std::wstring err;
-            WebDavManager::Instance().MountDrive(
-                AuthManager::Instance().GetServerUrl(),
-                creds.username,
-                creds.password,
-                SettingsManager::Instance().Get().driveLetter,
-                assigned,
-                err
-            );
-            if (m_trayIcon && WebDavManager::Instance().IsMounted()) {
-                std::wstring msg = L"Netzlaufwerk " + std::wstring(1, assigned) + L": erfolgreich eingebunden.";
-                m_trayIcon->ShowNotification(L"Prismateams", msg);
+    if (!portalName.empty()) {
+        if (s.portalName != portalName) {
+            s.portalName = portalName;
+            changed = true;
+        }
+        if (m_hWndMain) {
+            SetWindowTextW(m_hWndMain, portalName.c_str());
+        }
+        if (m_trayIcon) {
+            m_trayIcon->UpdateTooltip(portalName);
+        }
+    }
+
+    if (!logoDataUri.empty()) {
+        SettingsManager::Instance().SavePortalLogoFromDataUri(logoDataUri);
+
+        size_t comma = logoDataUri.find(L",");
+        if (comma != std::wstring::npos) {
+            std::wstring b64 = logoDataUri.substr(comma + 1);
+            DWORD binLen = 0;
+            if (CryptStringToBinaryW(b64.c_str(), static_cast<DWORD>(b64.size()), CRYPT_STRING_BASE64, nullptr, &binLen, nullptr, nullptr) && binLen > 0) {
+                std::vector<BYTE> pngBytes(binLen);
+                if (CryptStringToBinaryW(b64.c_str(), static_cast<DWORD>(b64.size()), CRYPT_STRING_BASE64, pngBytes.data(), &binLen, nullptr, nullptr)) {
+                    ULONG_PTR gpToken = 0;
+                    Gdiplus::GdiplusStartupInput gpIn;
+                    if (Gdiplus::GdiplusStartup(&gpToken, &gpIn, nullptr) == Gdiplus::Ok) {
+                        IStream* pStream = SHCreateMemStream(pngBytes.data(), binLen);
+                        if (pStream) {
+                            Gdiplus::Bitmap* bmp = Gdiplus::Bitmap::FromStream(pStream);
+                            if (bmp && bmp->GetLastStatus() == Gdiplus::Ok) {
+                                HICON hNewIcon = nullptr;
+                                if (bmp->GetHICON(&hNewIcon) == Gdiplus::Ok && hNewIcon) {
+                                    if (m_hPortalIcon) DestroyIcon(m_hPortalIcon);
+                                    m_hPortalIcon = hNewIcon;
+                                    if (m_hWndMain) {
+                                        SendMessageW(m_hWndMain, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(m_hPortalIcon));
+                                        SendMessageW(m_hWndMain, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(m_hPortalIcon));
+                                    }
+                                }
+                                delete bmp;
+                            }
+                            pStream->Release();
+                        }
+                        Gdiplus::GdiplusShutdown(gpToken);
+                    }
+                }
             }
         }
     }
 
-    // Hide native login view
-    if (m_nativeLoginView) {
-        m_nativeLoginView->Show(false);
+    if (changed) {
+        SettingsManager::Instance().Save();
+    }
+}
+
+void App::ResetPortalBranding() {
+    if (m_hWndMain) {
+        SetWindowTextW(m_hWndMain, L"Prismateams Desktop");
+        HICON hBig = LoadIconW(m_hInstance, MAKEINTRESOURCEW(IDI_PRISMATEAMS));
+        HICON hSmall = LoadIconW(m_hInstance, MAKEINTRESOURCEW(IDI_SMALL));
+        SendMessageW(m_hWndMain, WM_SETICON, ICON_BIG, reinterpret_cast<LPARAM>(hBig));
+        SendMessageW(m_hWndMain, WM_SETICON, ICON_SMALL, reinterpret_cast<LPARAM>(hSmall));
+    }
+    if (m_hPortalIcon) {
+        DestroyIcon(m_hPortalIcon);
+        m_hPortalIcon = nullptr;
+    }
+    if (m_trayIcon) {
+        m_trayIcon->UpdateTooltip(L"Prismateams");
+    }
+}
+
+void App::OnLoginSuccess() {
+    m_isAuthenticated = true;
+
+    // Auto mount WebDAV drive asynchronously if enabled in settings
+    if (SettingsManager::Instance().Get().autoMountDrive) {
+        HWND hMain = m_hWndMain;
+        wchar_t preferred = SettingsManager::Instance().Get().driveLetter;
+        std::wstring serverUrl = AuthManager::Instance().GetServerUrl();
+        std::thread([hMain, preferred, serverUrl]() {
+            auto creds = AuthManager::Instance().FetchWebDavCredentials();
+            if (creds.success) {
+                wchar_t assigned = L'P';
+                std::wstring err;
+                WebDavManager::Instance().MountDrive(
+                    serverUrl,
+                    creds.username,
+                    creds.password,
+                    preferred,
+                    assigned,
+                    err
+                );
+                if (IsWindow(hMain)) {
+                    PostMessageW(hMain, WM_APP_WEBDAV_SYNC, static_cast<WPARAM>(assigned), 0);
+                }
+            }
+        }).detach();
     }
 
     // Show WebView2 & Navigate
@@ -239,12 +325,17 @@ void App::OnLoginSuccess() {
 
         const std::wstring& token = AuthManager::Instance().GetAuthToken();
         const std::wstring& cookie = AuthManager::Instance().GetSessionCookie();
-        if (!cookie.empty()) {
+
+        if (!token.empty()) {
+            // Direct SSO login via token -> clear any stale cookies so /desktop-login sets one clean host-only session cookie
+            m_webViewController->ClearAllCookies();
+        } else if (!cookie.empty()) {
             m_webViewController->SyncSessionCookie(AuthManager::Instance().GetServerUrl(), cookie);
         }
 
         if (!m_initialFileArgument.empty()) {
             HandleFileOpen(m_initialFileArgument);
+            m_initialFileArgument.clear();
         } else if (!token.empty()) {
             // Direct SSO login via token -> lands directly on dashboard, 100% authenticated!
             std::wstring ssoUrl = AuthManager::Instance().GetServerUrl() + L"/desktop-login?token=" + token + L"&next=/dashboard";
@@ -252,6 +343,7 @@ void App::OnLoginSuccess() {
         } else {
             NavigateTo(AuthManager::Instance().GetServerUrl() + L"/dashboard");
         }
+        m_webViewController->PushStateSync();
     }
 
     RECT rc;
@@ -263,18 +355,14 @@ void App::OnLoginSuccess() {
 void App::OnLogout() {
     m_isAuthenticated = false;
 
-    // Clear session cookies and hide WebView2
+    AuthManager::Instance().Logout();
+    ResetPortalBranding();
+
+    // Clear session cookies and show Styleguide Login Screen in WebView2
     if (m_webViewController) {
         m_webViewController->ClearAllCookies();
-        m_webViewController->SetVisible(false);
-        m_webViewController->Navigate(L"about:blank");
-    }
-
-    AuthManager::Instance().Logout();
-
-    // Show native login view
-    if (m_nativeLoginView) {
-        m_nativeLoginView->Show(true);
+        m_webViewController->SetVisible(true);
+        m_webViewController->ShowLoginScreen();
     }
 
     RECT rc;
@@ -327,15 +415,8 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
 
     case WM_NCCALCSIZE: {
         if (wParam == TRUE) {
-            if (IsZoomed(hWnd)) {
-                NCCALCSIZE_PARAMS* pParams = reinterpret_cast<NCCALCSIZE_PARAMS*>(lParam);
-                int borderX = GetSystemMetrics(SM_CXFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
-                int borderY = GetSystemMetrics(SM_CYFRAME) + GetSystemMetrics(SM_CXPADDEDBORDER);
-                pParams->rgrc[0].left += borderX;
-                pParams->rgrc[0].top += borderY;
-                pParams->rgrc[0].right -= borderX;
-                pParams->rgrc[0].bottom -= borderY;
-            }
+            // WM_GETMINMAXINFO already constrains maximized size to mi.rcWork;
+            // do not inset rgrc[0] here, otherwise an 8px gap appears around the client area.
             return 0;
         }
         break;
@@ -377,6 +458,9 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
     case WM_SIZE: {
         int width = LOWORD(lParam);
         int height = HIWORD(lParam);
+        // Disable Windows 11 rounded corners while maximized so edges sit 100% flush
+        DWORD cornerPref = IsZoomed(hWnd) ? 1 /* DWMWCP_DONOTROUND */ : 2 /* DWMWCP_ROUND */;
+        DwmSetWindowAttribute(hWnd, 33 /* DWMWA_WINDOW_CORNER_PREFERENCE */, &cornerPref, sizeof(cornerPref));
         app.LayoutViews(width, height);
         InvalidateRect(hWnd, nullptr, FALSE);
         return 0;
@@ -455,8 +539,53 @@ LRESULT CALLBACK App::WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lPa
         return 0;
     }
 
+    case WM_APP_SESSION_VERIFIED: {
+        if (wParam == 1 && !app.m_isAuthenticated) {
+            app.OnLoginSuccess();
+        }
+        return 0;
+    }
+
+    case WM_APP_POST_JSON: {
+        std::wstring* pJson = reinterpret_cast<std::wstring*>(lParam);
+        if (pJson) {
+            if (app.m_webViewController) {
+                app.m_webViewController->PostJsonMessage(*pJson);
+            }
+            delete pJson;
+        }
+        return 0;
+    }
+
+    case WM_APP_LOGIN_SUCCESS: {
+        app.OnLoginSuccess();
+        return 0;
+    }
+
+    case WM_APP_WEBDAV_SYNC: {
+        if (app.m_webViewController) {
+            app.m_webViewController->PushStateSync();
+        }
+        if (app.m_trayIcon && WebDavManager::Instance().IsMounted()) {
+            wchar_t letter = static_cast<wchar_t>(wParam);
+            std::wstring msg = L"Netzlaufwerk " + std::wstring(1, letter) + L": erfolgreich verbunden.";
+            app.m_trayIcon->ShowNotification(L"Prismateams", msg);
+        }
+        return 0;
+    }
+
     case WM_SETTINGCHANGE: {
-        app.CheckSystemTheme();
+        app.ApplyThemeMode(SettingsManager::Instance().Get().themeMode);
+        return 0;
+    }
+
+    case WM_DROPFILES: {
+        HDROP hDrop = reinterpret_cast<HDROP>(wParam);
+        wchar_t filePath[MAX_PATH] = { 0 };
+        if (DragQueryFileW(hDrop, 0, filePath, MAX_PATH) > 0) {
+            app.HandleFileOpen(filePath);
+        }
+        DragFinish(hDrop);
         return 0;
     }
 
