@@ -1,8 +1,9 @@
 from datetime import datetime
 import base64
-import re
 import time
 
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ec
 from flask import jsonify, request, session
 from flask_login import current_user, login_required
 
@@ -10,6 +11,36 @@ from app import db
 from app.models.notification import PushSubscription
 from app.utils.i18n import translate
 from app.utils.notifications import register_push_subscription, send_push_notification
+
+
+def _normalize_vapid_public_key(public_key: str) -> str:
+    """Normalisiere einen VAPID Public Key (PEM, DER-SPKI oder Raw) auf unpadded Base64url (65-Byte UncompressedPoint)."""
+    key_str = public_key.strip().strip('"').strip("'")
+    if "BEGIN PUBLIC KEY" in key_str:
+        pem_text = key_str.replace("\\n", "\n")
+        pub_obj = serialization.load_pem_public_key(pem_text.encode("utf-8"))
+        raw = pub_obj.public_bytes(
+            encoding=serialization.Encoding.X962,
+            format=serialization.PublicFormat.UncompressedPoint,
+        )
+        return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+    b64_std = "".join(key_str.split()).replace("-", "+").replace("_", "/")
+    missing = len(b64_std) % 4
+    if missing:
+        b64_std += "=" * (4 - missing)
+    decoded = base64.b64decode(b64_std)
+
+    if len(decoded) == 65 and decoded[0] == 0x04:
+        ec.EllipticCurvePublicKey.from_encoded_point(ec.SECP256R1(), decoded)
+        return base64.urlsafe_b64encode(decoded).decode("ascii").rstrip("=")
+
+    pub_obj = serialization.load_der_public_key(decoded)
+    raw = pub_obj.public_bytes(
+        encoding=serialization.Encoding.X962,
+        format=serialization.PublicFormat.UncompressedPoint,
+    )
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
 
 def register_push_routes(api_bp, require_api_auth):
@@ -68,23 +99,7 @@ def register_push_routes(api_bp, require_api_auth):
             if not public_key:
                 return jsonify({"error": "VAPID Keys nicht konfiguriert", "message": "Bitte konfigurieren Sie VAPID Keys in der .env Datei"}), 500
 
-            key_out = public_key.strip()
-            if "BEGIN PUBLIC KEY" in key_out:
-                pem_b64_any = re.sub(r"-----BEGIN PUBLIC KEY-----|-----END PUBLIC KEY-----|\\n|\n|\r|\s", "", key_out)
-                pem_b64_std = pem_b64_any.replace("-", "+").replace("_", "/")
-                missing = len(pem_b64_std) % 4
-                if missing:
-                    pem_b64_std += "=" * (4 - missing)
-                der = base64.b64decode(pem_b64_std)
-                idx = der.find(b"\x04")
-                raw = None
-                if idx != -1 and idx + 65 <= len(der):
-                    candidate = der[idx : idx + 65]
-                    if len(candidate) == 65:
-                        raw = candidate
-                if raw is None:
-                    raise ValueError("Konnte EC Public Key (65 Bytes) nicht aus PEM extrahieren")
-                key_out = base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+            key_out = _normalize_vapid_public_key(public_key)
             return jsonify({"public_key": key_out})
         except Exception as e:
             return jsonify({"error": str(e), "message": translate("api.errors.vapid_keys_load_error")}), 500

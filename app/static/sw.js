@@ -129,11 +129,51 @@ self.addEventListener('activate', function(event) {
   );
 });
 
-// Offline-/Netzwerkfehler: Cache → erneuter Fetch — kein Fake-503 für Scripts/CSS
+// Offline-/Netzwerkfehler: Cache → kein Blind-Retry bei Abort, kein Caching für Streams/no-store
 function networkFirstWithCache(request, fetchOptions) {
   const doFetch = fetchOptions ? fetch(request, fetchOptions) : fetch(request);
   return doFetch
     .then(function(networkResponse) {
+      if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+        const contentType = (networkResponse.headers.get('Content-Type') || '').toLowerCase();
+        const cacheControl = (networkResponse.headers.get('Cache-Control') || '').toLowerCase();
+        if (!contentType.includes('text/event-stream') && !cacheControl.includes('no-store')) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then(function(cache) {
+            cache.put(request, responseToCache);
+          });
+        }
+      }
+      return networkResponse;
+    })
+    .catch(function(err) {
+      if (err && err.name === 'AbortError') {
+        return Response.error();
+      }
+      return caches.match(request).then(function(cachedResponse) {
+        if (cachedResponse) {
+          return cachedResponse;
+        }
+        if (request.mode === 'navigate' || request.destination === 'document') {
+          return new Response('Offline', {
+            status: 503,
+            statusText: 'Service Unavailable',
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' }
+          });
+        }
+        // Kein Fake-HTTP-Status für Assets (vermeidet ERR_ABORTED 503)
+        return Response.error();
+      });
+    });
+}
+
+// Cache-First für versionierte statische Assets (?v=...) — vermeidet SW-Overhead bei jeder Navigation
+function cacheFirstWithNetwork(request) {
+  return caches.match(request).then(function(cachedResponse) {
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+    return fetch(request).then(function(networkResponse) {
       if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
         const responseToCache = networkResponse.clone();
         caches.open(CACHE_NAME).then(function(cache) {
@@ -141,26 +181,10 @@ function networkFirstWithCache(request, fetchOptions) {
         });
       }
       return networkResponse;
-    })
-    .catch(function() {
-      return caches.match(request).then(function(cachedResponse) {
-        if (cachedResponse) {
-          return cachedResponse;
-        }
-        // Server oft noch erreichbar (z.B. nach Abort) — normaler Retry
-        return fetch(request).catch(function() {
-          if (request.mode === 'navigate' || request.destination === 'document') {
-            return new Response('Offline', {
-              status: 503,
-              statusText: 'Service Unavailable',
-              headers: { 'Content-Type': 'text/plain; charset=utf-8' }
-            });
-          }
-          // Kein Fake-HTTP-Status für Assets (vermeidet ERR_ABORTED 503)
-          return Response.error();
-        });
-      });
+    }).catch(function() {
+      return Response.error();
     });
+  });
 }
 
 const SHARE_TARGET_DB_NAME = 'prismateams-share-target';
@@ -272,8 +296,21 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // API-Requests: IMMER direkt zum Netzwerk, nie cachen
-  if (event.request.url.includes('/api/')) {
+  // API-, Streaming- (SSE/Socket.IO) und Proxy-Pfade: IMMER direkt zum Netzwerk (nie im SW abfangen/cachen)
+  const acceptHeader = (event.request.headers.get('Accept') || '').toLowerCase();
+  if (
+    acceptHeader.includes('text/event-stream') ||
+    requestUrl.pathname.startsWith('/api/') ||
+    requestUrl.pathname.startsWith('/sse/') ||
+    requestUrl.pathname.startsWith('/socket.io/') ||
+    requestUrl.pathname.startsWith('/webdav') ||
+    requestUrl.pathname === '/onlyoffice' ||
+    requestUrl.pathname.startsWith('/onlyoffice/') ||
+    requestUrl.pathname === '/eurooffice' ||
+    requestUrl.pathname.startsWith('/eurooffice/') ||
+    requestUrl.pathname.startsWith('/excalidraw-room/') ||
+    requestUrl.pathname === '/sw.js'
+  ) {
     return;
   }
   
@@ -297,7 +334,18 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Für statische Ressourcen (CSS, JS, Bilder): Network-First mit Cache-Backup
+  // Versionierte statische Assets (?v=...): Cache-First für schnelle Seitenwechsel
+  if (
+    (requestUrl.pathname.startsWith('/static/') || requestUrl.pathname.startsWith('/assets/')) &&
+    requestUrl.searchParams.has('v')
+  ) {
+    event.respondWith(
+      cacheFirstWithNetwork(event.request)
+    );
+    return;
+  }
+
+  // Für übrige statische Ressourcen (CSS, JS, Bilder): Network-First mit Cache-Backup
   event.respondWith(
     networkFirstWithCache(event.request)
   );

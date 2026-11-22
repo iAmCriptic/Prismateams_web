@@ -194,6 +194,22 @@ class NotificationCenter {
             this.connectSSE();
             if (!this.sseLive) this.startPolling();
         });
+
+        // Navigation / Tab-Wechsel: EventSource sofort schließen, damit keine Zombie-Streams
+        // Browser-Verbindungen (HTTP/1.1 6er-Limit) oder Gunicorn-SSE-Slots blockieren.
+        const closeOnLeave = () => {
+            this.stopPolling();
+            this.closeDashboardSse();
+        };
+        window.addEventListener('pagehide', closeOnLeave);
+        window.addEventListener('beforeunload', closeOnLeave);
+        window.addEventListener('pageshow', (event) => {
+            if (event.persisted && !document.hidden) {
+                this.refreshBadge();
+                this.connectSSE();
+                if (!this.sseLive) this.startPolling();
+            }
+        });
     }
 
     bindEvents() {
