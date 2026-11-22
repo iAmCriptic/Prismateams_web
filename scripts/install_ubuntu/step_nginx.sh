@@ -316,6 +316,25 @@ location ~ ^/(settings/admin/backup|setup/import-backup)$ {
     send_timeout 1800;
 }
 
+# Server-Sent Events (SSE): Buffering/Gzip deaktivieren, damit Streams sofort schließen & fließen
+location /sse/ {
+    proxy_pass http://teamportal_backend;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+
+    proxy_buffering off;
+    proxy_cache off;
+    gzip off;
+    chunked_transfer_encoding on;
+    proxy_connect_timeout 10s;
+    proxy_send_timeout 120s;
+    proxy_read_timeout 120s;
+}
+
 # Hauptanwendung (MUSS ZULETZT kommen!)
 location / {
     proxy_pass http://teamportal_backend;

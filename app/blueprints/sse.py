@@ -201,7 +201,8 @@ def event_stream(channels, user_id=None):
                     yield f"event: reconnect\ndata: {json.dumps({'reason': 'ttl', 'after': max_age})}\n\n"
                     break
 
-                message = pubsub.get_message(timeout=5.0)
+                message = pubsub.get_message(timeout=3.0)
+                yielded = False
 
                 if message and message['type'] == 'message':
                     try:
@@ -214,12 +215,18 @@ def event_stream(channels, user_id=None):
                             continue
 
                         yield f"event: {event_type}\ndata: {json.dumps(event_data)}\n\n"
+                        yielded = True
                     except json.JSONDecodeError:
                         pass
 
-                if time.time() - last_heartbeat > heartbeat_s:
-                    yield f"event: heartbeat\ndata: {json.dumps({'time': time.time()})}\n\n"
-                    last_heartbeat = time.time()
+                now = time.time()
+                if now - last_heartbeat > heartbeat_s:
+                    yield f"event: heartbeat\ndata: {json.dumps({'time': now})}\n\n"
+                    last_heartbeat = now
+                elif not yielded:
+                    # SSE-Kommentar alle ~3s: lässt Gunicorn getrennte Clients (BrokenPipe/GeneratorExit)
+                    # schnell erkennen und gibt Thread + SSE-Slot sofort frei.
+                    yield ": keepalive\n\n"
 
             except GeneratorExit:
                 break
