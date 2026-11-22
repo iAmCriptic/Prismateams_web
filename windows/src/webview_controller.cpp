@@ -1,13 +1,19 @@
 #include "webview_controller.h"
+#include "desktop_ui.h"
+#include "passkey_authenticator.h"
 #include "settings.h"
 #include "webdav_manager.h"
 #include "auth_manager.h"
 #include "app.h"
 
+#include <commdlg.h>
 #include <shellapi.h>
 #include <sstream>
+#include <thread>
 #include <wrl/client.h>
 #include <wrl/event.h>
+
+#pragma comment(lib, "comdlg32.lib")
 
 using namespace Microsoft::WRL;
 
@@ -140,6 +146,53 @@ void WebViewController::SetupEventHandlers() {
         nullptr
     );
 
+    // Intercept web /login redirects (e.g. after clicking Abmelden in portal UI) and return to Desktop Login Screen
+    m_webview->add_NavigationStarting(
+        Callback<ICoreWebView2NavigationStartingEventHandler>(
+            [this](ICoreWebView2* sender, ICoreWebView2NavigationStartingEventArgs* args) -> HRESULT {
+                LPWSTR uriRaw = nullptr;
+                if (SUCCEEDED(args->get_Uri(&uriRaw)) && uriRaw) {
+                    std::wstring uri = uriRaw;
+                    CoTaskMemFree(uriRaw);
+
+                    const std::wstring& srv = AuthManager::Instance().GetServerUrl();
+                    if (!srv.empty() && uri.find(srv) == 0) {
+                        std::wstring rel = uri.substr(srv.length());
+                        if (rel == L"/login" || rel.rfind(L"/login?", 0) == 0 ||
+                            rel == L"/auth/login" || rel.rfind(L"/auth/login?", 0) == 0) {
+                            args->put_Cancel(TRUE);
+                            PostMessageW(m_hWndParent, WM_COMMAND, MAKEWPARAM(2006, 0), 0); // ID_TRAY_LOGOUT
+                        }
+                    }
+                }
+                return S_OK;
+            }
+        ).Get(),
+        nullptr
+    );
+
+    // Allow self-signed / custom server certificates for the user's configured Prismateams server
+    ComPtr<ICoreWebView2_14> webview14;
+    if (SUCCEEDED(m_webview.As(&webview14)) && webview14) {
+        webview14->add_ServerCertificateErrorDetected(
+            Callback<ICoreWebView2ServerCertificateErrorDetectedEventHandler>(
+                [this](ICoreWebView2* sender, ICoreWebView2ServerCertificateErrorDetectedEventArgs* args) -> HRESULT {
+                    LPWSTR reqUriRaw = nullptr;
+                    if (SUCCEEDED(args->get_RequestUri(&reqUriRaw)) && reqUriRaw) {
+                        std::wstring reqUri = reqUriRaw;
+                        CoTaskMemFree(reqUriRaw);
+                        const std::wstring& srv = AuthManager::Instance().GetServerUrl();
+                        if (!srv.empty() && reqUri.find(srv) == 0) {
+                            args->put_Action(COREWEBVIEW2_SERVER_CERTIFICATE_ERROR_ACTION_ALWAYS_ALLOW);
+                        }
+                    }
+                    return S_OK;
+                }
+            ).Get(),
+            nullptr
+        );
+    }
+
     // Navigation failure / Offline fallback
     m_webview->add_NavigationCompleted(
         Callback<ICoreWebView2NavigationCompletedEventHandler>(
@@ -149,26 +202,15 @@ void WebViewController::SetupEventHandlers() {
                 if (!isSuccess) {
                     COREWEBVIEW2_WEB_ERROR_STATUS status;
                     args->get_WebErrorStatus(&status);
-                    std::wstring offlineHtml =
-                        L"<!DOCTYPE html><html><head><meta charset='utf-8'>"
-                        L"<style>"
-                        L"body { background: #0f172a; color: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }"
-                        L".card { background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 36px 40px; text-align: center; max-width: 440px; box-shadow: 0 10px 25px rgba(0,0,0,0.4); }"
-                        L"h2 { margin: 14px 0 8px; font-size: 20px; font-weight: 600; }"
-                        L"p { color: #94a3b8; font-size: 14px; margin-bottom: 24px; line-height: 1.5; }"
-                        L".btn { display: inline-flex; align-items: center; justify-content: center; width: 100%; height: 38px; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer; border: none; margin-bottom: 10px; text-decoration: none; }"
-                        L".btn-primary { background: #3b82f6; color: #fff; }"
-                        L".btn-secondary { background: #334155; color: #e2e8f0; }"
-                        L".btn-danger { background: transparent; color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }"
-                        L"</style></head><body>"
-                        L"<div class='card'>"
-                        L"<svg width='48' height='48' viewBox='0 0 24 24' fill='none' stroke='#f59e0b' stroke-width='2'><path d='M1 1l22 22M16.72 11.06A10.94 10.94 0 0 1 19 12.55M5 12.55a10.94 10.94 0 0 1 5.17-2.39M10.71 5.05A16 16 0 0 1 22.58 9M1.42 9a15.91 15.91 0 0 1 4.7-2.88M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01'/></svg>"
-                        L"<h2>Verbindung nicht m\xF6glich</h2>"
-                        L"<p>Der Server ist nicht erreichbar oder es besteht keine Internetverbindung.<br><small style='color:#64748b;'>" + AuthManager::Instance().GetServerUrl() + L"</small></p>"
-                        L"<button class='btn btn-primary' onclick='location.reload()'>Erneut versuchen</button>"
-                        L"<button class='btn btn-secondary' onclick='window.prismateamsNative.openSettings()'>Einstellungen</button>"
-                        L"<button class='btn btn-danger' onclick='window.prismateamsNative.logout()'>Server wechseln / Abmelden</button>"
-                        L"</div></body></html>";
+                    if (status == COREWEBVIEW2_WEB_ERROR_STATUS_OPERATION_CANCELED) {
+                        return S_OK;
+                    }
+                    std::wstring offlineHtml = DesktopUI::BuildOfflineHtml(
+                        AuthManager::Instance().GetServerUrl(),
+                        SettingsManager::Instance().Get().themeMode,
+                        App::Instance().IsDarkMode(),
+                        static_cast<int>(status)
+                    );
                     m_webview->NavigateToString(offlineHtml.c_str());
                 }
                 return S_OK;
@@ -180,193 +222,204 @@ void WebViewController::SetupEventHandlers() {
 
 void WebViewController::InjectNativeBridgeScript() {
     if (!m_webview) return;
+    std::wstring bridgeJs = DesktopUI::GetDesktopBridgeScript();
+    m_webview->AddScriptToExecuteOnDocumentCreated(bridgeJs.c_str(), nullptr);
+}
 
-    // JavaScript bridge with drag region & window control handling
-    const wchar_t* bridgeJs =
-        L"(function() {"
-        L"  window.prismateamsNative = {"
-        L"    isDesktopApp: true,"
-        L"    version: '1.0.0',"
-        L"    startDrag: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'start_drag'})); },"
-        L"    minimize: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'minimize'})); },"
-        L"    maximize: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'toggle_maximize'})); },"
-        L"    close: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'close'})); },"
-        L"    openSettings: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'open_settings'})); },"
-        L"    mountDrive: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'mount_drive'})); },"
-        L"    openExplorer: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'open_explorer'})); },"
-        L"    isMounted: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'check_mount'})); },"
-        L"    logout: function() { window.chrome.webview.postMessage(JSON.stringify({action: 'logout'})); }"
-        L"  };"
-        L"  document.dispatchEvent(new CustomEvent('prismateams-native-ready', { detail: window.prismateamsNative }));"
-        L"  function ensureDragRegionStyle() {"
-        L"    if (document.getElementById('ptDragRegionStyle')) return;"
-        L"    var st = document.createElement('style');"
-        L"    st.id = 'ptDragRegionStyle';"
-        L"    st.textContent = '.top-navbar, #desktopTopNav { -webkit-app-region: drag !important; app-region: drag !important; }' +"
-        L"                     '.top-navbar-actions, button, a, input, select, textarea, .top-navbar-icon-btn, .dropdown-menu, .account-popup, .module-launcher-panel { -webkit-app-region: no-drag !important; app-region: no-drag !important; }';"
-        L"    (document.head || document.documentElement).appendChild(st);"
-        L"  }"
-        L"  function onMouseDown(e) {"
-        L"    if (e.button !== 0) return;"
-        L"    var el = e.target;"
-        L"    if (!el) return;"
-        L"    if (el.closest('.pt-desktop-win-controls, button, a, input, select, textarea, .top-navbar-icon-btn, .dropdown-menu, .account-popup, .module-launcher, .modal')) return;"
-        L"    var nav = el.closest('.top-navbar, #desktopTopNav, .navbar, nav, header');"
-        L"    var isTopArea = e.clientY <= 52;"
-        L"    if (nav || isTopArea) {"
-        L"      window.chrome.webview.postMessage(JSON.stringify({action: 'start_drag'}));"
-        L"    }"
-        L"  }"
-        L"  function onDblClick(e) {"
-        L"    if (e.button !== 0) return;"
-        L"    var el = e.target;"
-        L"    if (!el) return;"
-        L"    if (el.closest('.pt-desktop-win-controls, button, a, input, select, textarea, .top-navbar-icon-btn, .dropdown-menu, .account-popup, .module-launcher, .modal')) return;"
-        L"    var nav = el.closest('.top-navbar, #desktopTopNav, .navbar, nav, header');"
-        L"    var isTopArea = e.clientY <= 52;"
-        L"    if (nav || isTopArea) {"
-        L"      window.chrome.webview.postMessage(JSON.stringify({action: 'toggle_maximize'}));"
-        L"    }"
-        L"  }"
-        L"  function ensureWindowControls() {"
-        L"    var host = document.querySelector('.top-navbar-actions') || document.querySelector('#desktopTopNav');"
-        L"    if (!host || document.getElementById('ptDesktopWinControls')) return;"
-        L"    var container = document.createElement('div');"
-        L"    container.id = 'ptDesktopWinControls';"
-        L"    container.className = 'pt-desktop-win-controls';"
-        L"    container.style.display = 'inline-flex';"
-        L"    container.style.alignItems = 'center';"
-        L"    container.style.marginLeft = '12px';"
-        L"    container.style.gap = '2px';"
-        L"    container.style.height = '100%';"
-        L"    container.style.userSelect = 'none';"
-        L"    var btnBase = 'display:inline-flex;align-items:center;justify-content:center;width:38px;height:32px;border:none;background:transparent;color:inherit;font-size:12px;cursor:pointer;opacity:0.85;border-radius:4px;padding:0;';"
-        L"    var btnMin = document.createElement('button');"
-        L"    btnMin.type = 'button';"
-        L"    btnMin.title = 'Minimieren';"
-        L"    btnMin.style.cssText = btnBase;"
-        L"    btnMin.innerHTML = '<svg width=\"10\" height=\"2\" viewBox=\"0 0 10 2\"><rect width=\"10\" height=\"2\" fill=\"currentColor\"/></svg>';"
-        L"    btnMin.onmouseenter = function() { btnMin.style.backgroundColor = 'rgba(255,255,255,0.12)'; btnMin.style.opacity = '1'; };"
-        L"    btnMin.onmouseleave = function() { btnMin.style.backgroundColor = 'transparent'; btnMin.style.opacity = '0.85'; };"
-        L"    btnMin.onclick = function(e) { e.preventDefault(); e.stopPropagation(); window.prismateamsNative.minimize(); };"
-        L"    var btnMax = document.createElement('button');"
-        L"    btnMax.type = 'button';"
-        L"    btnMax.title = 'Maximieren / Wiederherstellen';"
-        L"    btnMax.style.cssText = btnBase;"
-        L"    btnMax.innerHTML = '<svg width=\"10\" height=\"10\" viewBox=\"0 0 10 10\"><rect x=\"1\" y=\"1\" width=\"8\" height=\"8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.2\"/></svg>';"
-        L"    btnMax.onmouseenter = function() { btnMax.style.backgroundColor = 'rgba(255,255,255,0.12)'; btnMax.style.opacity = '1'; };"
-        L"    btnMax.onmouseleave = function() { btnMax.style.backgroundColor = 'transparent'; btnMax.style.opacity = '0.85'; };"
-        L"    btnMax.onclick = function(e) { e.preventDefault(); e.stopPropagation(); window.prismateamsNative.maximize(); };"
-        L"    var btnClose = document.createElement('button');"
-        L"    btnClose.type = 'button';"
-        L"    btnClose.title = 'Schlie\\u00dfen';"
-        L"    btnClose.style.cssText = btnBase;"
-        L"    btnClose.innerHTML = '<svg width=\"10\" height=\"10\" viewBox=\"0 0 10 10\"><path d=\"M1 1 L9 9 M9 1 L1 9\" stroke=\"currentColor\" stroke-width=\"1.4\"/></svg>';"
-        L"    btnClose.onmouseenter = function() { btnClose.style.backgroundColor = '#e11d48'; btnClose.style.color = '#fff'; btnClose.style.opacity = '1'; };"
-        L"    btnClose.onmouseleave = function() { btnClose.style.backgroundColor = 'transparent'; btnClose.style.color = 'inherit'; btnClose.style.opacity = '0.85'; };"
-        L"    btnClose.onclick = function(e) { e.preventDefault(); e.stopPropagation(); window.prismateamsNative.close(); };"
-        L"    container.appendChild(btnMin);"
-        L"    container.appendChild(btnMax);"
-        L"    container.appendChild(btnClose);"
-        L"    host.appendChild(container);"
-        L"  }"
-        L"  function ensureSettingsIntegration() {"
-        L"    var oldPill = document.getElementById('ptDesktopSettingsCard');"
-        L"    if (oldPill) oldPill.remove();"
-        L"    var oldLinks = document.getElementById('ptDesktopAccountLinks');"
-        L"    if (oldLinks) oldLinks.remove();"
-        L"    var actionsList = document.querySelector('#accountPopup .account-popup-actions, .account-popup .account-popup-actions');"
-        L"    if (actionsList && !document.getElementById('ptDesktopActionSettings')) {"
-        L"      var itemSettings = document.createElement('button');"
-        L"      itemSettings.type = 'button';"
-        L"      itemSettings.id = 'ptDesktopActionSettings';"
-        L"      itemSettings.className = 'account-popup-action';"
-        L"      itemSettings.innerHTML = '<i class=\"bi bi-laptop\" aria-hidden=\"true\"></i><span>Desktop-Einstellungen</span>';"
-        L"      itemSettings.onclick = function(e) { e.preventDefault(); e.stopPropagation(); window.prismateamsNative.openSettings(); };"
-        L"      var itemExplorer = document.createElement('button');"
-        L"      itemExplorer.type = 'button';"
-        L"      itemExplorer.id = 'ptDesktopActionExplorer';"
-        L"      itemExplorer.className = 'account-popup-action';"
-        L"      itemExplorer.innerHTML = '<i class=\"bi bi-folder2-open\" aria-hidden=\"true\"></i><span>Netzlaufwerk (P:)</span>';"
-        L"      itemExplorer.onclick = function(e) { e.preventDefault(); e.stopPropagation(); window.prismateamsNative.openExplorer(); };"
-        L"      var logoutForm = actionsList.querySelector('form');"
-        L"      if (logoutForm) {"
-        L"        actionsList.insertBefore(itemSettings, logoutForm);"
-        L"        actionsList.insertBefore(itemExplorer, logoutForm);"
-        L"      } else {"
-        L"        actionsList.appendChild(itemSettings);"
-        L"        actionsList.appendChild(itemExplorer);"
-        L"      }"
-        L"    }"
-        L"    if (window.location.pathname.indexOf('/settings') !== -1) {"
-        L"      var accountGrid = document.querySelector('section[aria-labelledby=\"hub-account\"] .sp-hub-grid') ||"
-        L"                        document.querySelector('.sp-hub-section .sp-hub-grid');"
-        L"      if (accountGrid && !document.getElementById('ptDesktopTileApp')) {"
-        L"        var tileApp = document.createElement('a');"
-        L"        tileApp.id = 'ptDesktopTileApp';"
-        L"        tileApp.href = '#';"
-        L"        tileApp.className = 'sp-hub-tile';"
-        L"        tileApp.innerHTML = '<span class=\"sp-hub-tile-icon\"><i class=\"bi bi-laptop\" aria-hidden=\"true\"></i></span>' +"
-        L"                            '<span class=\"sp-hub-tile-body\">' +"
-        L"                            '  <span class=\"sp-hub-tile-title\">Desktop-App</span>' +"
-        L"                            '  <span class=\"sp-hub-tile-desc\">App-Optionen, Autostart &amp; Server</span>' +"
-        L"                            '</span>' +"
-        L"                            '<i class=\"bi bi-chevron-right sp-hub-tile-arrow\" aria-hidden=\"true\"></i>';"
-        L"        tileApp.onclick = function(e) { e.preventDefault(); window.prismateamsNative.openSettings(); };"
-        L"        var tileDrive = document.createElement('a');"
-        L"        tileDrive.id = 'ptDesktopTileDrive';"
-        L"        tileDrive.href = '#';"
-        L"        tileDrive.className = 'sp-hub-tile';"
-        L"        tileDrive.innerHTML = '<span class=\"sp-hub-tile-icon\"><i class=\"bi bi-folder2-open\" aria-hidden=\"true\"></i></span>' +"
-        L"                              '<span class=\"sp-hub-tile-body\">' +"
-        L"                              '  <span class=\"sp-hub-tile-title\">Netzlaufwerk</span>' +"
-        L"                              '  <span class=\"sp-hub-tile-desc\">WebDAV (P:) verbinden &amp; Explorer</span>' +"
-        L"                              '</span>' +"
-        L"                              '<i class=\"bi bi-chevron-right sp-hub-tile-arrow\" aria-hidden=\"true\"></i>';"
-        L"        tileDrive.onclick = function(e) { e.preventDefault(); window.prismateamsNative.mountDrive(); };"
-        L"        accountGrid.appendChild(tileApp);"
-        L"        accountGrid.appendChild(tileDrive);"
-        L"      }"
-        L"    }"
-        L"  }"
-        L"  function initAll() {"
-        L"    ensureDragRegionStyle();"
-        L"    ensureWindowControls();"
-        L"    ensureSettingsIntegration();"
-        L"  }"
-        L"  if (document.readyState === 'loading') {"
-        L"    document.addEventListener('DOMContentLoaded', initAll);"
-        L"  } else {"
-        L"    initAll();"
-        L"  }"
-        L"  var obs = new MutationObserver(initAll);"
-        L"  obs.observe(document.documentElement, { childList: true, subtree: true });"
-        L"  window.addEventListener('mousedown', onMouseDown, true);"
-        L"  window.addEventListener('dblclick', onDblClick, true);"
-        L"})();";
+void WebViewController::ShowLoginScreen() {
+    if (!m_webview) return;
+    const auto& s = SettingsManager::Instance().Get();
+    std::wstring html = DesktopUI::BuildLoginScreenHtml(
+        s.serverUrl,
+        s.lastUserEmail,
+        s.themeMode,
+        App::Instance().IsDarkMode(),
+        PasskeyAuthenticator::IsAvailable()
+    );
+    m_webview->NavigateToString(html.c_str());
+}
 
-    m_webview->AddScriptToExecuteOnDocumentCreated(bridgeJs, nullptr);
+static std::wstring ExtractWJsonStr(const std::wstring& json, const std::wstring& key) {
+    std::wstring search = L"\"" + key + L"\"";
+    size_t pos = json.find(search);
+    if (pos == std::string::npos) return L"";
+    pos = json.find(L':', pos + search.length());
+    if (pos == std::string::npos) return L"";
+    pos = json.find(L'"', pos);
+    if (pos == std::string::npos) return L"";
+    size_t start = pos + 1;
+    size_t end = start;
+    while (end < json.length()) {
+        if (json[end] == L'"' && json[end - 1] != L'\\') break;
+        end++;
+    }
+    return (end <= json.length()) ? json.substr(start, end - start) : L"";
+}
+
+static bool ExtractWJsonBool(const std::wstring& json, const std::wstring& key, bool defVal) {
+    std::wstring search = L"\"" + key + L"\"";
+    size_t pos = json.find(search);
+    if (pos == std::string::npos) return defVal;
+    pos = json.find(L':', pos + search.length());
+    if (pos == std::string::npos) return defVal;
+    size_t vs = json.find_first_not_of(L" \t\r\n", pos + 1);
+    if (vs == std::string::npos) return defVal;
+    if (json.compare(vs, 4, L"true") == 0) return true;
+    if (json.compare(vs, 5, L"false") == 0) return false;
+    return defVal;
+}
+
+static std::wstring EscapeWJson(const std::wstring& s) {
+    std::wstring out;
+    out.reserve(s.size() + 8);
+    for (wchar_t c : s) {
+        if (c == L'"') out += L"\\\"";
+        else if (c == L'\\') out += L"\\\\";
+        else if (c == L'\n') out += L"\\n";
+        else if (c == L'\r') out += L"\\r";
+        else out += c;
+    }
+    return out;
+}
+
+void WebViewController::PushStateSync() {
+    if (!m_webview) return;
+    const auto& s = SettingsManager::Instance().Get();
+    bool mounted = WebDavManager::Instance().IsMounted();
+    wchar_t letter = mounted ? WebDavManager::Instance().GetMountedDriveLetter() : s.driveLetter;
+
+    std::wostringstream msg;
+    msg << L"{\"type\":\"state_sync\","
+        << L"\"mounted\":" << (mounted ? L"true" : L"false") << L","
+        << L"\"driveLetter\":\"" << std::wstring(1, letter) << L"\","
+        << L"\"serverUrl\":\"" << EscapeWJson(s.serverUrl) << L"\","
+        << L"\"userEmail\":\"" << EscapeWJson(AuthManager::Instance().GetUserEmail()) << L"\","
+        << L"\"userFullName\":\"" << EscapeWJson(AuthManager::Instance().GetUserFullName()) << L"\","
+        << L"\"autoMountDrive\":" << (s.autoMountDrive ? L"true" : L"false") << L","
+        << L"\"autoStartWithWindows\":" << (s.autoStartWithWindows ? L"true" : L"false") << L","
+        << L"\"minimizeToTray\":" << (s.minimizeToTray ? L"true" : L"false") << L","
+        << L"\"themeMode\":\"" << EscapeWJson(s.themeMode) << L"\"}";
+    PostJsonMessage(msg.str());
 }
 
 void WebViewController::HandleWebMessage(const std::wstring& message) {
-    if (message.find(L"\"start_drag\"") != std::string::npos) {
+    std::wstring action = ExtractWJsonStr(message, L"action");
+
+    if (action == L"start_drag") {
         ReleaseCapture();
         SendMessageW(m_hWndParent, WM_SYSCOMMAND, 0xF012 /* SC_MOVE | HTCAPTION */, 0);
-    } else if (message.find(L"\"minimize\"") != std::string::npos) {
+    } else if (action == L"minimize") {
         ShowWindow(m_hWndParent, SW_MINIMIZE);
-    } else if (message.find(L"\"toggle_maximize\"") != std::string::npos || message.find(L"\"maximize\"") != std::string::npos) {
-        if (IsZoomed(m_hWndParent)) {
-            ShowWindow(m_hWndParent, SW_RESTORE);
-        } else {
-            ShowWindow(m_hWndParent, SW_MAXIMIZE);
-        }
-    } else if (message.find(L"\"close\"") != std::string::npos) {
+    } else if (action == L"toggle_maximize" || action == L"maximize") {
+        ShowWindow(m_hWndParent, IsZoomed(m_hWndParent) ? SW_RESTORE : SW_MAXIMIZE);
+    } else if (action == L"close") {
         SendMessageW(m_hWndParent, WM_CLOSE, 0, 0);
-    } else if (message.find(L"\"open_settings\"") != std::string::npos) {
-        PostMessageW(m_hWndParent, WM_COMMAND, MAKEWPARAM(1002, 0), 0); // ID_NAV_SETTINGS
-    } else if (message.find(L"\"logged_in\"") != std::string::npos) {
-        PostMessageW(m_hWndParent, WM_COMMAND, MAKEWPARAM(2050, 0), 0); // ID_CMD_USER_LOGGED_IN
-    } else if (message.find(L"\"mount_drive\"") != std::string::npos) {
+    } else if (action == L"nav_back") {
+        GoBack();
+    } else if (action == L"nav_forward") {
+        GoForward();
+    } else if (action == L"nav_reload") {
+        Reload();
+    } else if (action == L"nav_home") {
+        Navigate(AuthManager::Instance().GetServerUrl() + L"/dashboard");
+    } else if (action == L"get_state") {
+        PushStateSync();
+    } else if (action == L"sync_branding") {
+        std::wstring portalName = ExtractWJsonStr(message, L"portalName");
+        std::wstring logoDataUrl = ExtractWJsonStr(message, L"logoDataUrl");
+        App::Instance().UpdatePortalBranding(portalName, logoDataUrl);
+    } else if (action == L"set_theme") {
+        std::wstring mode = ExtractWJsonStr(message, L"themeMode");
+        if (!mode.empty()) {
+            SettingsManager::Instance().Get().themeMode = mode;
+            SettingsManager::Instance().Save();
+            App::Instance().ApplyThemeMode(mode);
+        }
+    } else if (action == L"test_server") {
+        std::wstring url = ExtractWJsonStr(message, L"serverUrl");
+        while (!url.empty() && (url.back() == L'/' || url.back() == L' ')) url.pop_back();
+        AuthManager::Instance().SetServerUrl(url);
+        HWND hParent = m_hWndParent;
+        std::thread([hParent]() {
+            std::wstring title;
+            bool ok = AuthManager::Instance().CheckServerReachable(title);
+            auto* payload = new std::wstring(ok
+                ? L"{\"type\":\"server_test_result\",\"success\":true}"
+                : L"{\"type\":\"server_test_result\",\"success\":false,\"message\":\"Server nicht erreichbar.\"}");
+            if (IsWindow(hParent)) {
+                PostMessageW(hParent, WM_APP_POST_JSON, 0, reinterpret_cast<LPARAM>(payload));
+            } else {
+                delete payload;
+            }
+        }).detach();
+    } else if (action == L"login_submit") {
+        std::wstring url = ExtractWJsonStr(message, L"serverUrl");
+        std::wstring email = ExtractWJsonStr(message, L"email");
+        std::wstring pass = ExtractWJsonStr(message, L"password");
+        std::wstring totp = ExtractWJsonStr(message, L"totp");
+        while (!url.empty() && (url.back() == L'/' || url.back() == L' ')) url.pop_back();
+        SettingsManager::Instance().Get().serverUrl = url;
+        SettingsManager::Instance().Save();
+        AuthManager::Instance().SetServerUrl(url);
+
+        HWND hParent = m_hWndParent;
+        std::thread([hParent, email, pass, totp]() {
+            LoginResult res = AuthManager::Instance().Login(email, pass, totp);
+            if (res.requires2FA) {
+                auto* payload = new std::wstring(L"{\"type\":\"login_result\",\"success\":false,\"requires2FA\":true,\"message\":\"Zwei-Faktor-Code erforderlich.\"}");
+                if (IsWindow(hParent)) PostMessageW(hParent, WM_APP_POST_JSON, 0, reinterpret_cast<LPARAM>(payload));
+                else delete payload;
+            } else if (res.success) {
+                auto* payload = new std::wstring(L"{\"type\":\"login_result\",\"success\":true}");
+                if (IsWindow(hParent)) {
+                    PostMessageW(hParent, WM_APP_POST_JSON, 0, reinterpret_cast<LPARAM>(payload));
+                    PostMessageW(hParent, WM_APP_LOGIN_SUCCESS, 0, 0);
+                } else {
+                    delete payload;
+                }
+            } else {
+                auto* payload = new std::wstring(L"{\"type\":\"login_result\",\"success\":false,\"message\":\"" + EscapeWJson(res.errorMessage) + L"\"}");
+                if (IsWindow(hParent)) PostMessageW(hParent, WM_APP_POST_JSON, 0, reinterpret_cast<LPARAM>(payload));
+                else delete payload;
+            }
+        }).detach();
+    } else if (action == L"passkey_login") {
+        std::wstring url = ExtractWJsonStr(message, L"serverUrl");
+        while (!url.empty() && (url.back() == L'/' || url.back() == L' ')) url.pop_back();
+        SettingsManager::Instance().Get().serverUrl = url;
+        SettingsManager::Instance().Save();
+        AuthManager::Instance().SetServerUrl(url);
+
+        LoginResult res = AuthManager::Instance().PasskeyLogin(m_hWndParent);
+        if (res.success) {
+            PostJsonMessage(L"{\"type\":\"login_result\",\"success\":true}");
+            App::Instance().OnLoginSuccess();
+        } else {
+            PostJsonMessage(L"{\"type\":\"login_result\",\"success\":false,\"message\":\"" + EscapeWJson(res.errorMessage) + L"\"}");
+        }
+    } else if (action == L"save_settings") {
+        auto& s = SettingsManager::Instance().Get();
+        std::wstring url = ExtractWJsonStr(message, L"serverUrl");
+        while (!url.empty() && (url.back() == L'/' || url.back() == L' ')) url.pop_back();
+        if (!url.empty()) {
+            s.serverUrl = url;
+            AuthManager::Instance().SetServerUrl(url);
+        }
+        std::wstring dl = ExtractWJsonStr(message, L"driveLetter");
+        if (!dl.empty() && dl[0] >= L'A' && dl[0] <= L'Z') s.driveLetter = dl[0];
+        s.autoMountDrive = ExtractWJsonBool(message, L"autoMountDrive", s.autoMountDrive);
+        s.autoStartWithWindows = ExtractWJsonBool(message, L"autoStartWithWindows", s.autoStartWithWindows);
+        s.minimizeToTray = ExtractWJsonBool(message, L"minimizeToTray", s.minimizeToTray);
+        std::wstring tm = ExtractWJsonStr(message, L"themeMode");
+        if (!tm.empty()) {
+            s.themeMode = tm;
+            App::Instance().ApplyThemeMode(tm);
+        }
+        SettingsManager::Instance().Save();
+        PushStateSync();
+    } else if (action == L"open_settings") {
+        PostJsonMessage(L"{\"type\":\"open_settings_modal\"}");
+    } else if (action == L"mount_drive") {
         auto creds = AuthManager::Instance().FetchWebDavCredentials();
         if (creds.success) {
             wchar_t assigned = L'P';
@@ -379,6 +432,7 @@ void WebViewController::HandleWebMessage(const std::wstring& message) {
                 assigned,
                 err
             );
+            PushStateSync();
             if (ok) {
                 App::Instance().ShowTrayNotification(L"Prismateams", L"Netzlaufwerk " + std::wstring(1, assigned) + L": erfolgreich verbunden.");
                 WebDavManager::Instance().OpenInExplorer();
@@ -390,7 +444,11 @@ void WebViewController::HandleWebMessage(const std::wstring& message) {
             App::Instance().ShowTrayNotification(L"WebDAV-Fehler", creds.errorMessage);
             MessageBoxW(m_hWndParent, creds.errorMessage.c_str(), L"WebDAV-Zugang", MB_ICONERROR | MB_OK);
         }
-    } else if (message.find(L"\"open_explorer\"") != std::string::npos) {
+    } else if (action == L"unmount_drive") {
+        WebDavManager::Instance().UnmountCurrentDrive(true);
+        PushStateSync();
+        App::Instance().ShowTrayNotification(L"Prismateams", L"Netzlaufwerk getrennt.");
+    } else if (action == L"open_explorer") {
         if (!WebDavManager::Instance().IsMounted()) {
             auto creds = AuthManager::Instance().FetchWebDavCredentials();
             if (creds.success) {
@@ -404,6 +462,7 @@ void WebViewController::HandleWebMessage(const std::wstring& message) {
                     assigned,
                     err
                 );
+                PushStateSync();
             }
         }
         if (WebDavManager::Instance().IsMounted()) {
@@ -411,7 +470,47 @@ void WebViewController::HandleWebMessage(const std::wstring& message) {
         } else {
             MessageBoxW(m_hWndParent, L"Netzlaufwerk konnte nicht automatisch eingebunden werden.", L"Prismateams", MB_ICONWARNING | MB_OK);
         }
-    } else if (message.find(L"\"logout\"") != std::string::npos) {
+    } else if (action == L"pick_live_edit_file") {
+        wchar_t fileBuf[MAX_PATH] = { 0 };
+        std::wstring initialDir = WebDavManager::Instance().IsMounted() ? WebDavManager::Instance().GetMountedDrivePath() : L"";
+        OPENFILENAMEW ofn = { sizeof(OPENFILENAMEW) };
+        ofn.hwndOwner = m_hWndParent;
+        ofn.lpstrFilter = L"Office & Excalidraw (*.docx;*.xlsx;*.pptx;*.odt;*.ods;*.excalidraw)\0*.docx;*.doc;*.xlsx;*.xls;*.pptx;*.ppt;*.odt;*.ods;*.odp;*.excalidraw\0Alle Dateien (*.*)\0*.*\0";
+        ofn.lpstrFile = fileBuf;
+        ofn.nMaxFile = MAX_PATH;
+        ofn.lpstrInitialDir = initialDir.empty() ? nullptr : initialDir.c_str();
+        ofn.lpstrTitle = L"Datei direkt in Prismateams live bearbeiten";
+        ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST;
+        if (GetOpenFileNameW(&ofn)) {
+            App::Instance().HandleFileOpen(fileBuf);
+        }
+    } else if (action == L"open_in_office") {
+        std::wstring relPath = ExtractWJsonStr(message, L"path");
+        if (!WebDavManager::Instance().IsMounted()) {
+            auto creds = AuthManager::Instance().FetchWebDavCredentials();
+            if (creds.success) {
+                wchar_t assigned = L'P';
+                std::wstring err;
+                WebDavManager::Instance().MountDrive(
+                    AuthManager::Instance().GetServerUrl(),
+                    creds.username,
+                    creds.password,
+                    SettingsManager::Instance().Get().driveLetter,
+                    assigned,
+                    err
+                );
+                PushStateSync();
+            }
+        }
+        if (WebDavManager::Instance().IsMounted() && !relPath.empty()) {
+            for (wchar_t& ch : relPath) {
+                if (ch == L'/') ch = L'\\';
+            }
+            if (relPath.front() == L'\\') relPath = relPath.substr(1);
+            std::wstring fullLocal = WebDavManager::Instance().GetMountedDrivePath() + relPath;
+            ShellExecuteW(nullptr, L"open", fullLocal.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        }
+    } else if (action == L"logout") {
         AuthManager::Instance().Logout();
         WebDavManager::Instance().UnmountCurrentDrive(true);
         ClearAllCookies();
@@ -480,10 +579,8 @@ void WebViewController::SyncSessionCookie(const std::wstring& domain, const std:
         cleanDomain = cleanDomain.substr(0, slashPos);
     }
 
-    // RFC 6265: for localhost or IP addresses, domain MUST be empty for host-only cookies in Chromium!
-    if (cleanDomain == L"localhost" || cleanDomain == L"127.0.0.1") {
-        cleanDomain = L"";
-    }
+    // Host-only cookie (empty domain) matches Flask's Set-Cookie and prevents duplicate domain+host cookies
+    cleanDomain = L"";
 
     // Use ICoreWebView2_2 or CookieManager if available
     ComPtr<ICoreWebView2_2> webview2;

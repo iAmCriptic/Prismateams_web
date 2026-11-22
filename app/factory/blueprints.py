@@ -89,6 +89,9 @@ def register_blueprints(app):
         'files.share_onlyoffice_callback',
         'kanban.onlyoffice_callback',
         'api.api_login',  # credential login (mobile/API clients)
+        'api.api_logout',
+        'api.api_verify_token',
+        'api.api_windows_webdav_credentials',  # Bearer/session native Windows client WebDAV provisioning
         # Inventory Mobile API (Bearer): keine Browser-CSRF-Tokens
         'inventory.api_mobile_borrow',
         'inventory.api_mobile_return',

@@ -103,6 +103,7 @@
     <ClInclude Include="src\app.h" />
     <ClInclude Include="src\auth_manager.h" />
     <ClInclude Include="src\credential_vault.h" />
+    <ClInclude Include="src\desktop_ui.h" />
     <ClInclude Include="src\file_router.h" />
     <ClInclude Include="src\native_login_view.h" />
     <ClInclude Include="src\native_settings_window.h" />
@@ -116,6 +117,7 @@
     <ClCompile Include="src\app.cpp" />
     <ClCompile Include="src\auth_manager.cpp" />
     <ClCompile Include="src\credential_vault.cpp" />
+    <ClCompile Include="src\desktop_ui.cpp" />
     <ClCompile Include="src\file_router.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\native_login_view.cpp" />

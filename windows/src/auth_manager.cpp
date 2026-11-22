@@ -1,6 +1,7 @@
 #include "auth_manager.h"
 #include "credential_vault.h"
 #include "settings.h"
+#include "passkey_authenticator.h"
 
 #include <winhttp.h>
 #include <sstream>
@@ -88,6 +89,22 @@ static bool ExtractJsonBoolField(const std::string& json, const std::string& key
     return defaultVal;
 }
 
+static std::string Base64UrlEncode(const std::string& data) {
+    static const char* b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+    std::string out;
+    int val = 0, valb = -6;
+    for (unsigned char c : data) {
+        val = (val << 8) + c;
+        valb += 8;
+        while (valb >= 0) {
+            out.push_back(b64[(val >> valb) & 0x3F]);
+            valb -= 6;
+        }
+    }
+    if (valb > -6) out.push_back(b64[((val << 8) >> (valb + 8)) & 0x3F]);
+    return out;
+}
+
 AuthManager& AuthManager::Instance() {
     static AuthManager instance;
     return instance;
@@ -98,6 +115,118 @@ void AuthManager::SetServerUrl(const std::wstring& url) {
     while (!m_serverUrl.empty() && (m_serverUrl.back() == L'/' || m_serverUrl.back() == L' ')) {
         m_serverUrl.pop_back();
     }
+}
+
+static bool SendHttpRequestCurlIPv4(
+    const std::wstring& verb,
+    const std::wstring& fullUrl,
+    const std::wstring& serverUrl,
+    const std::string& jsonBody,
+    const std::wstring& authToken,
+    const std::wstring& sessionCookie,
+    const std::wstring& additionalHeaders,
+    std::string& outResponseBody,
+    std::wstring& outSetCookieHeader,
+    DWORD& outStatusCode
+) {
+    SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE };
+    HANDLE hStdInRead = nullptr, hStdInWrite = nullptr;
+    HANDLE hStdOutRead = nullptr, hStdOutWrite = nullptr;
+
+    if (!CreatePipe(&hStdInRead, &hStdInWrite, &sa, 0)) return false;
+    SetHandleInformation(hStdInWrite, HANDLE_FLAG_INHERIT, 0);
+
+    if (!CreatePipe(&hStdOutRead, &hStdOutWrite, &sa, 0)) {
+        CloseHandle(hStdInRead);
+        CloseHandle(hStdInWrite);
+        return false;
+    }
+    SetHandleInformation(hStdOutRead, HANDLE_FLAG_INHERIT, 0);
+
+    std::wstring cmd = L"curl.exe -4 -s -k -i --connect-timeout 5 -m 12 -X " + verb;
+    cmd += L" -H \"Content-Type: application/json\" -H \"Accept: application/json\"";
+    cmd += L" -H \"X-Requested-With: com.prismateams.desktop\"";
+    cmd += L" -H \"Origin: " + serverUrl + L"\"";
+    cmd += L" -H \"Referer: " + serverUrl + L"/\"";
+    if (!authToken.empty()) {
+        cmd += L" -H \"Authorization: Bearer " + authToken + L"\"";
+    } else if (!sessionCookie.empty()) {
+        cmd += L" -H \"Cookie: " + sessionCookie + L"\"";
+    }
+    if (!jsonBody.empty()) {
+        cmd += L" --data-binary @-";
+    }
+    cmd += L" \"" + fullUrl + L"\"";
+
+    STARTUPINFOW si = { sizeof(STARTUPINFOW) };
+    si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+    si.hStdInput = hStdInRead;
+    si.hStdOutput = hStdOutWrite;
+    si.hStdError = hStdOutWrite;
+
+    PROCESS_INFORMATION pi = { 0 };
+    std::vector<wchar_t> cmdBuf(cmd.begin(), cmd.end());
+    cmdBuf.push_back(L'\0');
+
+    BOOL ok = CreateProcessW(nullptr, cmdBuf.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi);
+    CloseHandle(hStdInRead);
+    CloseHandle(hStdOutWrite);
+
+    if (!ok) {
+        CloseHandle(hStdInWrite);
+        CloseHandle(hStdOutRead);
+        return false;
+    }
+
+    if (!jsonBody.empty()) {
+        DWORD written = 0;
+        WriteFile(hStdInWrite, jsonBody.data(), static_cast<DWORD>(jsonBody.size()), &written, nullptr);
+    }
+    CloseHandle(hStdInWrite);
+
+    std::string raw;
+    char buf[4096];
+    DWORD readBytes = 0;
+    while (ReadFile(hStdOutRead, buf, sizeof(buf), &readBytes, nullptr) && readBytes > 0) {
+        raw.append(buf, readBytes);
+    }
+    CloseHandle(hStdOutRead);
+
+    WaitForSingleObject(pi.hProcess, 15000);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    if (raw.empty()) return false;
+
+    // Parse last HTTP header block (in case of 100 Continue or redirects)
+    size_t sepPos = raw.find("\r\n\r\n");
+    if (sepPos == std::string::npos) return false;
+    std::string headerBlock = raw.substr(0, sepPos);
+    outResponseBody = raw.substr(sepPos + 4);
+
+    // Status code from first line: HTTP/1.1 200 OK
+    size_t sp1 = headerBlock.find(' ');
+    if (sp1 != std::string::npos) {
+        outStatusCode = static_cast<DWORD>(atoi(headerBlock.c_str() + sp1 + 1));
+    }
+
+    // Extract Set-Cookie
+    std::istringstream hStream(headerBlock);
+    std::string line;
+    while (std::getline(hStream, line)) {
+        if (!line.empty() && line.back() == '\r') line.pop_back();
+        if (line.size() > 11 && _strnicmp(line.c_str(), "Set-Cookie:", 11) == 0) {
+            std::string val = line.substr(11);
+            size_t first = val.find_first_not_of(" \t");
+            if (first != std::string::npos) {
+                outSetCookieHeader = Utf8ToUtf16(val.substr(first));
+                break;
+            }
+        }
+    }
+
+    return outStatusCode > 0;
 }
 
 bool AuthManager::SendHttpRequest(
@@ -135,6 +264,8 @@ bool AuthManager::SendHttpRequest(
         0
     );
     if (!hSession) return false;
+
+    WinHttpSetTimeouts(hSession, 3000, 3000, 5000, 8000);
 
     HINTERNET hConnect = WinHttpConnect(hSession, hostName, urlComp.nPort, 0);
     if (!hConnect) {
@@ -177,11 +308,10 @@ bool AuthManager::SendHttpRequest(
     headers += L"X-Requested-With: com.prismateams.desktop\r\n";
     headers += L"Origin: " + m_serverUrl + L"\r\n";
     headers += L"Referer: " + m_serverUrl + L"/\r\n";
-    if (!m_sessionCookie.empty()) {
-        headers += L"Cookie: " + m_sessionCookie + L"\r\n";
-    }
     if (!m_authToken.empty()) {
         headers += L"Authorization: Bearer " + m_authToken + L"\r\n";
+    } else if (!m_sessionCookie.empty()) {
+        headers += L"Cookie: " + m_sessionCookie + L"\r\n";
     }
     if (!additionalHeaders.empty()) {
         headers += additionalHeaders + L"\r\n";
@@ -201,7 +331,12 @@ bool AuthManager::SendHttpRequest(
         WinHttpCloseHandle(hRequest);
         WinHttpCloseHandle(hConnect);
         WinHttpCloseHandle(hSession);
-        return false;
+        // Fallback to IPv4 curl.exe when WinHTTP hits an IPv6 blackhole (e.g. Dual-Stack DynDNS/myfritz)
+        return SendHttpRequestCurlIPv4(
+            verb, fullUrl, m_serverUrl, jsonBody,
+            m_authToken, m_sessionCookie, additionalHeaders,
+            outResponseBody, outSetCookieHeader, outStatusCode
+        );
     }
 
     DWORD statusSize = sizeof(outStatusCode);
@@ -244,14 +379,12 @@ bool AuthManager::CheckServerReachable(std::wstring& outServerTitle) {
     std::string response;
     std::wstring cookies;
     DWORD status = 0;
-    if (!SendHttpRequest(L"GET", L"/api/info", "", L"", response, cookies, status)) {
-        // Fallback to GET /
-        if (!SendHttpRequest(L"GET", L"/", "", L"", response, cookies, status)) {
-            return false;
-        }
+    if (!SendHttpRequest(L"GET", L"/login", "", L"", response, cookies, status) || status == 0) {
+        return false;
     }
     outServerTitle = L"Prismateams Server Online";
-    return (status >= 200 && status < 400);
+    return (status >= 200 && status < 400 &&
+            (response.find("Prismateams") != std::string::npos || response.find("prismateams") != std::string::npos));
 }
 
 LoginResult AuthManager::Login(const std::wstring& email, const std::wstring& password, const std::wstring& totpCode) {
@@ -288,7 +421,12 @@ LoginResult AuthManager::Login(const std::wstring& email, const std::wstring& pa
     if (!successField || statusCode != 200) {
         std::string err = ExtractJsonStringField(response, "error");
         if (err.empty()) err = ExtractJsonStringField(response, "message");
-        if (err.empty()) err = "Anmeldung fehlgeschlagen.";
+        if (err.empty() && statusCode == 429) {
+            err = "Zu viele Anmeldeversuche. Bitte warten Sie einen Moment.";
+        }
+        if (err.empty()) {
+            err = "Anmeldung fehlgeschlagen (HTTP " + std::to_string(statusCode) + "). Server-URL/Port pr\xC3\xBC\x66\x65n.";
+        }
         res.success = false;
         res.errorMessage = Utf8ToUtf16(err);
         return res;
@@ -314,6 +452,100 @@ LoginResult AuthManager::Login(const std::wstring& email, const std::wstring& pa
     SettingsManager::Instance().Get().lastUserEmail = email;
     SettingsManager::Instance().Save();
 
+    return res;
+}
+
+LoginResult AuthManager::PasskeyLogin(HWND hWndParent) {
+    LoginResult res;
+
+    // 1. Request WebAuthn challenge & options from server
+    std::string optResponse;
+    std::wstring optSetCookie;
+    DWORD optStatus = 0;
+
+    if (!SendHttpRequest(L"POST", L"/passkey/login/options", "{}", L"", optResponse, optSetCookie, optStatus)) {
+        res.errorMessage = L"Verbindung zum Server fehlgeschlagen. Bitte Server-URL pr\xFCfen.";
+        return res;
+    }
+
+    if (optStatus != 200 || !ExtractJsonBoolField(optResponse, "success", false)) {
+        std::string err = ExtractJsonStringField(optResponse, "error");
+        res.errorMessage = err.empty() ? L"Passkey-Login wird vom Server nicht unterst\xFCtzt (HTTPS erforderlich)." : Utf8ToUtf16(err);
+        return res;
+    }
+
+    if (!optSetCookie.empty()) {
+        m_sessionCookie = optSetCookie;
+    }
+
+    std::string challenge = ExtractJsonStringField(optResponse, "challenge");
+    std::string rpIdUtf8 = ExtractJsonStringField(optResponse, "rpId");
+    std::wstring rpId = Utf8ToUtf16(rpIdUtf8);
+    if (rpId.empty()) {
+        rpId = m_serverUrl;
+        size_t scheme = rpId.find(L"://");
+        if (scheme != std::string::npos) rpId = rpId.substr(scheme + 3);
+        size_t slash = rpId.find(L'/');
+        if (slash != std::string::npos) rpId = rpId.substr(0, slash);
+        size_t port = rpId.find(L':');
+        if (port != std::string::npos) rpId = rpId.substr(0, port);
+    }
+
+    if (challenge.empty()) {
+        res.errorMessage = L"Ung\xFCltige Passkey-Optionen vom Server erhalten.";
+        return res;
+    }
+
+    // 2. Invoke Windows Hello / WebAuthn
+    PasskeyAuthResult pkRes = PasskeyAuthenticator::Authenticate(hWndParent, rpId, challenge);
+    if (!pkRes.success) {
+        res.errorMessage = pkRes.errorMessage;
+        return res;
+    }
+
+    std::string credIdB64 = Base64UrlEncode(pkRes.credentialId);
+    std::string clientDataB64 = Base64UrlEncode(pkRes.clientDataJson);
+    std::string authDataB64 = Base64UrlEncode(pkRes.authenticatorData);
+    std::string sigB64 = Base64UrlEncode(pkRes.signature);
+    std::string userHandleB64 = pkRes.userHandle.empty() ? "" : Base64UrlEncode(pkRes.userHandle);
+
+    std::ostringstream verifyJson;
+    verifyJson << "{\"credential\":{"
+               << "\"id\":\"" << credIdB64 << "\","
+               << "\"rawId\":\"" << credIdB64 << "\","
+               << "\"type\":\"public-key\","
+               << "\"response\":{"
+               << "\"clientDataJSON\":\"" << clientDataB64 << "\","
+               << "\"authenticatorData\":\"" << authDataB64 << "\","
+               << "\"signature\":\"" << sigB64 << "\"";
+    if (!userHandleB64.empty()) {
+        verifyJson << ",\"userHandle\":\"" << userHandleB64 << "\"";
+    }
+    verifyJson << "}}}";
+
+    // 3. Verify assertion with server
+    std::string verifyResp;
+    std::wstring verifyCookie;
+    DWORD verifyStatus = 0;
+
+    if (!SendHttpRequest(L"POST", L"/passkey/login/verify", verifyJson.str(), L"", verifyResp, verifyCookie, verifyStatus)) {
+        res.errorMessage = L"Passkey-Verifizierung konnte nicht an den Server gesendet werden.";
+        return res;
+    }
+
+    if (verifyStatus != 200 || !ExtractJsonBoolField(verifyResp, "success", false)) {
+        std::string err = ExtractJsonStringField(verifyResp, "error");
+        res.errorMessage = err.empty() ? L"Passkey-Anmeldung fehlgeschlagen." : Utf8ToUtf16(err);
+        return res;
+    }
+
+    if (!verifyCookie.empty()) {
+        m_sessionCookie = verifyCookie;
+    }
+
+    res.success = true;
+    res.sessionCookie = m_sessionCookie;
+    m_isAuthenticated = true;
     return res;
 }
 

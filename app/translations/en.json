@@ -544,7 +544,8 @@
             "overview": "Release of the official PrismaTeams Windows Client as a standalone native Windows app.",
             "native_app": "Direct access to all modules in a dedicated app window with taskbar integration – no browser tab needed.",
             "workflow": "Fast startup and an optimized desktop experience for everyday work."
-          }
+          },
+          "download_cta": "Download Windows installer on GitHub"
         }
       }
     },
