@@ -141,9 +141,11 @@ def api_card(card_id):
         bid = board.id
         card_title = card.title
         card_id_num = card.id
+        candidate_files = _collect_card_file_paths(card.id)
         db.session.delete(card)
         _log_activity(bid, 'card_deleted', detail=card_title, card_id=card_id_num)
         db.session.commit()
+        _cleanup_unreferenced_kanban_files(candidate_files)
         _emit_board(bid, 'card_deleted', {'id': card_id})
         return jsonify({'success': True})
 

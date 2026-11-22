@@ -243,7 +243,13 @@ def configure_server_sessions(app) -> str:
     if redis_enabled:
         try:
             import redis
-            client = redis.Redis.from_url(redis_url, decode_responses=True)
+            client = redis.Redis.from_url(
+                redis_url,
+                decode_responses=True,
+                socket_connect_timeout=2,
+                socket_timeout=3,
+                health_check_interval=30,
+            )
             client.ping()
             app.session_interface = RedisSessionInterface(client, ttl=ttl)
             logger.info('Server-Sessions: Redis (%s)', redis_url)

@@ -373,11 +373,135 @@ def _board_background_css(board: KanbanBoard) -> str:
 def _delete_board_cover_file(board: KanbanBoard) -> None:
     path = _board_cover_file_path(board)
     if path:
+        abs_path = os.path.abspath(path)
+        if abs_path not in _referenced_kanban_file_paths(exclude_board_id=board.id):
+            try:
+                os.remove(abs_path)
+            except OSError:
+                pass
+    board.cover_path = None
+
+
+def _resolve_kanban_file_path(raw_path: str | None) -> str | None:
+    """Resolve a local Kanban attachment/cover path inside uploads/kanban/ if it exists on disk."""
+    path = (raw_path or '').strip()
+    if not path or path.startswith(('http://', 'https://', 'portal-file://')):
+        return None
+    kanban_root = os.path.abspath(_upload_root())
+    candidates = [
+        path,
+        os.path.join(kanban_root, path),
+        os.path.join(kanban_root, os.path.basename(path)),
+        os.path.join(os.path.abspath(_boards_upload_root()), os.path.basename(path)),
+    ]
+    for candidate in candidates:
+        abs_candidate = os.path.abspath(candidate)
+        try:
+            if os.path.commonpath([kanban_root, abs_candidate]) != kanban_root:
+                continue
+        except ValueError:
+            continue
+        if os.path.isfile(abs_candidate):
+            return abs_candidate
+    return None
+
+
+def _referenced_kanban_file_paths(exclude_board_id: int | None = None) -> set[str]:
+    """Return all local file paths currently referenced by any KanbanAttachment or KanbanBoard."""
+    refs: set[str] = set()
+    att_rows = (
+        db.session.query(KanbanAttachment.storage_path)
+        .filter(
+            KanbanAttachment.storage_path.isnot(None),
+            KanbanAttachment.storage_path != '',
+        )
+        .all()
+    )
+    for (raw_path,) in att_rows:
+        resolved = _resolve_kanban_file_path(raw_path)
+        if resolved:
+            refs.add(resolved)
+
+    board_query = db.session.query(KanbanBoard.cover_path).filter(
+        KanbanBoard.cover_path.isnot(None),
+        KanbanBoard.cover_path != '',
+    )
+    if exclude_board_id is not None:
+        board_query = board_query.filter(KanbanBoard.id != exclude_board_id)
+    for (raw_cover,) in board_query.all():
+        resolved = _resolve_kanban_file_path(raw_cover)
+        if resolved:
+            refs.add(resolved)
+    return refs
+
+
+def _collect_board_file_paths(board: KanbanBoard) -> list[str]:
+    """Collect all local file paths (cover + card attachments) belonging to a board."""
+    paths: list[str] = []
+    if board.cover_path:
+        paths.append(board.cover_path)
+    att_rows = (
+        db.session.query(KanbanAttachment.storage_path)
+        .join(KanbanCard, KanbanAttachment.card_id == KanbanCard.id)
+        .join(KanbanList, KanbanCard.list_id == KanbanList.id)
+        .filter(
+            KanbanList.board_id == board.id,
+            KanbanAttachment.storage_path.isnot(None),
+            KanbanAttachment.storage_path != '',
+        )
+        .all()
+    )
+    paths.extend(row[0] for row in att_rows if row[0])
+    return paths
+
+
+def _collect_list_file_paths(list_id: int) -> list[str]:
+    """Collect all local attachment file paths belonging to cards in a list."""
+    att_rows = (
+        db.session.query(KanbanAttachment.storage_path)
+        .join(KanbanCard, KanbanAttachment.card_id == KanbanCard.id)
+        .filter(
+            KanbanCard.list_id == list_id,
+            KanbanAttachment.storage_path.isnot(None),
+            KanbanAttachment.storage_path != '',
+        )
+        .all()
+    )
+    return [row[0] for row in att_rows if row[0]]
+
+
+def _collect_card_file_paths(card_id: int) -> list[str]:
+    """Collect all local attachment file paths belonging to a card."""
+    att_rows = (
+        db.session.query(KanbanAttachment.storage_path)
+        .filter(
+            KanbanAttachment.card_id == card_id,
+            KanbanAttachment.storage_path.isnot(None),
+            KanbanAttachment.storage_path != '',
+        )
+        .all()
+    )
+    return [row[0] for row in att_rows if row[0]]
+
+
+def _cleanup_unreferenced_kanban_files(candidate_paths: list[str] | set[str]) -> int:
+    """Delete local Kanban files that exist on disk and are no longer referenced in the DB."""
+    resolved_candidates = {
+        resolved
+        for raw_path in candidate_paths
+        if (resolved := _resolve_kanban_file_path(raw_path)) is not None
+    }
+    if not resolved_candidates:
+        return 0
+    referenced = _referenced_kanban_file_paths()
+    removed = 0
+    for path in resolved_candidates - referenced:
         try:
             os.remove(path)
+            removed += 1
         except OSError:
             pass
-    board.cover_path = None
+    return removed
 
 
 def _serialize_board_members(board: KanbanBoard) -> list[dict]:
@@ -1025,6 +1149,12 @@ __all__ = [
     '_board_cover_url',
     '_board_background_css',
     '_delete_board_cover_file',
+    '_resolve_kanban_file_path',
+    '_referenced_kanban_file_paths',
+    '_collect_board_file_paths',
+    '_collect_list_file_paths',
+    '_collect_card_file_paths',
+    '_cleanup_unreferenced_kanban_files',
     '_serialize_board_members',
     '_user_brief',
     '_attachment_url',
