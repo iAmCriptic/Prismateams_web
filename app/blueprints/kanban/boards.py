@@ -317,8 +317,10 @@ def api_board(board_id):
     if request.method == 'DELETE':
         if not can_manage_board(current_user, board):
             return jsonify({'error': 'Forbidden'}), 403
+        candidate_files = _collect_board_file_paths(board)
         db.session.delete(board)
         db.session.commit()
+        _cleanup_unreferenced_kanban_files(candidate_files)
         return jsonify({'success': True})
 
     if not can_manage_board(current_user, board):
@@ -480,9 +482,11 @@ def api_list(list_id):
     if request.method == 'DELETE':
         board_id = board.id
         lst_title = lst.title
+        candidate_files = _collect_list_file_paths(lst.id)
         db.session.delete(lst)
         _log_activity(board_id, 'list_deleted', detail=lst_title)
         db.session.commit()
+        _cleanup_unreferenced_kanban_files(candidate_files)
         _emit_board(board_id, 'list_deleted', {'id': list_id})
         return jsonify({'success': True})
 

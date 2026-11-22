@@ -50,7 +50,7 @@ def register_request_hooks(app):
     @app.before_request
     def prune_session_bloat():
         """Begrenzt große Session-Keys (Share-Passwords, Auth-Flags, Cart)."""
-        if request.path.startswith('/socket.io/'):
+        if request.path == '/healthz' or request.path.startswith('/socket.io/'):
             return
         try:
             from flask import session as flask_session
@@ -167,11 +167,11 @@ def register_request_hooks(app):
         if request.path.startswith('/music/wishlist'):
             return
 
-        # Statische Assets, Core-CSS und Service-Worker nie blockieren
+        # Statische Assets, Core-CSS, Healthz und Service-Worker nie blockieren
         if (
             request.path.startswith('/assets/')
             or request.path.startswith('/static/')
-            or request.path in {'/sw.js', '/favicon.ico', '/robots.txt', '/sitemap.xml', '/manifest.json', '/offline'}
+            or request.path in {'/healthz', '/sw.js', '/favicon.ico', '/robots.txt', '/sitemap.xml', '/manifest.json', '/offline'}
         ):
             return
         
@@ -199,6 +199,9 @@ def register_request_hooks(app):
              request.endpoint == 'shortlinks.resolve')):
             return
         
+        if request.path == '/healthz':
+            return
+
         if not current_user.is_authenticated:
             return
         
@@ -216,6 +219,9 @@ def register_request_hooks(app):
         """Portal: user_sessions; Assessment: kürzere Session-Lifetime per Flask-Session."""
         from flask import redirect, url_for, flash
         from flask_login import current_user, logout_user
+
+        if request.path == '/healthz':
+            return
 
         if not current_user.is_authenticated:
             return
@@ -336,6 +342,9 @@ def register_request_hooks(app):
         from flask import make_response, render_template
         from flask_login import current_user
         from app.utils.offline_mode import is_offline_mode_enabled
+
+        if request.path == '/healthz':
+            return
 
         if not is_offline_mode_enabled():
             return

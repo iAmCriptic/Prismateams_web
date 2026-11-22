@@ -205,3 +205,61 @@ def test_snooze_endpoint(client, notif_user):
 
     settings = get_or_create_notification_settings(notif_user.id)
     assert settings.is_paused() is False
+
+
+def test_send_file_notification_creates_in_app_log(app, notif_user, monkeypatch):
+    from app.models.file import File
+    from app.utils.notifications import send_file_notification
+
+    uploader = User(
+        email='uploader_test@example.com',
+        first_name='Up',
+        last_name='Loader',
+        is_active=True,
+        is_admin=False,
+        has_full_access=True,
+        is_email_confirmed=True,
+    )
+    uploader.set_password('Password123!@#')
+    db.session.add(uploader)
+    db.session.commit()
+
+    uploader_settings = get_or_create_notification_settings(uploader.id)
+    uploader_settings.file_notifications_enabled = True
+    uploader_settings.file_portal_enabled = True
+    uploader_settings.file_push_enabled = False
+
+    recipient_settings = get_or_create_notification_settings(notif_user.id)
+    recipient_settings.file_notifications_enabled = True
+    recipient_settings.file_portal_enabled = True
+    recipient_settings.file_push_enabled = False
+    recipient_settings.file_new_notifications = True
+
+    test_file = File(
+        name='bericht.pdf',
+        original_name='bericht.pdf',
+        uploaded_by=uploader.id,
+        file_path='/tmp/bericht.pdf',
+        file_size=1234,
+    )
+    db.session.add(test_file)
+    db.session.commit()
+
+    monkeypatch.setattr('app.utils.notifications.send_push_notification', lambda *a, **kw: False)
+
+    sent = send_file_notification(test_file.id, 'new')
+    assert sent == 1
+
+    recipient_log = NotificationLog.query.filter_by(
+        user_id=notif_user.id,
+        notification_type='file',
+        source_id=test_file.id,
+    ).first()
+    assert recipient_log is not None
+
+    uploader_log = NotificationLog.query.filter_by(
+        user_id=uploader.id,
+        notification_type='file',
+        source_id=test_file.id,
+    ).first()
+    assert uploader_log is None

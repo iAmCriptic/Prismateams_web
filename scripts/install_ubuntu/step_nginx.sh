@@ -327,6 +327,10 @@ location / {
     proxy_http_version 1.1;
     proxy_set_header Upgrade \$http_upgrade;
     proxy_set_header Connection \$connection_upgrade;
+
+    proxy_connect_timeout 10s;
+    proxy_send_timeout 120s;
+    proxy_read_timeout 120s;
 }
 }
 EOF

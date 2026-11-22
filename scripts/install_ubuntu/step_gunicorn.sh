@@ -93,6 +93,8 @@ ExecStart=${INSTALL_DIR}/venv/bin/gunicorn \\
     --worker-class ${GUNICORN_WORKER_CLASS} \\
     --workers ${GUNICORN_WORKERS} \\
     --threads ${GUNICORN_THREADS} \\
+    --worker-tmp-dir /dev/shm \\
+    --keep-alive 5 \\
     --bind 127.0.0.1:${GUNICORN_PORT} \\
     --timeout ${GUNICORN_TIMEOUT} \\
     --graceful-timeout 30 \\

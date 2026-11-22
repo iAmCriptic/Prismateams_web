@@ -117,7 +117,6 @@ def register_push_routes(api_bp, require_api_auth):
                     "remaining_seconds": remaining_time,
                     "total_cooldown": cooldown_duration,
                 }), 429
-            session["last_push_test_time"] = current_time
 
             cleanup_failed_subscriptions()
             subscriptions = PushSubscription.query.filter_by(user_id=current_user.id, is_active=True).all()
@@ -151,6 +150,7 @@ def register_push_routes(api_bp, require_api_auth):
                 dedup_key=f"test:{datetime.utcnow().timestamp()}",
             )
             if success:
+                session["last_push_test_time"] = current_time
                 return jsonify({"success": True, "message": f"Test-Benachrichtigung erfolgreich gesendet an {len(subscriptions)} Gerät(e)"})
             return jsonify({"success": False, "message": "Test-Benachrichtigung konnte nicht gesendet werden. Bitte prüfen Sie Ihre Push-Subscriptions."}), 400
         except Exception as e:

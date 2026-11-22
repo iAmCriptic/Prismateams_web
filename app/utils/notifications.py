@@ -544,7 +544,11 @@ def enqueue_chat_notification(
         )
 
 
-def send_file_notification(file_id: int, notification_type: str = 'new') -> int:
+def send_file_notification(
+    file_id: int,
+    notification_type: str = 'new',
+    actor_id: Optional[int] = None,
+) -> int:
     from app.utils.access_control import has_module_access
 
     file = File.query.get(file_id)
@@ -555,6 +559,7 @@ def send_file_notification(file_id: int, notification_type: str = 'new') -> int:
         NotificationSettings.file_notifications_enabled == True
     ).all()
     sent_count = 0
+    excluded_user_id = actor_id if actor_id is not None else getattr(file, 'uploaded_by', None)
 
     for user in users:
         if not user.notifications_enabled:
@@ -566,7 +571,7 @@ def send_file_notification(file_id: int, notification_type: str = 'new') -> int:
             continue
         if notification_type == 'modified' and not settings.file_modified_notifications:
             continue
-        if user.id == file.uploader_id:
+        if excluded_user_id is not None and user.id == excluded_user_id:
             continue
 
         if notification_type == 'new':

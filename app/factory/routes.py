@@ -10,7 +10,12 @@ from flask_login import current_user
 from app.factory._util import asset_version as _asset_version
 
 def register_app_routes(app):
-    """App-level routes (manifest, service worker, robots, sitemap, uploads)."""
+    """App-level routes (healthz, manifest, service worker, robots, sitemap, uploads)."""
+    @app.route('/healthz')
+    def healthz():
+        """Lightweight liveness check without DB, Redis, or session access."""
+        return jsonify({'status': 'ok'}), 200
+
     @app.route('/manifest.json')
     def manifest():
         import json

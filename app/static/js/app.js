@@ -1301,11 +1301,11 @@ class ServerPushManager {
             clearTimeout(this.registerDebounceTimer);
         }
         this.registerDebounceTimer = setTimeout(() => {
-            this.registerPushNotifications();
+            this.registerPushNotifications({ interactive: false });
         }, 300);
     }
 
-    async registerPushNotifications() {
+    async registerPushNotifications({ interactive = true } = {}) {
         if (!this.isPushSupported()) {
             this.updatePushStatusUI({ supported: false, subscribed: false, permission: 'denied' });
             return false;
@@ -1326,7 +1326,9 @@ class ServerPushManager {
             if (permission !== 'granted') {
                 this.hidePushActivationPrompt();
                 this.updatePushStatusUI({ supported: true, subscribed: false, permission: permission });
-                this.showTestResult('warning', 'Push-Benachrichtigungen wurden verweigert. Bitte erlauben Sie Benachrichtigungen in den Browser-Einstellungen.');
+                if (interactive) {
+                    this.showTestResult('warning', 'Push-Benachrichtigungen wurden verweigert. Bitte erlauben Sie Benachrichtigungen in den Browser-Einstellungen.');
+                }
                 return false;
             }
 
@@ -1342,10 +1344,13 @@ class ServerPushManager {
                 const sendOk = await this.sendSubscriptionToServer(subscription, permission);
                 if (sendOk) {
                     this.updatePushStatusUI({ supported: true, subscribed: true, permission: permission });
-                    this.showTestResult('success', 'Push-Benachrichtigungen erfolgreich aktiviert!');
+                    if (interactive) {
+                        this.showTestResult('success', 'Push-Benachrichtigungen erfolgreich aktiviert!');
+                    }
                     return true;
                 }
-                // Falls das Senden fehlschlug, versuche Neu-Subscribe
+                // Falls das Senden fehlschlug, alte Subscription verwerfen und neu subscriben
+                await subscription.unsubscribe().catch(() => {});
             }
             
             // Hole VAPID Public Key vom Server
@@ -1354,12 +1359,15 @@ class ServerPushManager {
             });
             
             if (!vapidResponse.ok) {
-                const errorData = await vapidResponse.json();
+                const errorData = await vapidResponse.json().catch(() => ({}));
                 console.error('VAPID Key Fehler:', errorData);
-                throw new Error(errorData.message || 'VAPID Key konnte nicht geladen werden');
+                throw new Error(errorData.message || errorData.error || 'VAPID Key konnte nicht geladen werden');
             }
             
             const vapidData = await vapidResponse.json();
+            if (!vapidData || !vapidData.public_key) {
+                throw new Error('VAPID Public Key fehlt in der Server-Antwort');
+            }
             const applicationServerKey = this.urlBase64ToUint8Array(vapidData.public_key);
             
             // Subscribe zu Push Manager
@@ -1372,21 +1380,31 @@ class ServerPushManager {
             const response = await this.postSubscription(subscription);
             
             if (response.ok) {
-                const result = await response.json();
+                await response.json().catch(() => ({}));
                 this.updatePushStatusUI({ supported: true, subscribed: true, permission: permission });
-                this.showTestResult('success', 'Push-Benachrichtigungen erfolgreich aktiviert!');
+                if (interactive) {
+                    this.showTestResult('success', 'Push-Benachrichtigungen erfolgreich aktiviert!');
+                }
                 return true;
             } else {
-                const errorData = await response.json();
+                const errorData = await response.json().catch(() => ({}));
+                const errMsg = errorData.message || errorData.error || 'Unbekannter Fehler';
                 console.error('Server-Fehler beim Registrieren:', response.status, errorData);
-                this.updatePushStatusUI({ supported: true, subscribed: false, permission: permission, error: errorData.message });
-                this.showTestResult('error', 'Server-Fehler: ' + (errorData.message || 'Unbekannter Fehler'));
+                this.updatePushStatusUI({ supported: true, subscribed: false, permission: permission, error: errMsg });
+                if (interactive) {
+                    this.showTestResult('error', 'Server-Fehler: ' + errMsg);
+                }
                 return false;
             }
             
         } catch (error) {
             console.error('Fehler bei Push-Benachrichtigungen:', error);
-            this.updatePushStatusUI({ supported: true, subscribed: false, permission: 'denied', error: error.message });
+            const actualPermission = ('Notification' in window) ? Notification.permission : 'denied';
+            const errMsg = (error && error.message) ? error.message : 'Unbekannter Fehler bei der Push-Aktivierung';
+            this.updatePushStatusUI({ supported: true, subscribed: false, permission: actualPermission, error: errMsg });
+            if (interactive) {
+                this.showTestResult('error', 'Push-Aktivierung fehlgeschlagen: ' + errMsg);
+            }
             return false;
         } finally {
             this.isRegistering = false;
@@ -1503,12 +1521,17 @@ class ServerPushManager {
             }
         }
         
-        // Zeige/Verstecke Setup-Warnung
+        // Zeige/Verstecke Setup-Warnung / Fehlermeldung
         const setupAlert = document.getElementById('push-setup-alert');
         if (setupAlert) {
-            if (status.supported && !status.subscribed && status.permission !== 'denied') {
+            if (status.error) {
+                setupAlert.className = 'sp-notif-warn';
+                setupAlert.textContent = status.error;
+                setupAlert.removeAttribute('aria-hidden');
                 setupAlert.style.display = 'block';
             } else {
+                setupAlert.textContent = '';
+                setupAlert.setAttribute('aria-hidden', 'true');
                 setupAlert.style.display = 'none';
             }
         }
@@ -1615,8 +1638,7 @@ class ServerPushManager {
                     this.showTestResult('warning', data.message);
                     this.startCooldownTimer(testBtn, originalText, data.remaining_seconds);
                 } else if (data && data.action_required === 'subscribe') {
-                    this.showTestResult('warning', data.message || 'Keine aktive Subscription. Registrierung wird gestartet...');
-                    const registered = await this.registerPushNotifications();
+                    const registered = await this.registerPushNotifications({ interactive: true });
                     if (registered) {
                         // kurzer Retry nach Erfolg
                         setTimeout(() => {

@@ -22,6 +22,35 @@ _redis_client = None
 _redis_lock = threading.Lock()
 _redis_url = None  # Wird beim ersten Aufruf gesetzt
 
+# Per-Worker-Limit für aktive SSE-Streams, damit normale HTTP-Requests (/login, /dashboard, /sw.js)
+# bei gthread nie komplett verhungern.
+_sse_slots_lock = threading.Lock()
+_active_sse_streams = 0
+
+
+def max_concurrent_sse_per_worker() -> int:
+    """Maximale gleichzeitige SSE-Streams pro Gunicorn-Worker."""
+    default_limit = max(2, _env_int('GUNICORN_THREADS', 8) // 2)
+    return max(1, _env_int('SSE_MAX_CONCURRENT_PER_WORKER', default_limit))
+
+
+def _acquire_sse_slot() -> bool:
+    global _active_sse_streams
+    limit = max_concurrent_sse_per_worker()
+    with _sse_slots_lock:
+        if _active_sse_streams >= limit:
+            return False
+        _active_sse_streams += 1
+        return True
+
+
+def _release_sse_slot() -> None:
+    global _active_sse_streams
+    with _sse_slots_lock:
+        if _active_sse_streams > 0:
+            _active_sse_streams -= 1
+
+
 # Sync-/gthread-Worker nicht endlos blockieren: Stream nach TTL schließen.
 # EventSource reconnectet automatisch; unter gunicorn --timeout halten.
 # Clamp: zu kurz = Reconnect-Sturm; zu lang = Thread-Hunger (QA F09).
@@ -62,7 +91,13 @@ def get_redis_client():
                     elif _redis_url is None:
                         _redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379/0')
                     
-                    _redis_client = redis.Redis.from_url(_redis_url, decode_responses=True)
+                    _redis_client = redis.Redis.from_url(
+                        _redis_url,
+                        decode_responses=True,
+                        socket_connect_timeout=2,
+                        socket_timeout=8,
+                        health_check_interval=30,
+                    )
                     _redis_client.ping()
                 except Exception as e:
                     import logging
@@ -132,6 +167,13 @@ def _sse_stream_headers():
 
 def event_stream(channels, user_id=None):
     """Generator für SSE-Stream mit Redis Pub/Sub."""
+    if has_app_context():
+        try:
+            from app import db
+            db.session.remove()
+        except Exception:
+            pass
+
     client = get_redis_client()
     
     if not client:
@@ -194,6 +236,28 @@ def event_stream(channels, user_id=None):
             pass
 
 
+def _sse_response(channels, user_id=None):
+    """Wrappt SSE-Streams mit Per-Worker-Slot-Limit (verhindert gthread-Aushungerung)."""
+    if not _acquire_sse_slot():
+        return jsonify({'error': 'SSE capacity reached'}), 503, {'Retry-After': '10'}
+
+    def generate():
+        try:
+            yield from event_stream(channels, user_id)
+        finally:
+            _release_sse_slot()
+
+    try:
+        return Response(
+            stream_with_context(generate()),
+            mimetype='text/event-stream',
+            headers=_sse_stream_headers(),
+        )
+    except Exception:
+        _release_sse_slot()
+        raise
+
+
 @sse_bp.route('/events/dashboard')
 @login_required
 def dashboard_events():
@@ -203,30 +267,14 @@ def dashboard_events():
         f'dashboard:user:{user_id}',  # User-spezifische Updates
         'dashboard:global'  # Globale Updates
     ]
-    
-    def generate():
-        yield from event_stream(channels, user_id)
-    
-    return Response(
-        stream_with_context(generate()),
-        mimetype='text/event-stream',
-        headers=_sse_stream_headers(),
-    )
+    return _sse_response(channels, user_id)
 
 
 @sse_bp.route('/events/music')
 def music_events():
     """SSE-Endpoint für Musik-Updates (öffentlich für Wishlist)."""
     channels = ['music:updates']
-    
-    def generate():
-        yield from event_stream(channels)
-    
-    return Response(
-        stream_with_context(generate()),
-        mimetype='text/event-stream',
-        headers=_sse_stream_headers(),
-    )
+    return _sse_response(channels)
 
 
 @sse_bp.route('/events/email')
@@ -235,15 +283,7 @@ def email_events():
     """SSE-Endpoint für E-Mail-Sync-Status-Updates."""
     user_id = current_user.id
     channels = [f'email:sync:user:{user_id}']
-    
-    def generate():
-        yield from event_stream(channels, user_id)
-    
-    return Response(
-        stream_with_context(generate()),
-        mimetype='text/event-stream',
-        headers=_sse_stream_headers(),
-    )
+    return _sse_response(channels, user_id)
 
 
 # Helper-Funktionen zum Senden von Events
@@ -312,15 +352,7 @@ def chat_events(chat_id):
         return jsonify({'error': 'SSE unavailable'}), 503
 
     channels = [f'chat:{chat_id}']
-
-    def generate():
-        yield from event_stream(channels, current_user.id)
-
-    return Response(
-        stream_with_context(generate()),
-        mimetype='text/event-stream',
-        headers=_sse_stream_headers(),
-    )
+    return _sse_response(channels, current_user.id)
 
 
 @sse_bp.route('/events/kanban/<int:board_id>')
@@ -340,15 +372,7 @@ def kanban_events(board_id):
         return jsonify({'error': 'SSE unavailable'}), 503
 
     channels = [f'kanban:board:{board_id}']
-
-    def generate():
-        yield from event_stream(channels, current_user.id)
-
-    return Response(
-        stream_with_context(generate()),
-        mimetype='text/event-stream',
-        headers=_sse_stream_headers(),
-    )
+    return _sse_response(channels, current_user.id)
 
 
 @sse_bp.route('/events/inventory/<int:inventory_id>')
@@ -366,12 +390,4 @@ def inventory_events(inventory_id):
 
     Inventory.query.get_or_404(inventory_id)
     channels = [f'inventory:{inventory_id}']
-
-    def generate():
-        yield from event_stream(channels, current_user.id)
-
-    return Response(
-        stream_with_context(generate()),
-        mimetype='text/event-stream',
-        headers=_sse_stream_headers(),
-    )
+    return _sse_response(channels, current_user.id)
