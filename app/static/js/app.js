@@ -1370,11 +1370,26 @@ class ServerPushManager {
             }
             const applicationServerKey = this.urlBase64ToUint8Array(vapidData.public_key);
             
-            // Subscribe zu Push Manager
-            subscription = await registration.pushManager.subscribe({
-                userVisibleOnly: true,
-                applicationServerKey: applicationServerKey
-            });
+            // Subscribe zu Push Manager (bei veraltetem Key einmalig bereinigen & neu versuchen)
+            try {
+                subscription = await registration.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: applicationServerKey
+                });
+            } catch (subErr) {
+                if (subErr && subErr.name === 'InvalidStateError') {
+                    const staleSub = await registration.pushManager.getSubscription().catch(() => null);
+                    if (staleSub) {
+                        await staleSub.unsubscribe().catch(() => {});
+                    }
+                    subscription = await registration.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: applicationServerKey
+                    });
+                } else {
+                    throw subErr;
+                }
+            }
             
             // Sende Subscription an Server
             const response = await this.postSubscription(subscription);
@@ -1400,7 +1415,13 @@ class ServerPushManager {
         } catch (error) {
             console.error('Fehler bei Push-Benachrichtigungen:', error);
             const actualPermission = ('Notification' in window) ? Notification.permission : 'denied';
-            const errMsg = (error && error.message) ? error.message : 'Unbekannter Fehler bei der Push-Aktivierung';
+            const rawMsg = (error && error.message) ? error.message : '';
+            let errMsg = rawMsg || 'Unbekannter Fehler bei der Push-Aktivierung';
+            if (error && (error.name === 'AbortError' || rawMsg.toLowerCase().includes('push service error'))) {
+                errMsg = 'Browser-Push-Dienst nicht erreichbar (push service error). '
+                    + 'Mögliche Ursachen: Im Brave-Browser muss unter Datenschutz „Google-Dienste für Push-Messaging verwenden“ aktiviert sein; '
+                    + 'Adblocker/Firewall/VPN blockiert ggf. fcm.googleapis.com; oder Inkognito-Modus / nicht vertrauenswürdiges HTTPS-Zertifikat.';
+            }
             this.updatePushStatusUI({ supported: true, subscribed: false, permission: actualPermission, error: errMsg });
             if (interactive) {
                 this.showTestResult('error', 'Push-Aktivierung fehlgeschlagen: ' + errMsg);

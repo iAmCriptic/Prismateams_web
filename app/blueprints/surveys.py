@@ -420,6 +420,11 @@ def create():
         db.session.flush()
         _create_default_page(survey)
         db.session.commit()
+        try:
+            from app.utils.notifications import send_survey_notification
+            send_survey_notification(survey, event_kind='new')
+        except Exception:
+            current_app.logger.exception('Survey new notification failed')
         flash(translate('surveys.flash.created'), 'success')
         return redirect(url_for('surveys.edit', survey_id=survey.id))
 
@@ -934,6 +939,11 @@ def public_submit(token):
             ))
 
     db.session.commit()
+    try:
+        from app.utils.notifications import send_survey_notification
+        send_survey_notification(survey, event_kind='response')
+    except Exception:
+        current_app.logger.exception('Survey response notification failed')
     session[RESPONSE_SESSION_KEY.format(token=token)] = draft.id
     return redirect(url_for('surveys.public_done', token=token, response_token=draft.public_token))
 

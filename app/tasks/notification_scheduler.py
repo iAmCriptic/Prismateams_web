@@ -4,7 +4,11 @@ from datetime import datetime, timedelta
 
 from app.tasks.guest_cleanup import cleanup_expired_guests
 from app.tasks.interval_scheduler import IntervalScheduler
-from app.utils.notifications import cleanup_inactive_subscriptions, schedule_calendar_reminders
+from app.utils.notifications import (
+    cleanup_inactive_subscriptions,
+    schedule_calendar_reminders,
+    send_inventory_dguv_due_notification,
+)
 
 # Mit Kalender: 10 Min (Reminder-Fenster in schedule_calendar_reminders abgestimmt).
 # Ohne Kalender: 15 Min — nur Guest-/Push-Cleanup-Gates.
@@ -22,6 +26,7 @@ class NotificationScheduler(IntervalScheduler):
 
     def __init__(self, app=None):
         self._last_guest_cleanup = None
+        self._last_dguv_check_date = None
         super().__init__(app)
 
     def interval_seconds(self):
@@ -39,6 +44,11 @@ class NotificationScheduler(IntervalScheduler):
             schedule_calendar_reminders()
 
         now = datetime.utcnow()
+        # DGUV-Fälligkeitsprüfung: einmal täglich (Deduplikation pro Tag + User)
+        if is_module_enabled('module_inventory') and self._last_dguv_check_date != now.date():
+            send_inventory_dguv_due_notification()
+            self._last_dguv_check_date = now.date()
+
         # Push-Subscriptions: einmal nachts im 2-Uhr-Fenster (Intervall 10–15 Min)
         if now.hour == 2 and now.minute < 15:
             cleanup_inactive_subscriptions()

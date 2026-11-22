@@ -213,7 +213,7 @@ redis-cli ping
    - `/socket.io/` Location-Block muss vorhanden sein — [INSTALLATION.md – Schritt 11](INSTALLATION.md#schritt-11-nginx-konfigurieren)
    - Nginx neu starten: `sudo systemctl restart nginx`
 
-3. **Eventlet nicht installiert:**
+3. **Socket.IO-Abhängigkeiten (`simple-websocket`) nicht installiert:**
 
 ```bash
 cd /var/www/teamportal

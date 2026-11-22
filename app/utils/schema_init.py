@@ -602,6 +602,7 @@ def ensure_critical_columns(db) -> None:
                 ("survey_response_notifications", bool_true),
                 ("room_booking_new_notifications", bool_true),
                 ("room_booking_status_notifications", bool_true),
+                ("inventory_dguv_notifications", bool_true),
             ]
             for col_name, ddl in notif_col_defs:
                 if col_name not in ns_cols:

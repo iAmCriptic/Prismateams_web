@@ -47,9 +47,9 @@
           {% for key, icon, label, enabled in modules %}
           <div class="sp-row settings-admin-modules-switch{% if key == 'module_meetings' and not mirotalk_ready %} settings-admin-modules-switch--disabled{% endif %}">
             <div class="sp-row-label">
-              <span class="sp-row-label-text"><i class="bi {{ icon }}" aria-hidden="true"></i> {{ label }}</span>
+              <label class="sp-row-label-text" for="{{ key }}"><i class="bi {{ icon }}" aria-hidden="true"></i> <span>{{ label }}</span></label>
               {% if key == 'module_meetings' and not mirotalk_ready %}
-              <p class="sp-row-meta mb-0 mt-1">{{ _('settings.admin.admin_modules.meetings_needs_mirotalk') }}</p>
+              <p class="sp-row-meta mb-0">{{ _('settings.admin.admin_modules.meetings_needs_mirotalk') }}</p>
               {% endif %}
             </div>
             <div class="sp-row-control">
@@ -71,11 +71,11 @@
         {{ sp_info(_('settings.admin.admin_modules.visibility_description')) }}
       </div>
       <div class="sp-group-body">
-        <p class="sp-row-meta mb-2 px-0">{{ _('settings.admin.admin_modules.visibility_lead') }}</p>
+        <p class="sp-row-meta mb-3 px-0">{{ _('settings.admin.admin_modules.visibility_lead') }}</p>
         <div class="settings-admin-modules-grid settings-admin-modules-grid--visibility">
           <div class="sp-row settings-admin-modules-switch">
             <div class="sp-row-label">
-              <span class="sp-row-label-text"><i class="bi bi-person-lock" aria-hidden="true"></i> {{ _('settings.admin.admin_modules.allow_private') }}</span>
+              <label class="sp-row-label-text" for="modules_allow_private"><i class="bi bi-person-lock" aria-hidden="true"></i> <span>{{ _('settings.admin.admin_modules.allow_private') }}</span></label>
             </div>
             <div class="sp-row-control">
               <div class="form-check form-switch mb-0">
@@ -85,7 +85,7 @@
           </div>
           <div class="sp-row settings-admin-modules-switch">
             <div class="sp-row-label">
-              <span class="sp-row-label-text"><i class="bi bi-people" aria-hidden="true"></i> {{ _('settings.admin.admin_modules.allow_team') }}</span>
+              <label class="sp-row-label-text" for="modules_allow_team"><i class="bi bi-people" aria-hidden="true"></i> <span>{{ _('settings.admin.admin_modules.allow_team') }}</span></label>
             </div>
             <div class="sp-row-control">
               <div class="form-check form-switch mb-0">
@@ -95,7 +95,7 @@
           </div>
           <div class="sp-row settings-admin-modules-switch">
             <div class="sp-row-label">
-              <span class="sp-row-label-text"><i class="bi bi-globe" aria-hidden="true"></i> {{ _('settings.admin.admin_modules.allow_public') }}</span>
+              <label class="sp-row-label-text" for="modules_allow_public"><i class="bi bi-globe" aria-hidden="true"></i> <span>{{ _('settings.admin.admin_modules.allow_public') }}</span></label>
             </div>
             <div class="sp-row-control">
               <div class="form-check form-switch mb-0">
@@ -104,7 +104,7 @@
             </div>
           </div>
         </div>
-        <p class="sp-row-meta text-warning mb-0 mt-2 px-0">
+        <p class="sp-row-meta settings-admin-modules-warning mb-0 mt-3 px-0">
           <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>
           {{ _('settings.admin.visibility.credentials_public_hint') }}
         </p>

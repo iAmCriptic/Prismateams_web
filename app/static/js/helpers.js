@@ -207,53 +207,197 @@
 
   function initPlaceholderPills() {
     var pills = document.querySelectorAll('.js-placeholder-pill[data-placeholder]');
-    var targets = [
-      document.getElementById('spHelperMailSubject'),
-      document.getElementById('spHelperMailBody')
-    ].filter(Boolean);
-    if (!pills.length || !targets.length) return;
+    var editors = Array.from(document.querySelectorAll('.helpers-token-editor[data-token-target]'));
+    if (!editors.length) return;
 
-    var lastFocused = document.getElementById('spHelperMailBody') || targets[0];
+    var tokenLabels = {};
+    pills.forEach(function (pill) {
+      var key = pill.getAttribute('data-placeholder-key') || '';
+      var label = pill.getAttribute('data-placeholder-label') || pill.textContent.trim();
+      if (key) tokenLabels[key] = label;
+    });
 
-    function insertAtCursor(el, token) {
-      if (!el) return;
-      var start = typeof el.selectionStart === 'number' ? el.selectionStart : el.value.length;
-      var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : el.value.length;
-      el.value = el.value.slice(0, start) + token + el.value.slice(end);
-      var pos = start + token.length;
-      el.focus();
-      if (typeof el.setSelectionRange === 'function') {
-        el.setSelectionRange(pos, pos);
+    function createTokenChip(key, label) {
+      var span = document.createElement('span');
+      span.className = 'helpers-mail-token';
+      span.setAttribute('contenteditable', 'false');
+      span.setAttribute('data-token-key', key);
+      span.textContent = label || tokenLabels[key] || key;
+      return span;
+    }
+
+    function renderEditor(editor, rawText) {
+      editor.innerHTML = '';
+      var isSingle = editor.classList.contains('helpers-token-editor--single');
+      var re = /\{\{\s*([a-zA-Z0-9_\-]+)\s*\}\}/g;
+      var lastIndex = 0;
+      var match;
+
+      function appendTextWithBreaks(text) {
+        if (!text) return;
+        if (isSingle) {
+          editor.appendChild(document.createTextNode(text.replace(/\r?\n/g, ' ')));
+          return;
+        }
+        var lines = text.split(/\r?\n/);
+        lines.forEach(function (line, idx) {
+          if (idx > 0) editor.appendChild(document.createElement('br'));
+          if (line) editor.appendChild(document.createTextNode(line));
+        });
+      }
+
+      while ((match = re.exec(rawText)) !== null) {
+        appendTextWithBreaks(rawText.slice(lastIndex, match.index));
+        var key = match[1].trim();
+        editor.appendChild(createTokenChip(key, tokenLabels[key] || key));
+        lastIndex = re.lastIndex;
+      }
+      appendTextWithBreaks(rawText.slice(lastIndex));
+    }
+
+    function serializeEditor(editor) {
+      var isSingle = editor.classList.contains('helpers-token-editor--single');
+      var parts = [];
+
+      function walk(node, isBlockChild) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          parts.push(node.nodeValue.replace(/\u00a0/g, ' '));
+          return;
+        }
+        if (node.nodeType !== Node.ELEMENT_NODE) return;
+
+        var tokenKey = node.getAttribute('data-token-key');
+        if (tokenKey) {
+          parts.push('{{ ' + tokenKey + ' }}');
+          return;
+        }
+        if (node.tagName === 'BR') {
+          if (!isSingle) parts.push('\n');
+          return;
+        }
+        var isBlock = node.tagName === 'DIV' || node.tagName === 'P';
+        if (isBlock && !isSingle && isBlockChild && parts.length > 0 && !parts[parts.length - 1].endsWith('\n')) {
+          parts.push('\n');
+        }
+        Array.from(node.childNodes).forEach(function (child) {
+          walk(child, true);
+        });
+      }
+
+      Array.from(editor.childNodes).forEach(function (child) {
+        walk(child, true);
+      });
+      var result = parts.join('');
+      return isSingle ? result.replace(/\r?\n/g, ' ').trim() : result;
+    }
+
+    function syncEditor(editor) {
+      var targetId = editor.getAttribute('data-token-target');
+      var target = targetId ? document.getElementById(targetId) : null;
+      if (target) target.value = serializeEditor(editor);
+    }
+
+    var lastFocused = document.getElementById('spHelperMailBodyEditor') || editors[0];
+    var savedRange = null;
+
+    function saveSelection(editor) {
+      var sel = window.getSelection();
+      if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+        savedRange = sel.getRangeAt(0).cloneRange();
       }
     }
 
-    targets.forEach(function (el) {
-      el.addEventListener('focus', function () {
-        lastFocused = el;
+    function insertChipAtCursor(editor, key, label) {
+      if (!editor) return;
+      editor.focus();
+      var chip = createTokenChip(key, label);
+      var sel = window.getSelection();
+      var range = null;
+      if (savedRange && editor.contains(savedRange.startContainer)) {
+        range = savedRange;
+      } else if (sel && sel.rangeCount > 0 && editor.contains(sel.anchorNode)) {
+        range = sel.getRangeAt(0);
+      }
+
+      if (range) {
+        range.deleteContents();
+        range.insertNode(chip);
+        range.setStartAfter(chip);
+        range.collapse(true);
+        if (sel) {
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      } else {
+        editor.appendChild(chip);
+      }
+      saveSelection(editor);
+      syncEditor(editor);
+    }
+
+    editors.forEach(function (editor) {
+      var targetId = editor.getAttribute('data-token-target');
+      var target = targetId ? document.getElementById(targetId) : null;
+      if (target) {
+        renderEditor(editor, target.value || '');
+      }
+
+      editor.addEventListener('focus', function () {
+        lastFocused = editor;
       });
-      el.addEventListener('dragover', function (e) {
+      editor.addEventListener('keyup', function () {
+        saveSelection(editor);
+        syncEditor(editor);
+      });
+      editor.addEventListener('mouseup', function () {
+        saveSelection(editor);
+      });
+      editor.addEventListener('input', function () {
+        syncEditor(editor);
+      });
+      editor.addEventListener('blur', function () {
+        syncEditor(editor);
+      });
+      if (editor.classList.contains('helpers-token-editor--single')) {
+        editor.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter') e.preventDefault();
+        });
+      }
+      editor.addEventListener('dragover', function (e) {
         e.preventDefault();
         if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
       });
-      el.addEventListener('drop', function (e) {
-        var token = e.dataTransfer ? e.dataTransfer.getData('text/plain') : '';
-        if (!token || token.indexOf('{{') === -1) return;
+      editor.addEventListener('drop', function (e) {
+        var key = e.dataTransfer ? e.dataTransfer.getData('text/x-helper-token-key') : '';
+        var label = e.dataTransfer ? e.dataTransfer.getData('text/x-helper-token-label') : '';
+        if (!key) return;
         e.preventDefault();
-        insertAtCursor(el, token);
+        lastFocused = editor;
+        insertChipAtCursor(editor, key, label);
+      });
+    });
+
+    document.querySelectorAll('.js-helper-mail-form').forEach(function (form) {
+      form.addEventListener('submit', function () {
+        editors.forEach(syncEditor);
       });
     });
 
     pills.forEach(function (pill) {
       pill.addEventListener('dragstart', function (e) {
-        var token = pill.getAttribute('data-placeholder') || '';
+        var key = pill.getAttribute('data-placeholder-key') || '';
+        var label = pill.getAttribute('data-placeholder-label') || pill.textContent.trim();
         if (e.dataTransfer) {
-          e.dataTransfer.setData('text/plain', token);
+          e.dataTransfer.setData('text/x-helper-token-key', key);
+          e.dataTransfer.setData('text/x-helper-token-label', label);
+          e.dataTransfer.setData('text/plain', label);
           e.dataTransfer.effectAllowed = 'copy';
         }
       });
       pill.addEventListener('click', function () {
-        var token = pill.getAttribute('data-placeholder') || '';
-        insertAtCursor(lastFocused, token);
+        var key = pill.getAttribute('data-placeholder-key') || '';
+        var label = pill.getAttribute('data-placeholder-label') || pill.textContent.trim();
+        if (key) insertChipAtCursor(lastFocused, key, label);
       });
     });
   }

@@ -1,0 +1,807 @@
+{
+  "timestamp": "2026-11-22T18:06:44",
+  "test_user": {
+    "id": 1,
+    "email": "e.r.matzke@outlook.de",
+    "is_admin": true
+  },
+  "summary": {
+    "OK": 41,
+    "WARN": 0,
+    "FAIL": 1,
+    "SKIP": 0,
+    "DISABLED": 1
+  },
+  "results": [
+    {
+      "name": "Dashboard",
+      "url": "/dashboard",
+      "module_key": null,
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/dashboard",
+        "chain": [
+          [
+            "/dashboard",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Chat",
+      "url": "/chat/",
+      "module_key": "module_chat",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "OK nach Redirect-Kette -> /chat/1",
+      "extra": {
+        "final_url": "/chat/1",
+        "chain": [
+          [
+            "/chat/",
+            302
+          ],
+          [
+            "/chat/1",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Dateien",
+      "url": "/files/",
+      "module_key": "module_files",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/files/",
+        "chain": [
+          [
+            "/files/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Kalender",
+      "url": "/calendar/",
+      "module_key": "module_calendar",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/calendar/",
+        "chain": [
+          [
+            "/calendar/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Veranstaltungen",
+      "url": "/events/",
+      "module_key": "module_events",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/events/",
+        "chain": [
+          [
+            "/events/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "E-Mail",
+      "url": "/email/",
+      "module_key": "module_email",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/email/",
+        "chain": [
+          [
+            "/email/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Kontakte",
+      "url": "/contacts/",
+      "module_key": "module_contacts",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/contacts/",
+        "chain": [
+          [
+            "/contacts/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Zugangsdaten",
+      "url": "/credentials/",
+      "module_key": "module_credentials",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/credentials/",
+        "chain": [
+          [
+            "/credentials/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Anleitungen",
+      "url": "/manuals/",
+      "module_key": "module_manuals",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/manuals/",
+        "chain": [
+          [
+            "/manuals/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Lagerverwaltung",
+      "url": "/inventory/",
+      "module_key": "module_inventory",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/inventory/",
+        "chain": [
+          [
+            "/inventory/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Wiki",
+      "url": "/wiki/",
+      "module_key": "module_wiki",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/wiki/",
+        "chain": [
+          [
+            "/wiki/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Kurzlinks",
+      "url": "/shortlinks",
+      "module_key": "module_shortlinks",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/shortlinks",
+        "chain": [
+          [
+            "/shortlinks",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Kanban",
+      "url": "/kanban/",
+      "module_key": "module_kanban",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/kanban/",
+        "chain": [
+          [
+            "/kanban/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Excalidraw",
+      "url": "/excalidraw/",
+      "module_key": "module_excalidraw",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "OK nach Redirect-Kette -> /excalidraw/?view=private",
+      "extra": {
+        "final_url": "/excalidraw/?view=private",
+        "chain": [
+          [
+            "/excalidraw/",
+            302
+          ],
+          [
+            "/excalidraw/?view=private",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Umfragen",
+      "url": "/surveys/",
+      "module_key": "module_surveys",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/surveys/",
+        "chain": [
+          [
+            "/surveys/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Buchungen",
+      "url": "/booking/requests",
+      "module_key": "module_booking",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/booking/requests",
+        "chain": [
+          [
+            "/booking/requests",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Musik",
+      "url": "/music/",
+      "module_key": "module_music",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/music/",
+        "chain": [
+          [
+            "/music/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Media Downloader",
+      "url": "/media-downloader/",
+      "module_key": "module_media_downloader",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/media-downloader/",
+        "chain": [
+          [
+            "/media-downloader/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Dateikonverter",
+      "url": "/file-converter/",
+      "module_key": "module_file_converter",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/file-converter/",
+        "chain": [
+          [
+            "/file-converter/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Meetings",
+      "url": "/meetings/",
+      "module_key": "module_meetings",
+      "module_enabled": false,
+      "status": "DISABLED",
+      "http_status": 200,
+      "detail": "Modul in Systemeinstellungen deaktiviert",
+      "extra": {}
+    },
+    {
+      "name": "Bewertungen",
+      "url": "/assessment/",
+      "module_key": "module_assessment",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "OK nach Redirect-Kette -> /assessment/home",
+      "extra": {
+        "final_url": "/assessment/home",
+        "chain": [
+          [
+            "/assessment/",
+            302
+          ],
+          [
+            "/assessment/home",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Einstellungen",
+      "url": "/settings/",
+      "module_key": null,
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/settings/",
+        "chain": [
+          [
+            "/settings/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "API: Benachrichtigungen (pending)",
+      "url": "/api/notifications/pending?limit=1",
+      "module_key": null,
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/api/notifications/pending?limit=1",
+        "chain": [
+          [
+            "/api/notifications/pending?limit=1",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "API: Dashboard-Optionen",
+      "url": "/api/dashboard/options",
+      "module_key": null,
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/api/dashboard/options",
+        "chain": [
+          [
+            "/api/dashboard/options",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "API: E-Mail Unread-Count",
+      "url": "/api/email/unread-count",
+      "module_key": "module_email",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/api/email/unread-count",
+        "chain": [
+          [
+            "/api/email/unread-count",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "API: Dateien Speicher",
+      "url": "/files/api/storage-usage",
+      "module_key": "module_files",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/files/api/storage-usage",
+        "chain": [
+          [
+            "/files/api/storage-usage",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "API: Dateien Presence",
+      "url": "/files/api/presence?folder_id=",
+      "module_key": "module_files",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/files/api/presence?folder_id=",
+        "chain": [
+          [
+            "/files/api/presence?folder_id=",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "API: Push VAPID-Key",
+      "url": "/api/push/vapid-key",
+      "module_key": null,
+      "module_enabled": true,
+      "status": "FAIL",
+      "http_status": 500,
+      "detail": "HTTP 500 Serverfehler",
+      "extra": {
+        "final_url": "/api/push/vapid-key",
+        "chain": [
+          [
+            "/api/push/vapid-key",
+            500
+          ]
+        ]
+      }
+    },
+    {
+      "name": "API: Manifest",
+      "url": "/manifest.json",
+      "module_key": null,
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/manifest.json",
+        "chain": [
+          [
+            "/manifest.json",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Lager: Bestand",
+      "url": "/inventory/stock",
+      "module_key": "module_inventory",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/inventory/stock",
+        "chain": [
+          [
+            "/inventory/stock",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Lager: Ausleihen",
+      "url": "/inventory/borrows",
+      "module_key": "module_inventory",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/inventory/borrows",
+        "chain": [
+          [
+            "/inventory/borrows",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Lager: Sets",
+      "url": "/inventory/sets",
+      "module_key": "module_inventory",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/inventory/sets",
+        "chain": [
+          [
+            "/inventory/sets",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Kalender: Erstellen",
+      "url": "/calendar/create",
+      "module_key": "module_calendar",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/calendar/create",
+        "chain": [
+          [
+            "/calendar/create",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Wiki: Erstellen",
+      "url": "/wiki/create",
+      "module_key": "module_wiki",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/wiki/create",
+        "chain": [
+          [
+            "/wiki/create",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Umfragen: Erstellen",
+      "url": "/surveys/create",
+      "module_key": "module_surveys",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/surveys/create",
+        "chain": [
+          [
+            "/surveys/create",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Kurzlinks: Erstellen",
+      "url": "/shortlinks/create",
+      "module_key": "module_shortlinks",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/shortlinks/create",
+        "chain": [
+          [
+            "/shortlinks/create",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Kanban: Templates-API",
+      "url": "/kanban/api/templates",
+      "module_key": "module_kanban",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/kanban/api/templates",
+        "chain": [
+          [
+            "/kanban/api/templates",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Bewertungen: Home",
+      "url": "/assessment/home",
+      "module_key": "module_assessment",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/assessment/home",
+        "chain": [
+          [
+            "/assessment/home",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Buchungen: Formular-Liste",
+      "url": "/booking/",
+      "module_key": "module_booking",
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/booking/",
+        "chain": [
+          [
+            "/booking/",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Einstellungen: Profil",
+      "url": "/settings/profile",
+      "module_key": null,
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "Seite/API antwortet normal",
+      "extra": {
+        "final_url": "/settings/profile",
+        "chain": [
+          [
+            "/settings/profile",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Einstellungen: Admin",
+      "url": "/settings/admin",
+      "module_key": null,
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "OK nach Redirect-Kette -> /settings/#admin",
+      "extra": {
+        "final_url": "/settings/#admin",
+        "chain": [
+          [
+            "/settings/admin",
+            302
+          ],
+          [
+            "/settings/#admin",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Auth: Login-Seite",
+      "url": "/login",
+      "module_key": null,
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "OK nach Redirect-Kette -> /dashboard",
+      "extra": {
+        "final_url": "/dashboard",
+        "chain": [
+          [
+            "/login",
+            302
+          ],
+          [
+            "/dashboard",
+            200
+          ]
+        ]
+      }
+    },
+    {
+      "name": "Startseite (/)",
+      "url": "/",
+      "module_key": null,
+      "module_enabled": true,
+      "status": "OK",
+      "http_status": 200,
+      "detail": "OK nach Redirect-Kette -> /dashboard",
+      "extra": {
+        "final_url": "/dashboard",
+        "chain": [
+          [
+            "/",
+            302
+          ],
+          [
+            "/dashboard",
+            200
+          ]
+        ]
+      }
+    }
+  ]
+}

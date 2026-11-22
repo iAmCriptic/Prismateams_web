@@ -63,10 +63,19 @@
     <span>{{ _('helpers.heading') }}</span>
   </div>
 
-  <div class="mod-sidebar-new-wrap w-100">
-    <button class="btn mod-sidebar-new rounded-pill w-100 text-start" type="button" data-bs-toggle="modal" data-bs-target="#helpersNewEventModal">
-      <i class="bi bi-plus-lg me-2"></i>{{ _('helpers.sidebar.new_event') }}
+  <div class="mod-sidebar-new-wrap w-100 d-flex flex-column gap-1">
+    {% if current_event %}
+    <button class="btn mod-sidebar-new rounded-pill w-100 text-start" type="button" data-bs-toggle="modal" data-bs-target="#helpersAddHelperModal">
+      <i class="bi bi-plus-lg me-2"></i>{{ _('helpers.overview.add_helper') }}
     </button>
+    <button class="btn helpers-sidebar-secondary-btn w-100 text-start" type="button" data-bs-toggle="modal" data-bs-target="#helpersNewEventModal">
+      <i class="bi bi-calendar-plus me-1" aria-hidden="true"></i>{{ _('helpers.sidebar.new_event_btn') }}
+    </button>
+    {% else %}
+    <button class="btn mod-sidebar-new rounded-pill w-100 text-start" type="button" data-bs-toggle="modal" data-bs-target="#helpersNewEventModal">
+      <i class="bi bi-plus-lg me-2"></i>{{ _('helpers.sidebar.new_event_btn') }}
+    </button>
+    {% endif %}
   </div>
 
   {{ helpers_sidebar_content(events, current_event, active_nav, false) }}
@@ -83,10 +92,19 @@
     <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
   </div>
   <div class="offcanvas-body pt-0 d-flex flex-column">
-    <div class="mod-sidebar-new-wrap w-100 mb-3">
-      <button class="btn mod-sidebar-new rounded-pill w-100 text-start" type="button" data-bs-toggle="modal" data-bs-target="#helpersNewEventModal" data-bs-dismiss="offcanvas">
-        <i class="bi bi-plus-lg me-2"></i>{{ _('helpers.sidebar.new_event') }}
+    <div class="mod-sidebar-new-wrap w-100 mb-3 d-flex flex-column gap-1">
+      {% if current_event %}
+      <button class="btn mod-sidebar-new rounded-pill w-100 text-start" type="button" data-bs-toggle="modal" data-bs-target="#helpersAddHelperModal" data-bs-dismiss="offcanvas">
+        <i class="bi bi-plus-lg me-2"></i>{{ _('helpers.overview.add_helper') }}
       </button>
+      <button class="btn helpers-sidebar-secondary-btn w-100 text-start" type="button" data-bs-toggle="modal" data-bs-target="#helpersNewEventModal" data-bs-dismiss="offcanvas">
+        <i class="bi bi-calendar-plus me-1" aria-hidden="true"></i>{{ _('helpers.sidebar.new_event_btn') }}
+      </button>
+      {% else %}
+      <button class="btn mod-sidebar-new rounded-pill w-100 text-start" type="button" data-bs-toggle="modal" data-bs-target="#helpersNewEventModal" data-bs-dismiss="offcanvas">
+        <i class="bi bi-plus-lg me-2"></i>{{ _('helpers.sidebar.new_event_btn') }}
+      </button>
+      {% endif %}
     </div>
     {{ helpers_sidebar_content(events, current_event, active_nav, true) }}
   </div>
@@ -140,4 +158,117 @@
     </form>
   </div>
 </div>
+{% endmacro %}
+
+{% macro helpers_add_helper_modal(current_event) %}
+{% if current_event %}
+{% set modal_areas = areas if areas is defined else current_event.areas %}
+{% set modal_fields = all_active_fields if all_active_fields is defined else current_event.field_configs %}
+<div class="modal fade" id="helpersAddHelperModal" tabindex="-1" aria-labelledby="helpersAddHelperModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <form method="POST" action="{{ url_for('helpers.create_helper', event_id=current_event.id) }}" class="modal-content rounded-4 border-0 shadow">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="modal-header">
+        <h5 class="modal-title" id="helpersAddHelperModalLabel">{{ _('helpers.overview.add_helper') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label class="form-label" for="addHelperFirstName">{{ _('helpers.fields.first_name') }} *</label>
+            <input type="text" class="form-control mod-pill-input" id="addHelperFirstName" name="first_name" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="addHelperLastName">{{ _('helpers.fields.last_name') }} *</label>
+            <input type="text" class="form-control mod-pill-input" id="addHelperLastName" name="last_name" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="addHelperEmail">{{ _('helpers.fields.email') }} *</label>
+            <input type="email" class="form-control mod-pill-input" id="addHelperEmail" name="email" required>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="addHelperPhone">{{ _('helpers.fields.phone') }}</label>
+            <input type="text" class="form-control mod-pill-input" id="addHelperPhone" name="phone">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="addHelperTshirt">{{ _('helpers.fields.tshirt_size') }}</label>
+            <select class="form-select mod-pill-input" id="addHelperTshirt" name="tshirt_size">
+              <option value="">—</option>
+              {% for sz in ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'] %}
+              <option value="{{ sz }}">{{ sz }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label" for="addHelperStatus">{{ _('helpers.fields.status') }}</label>
+            <select class="form-select mod-pill-input" id="addHelperStatus" name="status">
+              <option value="confirmed">{{ _('helpers.status.confirmed') }}</option>
+              <option value="registered">{{ _('helpers.status.registered') }}</option>
+              <option value="cancelled">{{ _('helpers.status.cancelled') }}</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="addHelperAllergies">{{ _('helpers.fields.allergies') }}</label>
+            <textarea class="form-control" id="addHelperAllergies" name="allergies" rows="2"></textarea>
+          </div>
+          {% if modal_areas %}
+          <div class="col-12">
+            <div class="form-label fw-medium mb-1">{{ _('helpers.public.areas_label') }}</div>
+            <div class="row g-2">
+              {% for area in modal_areas %}
+              <div class="col-sm-6 col-md-4">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="addArea_{{ area.id }}" name="area_ids" value="{{ area.id }}">
+                  <label class="form-check-label small" for="addArea_{{ area.id }}">{{ area.name }}</label>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+          <div class="col-12">
+            <div class="form-label fw-medium mb-1">{{ _('helpers.public.days_label') }}</div>
+            <div class="d-flex flex-wrap gap-3">
+              {% for day in ['Freitag', 'Samstag', 'Sonntag', 'Aufbau / Abbau'] %}
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="addDay_{{ loop.index }}" name="available_days" value="{{ day }}">
+                <label class="form-check-label small" for="addDay_{{ loop.index }}">{{ day }}</label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% for fc in modal_fields %}
+          {% if fc.field_key not in ('first_name', 'last_name', 'email', 'phone', 'tshirt_size', 'allergies') %}
+          <div class="col-md-6">
+            <label class="form-label" for="addCustom_{{ fc.field_key }}">{{ fc.label }}</label>
+            {% if fc.field_type == 'textarea' %}
+            <textarea class="form-control" id="addCustom_{{ fc.field_key }}" name="custom_{{ fc.field_key }}" rows="2"></textarea>
+            {% elif fc.field_type == 'checkbox' %}
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="addCustom_{{ fc.field_key }}" name="custom_{{ fc.field_key }}" value="1">
+              <label class="form-check-label" for="addCustom_{{ fc.field_key }}">{{ fc.label }}</label>
+            </div>
+            {% elif fc.field_type == 'select' %}
+            <select class="form-select mod-pill-input" id="addCustom_{{ fc.field_key }}" name="custom_{{ fc.field_key }}">
+              <option value="">—</option>
+              {% for opt in fc.get_options() %}
+              <option value="{{ opt }}">{{ opt }}</option>
+              {% endfor %}
+            </select>
+            {% else %}
+            <input type="{{ 'number' if fc.field_type == 'number' else 'text' }}" class="form-control mod-pill-input" id="addCustom_{{ fc.field_key }}" name="custom_{{ fc.field_key }}">
+            {% endif %}
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+        <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent">{{ _('common.save') }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 {% endmacro %}

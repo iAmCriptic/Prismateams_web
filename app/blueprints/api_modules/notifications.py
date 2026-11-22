@@ -120,6 +120,7 @@ def get_notification_settings():
             "survey_response_notifications": getattr(settings, "survey_response_notifications", True),
             "room_booking_new_notifications": getattr(settings, "room_booking_new_notifications", True),
             "room_booking_status_notifications": getattr(settings, "room_booking_status_notifications", True),
+            "inventory_dguv_notifications": getattr(settings, "inventory_dguv_notifications", True),
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -147,6 +148,7 @@ def update_notification_settings():
             "comment_mention_notifications", "comment_reply_notifications",
             "survey_new_notifications", "survey_response_notifications",
             "room_booking_new_notifications", "room_booking_status_notifications",
+            "inventory_dguv_notifications",
         ]:
             if field in data:
                 setattr(settings, field, bool(data[field]))

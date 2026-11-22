@@ -298,7 +298,8 @@ def notifications():
         settings.email_notifications_enabled = settings.email_portal_enabled or settings.email_push_enabled
         settings.kanban_notifications_enabled = settings.kanban_portal_enabled or settings.kanban_push_enabled
         settings.file_notifications_enabled = settings.file_portal_enabled or settings.file_push_enabled
-        settings.inventory_notifications_enabled = settings.inventory_portal_enabled or settings.inventory_push_enabled
+        settings.inventory_notifications_enabled = 'inventory_notifications_enabled' in request.form
+        settings.inventory_dguv_notifications = 'inventory_dguv_notifications' in request.form
 
         # Kalender-Benachrichtigungen
         settings.calendar_notifications_enabled = settings.calendar_portal_enabled or settings.calendar_push_enabled
