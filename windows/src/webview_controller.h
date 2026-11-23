@@ -42,6 +42,7 @@ private:
     HWND m_hWndParent;
     bool m_isInitialized = false;
     bool m_isVisible = false;
+    bool m_cancelingLoginRedirect = false;
     std::wstring m_pendingNavigateUrl;
 
     Microsoft::WRL::ComPtr<ICoreWebView2Environment> m_environment;

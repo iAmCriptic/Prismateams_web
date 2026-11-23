@@ -8314,7 +8314,11 @@
       "max_hours": "Max. Std.",
       "head_bonus": "HEAD-Bonus Getränke",
       "global_rule": "Global (alle Bereiche)",
-      "active_event": "Event"
+      "active_event": "Event",
+      "delete_event_heading": "Delete event",
+      "delete_event_hint": "Permanently deletes this event including all registered helpers, areas, shifts, fields, and voucher rules.",
+      "delete_event_btn": "Delete event",
+      "delete_event_confirm": "Permanently delete event \"{name}\"? All associated helpers, areas, and shifts will be lost."
     },
     "public": {
       "title": "Helfer-Anmeldung",
@@ -8352,7 +8356,8 @@
       "rule_updated": "Markenregel aktualisiert.",
       "rule_deleted": "Markenregel entfernt.",
       "mail_sent": "Shift schedule email sent successfully.",
-      "mail_failed": "Could not send email."
+      "mail_failed": "Could not send email.",
+      "event_deleted": "Event deleted."
     },
     "ausgabe": {
       "subtitle": "Checklist for food and drink vouchers and T-shirt sizes",

@@ -578,36 +578,79 @@
     var targetInputId = null;
     var currentPath = '/';
     var apiUrl = modalEl.getAttribute('data-folders-url');
+    var loadSeq = 0;
 
-    function loadPath(path) {
+    function applySelectedPath(selectedPath) {
+        var inp = targetInputId ? document.getElementById(targetInputId) : null;
+        if (inp) {
+            inp.value = selectedPath || '/';
+            inp.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+    }
+
+    function updatePathDisplay(path) {
         currentPath = path || '/';
         if (pathEl) pathEl.textContent = currentPath;
+        if (upBtn) upBtn.disabled = (currentPath === '/');
+    }
+
+    function loadPath(path, allowRootFallback) {
+        var seq = ++loadSeq;
+        var reqPath = path || '/';
+        updatePathDisplay(reqPath);
         if (listEl) listEl.innerHTML = '<div class="text-body-secondary small p-2">{{ _("common.loading") }}</div>';
-        fetch(apiUrl + '?path=' + encodeURIComponent(currentPath))
+        fetch(apiUrl + '?path=' + encodeURIComponent(reqPath))
             .then(function (r) { return r.json(); })
             .then(function (data) {
+                if (seq !== loadSeq) return;
                 if (!data || !data.success) {
+                    if (allowRootFallback && reqPath !== '/') {
+                        loadPath('/', false);
+                        return;
+                    }
                     listEl.innerHTML = '<div class="text-danger small p-2">' + ((data && data.error) || 'Fehler') + '</div>';
                     return;
                 }
-                currentPath = data.path || '/';
-                if (pathEl) pathEl.textContent = currentPath;
+                updatePathDisplay(data.path || '/');
                 if (!data.folders || data.folders.length === 0) {
                     listEl.innerHTML = '<div class="text-body-secondary small p-2">{{ _("settings.admin.file_settings.nc_picker_empty") }}</div>';
                     return;
                 }
                 listEl.innerHTML = '';
                 data.folders.forEach(function (f) {
-                    var btn = document.createElement('button');
-                    btn.type = 'button';
-                    btn.className = 'list-group-item list-group-item-action d-flex align-items-center gap-2';
-                    btn.innerHTML = '<i class="bi bi-folder-fill text-warning" aria-hidden="true"></i><span></span>';
-                    btn.querySelector('span').textContent = f.name;
-                    btn.addEventListener('click', function () { loadPath(f.path); });
-                    listEl.appendChild(btn);
+                    var row = document.createElement('div');
+                    row.className = 'list-group-item list-group-item-action d-flex align-items-center justify-content-between gap-2 p-0';
+
+                    var openBtn = document.createElement('button');
+                    openBtn.type = 'button';
+                    openBtn.className = 'btn btn-link text-decoration-none text-body d-flex align-items-center gap-2 flex-grow-1 text-start px-3 py-2 border-0';
+                    openBtn.innerHTML = '<i class="bi bi-folder-fill text-warning" aria-hidden="true"></i><span class="text-truncate"></span>';
+                    openBtn.querySelector('span').textContent = f.name;
+                    openBtn.addEventListener('click', function () { loadPath(f.path, false); });
+
+                    var pickBtn = document.createElement('button');
+                    pickBtn.type = 'button';
+                    pickBtn.className = 'btn btn-sm btn-outline-secondary mod-pill-btn mod-pill-btn--outline-muted me-2 flex-shrink-0';
+                    pickBtn.title = '{{ _("settings.admin.file_settings.nc_picker_select") }}';
+                    pickBtn.setAttribute('aria-label', '{{ _("settings.admin.file_settings.nc_picker_select") }}: ' + f.name);
+                    pickBtn.innerHTML = '<i class="bi bi-check2" aria-hidden="true"></i>';
+                    pickBtn.addEventListener('click', function (e) {
+                        e.stopPropagation();
+                        applySelectedPath(f.path);
+                    });
+
+                    row.appendChild(openBtn);
+                    row.appendChild(pickBtn);
+                    listEl.appendChild(row);
                 });
             })
             .catch(function () {
+                if (seq !== loadSeq) return;
+                if (allowRootFallback && reqPath !== '/') {
+                    loadPath('/', false);
+                    return;
+                }
                 if (listEl) listEl.innerHTML = '<div class="text-danger small p-2">Verbindungsfehler</div>';
             });
     }
@@ -619,7 +662,7 @@
             var startPath = (inp && inp.value.trim()) ? inp.value.trim() : '/';
             var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
             modal.show();
-            loadPath(startPath);
+            loadPath(startPath, true);
         });
     });
 
@@ -627,17 +670,12 @@
         upBtn.addEventListener('click', function () {
             var parts = currentPath.split('/').filter(Boolean);
             parts.pop();
-            loadPath('/' + parts.join('/'));
+            loadPath('/' + parts.join('/'), false);
         });
     }
     if (selectBtn) {
         selectBtn.addEventListener('click', function () {
-            var inp = targetInputId ? document.getElementById(targetInputId) : null;
-            if (inp) {
-                inp.value = currentPath;
-                inp.dispatchEvent(new Event('change', { bubbles: true }));
-            }
-            bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+            applySelectedPath(currentPath);
         });
     }
 })();

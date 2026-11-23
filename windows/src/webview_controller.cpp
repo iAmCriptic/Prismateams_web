@@ -160,6 +160,7 @@ void WebViewController::SetupEventHandlers() {
                         std::wstring rel = uri.substr(srv.length());
                         if (rel == L"/login" || rel.rfind(L"/login?", 0) == 0 ||
                             rel == L"/auth/login" || rel.rfind(L"/auth/login?", 0) == 0) {
+                            m_cancelingLoginRedirect = true;
                             args->put_Cancel(TRUE);
                             PostMessageW(m_hWndParent, WM_COMMAND, MAKEWPARAM(2006, 0), 0); // ID_TRAY_LOGOUT
                         }
@@ -203,6 +204,10 @@ void WebViewController::SetupEventHandlers() {
                     COREWEBVIEW2_WEB_ERROR_STATUS status;
                     args->get_WebErrorStatus(&status);
                     if (status == COREWEBVIEW2_WEB_ERROR_STATUS_OPERATION_CANCELED) {
+                        return S_OK;
+                    }
+                    if (m_cancelingLoginRedirect) {
+                        m_cancelingLoginRedirect = false;
                         return S_OK;
                     }
                     std::wstring offlineHtml = DesktopUI::BuildOfflineHtml(

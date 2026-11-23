@@ -36,10 +36,13 @@ private:
     WebDavManager() = default;
 
     std::wstring FormatWebDavUncPath(const std::wstring& serverUrl);
+    void SaveHostCredentials(const std::wstring& serverUrl, const std::wstring& username, const std::wstring& password);
+    void ClearHostCredentials();
 
     bool m_isMounted = false;
     wchar_t m_mountedLetter = L'P';
     std::wstring m_uncPath = L"";
+    std::wstring m_mountedHost = L"";
 };
 
 } // namespace Prismateams

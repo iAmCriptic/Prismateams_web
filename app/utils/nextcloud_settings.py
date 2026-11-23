@@ -30,8 +30,10 @@ VALID_PUBLIC_ACCESS_MODES = frozenset({'all', 'read_only', 'admins_only', 'disab
 
 def normalize_remote_path(path: str | None) -> str:
     raw = (path or '').strip().replace('\\', '/')
+    if not raw:
+        return ''
     parts = [p for p in raw.split('/') if p and p not in ('.', '..')]
-    return '/' + '/'.join(parts) if parts else ''
+    return '/' + '/'.join(parts) if parts else '/'
 
 
 def is_nextcloud_files_enabled() -> bool:
