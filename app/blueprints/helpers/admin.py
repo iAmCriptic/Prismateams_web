@@ -94,6 +94,25 @@ def update_event_settings(event_id):
     return _admin_redirect(current_event.id)
 
 
+@helpers_bp.route('/event/<int:event_id>/delete', methods=['POST'])
+def delete_event(event_id):
+    _require_admin()
+    _, current_event = _resolve_event_context(event_id)
+    from app.models.event import EventHelperLink
+
+    EventHelperLink.query.filter_by(helper_event_id=current_event.id).delete()
+    db.session.delete(current_event)
+    db.session.commit()
+    flash(translate('helpers.flash.event_deleted'), 'info')
+
+    if (request.form.get('next') or '').strip() == 'settings':
+        return redirect(url_for('settings.admin_helpers_settings'))
+    remaining = HelperEvent.query.filter_by(is_active=True).order_by(HelperEvent.created_at.desc()).first()
+    if remaining:
+        return redirect(url_for('helpers.settings', event_id=remaining.id))
+    return redirect(url_for('helpers.index'))
+
+
 @helpers_bp.route('/event/<int:event_id>/settings/fields/create', methods=['POST'])
 def create_field(event_id):
     _require_admin()

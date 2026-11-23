@@ -8314,7 +8314,11 @@
       "max_hours": "Max. Std.",
       "head_bonus": "HEAD-Bonus Getränke",
       "global_rule": "Global (alle Bereiche)",
-      "active_event": "Veranstaltung"
+      "active_event": "Veranstaltung",
+      "delete_event_heading": "Veranstaltung löschen",
+      "delete_event_hint": "Löscht diese Veranstaltung inklusive aller registrierten Helfer, Bereiche, Schichten, Felder und Markenregeln unwiderruflich.",
+      "delete_event_btn": "Veranstaltung löschen",
+      "delete_event_confirm": "Veranstaltung \"{name}\" wirklich unwiderruflich löschen? Alle zugehörigen Helfer, Bereiche und Schichten gehen verloren."
     },
     "public": {
       "title": "Helfer-Anmeldung",
@@ -8330,6 +8334,7 @@
     "flash": {
       "event_name_required": "Bitte einen Veranstaltungsnamen angeben.",
       "event_created": "Veranstaltung erfolgreich angelegt.",
+      "event_deleted": "Veranstaltung gelöscht.",
       "helper_required_fields": "Vorname, Nachname und E-Mail sind Pflichtfelder.",
       "duplicate_email": "Diese E-Mail-Adresse ist für diese Veranstaltung bereits registriert.",
       "helper_created": "Helfer erfolgreich angelegt.",

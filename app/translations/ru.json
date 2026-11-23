@@ -8093,7 +8093,11 @@
       "max_hours": "Max. Std.",
       "head_bonus": "HEAD-Bonus Getränke",
       "global_rule": "Global (alle Bereiche)",
-      "active_event": "Событие"
+      "active_event": "Событие",
+      "delete_event_heading": "Удалить событие",
+      "delete_event_hint": "Безвозвратно удаляет это событие, включая всех зарегистрированных волонтёров, зоны, смены, поля и правила ваучеров.",
+      "delete_event_btn": "Удалить событие",
+      "delete_event_confirm": "Безвозвратно удалить событие «{name}»? Все связанные волонтёры, зоны и смены будут удалены."
     },
     "public": {
       "title": "Helfer-Anmeldung",
@@ -8131,7 +8135,8 @@
       "rule_updated": "Markenregel aktualisiert.",
       "rule_deleted": "Markenregel entfernt.",
       "mail_sent": "Schichtplan-E-Mail erfolgreich gesendet.",
-      "mail_failed": "E-Mail konnte nicht gesendet werden."
+      "mail_failed": "E-Mail konnte nicht gesendet werden.",
+      "event_deleted": "Событие удалено."
     },
     "ausgabe": {
       "subtitle": "Checkliste für Essens- und Getränkemarken sowie T-Shirt-Größen",

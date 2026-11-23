@@ -361,3 +361,58 @@ def test_protected_routes_and_event_link(client, app):
     )
     assert resp_link.status_code == 200
     assert EventHelperLink.query.filter_by(event_id=portal_ev.id, helper_event_id=ev.id).first() is not None
+
+
+def test_delete_helper_event_from_settings(client):
+    """Veranstaltungen können über die Einstellungen gelöscht werden (inkl. Kaskaden & Rechten)."""
+    _enable_helpers_module()
+    admin = _create_user('orga_del', is_admin=True)
+    member = _create_user('member_del', is_admin=False)
+    ev1 = create_helper_event('Altes Event 1')
+    ev2 = create_helper_event('Altes Event 2')
+
+    portal_ev = Event(
+        name='Portal Event',
+        start_date=date(2026, 7, 1),
+        end_date=date(2026, 7, 2),
+        created_by=admin.id,
+        owner_id=admin.id,
+    )
+    db.session.add(portal_ev)
+    db.session.commit()
+    db.session.add(EventHelperLink(event_id=portal_ev.id, helper_event_id=ev1.id))
+    db.session.commit()
+
+    # Nicht-Admin erhält 403
+    _login(client, member)
+    resp_forbidden = client.post(f'/helfer/event/{ev1.id}/delete')
+    assert resp_forbidden.status_code == 403
+    assert db.session.get(HelperEvent, ev1.id) is not None
+
+    # Admin sieht Lösch-Button in beiden Einstellungs-Ansichten und kann löschen
+    _login(client, admin)
+    sp_resp = client.get(f'/settings/admin/helpers?event_id={ev1.id}')
+    assert sp_resp.status_code == 200
+    assert f'/helfer/event/{ev1.id}/delete'.encode('utf-8') in sp_resp.data
+
+    mod_resp = client.get(f'/helfer/event/{ev2.id}/settings')
+    assert mod_resp.status_code == 200
+    assert f'/helfer/event/{ev2.id}/delete'.encode('utf-8') in mod_resp.data
+
+    # Löschen aus Portal-Einstellungen (next=settings)
+    del1 = client.post(
+        f'/helfer/event/{ev1.id}/delete',
+        data={'next': 'settings'},
+        follow_redirects=True,
+    )
+    assert del1.status_code == 200
+    assert db.session.get(HelperEvent, ev1.id) is None
+    assert EventHelperLink.query.filter_by(helper_event_id=ev1.id).first() is None
+    assert HelperArea.query.filter_by(event_id=ev1.id).count() == 0
+
+    # Löschen des letzten Events aus Modul-Einstellungen -> Redirect auf helpers.index
+    del2 = client.post(f'/helfer/event/{ev2.id}/delete', follow_redirects=False)
+    assert del2.status_code == 302
+    assert del2.headers['Location'].endswith('/helfer/')
+    assert db.session.get(HelperEvent, ev2.id) is None
+    assert client.get('/helfer/').status_code == 200

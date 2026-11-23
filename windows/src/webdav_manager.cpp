@@ -2,6 +2,7 @@
 #include <winnetwk.h>
 #include <winsvc.h>
 #include <winhttp.h>
+#include <wincred.h>
 #include <shellapi.h>
 #include <sstream>
 
@@ -120,6 +121,51 @@ std::wstring WebDavManager::FormatWebDavUncPath(const std::wstring& serverUrl) {
     return unc;
 }
 
+void WebDavManager::SaveHostCredentials(const std::wstring& serverUrl, const std::wstring& username, const std::wstring& password) {
+    if (username.empty() || password.empty()) return;
+
+    URL_COMPONENTS urlComp = { sizeof(URL_COMPONENTS) };
+    wchar_t hostName[256] = { 0 };
+    urlComp.lpszHostName = hostName;
+    urlComp.dwHostNameLength = 256;
+    if (!WinHttpCrackUrl(serverUrl.c_str(), static_cast<DWORD>(serverUrl.length()), 0, &urlComp)) {
+        return;
+    }
+
+    m_mountedHost = hostName;
+    std::wstring hostWithPort = m_mountedHost;
+    if ((urlComp.nScheme == INTERNET_SCHEME_HTTPS && urlComp.nPort != 443) ||
+        (urlComp.nScheme == INTERNET_SCHEME_HTTP && urlComp.nPort != 80)) {
+        hostWithPort += L":" + std::to_wstring(urlComp.nPort);
+    }
+
+    auto writeCred = [&](DWORD type, const std::wstring& target) {
+        CREDENTIALW cred = { 0 };
+        cred.Type = type;
+        cred.TargetName = const_cast<LPWSTR>(target.c_str());
+        cred.UserName = const_cast<LPWSTR>(username.c_str());
+        cred.CredentialBlobSize = static_cast<DWORD>(password.length() * sizeof(wchar_t));
+        cred.CredentialBlob = reinterpret_cast<LPBYTE>(const_cast<LPWSTR>(password.c_str()));
+        cred.Persist = CRED_PERSIST_LOCAL_MACHINE;
+        CredWriteW(&cred, 0);
+    };
+
+    writeCred(CRED_TYPE_DOMAIN_PASSWORD, m_mountedHost);
+    writeCred(CRED_TYPE_GENERIC, m_mountedHost);
+    if (hostWithPort != m_mountedHost) {
+        writeCred(CRED_TYPE_DOMAIN_PASSWORD, hostWithPort);
+        writeCred(CRED_TYPE_GENERIC, hostWithPort);
+    }
+}
+
+void WebDavManager::ClearHostCredentials() {
+    if (!m_mountedHost.empty()) {
+        CredDeleteW(m_mountedHost.c_str(), CRED_TYPE_DOMAIN_PASSWORD, 0);
+        CredDeleteW(m_mountedHost.c_str(), CRED_TYPE_GENERIC, 0);
+        m_mountedHost.clear();
+    }
+}
+
 bool WebDavManager::MountDrive(
     const std::wstring& serverUrl,
     const std::wstring& username,
@@ -215,6 +261,7 @@ bool WebDavManager::MountDrive(
         m_isMounted = true;
         m_mountedLetter = outAssignedLetter;
         m_uncPath = remoteUnc;
+        SaveHostCredentials(serverUrl, username, password);
         return true;
     }
 
@@ -248,6 +295,7 @@ bool WebDavManager::UnmountDrive(wchar_t driveLetter, bool force) {
 }
 
 bool WebDavManager::UnmountCurrentDrive(bool force) {
+    ClearHostCredentials();
     if (!m_isMounted) return true;
     bool ok = UnmountDrive(m_mountedLetter, force);
     if (ok) {

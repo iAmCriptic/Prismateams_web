@@ -173,6 +173,7 @@
                 }
             } else if (message.type === 'PRESENCE') {
                 if (socketId && payload.username && socketId !== this.socket?.id) {
+                    const isNew = !this.collaboratorsMap.has(socketId);
                     const colorHex = payload.userColor || '#0d6efd';
                     const existing = this.collaboratorsMap.get(socketId) || {};
                     this.collaboratorsMap.set(socketId, {
@@ -183,6 +184,12 @@
                         lastSeen: Date.now(),
                     });
                     this._notifyCollaborators();
+                    if (isNew && this.options.getScene) {
+                        const scene = this.options.getScene();
+                        if (scene && scene.elements && scene.elements.length > 0) {
+                            this.broadcastScene(scene.elements, scene.files);
+                        }
+                    }
                 }
             } else if (message.type === 'POINTER') {
                 if (socketId && socketId !== this.socket?.id) {

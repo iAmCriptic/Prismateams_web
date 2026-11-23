@@ -480,3 +480,51 @@ def test_nextcloud_public_file_view_restriction(app, client):
         fobj = upload_nextcloud_file(pub_root, 'secret.txt', b'admin-only', user_id=admin.id, mime_type='text/plain')
         assert can_view_file(fobj, admin) is True
         assert can_view_file(fobj, user) is False
+
+
+def test_nextcloud_public_path_root_and_custom_folder_persist(app, client):
+    from app.utils.nextcloud_settings import get_nextcloud_public_path, normalize_remote_path
+
+    assert normalize_remote_path('/') == '/'
+    assert normalize_remote_path('///') == '/'
+    assert normalize_remote_path('') == ''
+    assert normalize_remote_path(None) == ''
+    assert normalize_remote_path('Shared/Team') == '/Shared/Team'
+
+    admin = _create_user('nc_path_admin', is_admin=True)
+    _login(client, admin)
+
+    # Selecting Nextcloud root '/' must persist as '/' and not fall back to '/Public'
+    resp = client.post('/settings/admin/file-settings', data={
+        'files_max_file_value': '100',
+        'files_max_file_unit': 'MB',
+        'files_quota_value': '15',
+        'files_quota_unit': 'GB',
+        'files_trash_retention_days': '30',
+        'files_nextcloud_enabled': 'on',
+        'files_storage_mode': 'nextcloud',
+        'files_nextcloud_private_base_path': '/',
+        'files_nextcloud_public_enabled': 'on',
+        'files_nextcloud_public_path': '/',
+        'files_nextcloud_public_access': 'all',
+    })
+    assert resp.status_code in (200, 302)
+    assert get_nextcloud_public_path() == '/'
+
+    # Selecting a custom folder must persist as that folder
+    resp2 = client.post('/settings/admin/file-settings', data={
+        'files_max_file_value': '100',
+        'files_max_file_unit': 'MB',
+        'files_quota_value': '15',
+        'files_quota_unit': 'GB',
+        'files_trash_retention_days': '30',
+        'files_nextcloud_enabled': 'on',
+        'files_storage_mode': 'nextcloud',
+        'files_nextcloud_private_base_path': '/Privat',
+        'files_nextcloud_public_enabled': 'on',
+        'files_nextcloud_public_path': '/Gemeinsam/Dokumente',
+        'files_nextcloud_public_access': 'all',
+    })
+    assert resp2.status_code in (200, 302)
+    assert get_nextcloud_public_path() == '/Gemeinsam/Dokumente'
+

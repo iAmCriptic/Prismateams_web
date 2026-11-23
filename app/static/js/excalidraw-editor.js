@@ -4,12 +4,47 @@ const ExcalidrawLib = window.ExcalidrawLib || {};
 const Excalidraw = ExcalidrawLib.Excalidraw || ExcalidrawLib.default;
 const exportToBlob = ExcalidrawLib.exportToBlob;
 const getSceneVersion = ExcalidrawLib.getSceneVersion;
+const reconcileElements = ExcalidrawLib.reconcileElements;
+const CaptureUpdateAction = ExcalidrawLib.CaptureUpdateAction;
+const useHandleLibrary = ExcalidrawLib.useHandleLibrary;
+const LIBRARY_STORAGE_KEY = 'prismateams-excalidraw-library';
+
+const libraryPersistenceAdapter = {
+    async load() {
+        try {
+            const raw = window.localStorage.getItem(LIBRARY_STORAGE_KEY);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                return { libraryItems: parsed };
+            }
+            if (parsed && Array.isArray(parsed.libraryItems)) {
+                return { libraryItems: parsed.libraryItems };
+            }
+            return null;
+        } catch (err) {
+            console.warn('Failed to load Excalidraw library from localStorage', err);
+            return null;
+        }
+    },
+    async save(libraryData) {
+        try {
+            const items = (libraryData && Array.isArray(libraryData.libraryItems))
+                ? libraryData.libraryItems
+                : [];
+            window.localStorage.setItem(LIBRARY_STORAGE_KEY, JSON.stringify({ libraryItems: items }));
+        } catch (err) {
+            console.warn('Failed to save Excalidraw library to localStorage', err);
+        }
+    },
+};
 
 const CONFIG = window.EXCALIDRAW_EDITOR_CONFIG || {};
 
 let api = null;
 let saveTimer = null;
 let lastSavedVersion = -1;
+let lastBroadcastedSceneVersion = -1;
 let lastElements = [];
 let lastAppState = {};
 let lastFiles = {};
@@ -19,6 +54,8 @@ let leaving = false;
 let applyingRemote = false;
 let pointerThrottleFrame = null;
 let pendingPointer = null;
+let lastKnownPointer = { x: 0, y: 0 };
+let lastKnownButton = 'up';
 let sceneBroadcastTimer = null;
 const SAVE_DELAY_MS = 3000;
 
@@ -123,17 +160,42 @@ function scheduleSave() {
     }, SAVE_DELAY_MS);
 }
 
+function sceneVersionOf(elements) {
+    return typeof getSceneVersion === 'function' ? getSceneVersion(elements || []) : -1;
+}
+
 function applyRemoteScene(payload) {
     if (!api || !payload) return;
     applyingRemote = true;
     try {
-        const elements = payload.elements || [];
-        lastElements = elements;
+        const remoteElements = payload.elements || [];
+        const localElements = typeof api.getSceneElementsIncludingDeleted === 'function'
+            ? api.getSceneElementsIncludingDeleted()
+            : (lastElements || []);
+        const localAppState = typeof api.getAppState === 'function'
+            ? api.getAppState()
+            : (lastAppState || {});
+        const nextElements = typeof reconcileElements === 'function'
+            ? reconcileElements(localElements, remoteElements, localAppState)
+            : remoteElements;
+
         if (payload.files) {
-            lastFiles = payload.files;
+            lastFiles = { ...(lastFiles || {}), ...payload.files };
             if (api.addFiles) api.addFiles(payload.files);
         }
-        api.updateScene({ elements });
+
+        const nextVersion = sceneVersionOf(nextElements);
+        const currentVersion = sceneVersionOf(localElements);
+        lastElements = nextElements;
+        if (nextVersion !== -1) {
+            lastBroadcastedSceneVersion = nextVersion;
+        }
+        if (nextVersion === -1 || nextVersion !== currentVersion) {
+            api.updateScene({
+                elements: nextElements,
+                ...(CaptureUpdateAction ? { captureUpdate: CaptureUpdateAction.NEVER } : {}),
+            });
+        }
     } finally {
         window.setTimeout(() => { applyingRemote = false; }, 30);
     }
@@ -146,19 +208,30 @@ function onChange(elements, appState, files) {
     lastAppState = appState;
     lastFiles = files;
     if (applyingRemote) return;
-    scheduleSave();
+
+    const currentVersion = sceneVersionOf(elements);
+    const elementsChanged = currentVersion === -1 || currentVersion !== lastBroadcastedSceneVersion;
+
+    if (elementsChanged) {
+        scheduleSave();
+    }
+
     const collab = window.PrismateamsExcalidrawCollab;
     if (collab && collab.started) {
-        if (!sceneBroadcastTimer) {
+        if (elementsChanged && !sceneBroadcastTimer) {
             sceneBroadcastTimer = window.setTimeout(() => {
                 sceneBroadcastTimer = null;
-                collab.broadcastScene(lastElements, lastFiles);
+                const latestVersion = sceneVersionOf(lastElements);
+                if (latestVersion === -1 || latestVersion !== lastBroadcastedSceneVersion) {
+                    lastBroadcastedSceneVersion = latestVersion;
+                    collab.broadcastScene(lastElements, lastFiles);
+                }
             }, 60);
         }
         const currentSelectionStr = JSON.stringify(appState ? (appState.selectedElementIds || {}) : {});
         if (currentSelectionStr !== lastBroadcastSelection) {
             lastBroadcastSelection = currentSelectionStr;
-            collab.broadcastPointer({ x: 0, y: 0 }, 'up', appState.selectedElementIds || {});
+            collab.broadcastPointer(lastKnownPointer, lastKnownButton, appState.selectedElementIds || {});
         }
     }
 }
@@ -222,7 +295,10 @@ function onCollaboratorsChange(collaboratorsMap) {
         updateSceneFrame = requestAnimationFrame(() => {
             updateSceneFrame = null;
             if (api && typeof api.updateScene === 'function' && pendingCollaborators) {
-                api.updateScene({ collaborators: pendingCollaborators });
+                api.updateScene({
+                    collaborators: new Map(pendingCollaborators),
+                    ...(CaptureUpdateAction ? { captureUpdate: CaptureUpdateAction.NEVER } : {}),
+                });
             }
             pendingCollaborators = null;
         });
@@ -231,6 +307,8 @@ function onCollaboratorsChange(collaboratorsMap) {
 
 function onPointerUpdate(payload) {
     if (!payload || !payload.pointer) return;
+    lastKnownPointer = payload.pointer;
+    lastKnownButton = payload.button || 'up';
     pendingPointer = payload;
     if (!pointerThrottleFrame) {
         pointerThrottleFrame = requestAnimationFrame(() => {
@@ -281,36 +359,57 @@ async function boot() {
     lastAppState = initialData.appState || {};
     lastFiles = initialData.files || {};
     lastSavedVersion = typeof getSceneVersion === 'function' ? getSceneVersion(lastElements) : 0;
+    lastBroadcastedSceneVersion = sceneVersionOf(lastElements);
 
     const theme = CONFIG.themeDark ? 'dark' : 'light';
+    const uiOptions = {
+        dockedSidebarBreakpoint: 0,
+        canvasActions: {
+            loadScene: true,
+            saveToActiveFile: true,
+            toggleTheme: true,
+            export: { saveFileToDisk: true },
+            saveAsImage: true,
+            clearCanvas: true,
+            changeViewBackgroundColor: true,
+        },
+        tools: {
+            image: true,
+        },
+    };
+
+    function ExcalidrawApp() {
+        const [excalidrawAPI, setExcalidrawAPI] = React.useState(null);
+
+        if (typeof useHandleLibrary === 'function') {
+            useHandleLibrary({
+                excalidrawAPI,
+                adapter: libraryPersistenceAdapter,
+            });
+        }
+
+        const handleApi = React.useCallback((nextApi) => {
+            api = nextApi;
+            setExcalidrawAPI(nextApi);
+        }, []);
+
+        return React.createElement(Excalidraw, {
+            initialData,
+            onChange,
+            onPointerUpdate,
+            theme,
+            langCode: CONFIG.langCode || 'de-DE',
+            name: CONFIG.name,
+            viewModeEnabled: !CONFIG.canEdit,
+            UIOptions: uiOptions,
+            validateEmbeddable: true,
+            excalidrawAPI: handleApi,
+        });
+    }
+
     const createRoot = ReactDOM.createRoot ? ((el) => ReactDOM.createRoot(el)) : ((el) => ({ render: (c) => ReactDOM.render(c, el) }));
     const root = createRoot(rootEl);
-    root.render(React.createElement(Excalidraw, {
-        initialData,
-        onChange,
-        onPointerUpdate,
-        theme,
-        langCode: CONFIG.langCode || 'de-DE',
-        name: CONFIG.name,
-        viewModeEnabled: !CONFIG.canEdit,
-        UIOptions: {
-            dockedSidebarBreakpoint: 0,
-            canvasActions: {
-                loadScene: true,
-                saveToActiveFile: true,
-                toggleTheme: true,
-                export: { saveFileToDisk: true },
-                saveAsImage: true,
-                clearCanvas: true,
-                changeViewBackgroundColor: true,
-            },
-            tools: {
-                image: true,
-            },
-        },
-        validateEmbeddable: true,
-        excalidrawAPI: (nextApi) => { api = nextApi; },
-    }));
+    root.render(React.createElement(ExcalidrawApp));
 
     document.addEventListener('keydown', (event) => {
         // Ctrl+S / Cmd+S: save
