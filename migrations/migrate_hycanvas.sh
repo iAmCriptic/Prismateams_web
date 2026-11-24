@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Prismateams – Automatische HyCanvas ("Canvas") Integration & Migration
+# Prismateams – Automatische HyCanvas ("Canvas") Migration (Natives Portal + Docker HyCanvas)
 #
-# Führt alle notwendigen Schritte idempotent aus:
-#   1. .env anlegen/aktualisieren (COMPOSE_PROFILES, HYCANVAS_*, sichere Secrets)
-#   2. Nginx-Config (docker/nginx/default.conf) prüfen & /hycanvas/-Block ergänzen
-#   3. Datenbank-Tabelle canvas_documents anlegen
-#   4. Docker-Container (hycanvas-db, hycanvas, app, proxy) starten/neuladen
+# Geht immer davon aus, dass Prismateams nativ auf dem Host läuft und
+# HyCanvas + hycanvas-db als Docker-Container auf 127.0.0.1:8005 bereitgestellt werden.
+#
+# Führt alle Schritte idempotent aus, ohne bestehende Anpassungen zu überschreiben:
+#   1. .env ergänzen (HYCANVAS_*, COMPOSE_PROFILES, sichere Secrets)
+#   2. Host-Nginx (/etc/nginx/sites-available/*) & docker/nginx/default.conf prüfen/ergänzen
+#   3. Nur Docker-Container hycanvas & hycanvas-db starten (ohne app/db anzufassen)
+#   4. Tabelle canvas_documents & module_canvas_enabled über lokales .venv anlegen
 #
 # Verwendung:
-#   bash migrations/migrate_hycanvas.sh
+#   sudo bash migrations/migrate_hycanvas.sh
 # ==============================================================================
 
 set -euo pipefail
@@ -20,7 +23,7 @@ cd "${PROJECT_ROOT}"
 
 ENV_FILE="${PROJECT_ROOT}/.env"
 ENV_EXAMPLE="${PROJECT_ROOT}/docs/env.docker.example"
-NGINX_CONF="${PROJECT_ROOT}/docker/nginx/default.conf"
+DOCKER_NGINX_CONF="${PROJECT_ROOT}/docker/nginx/default.conf"
 
 echo "[1/4] Prüfe und aktualisiere .env..."
 if [[ ! -f "${ENV_FILE}" ]]; then
@@ -58,18 +61,18 @@ get_env() {
     grep -E "^${key}=" "${ENV_FILE}" | head -n1 | cut -d'=' -f2- | tr -d '\r' || true
 }
 
-# COMPOSE_PROFILES um hycanvas erweitern
+# COMPOSE_PROFILES um hycanvas erweitern (bestehende Profile bleiben erhalten)
 CURRENT_PROFILES="$(get_env COMPOSE_PROFILES)"
 if [[ -z "${CURRENT_PROFILES}" ]]; then
-    upsert_env "COMPOSE_PROFILES" "proxy,onlyoffice,excalidraw,mirotalk,hycanvas"
+    upsert_env "COMPOSE_PROFILES" "hycanvas"
 elif [[ ",${CURRENT_PROFILES}," != *",hycanvas,"* ]]; then
     upsert_env "COMPOSE_PROFILES" "${CURRENT_PROFILES},hycanvas"
 fi
 
-# Standardwerte setzen, falls fehlend
+# Natives Portal spricht HyCanvas immer über 127.0.0.1:8005 an
 [[ -z "$(get_env HYCANVAS_ENABLED)" ]] && upsert_env "HYCANVAS_ENABLED" "True"
 [[ -z "$(get_env HYCANVAS_URL)" ]] && upsert_env "HYCANVAS_URL" "/hycanvas"
-[[ -z "$(get_env HYCANVAS_API_URL)" ]] && upsert_env "HYCANVAS_API_URL" "http://hycanvas:8005"
+upsert_env "HYCANVAS_API_URL" "http://127.0.0.1:8005"
 [[ -z "$(get_env HYCANVAS_HOST_BIND)" ]] && upsert_env "HYCANVAS_HOST_BIND" "127.0.0.1"
 [[ -z "$(get_env HYCANVAS_HOST_PORT)" ]] && upsert_env "HYCANVAS_HOST_PORT" "8005"
 [[ -z "$(get_env HYCANVAS_DB_USER)" ]] && upsert_env "HYCANVAS_DB_USER" "hycanvas"
@@ -85,20 +88,25 @@ CUR_JWT="$(get_env HYCANVAS_JWT_SECRET)"
 if [[ -z "${CUR_JWT}" || "${CUR_JWT}" == *"change-me"* || "${CUR_JWT}" == *"changeme"* ]]; then
     upsert_env "HYCANVAS_JWT_SECRET" "$(gen_hex)"
 fi
-echo "  -> .env aktualisiert."
+echo "  -> .env aktualisiert (HYCANVAS_API_URL=http://127.0.0.1:8005)."
 
-echo "[2/4] Prüfe Nginx-Konfiguration (${NGINX_CONF})..."
-if [[ -f "${NGINX_CONF}" ]] && ! grep -q "location /hycanvas/" "${NGINX_CONF}"; then
-    python3 - "${NGINX_CONF}" << 'PYEOF'
+echo "[2/4] Prüfe Nginx-Konfiguration..."
+patch_nginx_file() {
+    local conf_file="$1"
+    local upstream="$2"
+    python3 - "${conf_file}" "${upstream}" << 'PYEOF'
 import sys, pathlib
 p = pathlib.Path(sys.argv[1])
+upstream = sys.argv[2]
 text = p.read_text(encoding='utf-8')
-block = """    # HyCanvas (Canvas-Modul)
-    location /hycanvas/ {
-        proxy_pass http://hycanvas:8005/;
+if 'location /hycanvas/' in text:
+    sys.exit(0)
+block = f"""    # HyCanvas (Canvas-Modul)
+    location /hycanvas/ {{
+        proxy_pass http://{upstream}/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
+        proxy_set_header Connection "upgrade";
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -106,29 +114,50 @@ block = """    # HyCanvas (Canvas-Modul)
         proxy_hide_header X-Frame-Options;
         proxy_buffering off;
         proxy_read_timeout 600;
-    }
+    }}
 
 """
-anchor = "    # WebSockets für Socket.IO"
-if anchor in text:
-    text = text.replace(anchor, block + anchor, 1)
-else:
-    text = text.replace("    location / {", block + "    location / {", 1)
-p.write_text(text, encoding='utf-8')
-print("  -> /hycanvas/ Proxy-Block eingefügt.")
+for anchor in ("    # WebSockets für Socket.IO", "    location /socket.io/", "    location / {"):
+    if anchor in text:
+        text = text.replace(anchor, block + anchor, 1)
+        p.write_text(text, encoding='utf-8')
+        print(f"  -> /hycanvas/ Proxy-Block in {p} eingefügt.")
+        sys.exit(0)
+print(f"  -> Hinweis: Kein passender Anker in {p} gefunden, bitte manuell prüfen.")
 PYEOF
-else
-    echo "  -> /hycanvas/ Proxy-Block bereits vorhanden."
+}
+
+if [[ -f "${DOCKER_NGINX_CONF}" ]] && ! grep -q "location /hycanvas/" "${DOCKER_NGINX_CONF}"; then
+    patch_nginx_file "${DOCKER_NGINX_CONF}" "hycanvas:8005"
 fi
 
-echo "[3/4] Starte/Aktualisiere Docker-Container (inkl. hycanvas)..."
+if [[ -d /etc/nginx/sites-available ]]; then
+    for site_conf in /etc/nginx/sites-available/*; do
+        [[ -f "${site_conf}" ]] || continue
+        if grep -qE "127\.0\.0\.1:5000|localhost:5000|teamportal" "${site_conf}" && ! grep -q "location /hycanvas/" "${site_conf}"; then
+            patch_nginx_file "${site_conf}" "127.0.0.1:8005"
+        fi
+    done
+    if command -v nginx >/dev/null 2>&1 && nginx -t >/dev/null 2>&1; then
+        systemctl reload nginx >/dev/null 2>&1 || true
+        echo "  -> Host-Nginx neu geladen."
+    fi
+fi
+
+echo "[3/4] Starte HyCanvas Docker-Container (hycanvas & hycanvas-db)..."
 if command -v docker >/dev/null 2>&1; then
     docker compose pull hycanvas hycanvas-db || true
-    docker compose up -d --build app
-    docker compose up -d
+    docker compose --profile hycanvas up -d hycanvas hycanvas-db
+else
+    echo "  -> FEHLER: Docker nicht gefunden!" >&2
+    exit 1
+fi
 
-    echo "[4/4] Stelle Datenbank-Tabelle canvas_documents und Modul-Aktivierung sicher..."
-    docker compose exec -T app python3 -c "
+echo "[4/4] Stelle Datenbank-Tabelle canvas_documents und Modul-Aktivierung sicher..."
+PY_BIN="python3"
+[[ -x "${PROJECT_ROOT}/.venv/bin/python" ]] && PY_BIN="${PROJECT_ROOT}/.venv/bin/python"
+
+"${PY_BIN}" -c "
 import os
 os.environ['PRISMATEAMS_RUNNING_MIGRATIONS'] = '1'
 os.environ['PRISMATEAMS_SKIP_BACKGROUND_JOBS'] = '1'
@@ -143,9 +172,13 @@ with app.app_context():
         db.session.commit()
 print('  -> canvas_documents & module_canvas_enabled bereit.')
 "
-    docker compose exec -T proxy nginx -s reload >/dev/null 2>&1 || true
-else
-    echo "  -> Docker nicht gefunden. Überspringe Container-Start und DB-Exec."
-fi
 
-echo "Fertig! Das Canvas-Modul (HyCanvas) ist eingerichtet und unter /canvas erreichbar."
+for svc in teamportal prismateams; do
+    if systemctl is-active --quiet "${svc}" 2>/dev/null; then
+        systemctl restart "${svc}"
+        echo "  -> Service ${svc} neu gestartet."
+        break
+    fi
+done
+
+echo "Fertig! HyCanvas läuft auf 127.0.0.1:8005 und das Canvas-Modul ist unter /canvas erreichbar."

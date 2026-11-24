@@ -139,11 +139,20 @@
                     </span>
                     {% endif %}
 
-                    {% if event.room %}
-                    <a href="{{ url_for('booking.room_detail', room_id=event.room.id) }}" class="badge rounded-pill text-decoration-none border" style="background: color-mix(in srgb, {{ event.room.color }} 15%, transparent); color: var(--bs-body-color);">
-                        <i class="bi bi-door-open me-1" style="color: {{ event.room.color }};"></i>
-                        Raum: {{ event.room.name }}
-                    </a>
+                    {% set event_rooms = event.all_rooms %}
+                    {% if event_rooms %}
+                        {% for r in event_rooms %}
+                        <a href="{{ url_for('booking.room_detail', room_id=r.id) }}" class="badge rounded-pill text-decoration-none border" style="background: color-mix(in srgb, {{ r.color }} 15%, transparent); color: var(--bs-body-color);">
+                            <i class="bi bi-door-open me-1" style="color: {{ r.color }};"></i>
+                            Raum: {{ r.name }}
+                        </a>
+                        {% endfor %}
+                        {% if event.default_location %}
+                        <span class="badge rounded-pill bg-body-secondary text-body border">
+                            <i class="bi bi-geo-alt me-1"></i>
+                            {{ event.default_location }}
+                        </span>
+                        {% endif %}
                     {% elif event.default_location %}
                     <span class="badge rounded-pill bg-body-secondary text-body border">
                         <i class="bi bi-geo-alt me-1"></i>

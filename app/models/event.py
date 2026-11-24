@@ -2,6 +2,13 @@ from datetime import datetime
 from app import db
 
 
+event_rooms = db.Table(
+    'event_rooms',
+    db.Column('event_id', db.Integer, db.ForeignKey('events.id', ondelete='CASCADE'), primary_key=True),
+    db.Column('room_id', db.Integer, db.ForeignKey('booking_rooms.id', ondelete='CASCADE'), primary_key=True),
+)
+
+
 class Event(db.Model):
     __tablename__ = 'events'
 
@@ -39,6 +46,26 @@ class Event(db.Model):
     custom_values = db.relationship('EventCustomFieldValue', back_populates='event', cascade='all, delete-orphan')
     links = db.relationship('EventLink', back_populates='event', cascade='all, delete-orphan')
     room = db.relationship('BookingRoom', foreign_keys=[room_id])
+    rooms = db.relationship(
+        'BookingRoom',
+        secondary=event_rooms,
+        order_by='BookingRoom.name',
+        lazy='selectin',
+    )
+
+    @property
+    def all_rooms(self):
+        """Gibt alle zugeordneten Räume zurück (inkl. Fallback auf room_id)."""
+        if self.rooms:
+            return list(self.rooms)
+        if self.room:
+            return [self.room]
+        return []
+
+    @property
+    def all_room_ids(self):
+        """Liste der zugeordneten Raum-IDs."""
+        return [r.id for r in self.all_rooms]
 
     @property
     def custom_values_dict(self):

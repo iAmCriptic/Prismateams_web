@@ -769,3 +769,55 @@ def test_event_pdf_export_with_all_details(client, auth_user):
     assert len(resp.data) > 1000
 
 
+def test_event_multiple_rooms_create_and_edit(client, auth_user):
+    from app.models.booking import BookingRoom, BookingRequest
+
+    _login(client)
+
+    r1 = BookingRoom(name='Großer Saal', capacity=200, color='#3b82f6', is_active=True)
+    r2 = BookingRoom(name='Foyer Ost', capacity=80, color='#10b981', is_active=True)
+    r3 = BookingRoom(name='Workshop-Raum', capacity=30, color='#f59e0b', is_active=True)
+    db.session.add_all([r1, r2, r3])
+    db.session.commit()
+    r1_id, r2_id, r3_id = r1.id, r2.id, r3.id
+
+    # 1. Event mit zwei Räumen erstellen
+    res = client.post('/events/create', data={
+        'name': 'Große Jahrestagung',
+        'event_mode': 'single',
+        'single_date': '2026-09-15',
+        'single_start_time': '09:00',
+        'single_end_time': '17:00',
+        'room_ids': [str(r1_id), str(r2_id)],
+    }, follow_redirects=True)
+    assert res.status_code == 200
+    body = res.get_data(as_text=True)
+    assert 'Großer Saal' in body
+    assert 'Foyer Ost' in body
+
+    ev = Event.query.filter_by(name='Große Jahrestagung').first()
+    assert ev is not None
+    assert set(ev.all_room_ids) == {r1_id, r2_id}
+
+    reqs = BookingRequest.query.filter_by(event_id=ev.id).all()
+    assert {r.room_id for r in reqs} == {r1_id, r2_id}
+
+    # 2. Event bearbeiten: r1 entfernen, r2 behalten, r3 hinzufügen
+    res = client.post(f'/events/{ev.id}/edit', data={
+        'name': 'Große Jahrestagung',
+        'single_date': '2026-09-15',
+        'single_start_time': '10:00',
+        'single_end_time': '18:00',
+        'room_ids': [str(r2_id), str(r3_id)],
+    }, follow_redirects=True)
+    assert res.status_code == 200
+
+    db.session.expire_all()
+    ev = db.session.get(Event, ev.id)
+    assert set(ev.all_room_ids) == {r2_id, r3_id}
+
+    reqs_after = BookingRequest.query.filter_by(event_id=ev.id).all()
+    assert {r.room_id for r in reqs_after} == {r2_id, r3_id}
+
+
+

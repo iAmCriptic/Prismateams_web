@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from io import BytesIO
 import json
 
@@ -43,6 +43,85 @@ from app.utils.event_pdf_generator import (
 )
 
 events_bp = Blueprint('events', __name__)
+
+
+def _extract_room_ids_from_form(form):
+    """Liest Raum-IDs aus 'room_ids' (Multi) und optional 'room_id' (Single) aus."""
+    raw_values = list(form.getlist('room_ids'))
+    single_val = form.get('room_id')
+    if single_val:
+        raw_values.append(single_val)
+    seen = set()
+    result = []
+    for raw in raw_values:
+        val = (raw or '').strip()
+        if val.isdigit():
+            rid = int(val)
+            if rid > 0 and rid not in seen:
+                seen.add(rid)
+                result.append(rid)
+    return result
+
+
+def _sync_event_rooms(event_obj, room_ids, user, event_date, start_time, end_time):
+    """Synchronisiert die zugeordneten Räume eines Events inkl. Raumbuchungen."""
+    from app.models.booking import BookingRequest, BookingRoom
+    from app.utils.booking_rooms import create_or_update_room_booking, delete_room_booking
+
+    if room_ids:
+        selected_rooms = (
+            BookingRoom.query
+            .filter(BookingRoom.id.in_(room_ids))
+            .order_by(BookingRoom.name)
+            .all()
+        )
+    else:
+        selected_rooms = []
+
+    event_obj.rooms = selected_rooms
+    event_obj.room_id = selected_rooms[0].id if selected_rooms else None
+
+    if not is_module_enabled('module_booking'):
+        return
+
+    selected_ids = {r.id for r in selected_rooms}
+    existing_reqs = BookingRequest.query.filter_by(event_id=event_obj.id).all()
+    reqs_by_room = {}
+    for req in existing_reqs:
+        if req.room_id and req.room_id not in selected_ids:
+            try:
+                delete_room_booking(req)
+            except Exception as e:
+                current_app.logger.warning(f"Alte Raumbuchung konnte nicht gelöscht werden: {e}")
+        elif req.room_id:
+            reqs_by_room[req.room_id] = req
+
+    conflict_rooms = []
+    for room in selected_rooms:
+        try:
+            existing_req = reqs_by_room.get(room.id)
+            _, has_conflict, _ = create_or_update_room_booking(
+                room_id=room.id,
+                event_name=event_obj.name,
+                event_date=event_date,
+                start_time=start_time,
+                end_time=end_time,
+                user=user,
+                event_id=event_obj.id,
+                booking_type='internal',
+                booking_request_id=existing_req.id if existing_req else None,
+            )
+            if has_conflict:
+                conflict_rooms.append(room.name)
+        except Exception as e:
+            current_app.logger.warning(f"Raumbuchung für Event fehlgeschlagen (Raum {room.id}): {e}")
+
+    if conflict_rooms:
+        rooms_str = ', '.join(conflict_rooms)
+        flash(
+            f'Achtung: Für folgende Räume liegt eine Terminkollision vor (Kollisionsmarkierung aktiv): {rooms_str}.',
+            'warning',
+        )
 
 
 def _parse_datetime(value):
@@ -475,27 +554,10 @@ def create_event():
         )
         db.session.add(prep_todo_list)
 
-        room_id_raw = request.form.get('room_id')
-        room_id = int(room_id_raw) if room_id_raw and room_id_raw.isdigit() else None
-        if room_id:
-            event_obj.room_id = room_id
-            try:
-                from app.utils.booking_rooms import create_or_update_room_booking
-                b_date = event_obj.start_date or datetime.utcnow().date()
-                _, has_conflict, _ = create_or_update_room_booking(
-                    room_id=room_id,
-                    event_name=event_obj.name,
-                    event_date=b_date,
-                    start_time=start_t,
-                    end_time=end_t,
-                    user=current_user,
-                    event_id=event_obj.id,
-                    booking_type='internal',
-                )
-                if has_conflict:
-                    flash('Achtung: Für den gewählten Raum liegt eine Terminkollision vor (Kollisionsmarkierung aktiv).', 'warning')
-            except Exception as e:
-                current_app.logger.warning(f"Raumbuchung für Event fehlgeschlagen: {e}")
+        room_ids = _extract_room_ids_from_form(request.form)
+        if room_ids:
+            b_date = event_obj.start_date or datetime.utcnow().date()
+            _sync_event_rooms(event_obj, room_ids, current_user, b_date, start_t, end_t)
 
         EventService.sync_calendar_for_event(event_obj, current_user.id)
         db.session.commit()
@@ -1526,38 +1588,16 @@ def edit_event(event_id):
         event_obj.name = request.form.get('name', '').strip()
         event_obj.description = request.form.get('description', '').strip() or None
         event_obj.default_location = request.form.get('default_location', '').strip() or None
-        room_id_raw = request.form.get('room_id')
-        new_room_id = int(room_id_raw) if room_id_raw and room_id_raw.isdigit() else None
-        event_obj.room_id = new_room_id
-        if new_room_id:
-            try:
-                from app.utils.booking_rooms import create_or_update_room_booking
-                from app.models.booking import BookingRequest
-                existing_req = BookingRequest.query.filter_by(event_id=event_obj.id).first()
-                req_id = existing_req.id if existing_req else None
-                b_date = event_obj.start_date or datetime.utcnow().date()
-                st_time = time(10, 0)
-                et_time = time(18, 0)
-                if event_obj.days:
-                    st_time = event_obj.days[0].start_time or st_time
-                    et_time = event_obj.days[0].end_time or et_time
-                _, has_conflict, _ = create_or_update_room_booking(
-                    room_id=new_room_id,
-                    event_name=event_obj.name,
-                    event_date=b_date,
-                    start_time=st_time,
-                    end_time=et_time,
-                    user=current_user,
-                    event_id=event_obj.id,
-                    booking_type='internal',
-                    booking_request_id=req_id,
-                )
-                if has_conflict:
-                    flash('Achtung: Für den gewählten Raum liegt eine Terminkollision vor (Kollisionsmarkierung aktiv).', 'warning')
-            except Exception as e:
-                current_app.logger.warning(f"Raumbuchung-Sync fehlgeschlagen: {e}")
         event_obj.folder_id = request.form.get('folder_id') or None
         _store_form_data(event_obj, request)
+        new_room_ids = _extract_room_ids_from_form(request.form)
+        b_date = event_obj.start_date or datetime.utcnow().date()
+        st_time = time(10, 0)
+        et_time = time(18, 0)
+        if event_obj.days:
+            st_time = event_obj.days[0].start_time or st_time
+            et_time = event_obj.days[0].end_time or et_time
+        _sync_event_rooms(event_obj, new_room_ids, current_user, b_date, st_time, et_time)
         EventService.sync_calendar_for_event(event_obj, current_user.id)
         db.session.commit()
         flash('Veranstaltung aktualisiert.', 'success')
