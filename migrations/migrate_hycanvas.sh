@@ -117,12 +117,21 @@ block = f"""    # HyCanvas (Canvas-Modul)
     }}
 
 """
-for anchor in ("    # WebSockets für Socket.IO", "    location /socket.io/", "    location / {"):
+for anchor in ("    # WebSockets für Socket.IO", "    location /socket.io/"):
     if anchor in text:
         text = text.replace(anchor, block + anchor, 1)
         p.write_text(text, encoding='utf-8')
         print(f"  -> /hycanvas/ Proxy-Block in {p} eingefügt.")
         sys.exit(0)
+import re
+m = re.search(r'^([ \t]*)location\s+/\s*\{', text, re.MULTILINE)
+if m:
+    indent = m.group(1)
+    indented_block = "\n".join((indent + line.lstrip() if line.strip() else "") for line in block.splitlines()) + "\n"
+    text = text[:m.start()] + indented_block + text[m.start():]
+    p.write_text(text, encoding='utf-8')
+    print(f"  -> /hycanvas/ Proxy-Block in {p} eingefügt.")
+    sys.exit(0)
 print(f"  -> Hinweis: Kein passender Anker in {p} gefunden, bitte manuell prüfen.")
 PYEOF
 }
@@ -134,6 +143,7 @@ fi
 if [[ -d /etc/nginx/sites-available ]]; then
     for site_conf in /etc/nginx/sites-available/*; do
         [[ -f "${site_conf}" ]] || continue
+        [[ "${site_conf}" == *.bak* ]] && continue
         if grep -qE "127\.0\.0\.1:5000|localhost:5000|teamportal" "${site_conf}" && ! grep -q "location /hycanvas/" "${site_conf}"; then
             patch_nginx_file "${site_conf}" "127.0.0.1:8005"
         fi

@@ -57,7 +57,7 @@ services:
       - .env
     environment:
       FLASK_ENV: production
-      DATABASE_URI: mysql+pymysql://${MYSQL_USER:-teamportal}:${MYSQL_PASSWORD}@db:3306/${MYSQL_DATABASE:-teamportal}
+      DATABASE_URI: mysql+pymysql://${MYSQL_USER:-teamportal}:${MYSQL_PASSWORD:-teamportal_db_pass}@db:3306/${MYSQL_DATABASE:-teamportal}
       REDIS_ENABLED: "True"
       REDIS_URL: redis://redis:6379/0
       UPLOAD_FOLDER: uploads
