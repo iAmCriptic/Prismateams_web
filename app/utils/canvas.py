@@ -239,11 +239,20 @@ def sync_hycanvas_user_and_workspaces(user) -> None:
             for team in teams:
                 leader_email = (
                     (team.leader.email or '').strip().lower()
-                    if team.leader and getattr(team.leader, 'email', None)
+                    if team.leader and getattr(team.leader, 'is_active', True) and getattr(team.leader, 'email', None)
                     else ''
                 )
+                member_hc_ids = []
+                for tm in team.members or []:
+                    u = tm.user
+                    if u and getattr(u, 'is_active', True) and getattr(u, 'email', None):
+                        uid_val = hc_users.get(u.email.strip().lower())
+                        if uid_val:
+                            member_hc_ids.append(uid_val)
+
                 owner_hc_id = (
                     hc_users.get(leader_email)
+                    or (member_hc_ids[0] if member_hc_ids else None)
                     or first_admin_hc_id
                     or hc_users.get(email)
                 )
@@ -256,7 +265,7 @@ def sync_hycanvas_user_and_workspaces(user) -> None:
                         'INSERT INTO workspaces (id, kind, name, slug, owner_id, created_at, updated_at) '
                         'VALUES (CAST(:id AS uuid), CAST(:kind AS "WorkspaceKind"), :name, :slug, CAST(:owner_id AS uuid), NOW(), NOW()) '
                         'ON CONFLICT (slug) DO UPDATE '
-                        'SET name = EXCLUDED.name, updated_at = NOW() '
+                        'SET name = EXCLUDED.name, owner_id = EXCLUDED.owner_id, updated_at = NOW() '
                         'RETURNING id::text AS id'
                     ),
                     {
@@ -289,11 +298,6 @@ def sync_hycanvas_user_and_workspaces(user) -> None:
                 if leader_email and leader_email in hc_users:
                     l_uid = hc_users[leader_email]
                     desired_roles[l_uid] = 'OWNER' if l_uid == owner_hc_id else 'ADMIN'
-
-                for adm_email in admin_emails:
-                    adm_uid = hc_users.get(adm_email)
-                    if adm_uid:
-                        desired_roles[adm_uid] = 'OWNER' if adm_uid == owner_hc_id else 'ADMIN'
 
                 for hc_uid, role in desired_roles.items():
                     conn.execute(
