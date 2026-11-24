@@ -168,6 +168,8 @@ services:
       POSTGRES_DB: ${HYCANVAS_DB_NAME:-hycanvas}
     volumes:
       - hycanvas_pgdata:/var/lib/postgresql/data
+    ports:
+      - "${HYCANVAS_DB_HOST_BIND:-127.0.0.1}:${HYCANVAS_DB_HOST_PORT:-5433}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${HYCANVAS_DB_USER:-hycanvas} -d ${HYCANVAS_DB_NAME:-hycanvas}"]
       interval: 5s

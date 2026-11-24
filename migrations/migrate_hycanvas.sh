@@ -81,8 +81,12 @@ upsert_env "HYCANVAS_API_URL" "http://127.0.0.1:8005"
 
 CUR_DB_PASS="$(get_env HYCANVAS_DB_PASSWORD)"
 if [[ -z "${CUR_DB_PASS}" || "${CUR_DB_PASS}" == *"change-me"* || "${CUR_DB_PASS}" == *"changeme"* ]]; then
-    upsert_env "HYCANVAS_DB_PASSWORD" "$(gen_hex)"
+    CUR_DB_PASS="$(gen_hex)"
+    upsert_env "HYCANVAS_DB_PASSWORD" "${CUR_DB_PASS}"
 fi
+HYCANVAS_DB_PORT_VAL="$(get_env HYCANVAS_DB_HOST_PORT)"
+[[ -z "${HYCANVAS_DB_PORT_VAL}" ]] && HYCANVAS_DB_PORT_VAL="5433" && upsert_env "HYCANVAS_DB_HOST_PORT" "${HYCANVAS_DB_PORT_VAL}"
+upsert_env "HYCANVAS_DATABASE_URL" "postgresql://$(get_env HYCANVAS_DB_USER):${CUR_DB_PASS}@127.0.0.1:${HYCANVAS_DB_PORT_VAL}/$(get_env HYCANVAS_DB_NAME)"
 
 CUR_JWT="$(get_env HYCANVAS_JWT_SECRET)"
 if [[ -z "${CUR_JWT}" || "${CUR_JWT}" == *"change-me"* || "${CUR_JWT}" == *"changeme"* ]]; then
@@ -256,6 +260,11 @@ if [[ -z "${PY_BIN}" ]]; then
     exit 1
 fi
 echo "  -> Nutze Python: ${PY_BIN}"
+
+if ! "${PY_BIN}" -c "import pg8000" >/dev/null 2>&1; then
+    echo "  -> Installiere pg8000 in ${PY_BIN}..."
+    "${PY_BIN}" -m pip install -q pg8000==1.31.2 || true
+fi
 
 "${PY_BIN}" -c "
 import os
