@@ -2814,10 +2814,23 @@
     if (!toggleBtn || !listEl) return;
 
     let searchTimer = null;
+    let activeController = null;
+    let requestSeq = 0;
 
     async function loadPortalFiles(q) {
+      if (activeController) {
+        try { activeController.abort(); } catch (_) {}
+      }
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      activeController = controller;
+      const seq = ++requestSeq;
+      listEl.innerHTML = `<div class="small text-muted px-2 py-2">${esc(i18n.loading || 'Laden...')}</div>`;
       try {
-        const res = await api(`/kanban/api/portal-files?q=${encodeURIComponent(q || '')}`);
+        const res = await api(
+          `/kanban/api/portal-files?q=${encodeURIComponent(q || '')}`,
+          controller ? { signal: controller.signal } : undefined
+        );
+        if (seq !== requestSeq) return;
         const files = (res && res.files) || [];
         if (!files.length) {
           listEl.innerHTML = `<div class="small text-muted px-2 py-2">${esc(i18n.portalFileEmpty || 'Keine Dateien gefunden')}</div>`;
@@ -2829,21 +2842,36 @@
             ${f.folder_name ? `<small class="text-muted flex-shrink-0">${esc(f.folder_name)}</small>` : ''}
           </button>`).join('');
       } catch (err) {
-        listEl.innerHTML = `<div class="small text-danger px-2 py-2">${esc(err.message || 'Fehler')}</div>`;
+        if (err && err.name === 'AbortError') return;
+        if (seq !== requestSeq) return;
+        listEl.innerHTML = `<div class="small text-danger px-2 py-2">${esc((err && err.message) || 'Fehler')}</div>`;
+      } finally {
+        if (activeController === controller) {
+          activeController = null;
+        }
       }
     }
 
+    toggleBtn.addEventListener('show.bs.dropdown', () => {
+      clearTimeout(searchTimer);
+      if (searchInput) searchInput.value = '';
+      loadPortalFiles('');
+    });
+
     toggleBtn.addEventListener('shown.bs.dropdown', () => {
       if (searchInput) {
-        searchInput.value = '';
         setTimeout(() => searchInput.focus(), 0);
       }
-      loadPortalFiles('');
     });
 
     searchInput?.addEventListener('input', () => {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(() => loadPortalFiles(searchInput.value.trim()), 180);
+    });
+
+    searchInput?.addEventListener('search', () => {
+      clearTimeout(searchTimer);
+      loadPortalFiles(searchInput.value.trim());
     });
 
     listEl.addEventListener('click', async (ev) => {

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import mimetypes
+import threading
 import time
 from datetime import datetime
 from typing import Optional
@@ -21,6 +22,8 @@ _SYNC_CACHE: dict[str, float] = {}
 _SYNC_TTL_SECONDS = 5.0
 _PORTAL_SYNC_CACHE: dict[int, float] = {}
 _PORTAL_SYNC_TTL_SECONDS = 30.0
+_PORTAL_SYNC_IN_PROGRESS: set[int] = set()
+_PORTAL_SYNC_LOCK = threading.Lock()
 
 
 def is_nextcloud_folder(folder: Folder | None) -> bool:
@@ -260,6 +263,7 @@ def sync_accessible_nextcloud_files(
     *,
     max_depth: int = 4,
     max_folders: int = 50,
+    max_seconds: float | None = None,
     force: bool = False,
 ) -> None:
     """Sync accessible Nextcloud root folders and their subfolders into shadow tables."""
@@ -278,91 +282,102 @@ def sync_accessible_nextcloud_files(
 
     now_ts = time.monotonic()
     uid = int(user.id)
-    if not force and (now_ts - _PORTAL_SYNC_CACHE.get(uid, 0.0)) < _PORTAL_SYNC_TTL_SECONDS:
-        return
+    with _PORTAL_SYNC_LOCK:
+        if not force and (
+            uid in _PORTAL_SYNC_IN_PROGRESS
+            or (now_ts - _PORTAL_SYNC_CACHE.get(uid, 0.0)) < _PORTAL_SYNC_TTL_SECONDS
+        ):
+            return
+        _PORTAL_SYNC_IN_PROGRESS.add(uid)
 
-    from collections import deque
-    from app.models.team import Team
-    from app.utils.private_files import (
-        is_private_folders_enabled,
-        is_team_folders_enabled,
-        user_file_teams,
-    )
-    from app.utils.user_content_access import (
-        user_bypasses_content_restrictions,
-        user_may_access_private,
-        user_may_access_team,
-    )
-
-    roots: list[Folder] = []
+    deadline = (now_ts + max_seconds) if (max_seconds is not None and max_seconds > 0) else None
     try:
-        if is_nextcloud_private_enabled() and is_private_folders_enabled() and (
-            user_bypasses_content_restrictions(user) or user_may_access_private(user)
-        ):
-            roots.append(
-                ensure_nextcloud_root_folder(
-                    space='personal',
-                    user_id=uid,
-                    remote_path=get_nextcloud_private_user_path(user),
-                    name='Meine Ablage',
-                )
-            )
-        if is_team_folders_enabled() and (
-            user_bypasses_content_restrictions(user) or user_may_access_team(user)
-        ):
-            for team in user_file_teams(user):
-                mapping = get_team_nextcloud_mapping(team.id)
-                if not mapping:
-                    continue
-                team_obj = Team.query.get(team.id)
+        from collections import deque
+        from app.models.team import Team
+        from app.utils.private_files import (
+            is_private_folders_enabled,
+            is_team_folders_enabled,
+            user_file_teams,
+        )
+        from app.utils.user_content_access import (
+            user_bypasses_content_restrictions,
+            user_may_access_private,
+            user_may_access_team,
+        )
+
+        roots: list[Folder] = []
+        try:
+            if is_nextcloud_private_enabled() and is_private_folders_enabled() and (
+                user_bypasses_content_restrictions(user) or user_may_access_private(user)
+            ):
                 roots.append(
                     ensure_nextcloud_root_folder(
-                        space='team',
+                        space='personal',
                         user_id=uid,
-                        remote_path=mapping['path'],
-                        team_id=team.id,
-                        name=team_obj.name if team_obj else f'Team {team.id}',
+                        remote_path=get_nextcloud_private_user_path(user),
+                        name='Meine Ablage',
                     )
                 )
-        if can_access_nextcloud_public(user, write=False):
-            roots.append(
-                ensure_nextcloud_root_folder(
-                    space='public',
-                    user_id=uid,
-                    remote_path=get_nextcloud_public_path(),
-                    name='Public',
+            if is_team_folders_enabled() and (
+                user_bypasses_content_restrictions(user) or user_may_access_team(user)
+            ):
+                for team in user_file_teams(user):
+                    mapping = get_team_nextcloud_mapping(team.id)
+                    if not mapping:
+                        continue
+                    team_obj = Team.query.get(team.id)
+                    roots.append(
+                        ensure_nextcloud_root_folder(
+                            space='team',
+                            user_id=uid,
+                            remote_path=mapping['path'],
+                            team_id=team.id,
+                            name=team_obj.name if team_obj else f'Team {team.id}',
+                        )
+                    )
+            if can_access_nextcloud_public(user, write=False):
+                roots.append(
+                    ensure_nextcloud_root_folder(
+                        space='public',
+                        user_id=uid,
+                        remote_path=get_nextcloud_public_path(),
+                        name='Public',
+                    )
                 )
-            )
-    except Exception as exc:
-        logger.warning('Failed to resolve Nextcloud roots for user %s: %s', uid, exc)
-
-    queue: deque[tuple[Folder, int]] = deque((r, 0) for r in roots if r is not None)
-    visited: set[int] = set()
-    synced_count = 0
-
-    while queue and synced_count < max_folders:
-        folder, depth = queue.popleft()
-        if folder.id in visited or folder.deleted_at is not None:
-            continue
-        visited.add(folder.id)
-        synced_count += 1
-        try:
-            sync_folder_children(folder, user_id=uid, force=force)
         except Exception as exc:
-            logger.warning('Nextcloud sync failed for folder %s (%s): %s', folder.id, folder.remote_path, exc)
-            continue
+            logger.warning('Failed to resolve Nextcloud roots for user %s: %s', uid, exc)
 
-        if depth < max_depth:
-            children = Folder.query.filter(
-                Folder.parent_id == folder.id,
-                Folder.storage_backend == 'nextcloud',
-                Folder.deleted_at.is_(None),
-            ).all()
-            for child in children:
-                if child.id not in visited:
-                    queue.append((child, depth + 1))
+        queue: deque[tuple[Folder, int]] = deque((r, 0) for r in roots if r is not None)
+        visited: set[int] = set()
+        synced_count = 0
 
-    _PORTAL_SYNC_CACHE[uid] = time.monotonic()
+        while queue and synced_count < max_folders:
+            if deadline is not None and time.monotonic() >= deadline:
+                break
+            folder, depth = queue.popleft()
+            if folder.id in visited or folder.deleted_at is not None:
+                continue
+            visited.add(folder.id)
+            synced_count += 1
+            try:
+                sync_folder_children(folder, user_id=uid, force=force)
+            except Exception as exc:
+                logger.warning('Nextcloud sync failed for folder %s (%s): %s', folder.id, folder.remote_path, exc)
+                continue
+
+            if depth < max_depth:
+                children = Folder.query.filter(
+                    Folder.parent_id == folder.id,
+                    Folder.storage_backend == 'nextcloud',
+                    Folder.deleted_at.is_(None),
+                ).all()
+                for child in children:
+                    if child.id not in visited:
+                        queue.append((child, depth + 1))
+    finally:
+        with _PORTAL_SYNC_LOCK:
+            _PORTAL_SYNC_CACHE[uid] = time.monotonic()
+            _PORTAL_SYNC_IN_PROGRESS.discard(uid)
 
 
 def read_file_bytes(file_obj: File) -> bytes:

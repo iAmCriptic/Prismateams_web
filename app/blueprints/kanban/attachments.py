@@ -191,7 +191,7 @@ def api_portal_files():
     if is_nextcloud_active():
         try:
             from app.utils.nextcloud_storage import sync_accessible_nextcloud_files
-            sync_accessible_nextcloud_files(current_user)
+            sync_accessible_nextcloud_files(current_user, max_seconds=2.5)
         except Exception:
             pass
 
