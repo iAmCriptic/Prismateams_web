@@ -99,7 +99,7 @@ import sys, pathlib, re
 p = pathlib.Path(sys.argv[1])
 upstream = sys.argv[2]
 text = p.read_text(encoding='utf-8')
-if 'location /hycanvas/' in text and 'sub_filter \'"/api/v1\'' in text:
+if 'location /hycanvas/' in text and 'sub_filter \'"/api/\'' in text:
     sys.exit(0)
 
 block = f"""    # HyCanvas (Canvas-Modul) – alles über /hycanvas/ per sub_filter
@@ -121,9 +121,9 @@ block = f"""    # HyCanvas (Canvas-Modul) – alles über /hycanvas/ per sub_fil
         sub_filter_types text/html application/javascript text/javascript text/css application/json;
         sub_filter '"/_next/' '"/hycanvas/_next/';
         sub_filter "'/_next/" "'/hycanvas/_next/";
-        sub_filter '"/api/v1' '"/hycanvas/api/v1';
-        sub_filter "'/api/v1" "'/hycanvas/api/v1";
-        sub_filter '`/api/v1' '`/hycanvas/api/v1';
+        sub_filter '"/api/' '"/hycanvas/api/';
+        sub_filter "'/api/" "'/hycanvas/api/";
+        sub_filter '`/api/' '`/hycanvas/api/';
         sub_filter '"/locales/' '"/hycanvas/locales/';
         sub_filter "'/locales/" "'/hycanvas/locales/";
         sub_filter '`/locales/' '`/hycanvas/locales/';
