@@ -128,6 +128,27 @@ def _get_hycanvas_db_engine():
     return engine
 
 
+def _provision_hycanvas_user(user) -> None:
+    """Create a HyCanvas user account via signup endpoint if it does not exist yet."""
+    api_url = get_hycanvas_api_url()
+    if not api_url or not user:
+        return
+    email, name, password = _hycanvas_user_credentials(user)
+    sess = requests.Session()
+    sess.headers.update({'Accept': 'application/json'})
+    for endpoint in ('/api/v1/auth/signup', '/api/v1/auth/register'):
+        try:
+            reg = sess.post(
+                f'{api_url}{endpoint}',
+                json={'email': email, 'password': password, 'name': name},
+                timeout=4,
+            )
+            if reg.ok or reg.status_code in (400, 409):
+                break
+        except Exception:
+            continue
+
+
 def sync_hycanvas_user_and_workspaces(user) -> None:
     """Mark user email verified in HyCanvas and sync Teamportal Teams/Admins to HyCanvas workspaces."""
     if not user:
@@ -150,21 +171,59 @@ def sync_hycanvas_user_and_workspaces(user) -> None:
             joinedload(Team.members).joinedload(TeamMember.user),
             joinedload(Team.leader),
         ).all()
-        portal_admins = User.query.filter_by(is_admin=True, is_active=True).all()
-        admin_emails = {
-            (a.email or '').strip().lower()
-            for a in portal_admins
-            if getattr(a, 'email', None)
+        all_active_users = User.query.filter_by(is_active=True).all()
+        active_users_by_email = {
+            u.email.strip().lower(): u
+            for u in all_active_users
+            if getattr(u, 'email', None)
         }
+        portal_admins = [u for u in all_active_users if getattr(u, 'is_admin', False)]
+        admin_emails = {
+            u.email.strip().lower()
+            for u in portal_admins
+            if getattr(u, 'email', None)
+        }
+
+        relevant_users_by_email: dict[str, Any] = {email: user}
+        for adm in portal_admins:
+            if getattr(adm, 'email', None):
+                relevant_users_by_email[adm.email.strip().lower()] = adm
+        for team in teams:
+            if team.leader and getattr(team.leader, 'is_active', True) and getattr(team.leader, 'email', None):
+                relevant_users_by_email[team.leader.email.strip().lower()] = team.leader
+            for tm in team.members or []:
+                u = tm.user
+                if u and getattr(u, 'is_active', True) and getattr(u, 'email', None):
+                    relevant_users_by_email[u.email.strip().lower()] = u
+
+        with engine.connect() as check_conn:
+            existing_rows = check_conn.execute(
+                text('SELECT lower(email) AS email FROM users')
+            ).fetchall()
+            existing_emails = {r.email for r in existing_rows}
+            inv_rows = check_conn.execute(
+                text(
+                    'SELECT DISTINCT lower(email) AS email '
+                    'FROM invitations '
+                    'WHERE accepted_at IS NULL AND expires_at > NOW()'
+                )
+            ).fetchall()
+            for inv_r in inv_rows:
+                if inv_r.email in active_users_by_email:
+                    relevant_users_by_email[inv_r.email] = active_users_by_email[inv_r.email]
+
+        for u_email, u_obj in relevant_users_by_email.items():
+            if u_email not in existing_emails:
+                _provision_hycanvas_user(u_obj)
 
         with engine.begin() as conn:
             conn.execute(
                 text(
                     'UPDATE users '
                     'SET email_verified = true, updated_at = NOW() '
-                    'WHERE lower(email) = :email AND email_verified = false'
+                    'WHERE email_verified = false AND lower(email) = ANY(:emails)'
                 ),
-                {'email': email},
+                {'emails': list(relevant_users_by_email.keys())},
             )
 
             rows = conn.execute(text('SELECT id::text AS id, lower(email) AS email FROM users')).fetchall()
@@ -272,6 +331,45 @@ def sync_hycanvas_user_and_workspaces(user) -> None:
                             ),
                             {'ws_id': ws_id, 'uid': m.uid},
                         )
+
+            pending_invs = conn.execute(
+                text(
+                    'SELECT id::text AS inv_id, workspace_id::text AS ws_id, '
+                    'lower(email) AS email, role::text AS role, invited_by_id::text AS invited_by_id '
+                    'FROM invitations '
+                    'WHERE accepted_at IS NULL AND expires_at > NOW()'
+                )
+            ).fetchall()
+            for inv in pending_invs:
+                if inv.email not in active_users_by_email:
+                    continue
+                hc_uid = hc_users.get(inv.email)
+                if not hc_uid:
+                    continue
+                conn.execute(
+                    text(
+                        'INSERT INTO workspace_members (id, workspace_id, user_id, role, status, invited_by_id, joined_at, created_at, updated_at) '
+                        'VALUES (CAST(:id AS uuid), CAST(:ws_id AS uuid), CAST(:uid AS uuid), '
+                        'CAST(:role AS "Role"), CAST(:status AS "MembershipStatus"), CAST(:invited_by_id AS uuid), NOW(), NOW(), NOW()) '
+                        'ON CONFLICT (workspace_id, user_id) DO UPDATE '
+                        'SET status = EXCLUDED.status, updated_at = NOW()'
+                    ),
+                    {
+                        'id': str(uuid.uuid4()),
+                        'ws_id': inv.ws_id,
+                        'uid': hc_uid,
+                        'role': inv.role,
+                        'status': 'ACTIVE',
+                        'invited_by_id': inv.invited_by_id,
+                    },
+                )
+                conn.execute(
+                    text(
+                        'UPDATE invitations SET accepted_at = NOW() '
+                        'WHERE id = CAST(:inv_id AS uuid)'
+                    ),
+                    {'inv_id': inv.inv_id},
+                )
     except Exception as exc:
         logger.warning('HyCanvas workspace/user sync failed: %s', exc)
 

@@ -4,8 +4,22 @@
 
 {% block extra_css %}
 <style>
+.main-content:has(.canvas-shell) {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-bottom: 0 !important;
+}
+.main-content:has(.canvas-shell) > .container-fluid {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
+.main-content:has(.canvas-shell) > .container-fluid > .container.mt-3 {
+    margin-top: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+}
 .canvas-shell.mod-shell--nav {
-    padding: 0;
+    padding: 0 !important;
     gap: 0;
 }
 .canvas-shell .canvas-main {
@@ -13,7 +27,7 @@
     flex-direction: column;
     overflow: hidden;
     min-height: 0;
-    padding: 0;
+    padding: 0 !important;
     width: 100%;
 }
 .canvas-embed-frame {

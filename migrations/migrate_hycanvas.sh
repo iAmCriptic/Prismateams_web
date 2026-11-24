@@ -103,7 +103,7 @@ import sys, pathlib, re
 p = pathlib.Path(sys.argv[1])
 upstream = sys.argv[2]
 text = p.read_text(encoding='utf-8')
-if 'location /hycanvas/' in text and 'location /api/v1/' in text and 'location /_next/' in text and 'proxy_redirect / /hycanvas/' in text:
+if 'location /hycanvas/' in text and 'location /api/v1/' in text and 'location /_next/' in text and 'location /realtime' in text and 'proxy_redirect / /hycanvas/' in text:
     sys.exit(0)
 
 block = f"""    # HyCanvas (Canvas-Modul) – API & Subpath-Proxy per sub_filter
@@ -150,6 +150,19 @@ block = f"""    # HyCanvas (Canvas-Modul) – API & Subpath-Proxy per sub_filter
         proxy_read_timeout 600;
     }}
 
+    location /realtime {{
+        proxy_pass http://{upstream}/realtime;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_read_timeout 600;
+    }}
+
     location /hycanvas/ {{
         proxy_pass http://{upstream}/;
         proxy_http_version 1.1;
@@ -187,7 +200,7 @@ block = f"""    # HyCanvas (Canvas-Modul) – API & Subpath-Proxy per sub_filter
 
 # Falls ein alter HyCanvas-Block existiert, diesen sauber ersetzen
 old_hc = re.search(
-    r'[ \t]*# HyCanvas[^\n]*\n(?:[ \t]*location /(?:api/v1|_next|design|hycanvas)/ \{[^}]*\}\s*)+',
+    r'[ \t]*# HyCanvas[^\n]*\n(?:[ \t]*location /(?:api/v1|_next|design|realtime|hycanvas)/? \{[^}]*\}\s*)+',
     text,
 )
 if old_hc:

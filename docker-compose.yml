@@ -190,6 +190,7 @@ services:
       DATABASE_URL: postgresql://${HYCANVAS_DB_USER:-hycanvas}:${HYCANVAS_DB_PASSWORD:-changeme-hycanvas-db}@hycanvas-db:5432/${HYCANVAS_DB_NAME:-hycanvas}?schema=public
       JWT_SECRET: ${HYCANVAS_JWT_SECRET:-changeme-hycanvas-jwt}
       COOKIE_SECURE: ${HYCANVAS_COOKIE_SECURE:-false}
+      ASSET_QUOTA_BYTES: ${HYCANVAS_ASSET_QUOTA_BYTES:-1099511627776}
     volumes:
       - hycanvas_storage:/app/.data/storage
     ports:
