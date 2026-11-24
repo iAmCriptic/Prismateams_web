@@ -250,11 +250,13 @@ def hycanvas_export_hyc(design_id: str, user=None) -> bytes | None:
     if not design_id:
         return None
     api_url = get_hycanvas_api_url()
+    sess = authenticate_hycanvas_session(user)
+    client = sess or requests
+    headers = None if sess is not None else _hycanvas_headers(user)
     try:
-        resp = requests.get(
-            f'{api_url}/api/v1/designs/{design_id}/export',
-            params={'format': 'hyc'},
-            headers=_hycanvas_headers(user),
+        resp = client.get(
+            f'{api_url}/api/v1/designs/{design_id}/file',
+            headers=headers,
             timeout=10,
         )
         if resp.ok and resp.content:
@@ -268,11 +270,14 @@ def hycanvas_export_thumbnail(design_id: str, user=None) -> bytes | None:
     if not design_id:
         return None
     api_url = get_hycanvas_api_url()
+    sess = authenticate_hycanvas_session(user)
+    client = sess or requests
+    headers = None if sess is not None else _hycanvas_headers(user)
     try:
-        resp = requests.get(
-            f'{api_url}/api/v1/designs/{design_id}/export',
-            params={'format': 'png', 'width': 640},
-            headers=_hycanvas_headers(user),
+        resp = client.get(
+            f'{api_url}/api/v1/designs/{design_id}/render.png',
+            params={'width': 640},
+            headers=headers,
             timeout=10,
         )
         if resp.ok and resp.content:
