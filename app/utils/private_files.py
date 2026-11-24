@@ -1,5 +1,6 @@
 """Private folders / spaces / ACL helpers for the files module."""
 
+import re
 from datetime import datetime
 
 from flask_login import current_user
@@ -25,6 +26,28 @@ def sanitize_files_item_name(name):
     if name is None:
         return ''
     return str(name).strip()
+
+
+_NATURAL_SORT_RE = re.compile(r'(\d+)')
+
+
+def natural_sort_key(name):
+    """Natural sort key so numbered names sort numerically (e.g. '2.' before '10.')."""
+    text = str(name or '')
+    parts = [part for part in _NATURAL_SORT_RE.split(text) if part]
+    tokens = tuple(
+        (0, int(part)) if part.isdigit() else (1, part.casefold())
+        for part in parts
+    )
+    digit_lengths = tuple(len(part) for part in parts if part.isdigit())
+    return (tokens, digit_lengths, text.casefold(), text)
+
+
+def natural_name_key(item):
+    """Sort key for Folder/File ORM objects or dicts with a name."""
+    if isinstance(item, dict):
+        return natural_sort_key(item.get('name'))
+    return natural_sort_key(getattr(item, 'name', ''))
 
 
 def is_private_folders_enabled():
@@ -359,10 +382,47 @@ def _alive_file_query():
     return File.query.filter(File.deleted_at.is_(None), File.is_current.is_(True))
 
 
-def window_folders_then_files(folder_query, file_query, offset=0, limit=48):
+def _fetch_ordered_by_ids(model_cls, ids, options=()):
+    """Fetch ORM rows for `ids` preserving the exact sequence of `ids`."""
+    if not ids:
+        return []
+    q = model_cls.query
+    for opt in options:
+        q = q.options(opt)
+    by_id = {obj.id: obj for obj in q.filter(model_cls.id.in_(ids)).all()}
+    return [by_id[item_id] for item_id in ids if item_id in by_id]
+
+
+def window_folders_then_files(folder_query, file_query, offset=0, limit=48, natural_sort=False):
     """SQL window: folders first, then files. Does not load the full folder."""
     offset = max(0, int(offset or 0))
     limit = max(1, int(limit or 48))
+    if natural_sort:
+        folder_rows = folder_query.order_by(None).with_entities(Folder.id, Folder.name).all()
+        file_rows = file_query.order_by(None).with_entities(File.id, File.name).all()
+        folder_count = len(folder_rows)
+        file_count = len(file_rows)
+        total = folder_count + file_count
+        has_more = (offset + limit) < total
+        folders = []
+        files = []
+        if offset < folder_count:
+            folder_rows.sort(key=lambda r: natural_sort_key(r[1]))
+            take_folders = min(limit, folder_count - offset)
+            folder_ids = [r[0] for r in folder_rows[offset:offset + take_folders]]
+            folders = _fetch_ordered_by_ids(Folder, folder_ids)
+            remain = limit - len(folders)
+            if remain > 0 and file_count > 0:
+                file_rows.sort(key=lambda r: natural_sort_key(r[1]))
+                file_ids = [r[0] for r in file_rows[:remain]]
+                files = _fetch_ordered_by_ids(File, file_ids, options=(joinedload(File.uploader),))
+        elif file_count > 0:
+            file_rows.sort(key=lambda r: natural_sort_key(r[1]))
+            file_offset = offset - folder_count
+            file_ids = [r[0] for r in file_rows[file_offset:file_offset + limit]]
+            files = _fetch_ordered_by_ids(File, file_ids, options=(joinedload(File.uploader),))
+        return folders, files, has_more, total
+
     folder_count = int(folder_query.order_by(None).count() or 0)
     file_count = int(file_query.order_by(None).count() or 0)
     total = folder_count + file_count
@@ -835,7 +895,7 @@ def _build_folder_children_map(folders):
     for folder in folders:
         by_parent.setdefault(folder.parent_id, []).append(folder)
     for siblings in by_parent.values():
-        siblings.sort(key=lambda f: (f.name or '').lower())
+        siblings.sort(key=natural_name_key)
     return by_parent
 
 
@@ -889,7 +949,7 @@ def _build_move_folder_tree(by_parent, root_parent_id, exclude_ids):
             _walk(orphans[-1]['children'])
 
     if orphans:
-        orphans.sort(key=lambda n: (n.get('name') or '').lower())
+        orphans.sort(key=natural_name_key)
         tree.extend(orphans)
     return tree
 
@@ -1165,13 +1225,13 @@ def list_view_contents(view, folder_id, user, team_id=None, *, offset=0, limit=N
         )
         if limit is not None:
             subfolders, files, has_more, total = window_folders_then_files(
-                folder_q, file_q, offset, limit,
+                folder_q, file_q, offset, limit, natural_sort=True,
             )
             if window_meta is not None:
                 window_meta['has_more'] = has_more
                 window_meta['total'] = total
             return current_folder, subfolders, files, view
-        return current_folder, folder_q.all(), file_q.all(), view
+        return current_folder, sorted(folder_q.all(), key=natural_name_key), sorted(file_q.all(), key=natural_name_key), view
 
     personal_root = ensure_personal_root(user.id) if view in ('ablage',) else None
     team_root = None
@@ -1302,8 +1362,8 @@ def list_view_contents(view, folder_id, user, team_id=None, *, offset=0, limit=N
                 seen_f.add(f.id)
                 uniq_files.append(f)
 
-        uniq_folders.sort(key=lambda x: x.name.lower())
-        uniq_files.sort(key=lambda x: x.name.lower())
+        uniq_folders.sort(key=natural_name_key)
+        uniq_files.sort(key=natural_name_key)
         uniq_folders, uniq_files = _apply_browse_window(
             uniq_folders, uniq_files, offset, limit, window_meta,
         )
@@ -1372,7 +1432,7 @@ def list_view_contents(view, folder_id, user, team_id=None, *, offset=0, limit=N
                 if getattr(folder, 'is_team_root', False) or folder.parent_id is None or folder.space == 'personal':
                     subfolders.append(folder)
                     existing_ids.add(folder.id)
-        subfolders.sort(key=lambda x: x.name.lower())
+        subfolders.sort(key=natural_name_key)
 
         files = (
             _alive_file_query()
@@ -1389,7 +1449,7 @@ def list_view_contents(view, folder_id, user, team_id=None, *, offset=0, limit=N
             if file_obj and file_obj.deleted_at is None and file_obj.is_current:
                 files.append(file_obj)
                 existing_f.add(file_obj.id)
-        files.sort(key=lambda x: x.name.lower())
+        files.sort(key=natural_name_key)
         subfolders, files = _apply_browse_window(
             subfolders, files, offset, limit, window_meta,
         )
@@ -1414,7 +1474,7 @@ def list_view_contents(view, folder_id, user, team_id=None, *, offset=0, limit=N
 
     if limit is not None:
         subfolders, files, has_more, total = window_folders_then_files(
-            folder_q, file_q, offset, limit,
+            folder_q, file_q, offset, limit, natural_sort=True,
         )
         if view == 'ablage':
             subfolders = [f for f in subfolders if f.created_by == user.id or can_view_folder(f, user)]
@@ -1427,8 +1487,8 @@ def list_view_contents(view, folder_id, user, team_id=None, *, offset=0, limit=N
             window_meta['total'] = total
         return current_folder, subfolders, files, view
 
-    subfolders = folder_q.all()
-    files = file_q.all()
+    subfolders = sorted(folder_q.all(), key=natural_name_key)
+    files = sorted(file_q.all(), key=natural_name_key)
 
     if view == 'ablage':
         subfolders = [f for f in subfolders if f.created_by == user.id or can_view_folder(f, user)]

@@ -528,3 +528,166 @@ def test_nextcloud_public_path_root_and_custom_folder_persist(app, client):
     assert resp2.status_code in (200, 302)
     assert get_nextcloud_public_path() == '/Gemeinsam/Dokumente'
 
+
+def test_nextcloud_propfind_parses_owner_and_timestamps():
+    from app.utils.cloud_import.nextcloud import NextcloudProvider
+
+    xml_payload = b'''<?xml version="1.0"?>
+    <d:multistatus xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns">
+      <d:response>
+        <d:href>/remote.php/dav/files/svc_user/Public/</d:href>
+        <d:propstat>
+          <d:prop><d:resourcetype><d:collection/></d:resourcetype></d:prop>
+          <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+      </d:response>
+      <d:response>
+        <d:href>/remote.php/dav/files/svc_user/Public/Unterordner/</d:href>
+        <d:propstat>
+          <d:prop>
+            <d:displayname>Unterordner</d:displayname>
+            <d:resourcetype><d:collection/></d:resourcetype>
+            <d:getlastmodified>Tue, 10 Nov 2026 12:30:00 GMT</d:getlastmodified>
+            <oc:owner-id>erika.muster</oc:owner-id>
+            <oc:owner-display-name></oc:owner-display-name>
+          </d:prop>
+          <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+      </d:response>
+      <d:response>
+        <d:href>/remote.php/dav/files/svc_user/Public/Bericht.pdf</d:href>
+        <d:propstat>
+          <d:prop>
+            <d:displayname>Bericht.pdf</d:displayname>
+            <d:getcontentlength>2048</d:getcontentlength>
+            <d:getetag>"abc123"</d:getetag>
+            <d:getcontenttype>application/pdf</d:getcontenttype>
+            <d:resourcetype/>
+            <d:getlastmodified>Wed, 11 Nov 2026 15:45:00 GMT</d:getlastmodified>
+            <oc:owner-display-name>Max Mustermann</oc:owner-display-name>
+            <oc:owner-id>max.mustermann</oc:owner-id>
+            <nc:creation_time>1794300000</nc:creation_time>
+          </d:prop>
+          <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+      </d:response>
+    </d:multistatus>'''
+
+    class _FakeResp:
+        status_code = 207
+        content = xml_payload
+
+    provider = NextcloudProvider('https://cloud.example.org', 'svc_user', 'secret')
+    with patch.object(provider._session, 'request', return_value=_FakeResp()):
+        entries = provider.list_children('Public')
+
+    assert len(entries) == 2
+    folder_entry, file_entry = entries[0], entries[1]
+    assert folder_entry.is_dir is True
+    assert folder_entry.owner == 'erika.muster'
+    assert folder_entry.modified_at == datetime(2026, 11, 10, 12, 30, 0)
+    assert folder_entry.created_at == datetime(2026, 11, 10, 12, 30, 0)
+
+    assert file_entry.is_dir is False
+    assert file_entry.owner == 'Max Mustermann'
+    assert file_entry.modified_at == datetime(2026, 11, 11, 15, 45, 0)
+    assert file_entry.created_at == datetime(2026, 11, 10, 8, 40, 0)
+
+
+def test_nextcloud_sync_and_ui_show_remote_owner_and_dates(app, client):
+    from app.utils.nextcloud_settings import upsert_nextcloud_setting
+
+    admin = _create_user('nc_owner_admin', is_admin=True)
+    _login(client, admin)
+
+    upsert_nextcloud_setting(SETTING_NC_ENABLED, 'true')
+    upsert_nextcloud_setting(SETTING_NC_MODE, 'nextcloud')
+    upsert_nextcloud_setting(SETTING_NC_PUBLIC_ENABLED, 'true')
+    upsert_nextcloud_setting(SETTING_NC_PUBLIC_PATH, '/Public')
+    upsert_nextcloud_setting(SETTING_NC_PUBLIC_ACCESS, 'all')
+    db.session.commit()
+
+    nc_created = datetime(2025, 5, 1, 9, 15, 0)
+    nc_modified = datetime(2025, 6, 2, 14, 20, 0)
+
+    class _OwnerAwareProvider(FakeNextcloudProvider):
+        def list_children(self, path_or_id: str = ''):
+            base = (path_or_id or '').strip('/')
+            if base == 'Public':
+                return [
+                    RemoteEntry(
+                        id='Public/TeamDoku',
+                        name='TeamDoku',
+                        is_dir=True,
+                        path='Public/TeamDoku',
+                        owner='Erika Musterfrau',
+                        created_at=nc_created,
+                        modified_at=nc_modified,
+                    ),
+                    RemoteEntry(
+                        id='Public/Protokoll.pdf',
+                        name='Protokoll.pdf',
+                        is_dir=False,
+                        size=4096,
+                        path='Public/Protokoll.pdf',
+                        etag='etag-v1',
+                        content_type='application/pdf',
+                        owner='Max Mustermann',
+                        created_at=nc_created,
+                        modified_at=nc_modified,
+                    ),
+                ]
+            return []
+
+    fake = _OwnerAwareProvider()
+    with patch('app.utils.nextcloud_storage.get_portal_nextcloud_provider', return_value=fake):
+        pub_root = ensure_nextcloud_root_folder(
+            space='public', user_id=admin.id, remote_path='/Public', name='Public'
+        )
+        # Pre-existing shadow row created earlier with admin as uploader and no remote_owner
+        stale_file = File(
+            name='Protokoll.pdf',
+            original_name='Protokoll.pdf',
+            folder_id=pub_root.id,
+            uploaded_by=admin.id,
+            file_path='nextcloud://Public/Protokoll.pdf',
+            file_size=4096,
+            mime_type='application/pdf',
+            version_number=1,
+            is_current=True,
+            space='public',
+            storage_backend='nextcloud',
+            remote_path='Public/Protokoll.pdf',
+            remote_etag='etag-v1',
+        )
+        db.session.add(stale_file)
+        db.session.commit()
+
+        sync_folder_children(pub_root, user_id=admin.id, force=True)
+
+        synced_folder = Folder.query.filter_by(parent_id=pub_root.id, name='TeamDoku').first()
+        assert synced_folder is not None
+        assert synced_folder.remote_owner == 'Erika Musterfrau'
+        assert synced_folder.created_at == nc_created
+        assert synced_folder.updated_at == nc_modified
+
+        db.session.refresh(stale_file)
+        assert stale_file.remote_owner == 'Max Mustermann'
+        assert stale_file.created_at == nc_created
+        assert stale_file.updated_at == nc_modified
+
+        # Browse page and file-details API must show Nextcloud author instead of admin
+        page_resp = client.get(f'/files/folder/{pub_root.id}?view=nc_public')
+        assert page_resp.status_code == 200
+        html = page_resp.get_data(as_text=True)
+        assert 'Max Mustermann' in html
+        assert 'Erika Musterfrau' in html
+
+        details_resp = client.get(f'/files/api/file-details/{stale_file.id}')
+        assert details_resp.status_code == 200
+        payload = details_resp.get_json()
+        assert payload['success'] is True
+        assert payload['file']['uploader'] == 'Max Mustermann'
+        assert '01.05.2025' in payload['file']['created_at']
+
+

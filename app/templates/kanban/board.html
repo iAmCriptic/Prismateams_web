@@ -243,7 +243,14 @@
           </div>
           <div class="kanban-meta-row" id="cardMetaRow"></div>
           <section class="mb-3" id="cardCustomFields" hidden>
-            <h6><i class="bi bi-ui-checks-grid me-1"></i>{{ _('kanban.custom_fields.title') }}</h6>
+            <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+              <h6 class="mb-0"><i class="bi bi-ui-checks-grid me-1"></i>{{ _('kanban.custom_fields.title') }}</h6>
+              {% if can_edit %}
+              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" id="cardCustomFieldsEditBtn">
+                <i class="bi bi-pencil me-1"></i>{{ _('common.edit') }}
+              </button>
+              {% endif %}
+            </div>
             <div class="kanban-custom-fields-grid" id="cardCustomFieldsGrid"></div>
           </section>
           <section class="mb-3 kanban-desc-section" id="cardDescSection">
@@ -460,6 +467,12 @@
           </div>
         </form>
         <div id="kanbanCustomFieldsList" class="kanban-cf-manage-list"></div>
+        <div class="mt-4 pt-3 border-top" id="kanbanBoardDefaultFieldsSection">
+          <h6 class="mb-1">{{ _('kanban.custom_fields.default_all_lists') }}</h6>
+          <p class="small text-muted mb-2">{{ _('kanban.custom_fields.default_all_lists_hint') }}</p>
+          <div id="kanbanBoardDefaultFieldsList" class="d-grid gap-1 mb-3"></div>
+          <button type="button" class="btn btn-sm btn-accent mod-pill-btn" id="kanbanBoardDefaultFieldsSave">{{ _('kanban.custom_fields.save') }}</button>
+        </div>
       </div>
     </div>
   </div>
@@ -693,7 +706,7 @@
         {% if can_edit %}
         <form class="kanban-label-create" id="kanbanCreateLabelForm">
           <div class="fw-semibold small">{{ _('kanban.card.create_label') }}</div>
-          <input type="text" class="form-control form-control-sm mod-pill-input" name="name" maxlength="80" placeholder="{{ _('kanban.card.label_name') }}" required>
+          <input type="text" class="form-control form-control-sm mod-pill-input" name="name" maxlength="80" placeholder="{{ _('kanban.card.label_name') }}">
           <div class="d-flex align-items-center gap-2">
             <input type="color" class="form-control form-control-color kanban-label-color-input" name="color" value="#ef4444" title="{{ _('kanban.card.label_color') }}">
             <button type="submit" class="btn mod-pill-btn btn-sm flex-grow-1">{{ _('kanban.card.add') }}</button>
@@ -838,6 +851,12 @@
     customFieldUncategorized: {{ _('kanban.custom_fields.uncategorized') | tojson }},
     customFieldNoCategories: {{ _('kanban.custom_fields.no_categories') | tojson }},
     customFieldDeleteCategory: {{ _('kanban.custom_fields.delete_category') | tojson }},
+    customFieldEdit: {{ _('common.edit') | tojson }},
+    customFieldDone: {{ _('common.save') | tojson }},
+    customFieldDefaultAllListsSaved: {{ _('kanban.custom_fields.default_all_lists_saved') | tojson }},
+    transferOwnership: {{ _('kanban.board.transfer_ownership') | tojson }},
+    transferOwnershipConfirm: {{ _('kanban.board.transfer_ownership_confirm') | tojson }},
+    transferOwnershipDone: {{ _('kanban.board.transfer_ownership_done') | tojson }},
     links: {{ _('kanban.card.links') | tojson }},
     files: {{ _('kanban.card.files') | tojson }},
     addedSuffix: {{ _('kanban.card.added_suffix') | tojson }},
@@ -916,5 +935,5 @@
 <script>window.MARKDOWN_EDITOR_I18N = {{ i18n_ns('markdown', 'editor')|tojson }};</script>
 <script src="{{ url_for('static', filename='js/markdown-toolbar.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="{{ url_for('static', filename='js/kanban-board.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}&t=20261117_09"></script>
+<script src="{{ url_for('static', filename='js/kanban-board.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}&t=20261124_01"></script>
 {% endblock %}

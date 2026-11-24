@@ -16,7 +16,7 @@ from flask import (
 from flask_login import current_user, login_required
 
 from app import db
-from app.models.cloud_import import CloudImportConnection, CloudImportJob
+from app.models.cloud_import import CloudImportConnection, CloudImportJob, KanbanImportJob
 from app.models.file import Folder
 from app.utils.cloud_import.base import decrypt_credentials, encrypt_credentials
 from app.utils.cloud_import.google_drive import build_google_drive_provider
@@ -175,9 +175,34 @@ def register_cloud_import_routes(bp):
             spaces = allowed_import_spaces_for_user(current_user)
 
         trello_profile = None
+        kanban_jobs = []
         if show_kanban_import:
+            from app.blueprints.settings.admin_core import _serialize_kanban_job
             from app.utils.trello_client import get_trello_session_profile
             trello_profile = get_trello_session_profile()
+            raw_kjobs = (
+                KanbanImportJob.query.filter_by(user_id=current_user.id)
+                .order_by(KanbanImportJob.created_at.desc())
+                .limit(30)
+                .all()
+            )
+            kanban_jobs = [(_serialize_kanban_job(kj), kj.created_at) for kj in raw_kjobs]
+
+        combined_jobs = []
+        for cj in jobs:
+            combined_jobs.append({
+                'kind': 'cloud',
+                'created_at': cj.created_at,
+                'job': cj,
+            })
+        for kj_dict, kj_created in kanban_jobs:
+            combined_jobs.append({
+                'kind': 'kanban',
+                'created_at': kj_created,
+                'job': kj_dict,
+            })
+        combined_jobs.sort(key=lambda item: item['created_at'] or 0, reverse=True)
+        combined_jobs = combined_jobs[:30]
 
         return render_template(
             'settings/imports.html',
@@ -185,6 +210,7 @@ def register_cloud_import_routes(bp):
             show_kanban_import=show_kanban_import,
             connections=connections,
             jobs=jobs,
+            combined_jobs=combined_jobs,
             spaces=spaces,
             google_configured=google_oauth_configured() if show_cloud_import else False,
             private_folders_enabled=is_private_folders_enabled() if show_cloud_import else False,

@@ -20,6 +20,7 @@ from app.utils.file_storage_limits import (
 )
 from app.utils.private_files import (
     apply_space_to_folder_tree,
+    natural_name_key,
     can_edit_file,
     can_edit_folder,
     can_manage_acl,
@@ -488,17 +489,17 @@ def public_share(token):
             flash('Der angeforderte Unterordner ist nicht Teil dieser Freigabe.', 'warning')
             return redirect(url_for('files.public_share', token=token))
 
-    folder_files = (
+    folder_files = sorted(
         File.query.filter_by(folder_id=active_folder.id, is_current=True)
         .filter(File.deleted_at.is_(None))
-        .order_by(File.name)
-        .all()
+        .all(),
+        key=natural_name_key,
     )
-    subfolders = (
+    subfolders = sorted(
         Folder.query.filter_by(parent_id=active_folder.id)
         .filter(Folder.deleted_at.is_(None))
-        .order_by(Folder.name)
-        .all()
+        .all(),
+        key=natural_name_key,
     )
     breadcrumb_folders = _build_public_share_breadcrumb(item, active_folder, token)
     can_edit = share_mode == 'edit'

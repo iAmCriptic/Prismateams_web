@@ -408,7 +408,7 @@
                     <h4 class="file-viewer-filename mb-0" title="{{ file.name }}">{{ file.name }}</h4>
                     <small class="file-viewer-meta-line text-muted">
                         {{ (file.file_size / 1024)|round(2) }} KB •
-                        Von {{ file.uploader.full_name if file.uploader else '—' }} •
+                        Von {{ file.remote_owner or (file.uploader.full_name if file.uploader else '—') }} •
                         {{ file.created_at|localdatetime('%d.%m.%Y %H:%M') }}
                         {% if file.version_number > 1 %}
                         • Version {{ file.version_number }}
@@ -431,7 +431,7 @@
                 <h4 title="{{ file.name }}">{{ file.name }}</h4>
                 <small class="text-muted">
                     {{ (file.file_size / 1024)|round(2) }} KB •
-                    Von {{ file.uploader.full_name if file.uploader else '—' }} •
+                    Von {{ file.remote_owner or (file.uploader.full_name if file.uploader else '—') }} •
                     {{ file.created_at|localdatetime('%d.%m.%Y %H:%M') }}
                     {% if file.version_number > 1 %}
                     • Version {{ file.version_number }}
@@ -460,7 +460,7 @@
                 <div class="file-viewer-brand-text">
                     <h4 class="file-viewer-filename mb-0" title="{{ file.name }}">{{ file.name }}</h4>
                     <small class="file-viewer-meta-line text-muted">
-                        Von {{ file.uploader.full_name if file.uploader else '—' }}
+                        Von {{ file.remote_owner or (file.uploader.full_name if file.uploader else '—') }}
                         -
                         {{ file.updated_at|localdatetime('%d.%m.%Y %H:%M') if file.updated_at else file.created_at|localdatetime('%d.%m.%Y %H:%M') }}
                     </small>

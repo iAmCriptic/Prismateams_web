@@ -753,12 +753,20 @@ def _serialize_attachment(att: KanbanAttachment, share_token: str | None = None)
 
 def _checklist_progress(card: KanbanCard) -> dict:
     total = done = 0
+    next_due = None
     for cl in card.checklists:
         for item in cl.items:
             total += 1
             if item.done:
                 done += 1
-    return {'done': done, 'total': total}
+            elif item.due_date is not None:
+                if next_due is None or item.due_date < next_due:
+                    next_due = item.due_date
+    return {
+        'done': done,
+        'total': total,
+        'next_due': next_due.isoformat() if next_due else None,
+    }
 
 
 def _serialize_checklist_item(it: KanbanChecklistItem) -> dict:

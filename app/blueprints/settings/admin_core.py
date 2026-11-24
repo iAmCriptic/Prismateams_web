@@ -1808,6 +1808,144 @@ def kanban_import_trello_import():
     }), 201
 
 
+def _serialize_kanban_job(job) -> dict:
+    """Serialize a KanbanImportJob for JSON responses and initial template hydration."""
+    raw_boards = []
+    if job.result_boards_json:
+        try:
+            parsed = json.loads(job.result_boards_json)
+            if isinstance(parsed, list):
+                raw_boards = parsed
+        except (TypeError, ValueError):
+            raw_boards = []
+
+    boards = []
+    for b in raw_boards:
+        if not isinstance(b, dict) or not b.get('id'):
+            continue
+        boards.append({
+            'id': b['id'],
+            'public_id': b.get('public_id'),
+            'title': b.get('title') or f"#{b['id']}",
+            'url': url_for('kanban.board', board_id=b.get('public_id') or b['id']),
+        })
+
+    return {
+        'id': job.id,
+        'source': job.source,
+        'display_name': job.display_name,
+        'status': job.status,
+        'visibility': job.visibility,
+        'team_id': job.team_id,
+        'target_label': job.target_label,
+        'boards_total': job.boards_total or 1,
+        'boards_done': job.boards_done or 0,
+        'boards': boards,
+        'error_message': job.error_message,
+        'created_at': job.created_at.isoformat() + 'Z' if job.created_at else None,
+        'started_at': job.started_at.isoformat() + 'Z' if job.started_at else None,
+        'completed_at': job.completed_at.isoformat() + 'Z' if job.completed_at else None,
+    }
+
+
+@settings_bp.route('/kanban-import/trello/jobs', methods=['POST'])
+@login_required
+def kanban_import_trello_jobs():
+    """Start an asynchronous Trello board import job persisted in the database."""
+    err = _require_kanban_import_access()
+    if err:
+        return err
+
+    from datetime import datetime
+    from app.models.cloud_import import KanbanImportJob
+    from app.utils.kanban_access import (
+        KanbanImportPermissionError,
+        VISIBILITY_PRIVATE,
+        assert_can_import_board_visibility,
+    )
+    from app.utils.kanban_import_worker import start_trello_import_job
+    from app.utils.trello_client import get_trello_session_auth
+
+    auth = get_trello_session_auth()
+    if not auth:
+        return jsonify({'error': translate('settings.kanban_import.trello_not_connected'), 'code': 'not_connected'}), 401
+
+    data = request.get_json(silent=True) or {}
+    board_ids = data.get('board_ids') or []
+    if isinstance(board_ids, str):
+        board_ids = [board_ids]
+    board_ids = [str(bid).strip() for bid in board_ids if str(bid).strip()]
+    if not board_ids:
+        return jsonify({'error': translate('settings.kanban_import.trello_select_board'), 'code': 'no_boards'}), 400
+
+    visibility = (data.get('visibility') or VISIBILITY_PRIVATE).strip().lower()
+    raw_team_id = data.get('team_id')
+    try:
+        team_id = int(raw_team_id) if raw_team_id not in (None, '', 'null') else None
+    except (TypeError, ValueError):
+        return jsonify({'error': translate('kanban.import.error_forbidden'), 'code': 'invalid_target'}), 400
+
+    try:
+        assert_can_import_board_visibility(current_user, visibility, team_id)
+    except KanbanImportPermissionError as exc:
+        return jsonify({'error': translate('kanban.import.error_forbidden'), 'code': str(exc) or 'forbidden'}), 403
+
+    board_names = data.get('board_names') or []
+    if isinstance(board_names, list):
+        clean_names = [str(n).strip() for n in board_names if str(n).strip()]
+    else:
+        clean_names = []
+
+    if len(board_ids) == 1 and clean_names:
+        display_name = clean_names[0][:255]
+    else:
+        display_name = (str(data.get('display_name') or '').strip() or translate('settings.imports.source.kanban.mode_trello'))[:255]
+
+    target_label = (str(data.get('target_label') or '').strip() or visibility)[:255]
+
+    now = datetime.utcnow()
+    job = KanbanImportJob(
+        user_id=current_user.id,
+        source='trello',
+        display_name=display_name,
+        status='pending',
+        visibility=visibility,
+        team_id=team_id if visibility == 'team' else None,
+        target_label=target_label,
+        boards_total=len(board_ids),
+        boards_done=0,
+        created_at=now,
+        started_at=now,
+    )
+    db.session.add(job)
+    db.session.commit()
+
+    start_trello_import_job(
+        current_app._get_current_object(),
+        job.id,
+        board_ids,
+        auth[0],
+        auth[1],
+    )
+    return jsonify({'ok': True, 'job': _serialize_kanban_job(job)}), 202
+
+
+@settings_bp.route('/kanban-import/jobs/<int:job_id>', methods=['GET'])
+@login_required
+def kanban_import_job_status(job_id):
+    """Return current status and imported boards for a persisted KanbanImportJob."""
+    err = _require_kanban_import_access()
+    if err:
+        return err
+
+    from app.models.cloud_import import KanbanImportJob
+
+    job = KanbanImportJob.query.filter_by(id=job_id, user_id=current_user.id).first()
+    if not job:
+        return jsonify({'ok': False, 'error': 'not_found'}), 404
+    return jsonify({'ok': True, 'job': _serialize_kanban_job(job)})
+
+
 VISIBILITY_SETTINGS_MODULES = {
     'credentials': {
         'module_key': 'module_credentials',

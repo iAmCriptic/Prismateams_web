@@ -742,6 +742,9 @@ def get_file_details(file_id):
     viewable_extensions = {'.txt', '.md', '.markdown', '.json', '.xml', '.csv', '.log'}
     is_viewable = file_ext in viewable_extensions
     
+    from app.utils.common import format_datetime
+    uploader_name = file.remote_owner or (file.uploader.full_name if file.uploader else '—')
+    created_at_str = format_datetime(file.created_at, '%d.%m.%Y %H:%M') if file.created_at else '—'
     return jsonify({
         'success': True,
         'file': {
@@ -749,8 +752,8 @@ def get_file_details(file_id):
             'name': file.original_name,
             'size': file_size_str,
             'type': file_type,
-            'uploader': file.uploader.full_name,
-            'created_at': file.created_at.strftime('%d.%m.%Y %H:%M'),
+            'uploader': uploader_name,
+            'created_at': created_at_str,
             'version': file.version_number,
             'is_editable': is_editable,
             'is_viewable': is_viewable

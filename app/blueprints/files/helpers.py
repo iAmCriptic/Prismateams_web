@@ -20,6 +20,7 @@ from app.utils.file_storage_limits import (
 )
 from app.utils.private_files import (
     apply_space_to_folder_tree,
+    natural_name_key,
     can_edit_file,
     can_edit_folder,
     can_manage_acl,
@@ -884,20 +885,18 @@ def _build_public_share_breadcrumb(root_folder, current_folder, token):
 def _build_share_gate_preview_context(share, item):
     """Vorschau-Kontext für vorgeschaltete Freigabe-Seiten (Name/Passwort)."""
     if share.resource_type == 'folder':
-        preview_subfolders = (
+        preview_subfolders = sorted(
             Folder.query.filter_by(parent_id=item.id)
             .filter(Folder.deleted_at.is_(None))
-            .order_by(Folder.name)
-            .limit(12)
-            .all()
-        )
-        preview_files = (
+            .all(),
+            key=natural_name_key,
+        )[:12]
+        preview_files = sorted(
             File.query.filter_by(folder_id=item.id, is_current=True)
             .filter(File.deleted_at.is_(None))
-            .order_by(File.name)
-            .limit(24)
-            .all()
-        )
+            .all(),
+            key=natural_name_key,
+        )[:24]
         return {
             'preview_item_type': 'folder',
             'preview_folder': item,

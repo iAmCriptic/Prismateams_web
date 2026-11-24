@@ -92,9 +92,16 @@ def api_board_members(board_id):
     if err:
         return err
     if request.method == 'GET':
+        my_member = KanbanBoardMember.query.filter_by(board_id=board.id, user_id=current_user.id).first()
+        can_transfer = bool(
+            (board.created_by and board.created_by == current_user.id)
+            or getattr(current_user, 'is_admin', False)
+            or (my_member is not None and my_member.role == 'owner')
+        )
         return jsonify({
             'members': _serialize_board_members(board),
             'can_manage': can_manage_board(current_user, board),
+            'can_transfer_ownership': can_transfer,
             'visibility': board.visibility,
             'team_name': board.team.name if (board.team or board.team_id) else None,
             'created_by': board.created_by,
@@ -130,6 +137,64 @@ def api_board_members(board_id):
     _emit_board(board.id, 'members_updated', {'board_id': board.id})
     return jsonify({
         'success': True,
+        'members': _serialize_board_members(board),
+    })
+
+
+@kanban_bp.route('/api/boards/<int:board_id>/transfer-ownership', methods=['POST'])
+@login_required
+@check_module_access('module_kanban')
+def api_transfer_board_ownership(board_id):
+    board, err = _require_board_view(board_id)
+    if err:
+        return err
+    my_member = KanbanBoardMember.query.filter_by(board_id=board.id, user_id=current_user.id).first()
+    is_owner = bool(
+        (board.created_by and board.created_by == current_user.id)
+        or getattr(current_user, 'is_admin', False)
+        or (my_member is not None and my_member.role == 'owner')
+    )
+    if not is_owner:
+        return jsonify({'error': 'Forbidden'}), 403
+    data = request.get_json(silent=True) or {}
+    try:
+        new_owner_id = int(data['user_id'])
+    except (KeyError, TypeError, ValueError):
+        return jsonify({'error': 'User ID required'}), 400
+    target_user = User.query.get(new_owner_id)
+    if not target_user or not target_user.is_active:
+        return jsonify({'error': 'User not found or inactive'}), 404
+    if not has_module_access(target_user, 'module_kanban'):
+        return jsonify({'error': 'User does not have access to Boards module'}), 400
+
+    old_creator_id = board.created_by
+    # Demote previous owner(s) to admin so they keep access
+    for m in KanbanBoardMember.query.filter_by(board_id=board.id, role='owner').all():
+        if m.user_id != new_owner_id:
+            m.role = 'admin'
+    if old_creator_id and old_creator_id != new_owner_id:
+        old_creator_member = KanbanBoardMember.query.filter_by(board_id=board.id, user_id=old_creator_id).first()
+        if old_creator_member is None:
+            db.session.add(KanbanBoardMember(board_id=board.id, user_id=old_creator_id, role='admin'))
+        elif old_creator_member.role == 'owner':
+            old_creator_member.role = 'admin'
+
+    # Promote new owner
+    board.created_by = new_owner_id
+    target_member = KanbanBoardMember.query.filter_by(board_id=board.id, user_id=new_owner_id).first()
+    if target_member is None:
+        db.session.add(KanbanBoardMember(board_id=board.id, user_id=new_owner_id, role='owner'))
+    else:
+        target_member.role = 'owner'
+
+    target_name = target_user.full_name or target_user.email
+    _log_activity(board.id, 'ownership_transferred', f"{new_owner_id}::{target_name}")
+    db.session.commit()
+    _emit_board(board.id, 'members_updated', {'board_id': board.id})
+    _emit_board(board.id, 'board_updated', _serialize_board(board, full=True))
+    return jsonify({
+        'success': True,
+        'created_by': board.created_by,
         'members': _serialize_board_members(board),
     })
 
@@ -254,6 +319,7 @@ def _activity_label(action: str) -> str:
         'member_added': 'Mitglied hinzugefügt',
         'member_updated': 'Mitgliederrolle geändert',
         'member_removed': 'Mitglied entfernt',
+        'ownership_transferred': 'Eigentümerschaft übertragen',
         'comment_added': 'Kommentar hinzugefügt',
         'custom_field_created': 'Feld erstellt',
         'custom_field_deleted': 'Feld gelöscht',
@@ -426,6 +492,28 @@ def _format_notification_text(activity: KanbanActivity, current_user) -> tuple[s
 
     elif action == 'card_updated':
         return (f"{prefix} die Karte aktualisiert", False)
+
+    elif action == 'board_updated':
+        if detail and detail.lstrip().startswith('{'):
+            try:
+                parsed = json.loads(detail)
+                if isinstance(parsed, dict) and 'visibility' in parsed:
+                    vis_map = {'private': 'Privat', 'team': 'Team', 'public': 'Öffentlich'}
+                    vis_label = vis_map.get(parsed.get('visibility'), str(parsed.get('visibility') or ''))
+                    team_id = parsed.get('team_id')
+                    if parsed.get('visibility') == 'team' and team_id:
+                        team = Team.query.get(team_id)
+                        if team and team.name:
+                            vis_label = f"Team ({team.name})"
+                    return (f"{prefix} die Board-Sichtbarkeit auf '{vis_label}' geändert", False)
+            except (ValueError, TypeError):
+                pass
+        return (f"{prefix} das Board aktualisiert", False)
+
+    elif action == 'ownership_transferred':
+        if user_matches_target:
+            return ("Hat Ihnen die Eigentumsrechte am Board übertragen", True) if not is_me else ("Du hast die Eigentumsrechte am Board übernommen", False)
+        return (f"{prefix} die Eigentumsrechte an {target_name or detail} übertragen", False)
 
     return (f"{prefix} {_activity_label(action)}: {detail}" if detail else f"{prefix} {_activity_label(action)}", False)
 

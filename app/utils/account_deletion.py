@@ -326,8 +326,9 @@ def erase_user_account(user) -> None:
         current_app.logger.exception('Cookie-consent cleanup failed for user %s', user_id)
 
     try:
-        from app.models.cloud_import import CloudImportConnection, CloudImportJob
+        from app.models.cloud_import import CloudImportConnection, CloudImportJob, KanbanImportJob
         CloudImportJob.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+        KanbanImportJob.query.filter_by(user_id=user_id).delete(synchronize_session=False)
         CloudImportConnection.query.filter_by(user_id=user_id).delete(synchronize_session=False)
     except Exception:
         current_app.logger.exception('Cloud-import cleanup failed for user %s', user_id)

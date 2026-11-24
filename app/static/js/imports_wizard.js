@@ -846,6 +846,71 @@
     });
   }
 
+  function formatElapsed(totalSeconds) {
+    var s = Math.max(0, Math.floor(totalSeconds || 0));
+    var h = Math.floor(s / 3600);
+    var m = Math.floor((s % 3600) / 60);
+    var sec = s % 60;
+    var pad = function (n) { return n < 10 ? '0' + n : String(n); };
+    return h > 0 ? (h + ':' + pad(m) + ':' + pad(sec)) : (pad(m) + ':' + pad(sec));
+  }
+
+  function computeSlowProgress(elapsedSec) {
+    // Very slow asymptotic orientation curve (< 88%) that never hits 100% until backend finishes.
+    return Math.min(88, 2 + 86 * (1 - Math.exp(-Math.max(0, elapsedSec) / 240)));
+  }
+
+  function parseIsoMs(iso) {
+    if (!iso) return null;
+    var ms = Date.parse(iso);
+    return isNaN(ms) ? null : ms;
+  }
+
+  function applyKanbanJobCompleted(li, boards) {
+    li.setAttribute('data-status', 'completed');
+    var badgeEl = li.querySelector('.kanban-import-job-status');
+    var barEl = li.querySelector('.progress-bar');
+    var actionsEl = li.querySelector('.kanban-import-job-actions');
+    if (badgeEl) {
+      badgeEl.className = 'badge text-bg-success ms-1 kanban-import-job-status';
+      badgeEl.textContent = msg('status-completed') || 'Completed';
+    }
+    if (barEl) {
+      barEl.classList.remove('sp-job-bar-slow', 'progress-bar-striped', 'progress-bar-animated');
+      barEl.classList.add('sp-job-bar-finish', 'bg-success');
+      barEl.style.width = '100%';
+      barEl.setAttribute('aria-valuenow', '100');
+    }
+    if (actionsEl && boards && boards.length === 1 && boards[0].url && !actionsEl.querySelector('a')) {
+      var link = document.createElement('a');
+      link.href = boards[0].url;
+      link.className = 'btn btn-sm btn-outline-secondary rounded-pill';
+      link.textContent = msg('open') || 'Open';
+      actionsEl.appendChild(link);
+    }
+  }
+
+  function applyKanbanJobFailed(li, errMsg) {
+    li.setAttribute('data-status', 'failed');
+    var badgeEl = li.querySelector('.kanban-import-job-status');
+    var barEl = li.querySelector('.progress-bar');
+    if (badgeEl) {
+      badgeEl.className = 'badge text-bg-danger ms-1 kanban-import-job-status';
+      badgeEl.textContent = msg('status-failed') || 'Failed';
+    }
+    if (barEl) {
+      barEl.classList.remove('sp-job-bar-slow', 'progress-bar-striped', 'progress-bar-animated');
+      barEl.classList.add('sp-job-bar-finish', 'bg-danger');
+    }
+    if (errMsg && !li.querySelector('.kanban-import-job-error')) {
+      var errDiv = document.createElement('div');
+      errDiv.className = 'small text-danger mt-1 kanban-import-job-error';
+      errDiv.textContent = errMsg;
+      var infoWrap = li.querySelector('.min-width-0');
+      if (infoWrap) infoWrap.appendChild(errDiv);
+    }
+  }
+
   function createKanbanJobRow(title, targetLabel, subtitleText) {
     var list = document.getElementById('cloudImportJobs');
     if (!list) {
@@ -867,18 +932,22 @@
       '<div class="min-width-0 flex-grow-1">' +
       '<strong class="kanban-import-job-title"></strong> ' +
       '<span class="badge text-bg-primary ms-1 kanban-import-job-status"></span>' +
+      '<span class="kanban-import-job-timer text-muted small ms-2">' +
+      '<i class="bi bi-stopwatch" aria-hidden="true"></i> ' +
+      '<span class="kanban-import-job-timer-val">00:00</span>' +
+      '</span>' +
       '<div class="small text-muted kanban-import-job-meta"></div>' +
       '</div>' +
       '<div class="kanban-import-job-actions"></div>' +
       '</div>' +
       '<div class="progress mt-2 sp-job-progress">' +
-      '<div class="progress-bar progress-bar-striped progress-bar-animated sp-job-bar-slow" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="5" style="width: 5%"></div>' +
+      '<div class="progress-bar progress-bar-striped progress-bar-animated sp-job-bar-slow" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="2" style="width: 2%"></div>' +
       '</div>';
 
     var titleEl = li.querySelector('.kanban-import-job-title');
     var badgeEl = li.querySelector('.kanban-import-job-status');
     var metaEl = li.querySelector('.kanban-import-job-meta');
-    var actionsEl = li.querySelector('.kanban-import-job-actions');
+    var timerValEl = li.querySelector('.kanban-import-job-timer-val');
     var barEl = li.querySelector('.progress-bar');
 
     if (titleEl) titleEl.textContent = title || 'Kanban';
@@ -890,22 +959,26 @@
     list.insertBefore(li, list.firstChild);
     li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
-    var pct = 5;
+    var startedMs = Date.now();
+    var manualPct = 2;
     var finished = false;
     var timer = setInterval(function () {
       if (finished) return;
-      pct = Math.min(88, pct + Math.max(0.15, (88 - pct) * 0.022));
+      var elapsedSec = (Date.now() - startedMs) / 1000;
+      if (timerValEl) timerValEl.textContent = formatElapsed(elapsedSec);
+      var pct = Math.max(manualPct, computeSlowProgress(elapsedSec));
       if (barEl) {
         barEl.style.width = pct.toFixed(1) + '%';
         barEl.setAttribute('aria-valuenow', String(Math.round(pct)));
       }
-    }, 600);
+    }, 1000);
 
     return {
       setProgress: function (nextPct) {
         if (finished) return;
-        var clamped = Math.max(pct, Math.min(88, Number(nextPct) || 0));
-        pct = clamped;
+        manualPct = Math.max(manualPct, Math.min(88, Number(nextPct) || 0));
+        var elapsedSec = (Date.now() - startedMs) / 1000;
+        var pct = Math.max(manualPct, computeSlowProgress(elapsedSec));
         if (barEl) {
           barEl.style.width = pct.toFixed(1) + '%';
           barEl.setAttribute('aria-valuenow', String(Math.round(pct)));
@@ -920,47 +993,160 @@
         if (finished) return;
         finished = true;
         clearInterval(timer);
-        li.setAttribute('data-status', 'completed');
-        if (badgeEl) {
-          badgeEl.className = 'badge text-bg-success ms-1 kanban-import-job-status';
-          badgeEl.textContent = msg('status-completed') || 'Completed';
-        }
-        if (barEl) {
-          barEl.classList.remove('sp-job-bar-slow', 'progress-bar-striped', 'progress-bar-animated');
-          barEl.classList.add('sp-job-bar-finish', 'bg-success');
-          barEl.style.width = '100%';
-          barEl.setAttribute('aria-valuenow', '100');
-        }
-        if (actionsEl && boards && boards.length === 1 && boards[0].url) {
-          var link = document.createElement('a');
-          link.href = boards[0].url;
-          link.className = 'btn btn-sm btn-outline-secondary rounded-pill';
-          link.textContent = msg('open') || 'Open';
-          actionsEl.appendChild(link);
-        }
+        if (timerValEl) timerValEl.textContent = formatElapsed((Date.now() - startedMs) / 1000);
+        applyKanbanJobCompleted(li, boards);
       },
       fail: function (errMsg) {
         if (finished) return;
         finished = true;
         clearInterval(timer);
-        li.setAttribute('data-status', 'failed');
-        if (badgeEl) {
-          badgeEl.className = 'badge text-bg-danger ms-1 kanban-import-job-status';
-          badgeEl.textContent = msg('status-failed') || 'Failed';
-        }
-        if (barEl) {
-          barEl.classList.remove('sp-job-bar-slow', 'progress-bar-striped', 'progress-bar-animated');
-          barEl.classList.add('sp-job-bar-finish', 'bg-danger');
-        }
-        if (errMsg) {
-          var errDiv = document.createElement('div');
-          errDiv.className = 'small text-danger mt-1';
-          errDiv.textContent = errMsg;
-          var infoWrap = li.querySelector('.min-width-0');
-          if (infoWrap) infoWrap.appendChild(errDiv);
-        }
+        if (timerValEl) timerValEl.textContent = formatElapsed((Date.now() - startedMs) / 1000);
+        applyKanbanJobFailed(li, errMsg);
       },
     };
+  }
+
+  function attachKanbanJobRow(li, opts) {
+    if (!li || li.getAttribute('data-kanban-bound') === '1') return;
+    li.setAttribute('data-kanban-bound', '1');
+
+    var jobId = li.getAttribute('data-kanban-job-id');
+    var status = li.getAttribute('data-status') || 'running';
+    var startedMs = parseIsoMs(li.getAttribute('data-started-at')) || Date.now();
+    var completedMs = parseIsoMs(li.getAttribute('data-completed-at'));
+    var timerValEl = li.querySelector('.kanban-import-job-timer-val');
+    var barEl = li.querySelector('.progress-bar');
+    var metaEl = li.querySelector('.kanban-import-job-meta');
+
+    if (status === 'completed' || status === 'failed') {
+      if (timerValEl && completedMs && startedMs) {
+        timerValEl.textContent = formatElapsed((completedMs - startedMs) / 1000);
+      }
+      return;
+    }
+
+    var finished = false;
+    function updateClockAndBar() {
+      if (finished) return;
+      var elapsedSec = Math.max(0, (Date.now() - startedMs) / 1000);
+      if (timerValEl) timerValEl.textContent = formatElapsed(elapsedSec);
+      var pct = computeSlowProgress(elapsedSec);
+      if (barEl) {
+        barEl.style.width = pct.toFixed(1) + '%';
+        barEl.setAttribute('aria-valuenow', String(Math.round(pct)));
+      }
+    }
+    updateClockAndBar();
+    var clockTimer = setInterval(updateClockAndBar, 1000);
+
+    var jobBase = root.getAttribute('data-kanban-job-base');
+    if (!jobId || !jobBase) return;
+
+    function poll() {
+      if (finished) return;
+      fetch(replaceId(jobBase, jobId), {
+        headers: csrfHeaders(),
+        credentials: 'same-origin',
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data || !data.ok || !data.job) return;
+          var job = data.job;
+          if (job.started_at) {
+            var parsedStart = parseIsoMs(job.started_at);
+            if (parsedStart) startedMs = parsedStart;
+          }
+          if (metaEl) {
+            var targetText = job.target_label || job.visibility || '';
+            var countPart = (job.boards_total > 1)
+              ? (' · ' + (job.boards_done || 0) + '/' + job.boards_total)
+              : '';
+            metaEl.textContent = targetText + countPart + ' · ' + (msg('src-kanban-trello') || 'Trello');
+          }
+          if (job.status === 'completed') {
+            finished = true;
+            clearInterval(clockTimer);
+            var endMs = parseIsoMs(job.completed_at) || Date.now();
+            if (timerValEl) timerValEl.textContent = formatElapsed((endMs - startedMs) / 1000);
+            applyKanbanJobCompleted(li, job.boards || []);
+            if (opts && opts.fromCurrentSession) {
+              renderKanbanResults(job.boards || []);
+              var count = (job.boards || []).length;
+              if (count > 0) {
+                toast(
+                  count === 1 ? msg('done-one') : msg('done-many').replace('{count}', String(count)),
+                  'success'
+                );
+              }
+            }
+          } else if (job.status === 'failed') {
+            finished = true;
+            clearInterval(clockTimer);
+            var failEndMs = parseIsoMs(job.completed_at) || Date.now();
+            if (timerValEl) timerValEl.textContent = formatElapsed((failEndMs - startedMs) / 1000);
+            applyKanbanJobFailed(li, job.error_message || msg('failed'));
+            if (opts && opts.fromCurrentSession) {
+              showStepError(4, job.error_message || msg('failed'));
+            }
+          } else {
+            setTimeout(poll, 2000);
+          }
+        })
+        .catch(function () {
+          if (!finished) setTimeout(poll, 4000);
+        });
+    }
+    setTimeout(poll, 1500);
+  }
+
+  function addKanbanJobToList(job, opts) {
+    var list = document.getElementById('cloudImportJobs');
+    if (!list || !job) return;
+    var empty = document.getElementById('cloudImportEmptyJobs');
+    if (empty) empty.remove();
+
+    var li = document.createElement('li');
+    li.className = 'sp-job-row kanban-import-job';
+    li.setAttribute('data-kanban-job-id', String(job.id));
+    li.setAttribute('data-status', job.status || 'pending');
+    li.setAttribute('data-started-at', job.started_at || job.created_at || new Date().toISOString());
+    li.setAttribute('data-completed-at', job.completed_at || '');
+    li.setAttribute('data-boards-total', String(job.boards_total || 1));
+    li.setAttribute('data-boards-done', String(job.boards_done || 0));
+    li.innerHTML =
+      '<div class="d-flex justify-content-between align-items-start gap-2">' +
+      '<div class="min-width-0 flex-grow-1">' +
+      '<strong class="kanban-import-job-title"></strong> ' +
+      '<span class="badge text-bg-primary ms-1 kanban-import-job-status"></span>' +
+      '<span class="kanban-import-job-timer text-muted small ms-2">' +
+      '<i class="bi bi-stopwatch" aria-hidden="true"></i> ' +
+      '<span class="kanban-import-job-timer-val">00:00</span>' +
+      '</span>' +
+      '<div class="small text-muted kanban-import-job-meta"></div>' +
+      '</div>' +
+      '<div class="kanban-import-job-actions"></div>' +
+      '</div>' +
+      '<div class="progress mt-2 sp-job-progress">' +
+      '<div class="progress-bar progress-bar-striped progress-bar-animated sp-job-bar-slow" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="2" style="width: 2%"></div>' +
+      '</div>';
+
+    var titleEl = li.querySelector('.kanban-import-job-title');
+    var badgeEl = li.querySelector('.kanban-import-job-status');
+    var metaEl = li.querySelector('.kanban-import-job-meta');
+
+    if (titleEl) titleEl.textContent = job.display_name || 'Kanban';
+    if (badgeEl) badgeEl.textContent = msg('status-running') || 'In progress';
+    if (metaEl) {
+      var targetText = job.target_label || job.visibility || '';
+      var countPart = (job.boards_total > 1)
+        ? (' · ' + (job.boards_done || 0) + '/' + job.boards_total)
+        : '';
+      metaEl.textContent = targetText + countPart + ' · ' + (msg('src-kanban-trello') || 'Trello');
+    }
+
+    list.insertBefore(li, list.firstChild);
+    attachKanbanJobRow(li, opts);
+    li.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   function addCloudJobToList(job) {
@@ -1031,58 +1217,43 @@
 
       if (state.source === 'kanban' && state.kanbanMode === 'trello') {
         var ids = state.selectedTrelloBoards.map(function (b) { return b.id; });
+        var names = state.selectedTrelloBoards.map(function (b) { return b.name; });
         var visSelect = document.getElementById('wizardKanbanTarget');
         var visVal = visSelect ? visSelect.value : 'private';
         var visLabel = visSelect && visSelect.selectedIndex >= 0 ? visSelect.options[visSelect.selectedIndex].text.trim() : visVal;
-        var basePayload = { visibility: visVal.indexOf('team:') === 0 ? 'team' : visVal };
+        var basePayload = {
+          board_ids: ids,
+          board_names: names,
+          visibility: visVal.indexOf('team:') === 0 ? 'team' : visVal,
+          target_label: visLabel,
+        };
         if (visVal.indexOf('team:') === 0) basePayload.team_id = visVal.slice(5);
         startBtn.disabled = true;
-        toast(msg('saving'), 'saving');
 
-        var trelloJobTitle = state.selectedTrelloBoards.length === 1
-          ? state.selectedTrelloBoards[0].name
-          : msg('src-kanban-trello');
-        var trelloJobSubtitle = state.selectedTrelloBoards.length > 1
-          ? msg('boards-count').replace('{count}', String(state.selectedTrelloBoards.length))
-          : msg('src-kanban-trello');
-        var kanbanJob = createKanbanJobRow(trelloJobTitle, visLabel, trelloJobSubtitle);
-
-        var importedBoards = [];
-        var lastError = null;
+        var jobsUrl = root.getAttribute('data-url-trello-jobs');
         try {
-          for (var bi = 0; bi < ids.length; bi++) {
-            var payload = Object.assign({ board_ids: [ids[bi]] }, basePayload);
-            var tres = await fetch(root.getAttribute('data-url-trello-import'), {
-              method: 'POST',
-              headers: Object.assign({ 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, csrfHeaders()),
-              body: JSON.stringify(payload),
+          var tres = await fetch(jobsUrl, {
+            method: 'POST',
+            headers: Object.assign({ 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, csrfHeaders()),
+            credentials: 'same-origin',
+            body: JSON.stringify(basePayload),
+          });
+          var tdata = await tres.json().catch(function () { return {}; });
+          if (!tres.ok || !tdata.ok || !tdata.job) {
+            showStepError(4, tdata.error || msg('failed'));
+            return;
+          }
+          toast(msg('cloud-started'), 'success');
+          addKanbanJobToList(tdata.job, { fromCurrentSession: true });
+          state.selectedTrelloBoards = [];
+          if (boardListEl) {
+            boardListEl.querySelectorAll('input[type="checkbox"]:checked').forEach(function (cb) {
+              cb.checked = false;
             });
-            var tdata = await tres.json().catch(function () { return {}; });
-            if (tres.ok && tdata.success && tdata.boards) {
-              importedBoards = importedBoards.concat(tdata.boards);
-              renderKanbanResults(importedBoards);
-            } else {
-              lastError = tdata.error || msg('failed');
-            }
           }
-          if (importedBoards.length) {
-            kanbanJob.complete(importedBoards);
-            toast(
-              importedBoards.length === 1 ? msg('done-one') : msg('done-many').replace('{count}', String(importedBoards.length)),
-              'success'
-            );
-          } else {
-            kanbanJob.fail(lastError || msg('failed'));
-            showStepError(4, lastError || msg('failed'));
-          }
+          goToStep(1);
         } catch (_) {
-          if (importedBoards.length) {
-            kanbanJob.complete(importedBoards);
-            renderKanbanResults(importedBoards);
-          } else {
-            kanbanJob.fail(msg('failed'));
-            showStepError(4, msg('failed'));
-          }
+          showStepError(4, msg('failed'));
         } finally {
           syncFooterButtons();
         }
@@ -1229,6 +1400,10 @@
     var st = li.getAttribute('data-status');
     if (['pending', 'running', 'cancelling'].indexOf(st) >= 0) pollJob(li);
     bindCancelBtn(li.querySelector('.cloud-import-cancel-job'));
+  });
+
+  root.querySelectorAll('.kanban-import-job[data-kanban-job-id]').forEach(function (li) {
+    attachKanbanJobRow(li, { fromCurrentSession: false });
   });
 
   // ── Init & Deep-link (?source=google_drive|nextcloud|kanban) ───────────

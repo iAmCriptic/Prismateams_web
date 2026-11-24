@@ -629,6 +629,7 @@ def ensure_critical_columns(db) -> None:
                 ("storage_backend", "VARCHAR(20) NOT NULL DEFAULT 'local'"),
                 ("remote_path", "VARCHAR(1024) NULL"),
                 ("remote_etag", "VARCHAR(128) NULL"),
+                ("remote_owner", "VARCHAR(255) NULL"),
             ):
                 if col_name not in folder_cols:
                     try:
@@ -644,6 +645,7 @@ def ensure_critical_columns(db) -> None:
                 ("storage_backend", "VARCHAR(20) NOT NULL DEFAULT 'local'"),
                 ("remote_path", "VARCHAR(1024) NULL"),
                 ("remote_etag", "VARCHAR(128) NULL"),
+                ("remote_owner", "VARCHAR(255) NULL"),
                 ("remote_lock_token", "VARCHAR(255) NULL"),
                 ("remote_lock_expires_at", "DATETIME NULL"),
             ):
