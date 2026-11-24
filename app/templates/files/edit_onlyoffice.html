@@ -390,15 +390,19 @@ document.addEventListener('DOMContentLoaded', function() {
     const isMobileUA = /Android.*Mobile|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const mobileMediaQuery = window.matchMedia('(max-width: 768px)');
 
+    let manualMode = forceDesktop ? 'desktop' : (forceMobile ? 'mobile' : null);
+
     function computeIsMobile() {
+        if (manualMode === 'desktop') return false;
+        if (manualMode === 'mobile') return true;
         const isSmallViewport = mobileMediaQuery.matches || window.innerWidth <= 768;
-        return !forceDesktop && (forceMobile || isSmallViewport || isMobileUA);
+        return isSmallViewport || isMobileUA;
     }
 
     function updateViewModeToggle(isMobile) {
         const viewToggleBtn = document.getElementById('onlyofficeViewModeToggle');
         if (!viewToggleBtn) return;
-        if (!(isMobile || forceDesktop || forceMobile)) {
+        if (!(isMobile || manualMode !== null)) {
             viewToggleBtn.classList.add('d-none');
             return;
         }
@@ -463,7 +467,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     hideRulers: isMobile,
                     hideStatusBar: false,
                     showReviewChanges: true,
-                    uiTheme: "{{ _oo_ui_theme }}"
+                    uiTheme: "{{ _oo_ui_theme }}",
+                    mobile: {
+                        forceView: true,
+                        standardView: false,
+                        disableForceDesktop: true
+                    }
                 }
             },
             width: "100%",
@@ -508,6 +517,9 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function mountEditor(isMobile) {
+        try {
+            localStorage.removeItem('asc-force-editor-type');
+        } catch (_) {}
         ensureEditorPlaceholder();
         try {
             docEditor = new DocsAPI.DocEditor("eurooffice-editor", buildEditorConfig(isMobile));
@@ -521,6 +533,40 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function switchEditorMode(nextIsMobile) {
+        currentIsMobile = nextIsMobile;
+        updateViewModeToggle(currentIsMobile);
+        if (typeof DocsAPI === 'undefined' || typeof DocsAPI.DocEditor === 'undefined') return;
+        if (docEditor) {
+            try {
+                docEditor.destroyEditor();
+            } catch (e) {
+                console.error('Error destroying OnlyOffice editor on mode switch:', e);
+            }
+            docEditor = null;
+        }
+        isEditorReady = false;
+        mountEditor(currentIsMobile);
+    }
+
+    const viewToggleBtn = document.getElementById('onlyofficeViewModeToggle');
+    if (viewToggleBtn) {
+        viewToggleBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (hasUnsavedChanges) {
+                isLeaving = true;
+                window.location.href = viewToggleBtn.href;
+                return;
+            }
+            const nextIsMobile = !currentIsMobile;
+            manualMode = nextIsMobile ? 'mobile' : 'desktop';
+            try {
+                window.history.replaceState(null, '', viewToggleBtn.href);
+            } catch (_) {}
+            switchEditorMode(nextIsMobile);
+        });
+    }
+
     startOoPresence();
 
     // Wait for ONLYOFFICE API to load
@@ -528,25 +574,26 @@ document.addEventListener('DOMContentLoaded', function() {
         mountEditor(currentIsMobile);
     });
 
-    if (!forceDesktop && !forceMobile && typeof mobileMediaQuery.addEventListener === 'function') {
-        mobileMediaQuery.addEventListener('change', function() {
-            const nextIsMobile = computeIsMobile();
-            if (nextIsMobile === currentIsMobile) return;
+    function handleViewportChange() {
+        if (manualMode !== null) return;
+        const nextIsMobile = computeIsMobile();
+        if (nextIsMobile === currentIsMobile) return;
+        if (hasUnsavedChanges) {
             currentIsMobile = nextIsMobile;
             updateViewModeToggle(currentIsMobile);
-            if (hasUnsavedChanges || !isEditorReady || typeof DocsAPI === 'undefined') return;
-            if (docEditor) {
-                try {
-                    docEditor.destroyEditor();
-                } catch (e) {
-                    console.error('Error destroying OnlyOffice editor on viewport change:', e);
-                }
-                docEditor = null;
-            }
-            isEditorReady = false;
-            mountEditor(currentIsMobile);
-        });
+            return;
+        }
+        switchEditorMode(nextIsMobile);
     }
+
+    if (typeof mobileMediaQuery.addEventListener === 'function') {
+        mobileMediaQuery.addEventListener('change', handleViewportChange);
+    }
+    let resizeDebounceTimer = null;
+    window.addEventListener('resize', function() {
+        if (resizeDebounceTimer) clearTimeout(resizeDebounceTimer);
+        resizeDebounceTimer = setTimeout(handleViewportChange, 150);
+    });
 });
 
 function markCloseButtonSaving() {
