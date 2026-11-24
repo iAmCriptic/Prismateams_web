@@ -165,6 +165,7 @@ def sync_hycanvas_user_and_workspaces(user) -> None:
     from app.models.user import User
 
     email = (getattr(user, 'email', None) or f'user-{user.id}@portal.local').strip().lower()
+    hc_theme = 'dark' if (getattr(user, 'dark_mode', False) or getattr(user, 'oled_mode', False)) else 'light'
 
     try:
         teams = Team.query.options(
@@ -217,6 +218,14 @@ def sync_hycanvas_user_and_workspaces(user) -> None:
                 _provision_hycanvas_user(u_obj)
 
         with engine.begin() as conn:
+            conn.execute(
+                text(
+                    'UPDATE users '
+                    'SET theme = :theme, updated_at = NOW() '
+                    'WHERE lower(email) = :email AND theme IS DISTINCT FROM :theme'
+                ),
+                {'email': email, 'theme': hc_theme},
+            )
             conn.execute(
                 text(
                     'UPDATE users '
@@ -475,15 +484,18 @@ def authenticate_hycanvas_session(user) -> requests.Session | None:
         if sess.cookies:
             sync_hycanvas_user_and_workspaces(user)
             avatar_url = get_user_avatar_external_url(user)
+            hc_theme = 'dark' if (getattr(user, 'dark_mode', False) or getattr(user, 'oled_mode', False)) else 'light'
+            patch_payload: dict[str, Any] = {'name': name, 'theme': hc_theme}
             if avatar_url:
-                try:
-                    sess.patch(
-                        f'{api_url}/api/v1/me',
-                        json={'name': name, 'avatar_url': avatar_url},
-                        timeout=3,
-                    )
-                except Exception:
-                    pass
+                patch_payload['avatar_url'] = avatar_url
+            try:
+                sess.patch(
+                    f'{api_url}/api/v1/me',
+                    json=patch_payload,
+                    timeout=3,
+                )
+            except Exception:
+                pass
             return sess
     except Exception as exc:
         logger.debug('HyCanvas session auth skipped/failed: %s', exc)
