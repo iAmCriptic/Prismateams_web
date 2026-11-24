@@ -110,8 +110,31 @@
     return `<span class="kanban-avatar" title="${esc(name)}">${esc(user.initials || '?')}</span>`;
   }
 
+  function isLightHexColor(hex) {
+    if (!hex || typeof hex !== 'string') return false;
+    let c = hex.trim().replace('#', '');
+    if (c.length === 3) c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
+    if (c.length !== 6) return false;
+    const r = parseInt(c.slice(0, 2), 16);
+    const g = parseInt(c.slice(2, 4), 16);
+    const b = parseInt(c.slice(4, 6), 16);
+    if (Number.isNaN(r) || Number.isNaN(g) || Number.isNaN(b)) return false;
+    const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    return lum > 0.6;
+  }
+
+  function isColorOnlyLabelName(name) {
+    const n = String(name || '').trim();
+    if (!n) return true;
+    return /^(green|yellow|orange|red|purple|blue|sky|lime|pink|black)_(light|dark)$/i.test(n);
+  }
+
   function labelChipHtml(lb, large) {
-    return `<span class="kanban-label-chip${large ? ' kanban-label-chip--lg' : ''}" style="background:${esc(lb.color)}" title="${esc(lb.name || '')}">${esc(lb.name || '')}</span>`;
+    if (isColorOnlyLabelName(lb.name)) {
+      return `<span class="kanban-label-chip kanban-label-chip--color-only${large ? ' kanban-label-chip--lg' : ''}" style="background:${esc(lb.color)}" aria-label="${esc(lb.color)}"></span>`;
+    }
+    const darkText = isLightHexColor(lb.color) ? ' kanban-label-chip--dark-text' : '';
+    return `<span class="kanban-label-chip${large ? ' kanban-label-chip--lg' : ''}${darkText}" style="background:${esc(lb.color)}" title="${esc(lb.name)}">${esc(lb.name)}</span>`;
   }
 
   function formatDueDisplay(iso) {
@@ -159,6 +182,14 @@
     if (Number.isNaN(d.getTime())) return '';
     const pad = (n) => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function toCustomFieldDatetimeLocalValue(raw) {
+    if (!raw) return '';
+    const s = String(raw).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return `${s}T00:00`;
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(s)) return s;
+    return toDatetimeLocalValue(s);
   }
 
   function renderBoardMembers() {
@@ -378,7 +409,8 @@
       </select>`;
     }
     if (field.field_type === 'date') {
-      return `<input type="date" class="form-control form-control-sm kanban-pill-input" ${data} value="${esc(val)}" ${disabled}>`;
+      const dtVal = toCustomFieldDatetimeLocalValue(val);
+      return `<input type="datetime-local" class="form-control form-control-sm kanban-pill-input" ${data} value="${esc(dtVal)}" ${disabled}>`;
     }
     if (field.field_type === 'time') {
       return `<input type="time" class="form-control form-control-sm kanban-pill-input" ${data} value="${esc(val)}" ${disabled}>`;
@@ -390,12 +422,31 @@
     return `<input type="text" class="form-control form-control-sm kanban-pill-input" ${data} value="${esc(val)}" placeholder="${ph}" ${disabled} autocomplete="off">`;
   }
 
+  let cfEditMode = false;
+
+  function updateCardCustomFieldsEditBtn() {
+    const btn = document.getElementById('cardCustomFieldsEditBtn');
+    if (!btn) return;
+    if (cfEditMode) {
+      btn.innerHTML = `<i class="bi bi-check-lg me-1"></i>${esc(i18n.customFieldDone || 'Fertig')}`;
+    } else {
+      btn.innerHTML = `<i class="bi bi-pencil me-1"></i>${esc(i18n.customFieldEdit || 'Bearbeiten')}`;
+    }
+  }
+
+  document.getElementById('cardCustomFieldsEditBtn')?.addEventListener('click', () => {
+    cfEditMode = !cfEditMode;
+    updateCardCustomFieldsEditBtn();
+    if (currentCardDetail) renderCardCustomFields(currentCardDetail);
+  });
+
   function renderCardCustomFields(card) {
     const section = document.getElementById('cardCustomFields');
     const grid = document.getElementById('cardCustomFieldsGrid');
     const fields = (card && card.custom_fields) || [];
     if (!section || !grid) return;
     section.hidden = false;
+    updateCardCustomFieldsEditBtn();
     const values = (card && card.custom_field_values) || {};
     const fieldsHtml = fields.length
       ? fields.map((f) => {
@@ -407,12 +458,12 @@
             </label>
             <div class="kanban-custom-field__row">
               ${customFieldInputHtml(f, v, !canEdit)}
-              ${canEdit ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-remove-cf="${f.id}" title="${esc(i18n.delete || 'Löschen')}"><i class="bi bi-x-lg"></i></button>` : ''}
+              ${canEdit && cfEditMode ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-remove-cf="${f.id}" title="${esc(i18n.delete || 'Löschen')}"><i class="bi bi-x-lg"></i></button>` : ''}
             </div>
           </div>`;
         }).join('')
       : `<p class="text-muted small mb-2">${esc(i18n.customFieldCardEmpty || 'Noch keine Felder auf dieser Karte.')}</p>`;
-    const actions = canEdit
+    const actions = canEdit && (cfEditMode || !fields.length)
       ? `<div class="d-flex flex-wrap gap-2 mb-2">
           <button type="button" class="btn btn-sm mod-pill-btn" id="cardInsertFieldsBtn"><i class="bi bi-plus-lg me-1"></i>${esc(i18n.customFieldInsert || 'Felder einfügen')}</button>
           <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" id="cardLocalFieldBtn"><i class="bi bi-input-cursor-text me-1"></i>${esc(i18n.customFieldCreateLocal || 'Feld für diese Karte')}</button>
@@ -621,7 +672,25 @@
     };
     if (!fields.length) {
       root.innerHTML = `<p class="text-muted small mb-0">${esc(i18n.customFieldEmpty || 'Noch keine Felder.')}</p>`;
+      const defSection = document.getElementById('kanbanBoardDefaultFieldsSection');
+      if (defSection) defSection.hidden = true;
       return;
+    }
+    const defSection = document.getElementById('kanbanBoardDefaultFieldsSection');
+    if (defSection) defSection.hidden = false;
+    const defList = document.getElementById('kanbanBoardDefaultFieldsList');
+    if (defList) {
+      const lists = board.lists || [];
+      const commonIds = new Set(
+        fields
+          .filter((f) => lists.length > 0 && lists.every((l) => (l.default_custom_field_ids || []).map(Number).includes(f.id)))
+          .map((f) => f.id)
+      );
+      defList.innerHTML = fields.map((f) => `
+        <label class="form-check d-flex align-items-center gap-2 py-1 m-0">
+          <input class="form-check-input" type="checkbox" value="${f.id}" ${commonIds.has(f.id) ? 'checked' : ''}>
+          <span><i class="bi ${fieldTypeIcon(f.field_type)} me-1"></i>${esc(f.label)}</span>
+        </label>`).join('');
     }
     root.innerHTML = fields.map((f) => `
       <div class="kanban-cf-manage-row" data-field-id="${f.id}">
@@ -651,6 +720,25 @@
       });
     });
   }
+
+  document.getElementById('kanbanBoardDefaultFieldsSave')?.addEventListener('click', async () => {
+    const defList = document.getElementById('kanbanBoardDefaultFieldsList');
+    if (!defList) return;
+    const fieldIds = Array.from(defList.querySelectorAll('input[type="checkbox"]:checked')).map((cb) => Number(cb.value));
+    try {
+      const r = await api(`/kanban/api/boards/${boardId}/default-custom-fields`, {
+        method: 'PUT',
+        body: { field_ids: fieldIds },
+      });
+      const savedIds = r.field_ids || fieldIds;
+      (board.lists || []).forEach((l) => {
+        l.default_custom_field_ids = savedIds;
+      });
+      notify(i18n.customFieldDefaultAllListsSaved || 'Standard-Felder für alle Listen gespeichert.');
+    } catch (err) {
+      notify(err.message || 'Fehler');
+    }
+  });
 
   function fillCategorySelect() {
     const sel = document.getElementById('kanbanCfCategory');
@@ -733,6 +821,7 @@
       card.due_date || '',
       cl.done || 0,
       cl.total || 0,
+      cl.next_due || '',
       card.comment_count || 0,
       card.attachment_count || 0,
       card.vote_count || 0,
@@ -763,8 +852,20 @@
       : '';
     const cl = card.checklist || {};
     const meta = [];
-    if (card.due_date) meta.push(`<span><i class="bi bi-calendar"></i> ${esc(formatDueDisplay(card.due_date))}</span>`);
-    if (cl.total) meta.push(`<span><i class="bi bi-check2-square"></i> ${cl.done}/${cl.total}</span>`);
+    if (card.due_date) {
+      const cardDueState = getChecklistDueState(card.due_date, !!card.completed);
+      const cls = cardDueState ? `kanban-card__due kanban-card__due--${cardDueState}` : 'kanban-card__due';
+      meta.push(`<span class="${cls}" title="${esc(formatDueDisplay(card.due_date))}"><i class="bi bi-clock"></i> ${esc(formatChecklistDue(card.due_date))}</span>`);
+    }
+    if (cl.total) {
+      if (cl.next_due) {
+        const clDueState = getChecklistDueState(cl.next_due, false);
+        const cls = clDueState ? `kanban-card__due kanban-card__due--${clDueState}` : 'kanban-card__due';
+        meta.push(`<span class="${cls}" title="${esc(formatDueDisplay(cl.next_due))}"><i class="bi bi-check2-square"></i> ${cl.done}/${cl.total} &bull; <i class="bi bi-clock"></i> ${esc(formatChecklistDue(cl.next_due))}</span>`);
+      } else {
+        meta.push(`<span><i class="bi bi-check2-square"></i> ${cl.done}/${cl.total}</span>`);
+      }
+    }
     if (card.comment_count) meta.push(`<span><i class="bi bi-chat"></i> ${card.comment_count}</span>`);
     if (card.attachment_count) meta.push(`<span><i class="bi bi-paperclip"></i> ${card.attachment_count}</span>`);
     if (card.poll_text || card.vote_count) meta.push(`<span><i class="bi bi-hand-thumbs-up"></i> ${card.vote_count || 0}</span>`);
@@ -1592,6 +1693,7 @@
     if (descEl) descEl.value = card.description || '';
     renderCardDescriptionView(card);
     exitDescriptionEdit();
+    cfEditMode = false;
     const currentList = findList(card.list_id);
     if (listHidden) listHidden.value = String(card.list_id || '');
     if (listBtn) listBtn.textContent = (currentList && currentList.title) || '—';
@@ -2899,7 +3001,6 @@
     const form = ev.target;
     const name = (form.name.value || '').trim();
     const color = form.color.value || '#ef4444';
-    if (!name) return;
     try {
       const r = await api(`/kanban/api/boards/${boardId}/labels`, {
         method: 'POST',
@@ -2983,7 +3084,7 @@
       if (membersData && membersData.members) {
         board.members = membersData.members;
         renderBoardMembers();
-        renderPortalUsersRows(membersData.members);
+        renderPortalUsersRows(membersData.members, !!membersData.can_transfer_ownership);
       }
     } catch (err) {
       if (portalList) {
@@ -3005,7 +3106,7 @@
     }
   }
 
-  function renderPortalUsersRows(members) {
+  function renderPortalUsersRows(members, canTransfer) {
     const list = document.getElementById('kanbanPortalUsersList');
     if (!list) return;
     if (!members || !members.length) {
@@ -3045,6 +3146,11 @@
             <small class="text-muted">${accessNote}</small>
           </td>
           <td class="text-end text-nowrap">
+            ${canTransfer && !m.is_owner ? `
+              <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-transfer-owner="${m.id}" data-member-name="${esc(m.name || 'Benutzer')}" title="${esc(i18n.transferOwnership || 'Eigentumsrechte übertragen')}">
+                <i class="bi bi-key"></i>
+              </button>
+            ` : ''}
             ${canManage && !m.is_owner && m.is_explicit ? `
               <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost text-danger" data-del-member="${m.id}" data-member-name="${esc(m.name || 'Benutzer')}" title="Freigabe entfernen">
                 <i class="bi bi-trash"></i>
@@ -3054,6 +3160,29 @@
         </tr>
       `;
     }).join('');
+
+    list.querySelectorAll('[data-transfer-owner]').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const userId = Number(btn.getAttribute('data-transfer-owner'));
+        const name = btn.getAttribute('data-member-name') || 'Benutzer';
+        const msg = (i18n.transferOwnershipConfirm || 'Eigentumsrechte dieses Boards wirklich an "{name}" übertragen?').replace('{name}', name);
+        if (!(await askConfirm(msg, {
+          danger: false,
+          title: i18n.transferOwnership || 'Eigentumsrechte übertragen',
+        }))) return;
+        try {
+          const r = await api(`/kanban/api/boards/${boardId}/transfer-ownership`, {
+            method: 'POST',
+            body: { user_id: userId },
+          });
+          if (r && r.created_by) board.created_by = r.created_by;
+          notify(i18n.transferOwnershipDone || 'Eigentumsrechte übertragen.');
+          loadPortalUsersShare();
+        } catch (err) {
+          notify(err.message || 'Übertragung fehlgeschlagen');
+        }
+      });
+    });
 
     list.querySelectorAll('[data-change-role]').forEach((sel) => {
       sel.addEventListener('change', async () => {

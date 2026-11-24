@@ -2499,6 +2499,11 @@ form[data-sp-autosave] .settings-admin-system-actions .btn:not([type='submit']) 
   transition: width 0.35s ease-out;
 }
 
+.kanban-import-job-timer {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .sp-conn-row.active {
   border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 45%, transparent);
   background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 8%, transparent);

@@ -28,7 +28,7 @@
       "notifications_short": "Инфо",
       "home": "Главная",
       "booking": "Бронирование помещений",
-      "kanban": "Kanban",
+      "kanban": "Boards",
       "events": "События",
       "shortlinks": "Короткие ссылки",
       "assessment": "Оценка",
@@ -7137,6 +7137,9 @@
       "background_image": "Фоновое изображение",
       "background_upload": "Загрузить изображение",
       "background_clear": "Удалить изображение",
+      "transfer_ownership": "Передать права владельца",
+      "transfer_ownership_confirm": "Передать права владельца этой доски пользователю «{name}»?",
+      "transfer_ownership_done": "Права владельца переданы.",
       "background_image_set": "Фоновое изображение установлено",
       "background_image_optional": "Необязательно: загрузите своё изображение (отображается поверх цвета)",
       "search_placeholder": "Поиск карточек или колонок…",
@@ -7185,7 +7188,10 @@
       "local": "Только для этой карточки",
       "remove_confirm": "Убрать поле с карточки?",
       "no_categories": "Категорий пока нет.",
-      "delete_category": "Удалить категорию?"
+      "delete_category": "Удалить категорию?",
+      "default_all_lists": "Поля по умолчанию для всех списков",
+      "default_all_lists_hint": "Выбранные поля автоматически назначаются полями по умолчанию для всех списков этой доски.",
+      "default_all_lists_saved": "Поля по умолчанию сохранены для всех списков."
     },
     "card": {
       "description": "Описание",

@@ -272,3 +272,74 @@ def test_board_cover_url_prefers_local_file_over_posix_slash_prefix(app, import_
             board.cover_path = '/static/img/bg.jpg'
             assert _board_cover_url(board) == '/static/img/bg.jpg'
             assert posix_like_path.startswith('/')
+
+
+def test_trello_async_import_job_persists_across_page_reload(app, client, import_user):
+    from app.models.cloud_import import KanbanImportJob
+    from app.utils.kanban_import_worker import process_trello_import_job
+
+    _login(client, import_user.email)
+
+    with patch('app.utils.trello_client.validate_trello_credentials', return_value={'id': 'u1', 'username': 'max', 'full_name': 'Max Mustermann'}):
+        r = client.post('/settings/kanban-import/trello/connect', json={'api_key': 'k1', 'token': 't1'})
+        assert r.status_code == 200
+
+    # Non-admin cannot import into public visibility
+    r_forbidden = client.post('/settings/kanban-import/trello/jobs', json={
+        'board_ids': ['tb1'],
+        'visibility': 'public',
+    })
+    assert r_forbidden.status_code == 403
+
+    # Start async job without running background thread yet (simulate in-progress state)
+    with patch('app.utils.kanban_import_worker.start_trello_import_job') as mock_start:
+        r_start = client.post('/settings/kanban-import/trello/jobs', json={
+            'board_ids': ['tb1'],
+            'board_names': ['Async Board'],
+            'visibility': 'private',
+            'target_label': 'Private',
+        })
+        assert r_start.status_code == 202
+        job_data = r_start.get_json()['job']
+        job_id = job_data['id']
+        assert job_data['status'] == 'pending'
+        assert job_data['display_name'] == 'Async Board'
+        assert mock_start.called
+
+    # Leaving and returning to /settings/imports still shows the active job with timer
+    r_page = client.get('/settings/imports?source=kanban')
+    assert r_page.status_code == 200
+    html = r_page.get_data(as_text=True)
+    assert f'data-kanban-job-id="{job_id}"' in html
+    assert 'Async Board' in html
+    assert 'kanban-import-job-timer' in html
+
+    # Polling before completion reports pending/running and no boards yet
+    r_poll_before = client.get(f'/settings/kanban-import/jobs/{job_id}')
+    assert r_poll_before.status_code == 200
+    assert r_poll_before.get_json()['job']['status'] == 'pending'
+    assert r_poll_before.get_json()['job']['boards'] == []
+
+    # Now execute the worker synchronously
+    remote_board = {
+        'id': 'tb1',
+        'name': 'Async Board',
+        'lists': [{'id': 'l1', 'name': 'To Do', 'pos': 1}],
+        'cards': [{'id': 'c1', 'idList': 'l1', 'name': 'Card 1', 'pos': 1}],
+    }
+    with patch('app.utils.trello_client.fetch_trello_board_json', return_value=remote_board):
+        process_trello_import_job(app, job_id, ['tb1'], 'k1', 't1')
+
+    # Polling after worker finishes reports completed + imported board URL
+    r_poll_after = client.get(f'/settings/kanban-import/jobs/{job_id}')
+    assert r_poll_after.status_code == 200
+    done_job = r_poll_after.get_json()['job']
+    assert done_job['status'] == 'completed'
+    assert done_job['boards_done'] == 1
+    assert len(done_job['boards']) == 1
+    assert done_job['boards'][0]['title'] == 'Async Board'
+    assert done_job['boards'][0]['url']
+
+    persisted = db.session.get(KanbanImportJob, job_id)
+    assert persisted is not None
+    assert persisted.completed_at is not None

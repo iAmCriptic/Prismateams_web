@@ -894,7 +894,7 @@
                             {{ (file.file_size / 1024)|round(1) }} KB
                         {% endif %}
                         <br>
-                        {{ _('files.index.labels.uploaded_by', name=file.uploader.full_name) }}<br>
+                        {{ _('files.index.labels.uploaded_by', name=file.remote_owner or (file.uploader.full_name if file.uploader else '—')) }}<br>
                         {{ file.created_at|localdatetime('%d.%m.%Y %H:%M') }}
                     </small>
                 </div>
@@ -984,7 +984,7 @@
                         </a>
                         {{ files_list_chips(folder=folder) }}
                     </td>
-                    <td class="d-none d-md-table-cell text-muted">{{ owner.full_name if owner else '—' }}</td>
+                    <td class="d-none d-md-table-cell text-muted">{{ folder.remote_owner or (owner.full_name if owner else '—') }}</td>
                     <td class="d-none d-md-table-cell text-muted">—</td>
                     <td class="d-none d-lg-table-cell text-muted">{% if folder.updated_at %}{{ folder.updated_at|localdatetime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}</td>
                     <td class="d-none d-md-table-cell text-muted">—</td>
@@ -1048,7 +1048,7 @@
                         <span class="mod-presence-anchor" data-presence-file="{{ file.id }}" aria-live="polite"></span>
                         {{ files_list_chips(file=file) }}
                     </td>
-                    <td class="d-none d-md-table-cell text-muted">{{ owner.full_name if owner else (file.uploader.full_name if file.uploader else '—') }}</td>
+                    <td class="d-none d-md-table-cell text-muted">{{ file.remote_owner or (owner.full_name if owner else (file.uploader.full_name if file.uploader else '—')) }}</td>
                     <td class="d-none d-md-table-cell"><span class="badge bg-secondary">v{{ file.version_number }}</span></td>
                     <td class="d-none d-lg-table-cell text-muted">{% if file.updated_at %}{{ file.updated_at|localdatetime('%d.%m.%Y %H:%M') }}{% else %}—{% endif %}</td>
                     <td class="d-none d-md-table-cell text-muted">{% if file.file_size %}{% if file.file_size >= 1048576 %}{{ '%.1f'|format(file.file_size/1048576) }} MB{% elif file.file_size >= 1024 %}{{ '%.1f'|format(file.file_size/1024) }} KB{% else %}{{ file.file_size }} B{% endif %}{% else %}—{% endif %}</td>

@@ -28,7 +28,7 @@
       "notifications_short": "Alertas",
       "home": "Inicio",
       "booking": "Reserva de salas",
-      "kanban": "Kanban",
+      "kanban": "Boards",
       "events": "Eventos",
       "shortlinks": "Enlaces cortos",
       "assessment": "Evaluación",
@@ -7142,6 +7142,9 @@
       "background_image": "Imagen de fondo",
       "background_upload": "Subir imagen",
       "background_clear": "Quitar imagen",
+      "transfer_ownership": "Transferir propiedad",
+      "transfer_ownership_confirm": "¿Transferir la propiedad de este tablero a \"{name}\"?",
+      "transfer_ownership_done": "Propiedad transferida.",
       "background_image_set": "Imagen de fondo configurada",
       "background_image_optional": "Opcional: sube tu propia imagen (se muestra sobre el color)",
       "search_placeholder": "Buscar tarjetas o listas…",
@@ -7190,7 +7193,10 @@
       "local": "Solo esta tarjeta",
       "remove_confirm": "¿Quitar el campo de la tarjeta?",
       "no_categories": "Aún no hay categorías.",
-      "delete_category": "¿Eliminar categoría?"
+      "delete_category": "¿Eliminar categoría?",
+      "default_all_lists": "Campos predeterminados para todas las listas",
+      "default_all_lists_hint": "Los campos seleccionados se configuran automáticamente como predeterminados en todas las listas de este tablero.",
+      "default_all_lists_saved": "Campos predeterminados guardados para todas las listas."
     },
     "card": {
       "description": "Descripción",

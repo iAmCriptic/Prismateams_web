@@ -647,10 +647,8 @@ def _import_trello_json(
         name = (lb.get('name') or '').strip()
         color_name = lb.get('color')
         if not name and color_name:
-            # fall back to labelNames map
-            name = (data.get('labelNames') or {}).get(color_name) or color_name
-        if not name:
-            name = color_name or f'Label {i + 1}'
+            # fall back to labelNames map only if non-empty
+            name = ((data.get('labelNames') or {}).get(color_name) or '').strip()
         label = KanbanLabel(
             board_id=board.id,
             name=str(name)[:100],

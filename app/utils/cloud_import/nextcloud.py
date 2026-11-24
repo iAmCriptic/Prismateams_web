@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import io
 import xml.etree.ElementTree as ET
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any, Iterable, Optional
 from urllib.parse import quote, unquote, urlparse
 from xml.sax.saxutils import escape as xml_escape
@@ -15,7 +16,45 @@ from app.utils.cloud_import.base import RemoteEntry
 
 NS = {
     'd': 'DAV:',
+    'oc': 'http://owncloud.org/ns',
+    'nc': 'http://nextcloud.org/ns',
 }
+
+
+def _to_naive_utc(dt: datetime) -> datetime:
+    if dt.tzinfo is not None:
+        return dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
+
+
+def _parse_webdav_datetime(value: str | None) -> datetime | None:
+    raw = (value or '').strip()
+    if not raw:
+        return None
+    try:
+        return _to_naive_utc(datetime.fromisoformat(raw.replace('Z', '+00:00')))
+    except ValueError:
+        pass
+    try:
+        return _to_naive_utc(parsedate_to_datetime(raw))
+    except (TypeError, ValueError, IndexError):
+        return None
+
+
+def _parse_unix_timestamp(value: str | None) -> datetime | None:
+    raw = (value or '').strip()
+    if not raw:
+        return None
+    try:
+        ts = int(float(raw))
+    except (TypeError, ValueError):
+        return None
+    if ts <= 0:
+        return None
+    try:
+        return datetime.fromtimestamp(ts, tz=timezone.utc).replace(tzinfo=None)
+    except (OverflowError, OSError, ValueError):
+        return None
 
 
 class NextcloudLockError(ConnectionError):
@@ -78,8 +117,13 @@ class NextcloudProvider:
             headers={'Depth': '1'},
             data=(
                 '<?xml version="1.0"?>'
-                '<d:propfind xmlns:d="DAV:">'
-                '<d:prop><d:displayname/><d:getcontentlength/><d:getetag/><d:getcontenttype/><d:resourcetype/></d:prop>'
+                '<d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns" xmlns:nc="http://nextcloud.org/ns">'
+                '<d:prop>'
+                '<d:displayname/><d:getcontentlength/><d:getetag/><d:getcontenttype/><d:resourcetype/>'
+                '<d:getlastmodified/><d:creationdate/>'
+                '<oc:owner-display-name/><oc:owner-id/>'
+                '<nc:creation_time/><nc:upload_time/>'
+                '</d:prop>'
                 '</d:propfind>'
             ),
             timeout=60,
@@ -131,6 +175,12 @@ class NextcloudProvider:
             etag = ''
             content_type = ''
             name = rel.rsplit('/', 1)[-1] if rel else ''
+            owner_display = ''
+            owner_id = ''
+            last_modified: datetime | None = None
+            dav_created: datetime | None = None
+            nc_creation_time: datetime | None = None
+            nc_upload_time: datetime | None = None
             for prop in prop_elements:
                 rt = prop.find('d:resourcetype', NS)
                 if rt is not None and rt.find('d:collection', NS) is not None:
@@ -150,6 +200,27 @@ class NextcloudProvider:
                 dn = prop.find('d:displayname', NS)
                 if dn is not None and dn.text:
                     name = dn.text
+                odn_el = prop.find('oc:owner-display-name', NS)
+                if odn_el is not None and odn_el.text and odn_el.text.strip():
+                    owner_display = odn_el.text.strip()
+                oid_el = prop.find('oc:owner-id', NS)
+                if oid_el is not None and oid_el.text and oid_el.text.strip():
+                    owner_id = oid_el.text.strip()
+                lm_el = prop.find('d:getlastmodified', NS)
+                if lm_el is not None and lm_el.text:
+                    last_modified = _parse_webdav_datetime(lm_el.text) or last_modified
+                cd_el = prop.find('d:creationdate', NS)
+                if cd_el is not None and cd_el.text:
+                    dav_created = _parse_webdav_datetime(cd_el.text) or dav_created
+                ncc_el = prop.find('nc:creation_time', NS)
+                if ncc_el is not None and ncc_el.text:
+                    nc_creation_time = _parse_unix_timestamp(ncc_el.text) or nc_creation_time
+                ncu_el = prop.find('nc:upload_time', NS)
+                if ncu_el is not None and ncu_el.text:
+                    nc_upload_time = _parse_unix_timestamp(ncu_el.text) or nc_upload_time
+
+            created_at = nc_creation_time or nc_upload_time or dav_created or last_modified
+            modified_at = last_modified or nc_upload_time or nc_creation_time
             entries.append(
                 RemoteEntry(
                     id=rel,
@@ -159,6 +230,9 @@ class NextcloudProvider:
                     path=rel,
                     etag=etag,
                     content_type=content_type,
+                    owner=owner_display or owner_id,
+                    created_at=created_at,
+                    modified_at=modified_at,
                 )
             )
         entries.sort(key=lambda e: (not e.is_dir, e.name.lower()))

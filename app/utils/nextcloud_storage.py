@@ -162,6 +162,7 @@ def sync_folder_children(
             seen_dirs.add(rpath)
             row = existing_folders.get(rpath)
             if row is None:
+                now = datetime.utcnow()
                 row = Folder(
                     name=entry.name,
                     parent_id=parent_folder.id,
@@ -171,6 +172,9 @@ def sync_folder_children(
                     storage_backend='nextcloud',
                     remote_path=rpath,
                     remote_etag=entry.etag or None,
+                    remote_owner=entry.owner or None,
+                    created_at=entry.created_at or now,
+                    updated_at=entry.modified_at or entry.created_at or now,
                 )
                 db.session.add(row)
             else:
@@ -179,11 +183,18 @@ def sync_folder_children(
                     row.name = entry.name
                 if entry.etag and row.remote_etag != entry.etag:
                     row.remote_etag = entry.etag
+                if entry.owner and row.remote_owner != entry.owner:
+                    row.remote_owner = entry.owner
+                if entry.created_at and row.created_at != entry.created_at:
+                    row.created_at = entry.created_at
+                if entry.modified_at and row.updated_at != entry.modified_at:
+                    row.updated_at = entry.modified_at
         else:
             seen_files.add(rpath)
             row = existing_files.get(rpath)
             mime = entry.content_type or mimetypes.guess_type(entry.name)[0] or 'application/octet-stream'
             if row is None:
+                now = datetime.utcnow()
                 row = File(
                     name=entry.name,
                     original_name=entry.name,
@@ -199,6 +210,9 @@ def sync_folder_children(
                     storage_backend='nextcloud',
                     remote_path=rpath,
                     remote_etag=entry.etag or None,
+                    remote_owner=entry.owner or None,
+                    created_at=entry.created_at or now,
+                    updated_at=entry.modified_at or entry.created_at or now,
                 )
                 db.session.add(row)
             else:
@@ -211,7 +225,14 @@ def sync_folder_children(
                     row.mime_type = mime
                 if entry.etag and row.remote_etag != entry.etag:
                     row.remote_etag = entry.etag
-                    row.updated_at = datetime.utcnow()
+                    if not entry.modified_at:
+                        row.updated_at = datetime.utcnow()
+                if entry.owner and row.remote_owner != entry.owner:
+                    row.remote_owner = entry.owner
+                if entry.created_at and row.created_at != entry.created_at:
+                    row.created_at = entry.created_at
+                if entry.modified_at and row.updated_at != entry.modified_at:
+                    row.updated_at = entry.modified_at
 
     # Remove shadow rows that no longer exist on Nextcloud (and are not in portal trash)
     def _delete_shadow_folder(folder_row: Folder) -> None:

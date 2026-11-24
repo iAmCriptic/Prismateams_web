@@ -17,6 +17,7 @@ from app.utils.private_files import (
     is_public_folders_enabled,
     list_folder_favorites,
     list_view_contents,
+    natural_name_key,
     normalize_view,
     parse_team_id,
     user_file_teams,
@@ -155,8 +156,8 @@ def register_browse_routes(files_bp):
                 ]
         
             # Sortiere
-            subfolders = sorted(subfolders, key=lambda x: x.name)
-            files = sorted(files, key=lambda x: x.name)
+            subfolders = sorted(subfolders, key=natural_name_key)
+            files = sorted(files, key=natural_name_key)
             subfolders, files, files_has_more, files_total_count = _paginate_browse_items(
                 subfolders, files, offset=browse_offset, limit=FILES_BROWSE_PAGE_SIZE,
             )
@@ -246,6 +247,7 @@ def register_browse_routes(files_bp):
 
             subfolders, files, files_has_more, files_total_count = window_folders_then_files(
                 folder_q, file_q, browse_offset, FILES_BROWSE_PAGE_SIZE,
+                natural_sort=(files_view != 'trash'),
             )
             browse_windowed = True
 

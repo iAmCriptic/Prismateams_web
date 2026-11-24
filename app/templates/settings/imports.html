@@ -26,6 +26,8 @@
      data-url-trello-disconnect="{{ url_for('settings.kanban_import_trello_disconnect') if show_kanban_import else '' }}"
      data-url-trello-boards="{{ url_for('settings.kanban_import_trello_boards') if show_kanban_import else '' }}"
      data-url-trello-import="{{ url_for('settings.kanban_import_trello_import') if show_kanban_import else '' }}"
+     data-url-trello-jobs="{{ url_for('settings.kanban_import_trello_jobs') if show_kanban_import else '' }}"
+     data-kanban-job-base="{{ url_for('settings.kanban_import_job_status', job_id=0) if show_kanban_import else '' }}"
      data-i18n-src-google="{{ _('settings.imports.source.google_drive.title') }}"
      data-i18n-src-nextcloud="{{ _('settings.imports.source.nextcloud.title') }}"
      data-i18n-src-kanban-trello="{{ _('settings.imports.source.kanban.mode_trello') }}"
@@ -489,7 +491,50 @@
     </div>
     <div class="sp-group-body">
       <ul class="sp-conn-list" id="cloudImportJobs">
-        {% for j in jobs %}
+        {% for entry in combined_jobs %}
+        {% if entry.kind == 'kanban' %}
+        {% set kj = entry.job %}
+        <li class="sp-job-row kanban-import-job"
+            data-kanban-job-id="{{ kj.id }}"
+            data-status="{{ kj.status }}"
+            data-started-at="{{ kj.started_at or kj.created_at or '' }}"
+            data-completed-at="{{ kj.completed_at or '' }}"
+            data-boards-total="{{ kj.boards_total }}"
+            data-boards-done="{{ kj.boards_done }}">
+          <div class="d-flex justify-content-between align-items-start gap-2">
+            <div class="min-width-0 flex-grow-1">
+              <strong class="kanban-import-job-title">{{ kj.display_name or 'Kanban' }}</strong>
+              <span class="badge {% if kj.status == 'completed' %}text-bg-success{% elif kj.status == 'failed' %}text-bg-danger{% else %}text-bg-primary{% endif %} ms-1 kanban-import-job-status">
+                {% if kj.status == 'completed' %}{{ _('settings.imports.job_status.completed') }}{% elif kj.status == 'failed' %}{{ _('settings.imports.job_status.failed') }}{% else %}{{ _('settings.imports.job_status.running') }}{% endif %}
+              </span>
+              <span class="kanban-import-job-timer text-muted small ms-2">
+                <i class="bi bi-stopwatch" aria-hidden="true"></i>
+                <span class="kanban-import-job-timer-val">00:00</span>
+              </span>
+              <div class="small text-muted kanban-import-job-meta">
+                {{ kj.target_label or kj.visibility }} · {% if kj.boards_total > 1 %}{{ kj.boards_done }}/{{ kj.boards_total }} · {% endif %}{{ _('settings.imports.source.kanban.mode_trello') }}
+              </div>
+              {% if kj.error_message %}
+              <div class="small text-danger mt-1 kanban-import-job-error">{{ kj.error_message }}</div>
+              {% endif %}
+            </div>
+            <div class="kanban-import-job-actions">
+              {% if kj.status == 'completed' and kj.boards|length == 1 and kj.boards[0].url %}
+              <a href="{{ kj.boards[0].url }}" class="btn btn-sm btn-outline-secondary rounded-pill">{{ _('settings.kanban_import.open') }}</a>
+              {% endif %}
+            </div>
+          </div>
+          <div class="progress mt-2 sp-job-progress">
+            <div class="progress-bar {% if kj.status == 'completed' %}sp-job-bar-finish bg-success{% elif kj.status == 'failed' %}sp-job-bar-finish bg-danger{% else %}progress-bar-striped progress-bar-animated sp-job-bar-slow{% endif %}"
+                 role="progressbar"
+                 aria-valuemin="0"
+                 aria-valuemax="100"
+                 aria-valuenow="{% if kj.status == 'completed' %}100{% elif kj.status == 'failed' %}0{% else %}5{% endif %}"
+                 style="width: {% if kj.status == 'completed' %}100{% elif kj.status == 'failed' %}0{% else %}5{% endif %}%"></div>
+          </div>
+        </li>
+        {% else %}
+        {% set j = entry.job %}
         <li class="sp-job-row cloud-import-job" data-job-id="{{ j.id }}" data-status="{{ j.status }}">
           <div class="d-flex justify-content-between align-items-start gap-2">
             <div>
@@ -514,6 +559,7 @@
                  style="width: {% if j.files_total %}{{ ((j.files_done or 0) / j.files_total * 100)|round|int }}{% elif j.status == 'completed' %}100{% else %}0{% endif %}%"></div>
           </div>
         </li>
+        {% endif %}
         {% else %}
         <li class="sp-conn-empty" id="cloudImportEmptyJobs">{{ _('settings.cloud_import.no_jobs') }}</li>
         {% endfor %}
@@ -526,5 +572,5 @@
 
 {% block extra_js %}
 {{ super() }}
-<script src="{{ url_for('static', filename='js/imports_wizard.js', v='20261118') }}"></script>
+<script src="{{ url_for('static', filename='js/imports_wizard.js', v='20261124') }}"></script>
 {% endblock %}

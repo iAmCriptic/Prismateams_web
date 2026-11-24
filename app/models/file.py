@@ -34,6 +34,7 @@ class Folder(db.Model):
     storage_backend = db.Column(db.String(20), nullable=False, default='local', index=True)
     remote_path = db.Column(db.String(1024), nullable=True, index=True)
     remote_etag = db.Column(db.String(128), nullable=True)
+    remote_owner = db.Column(db.String(255), nullable=True)
     
     parent = db.relationship('Folder', remote_side=[id], backref='subfolders')
     files = db.relationship('File', back_populates='folder', cascade='all, delete-orphan')
@@ -168,6 +169,7 @@ class File(db.Model):
     storage_backend = db.Column(db.String(20), nullable=False, default='local', index=True)
     remote_path = db.Column(db.String(1024), nullable=True, index=True)
     remote_etag = db.Column(db.String(128), nullable=True)
+    remote_owner = db.Column(db.String(255), nullable=True)
     remote_lock_token = db.Column(db.String(255), nullable=True)
     remote_lock_expires_at = db.Column(db.DateTime, nullable=True)
 

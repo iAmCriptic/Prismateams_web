@@ -28,7 +28,7 @@
       "notifications_short": "Info",
       "home": "Home",
       "booking": "Raumbuchung",
-      "kanban": "Kanban",
+      "kanban": "Boards",
       "events": "Veranstaltungen",
       "shortlinks": "Kurzlinks",
       "assessment": "Bewertung",
@@ -7358,6 +7358,9 @@
       "background_image": "Hintergrundbild",
       "background_upload": "Bild hochladen",
       "background_clear": "Bild entfernen",
+      "transfer_ownership": "Eigentumsrechte übertragen",
+      "transfer_ownership_confirm": "Eigentumsrechte dieses Boards wirklich an \"{name}\" übertragen?",
+      "transfer_ownership_done": "Eigentumsrechte übertragen.",
       "background_image_set": "Hintergrundbild ist gesetzt",
       "background_image_optional": "Optional: eigenes Bild hochladen (wird über der Farbe angezeigt)",
       "search_placeholder": "Karten oder Listen suchen…",
@@ -7406,7 +7409,10 @@
       "local": "Nur diese Karte",
       "remove_confirm": "Feld von Karte entfernen?",
       "no_categories": "Noch keine Kategorien.",
-      "delete_category": "Kategorie löschen?"
+      "delete_category": "Kategorie löschen?",
+      "default_all_lists": "Standard-Felder für alle Listen",
+      "default_all_lists_hint": "Ausgewählte Felder werden automatisch bei allen Listen dieses Boards als Standard hinterlegt und neuen Karten hinzugefügt.",
+      "default_all_lists_saved": "Standard-Felder für alle Listen gespeichert."
     },
     "card": {
       "description": "Beschreibung",

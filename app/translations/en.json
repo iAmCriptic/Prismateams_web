@@ -28,7 +28,7 @@
       "notifications_short": "Alerts",
       "home": "Home",
       "booking": "Room booking",
-      "kanban": "Kanban",
+      "kanban": "Boards",
       "events": "Events",
       "shortlinks": "Short links",
       "assessment": "Assessment",
@@ -7358,6 +7358,9 @@
       "background_image": "Background image",
       "background_upload": "Upload image",
       "background_clear": "Remove image",
+      "transfer_ownership": "Transfer ownership",
+      "transfer_ownership_confirm": "Transfer ownership of this board to \"{name}\"?",
+      "transfer_ownership_done": "Ownership transferred.",
       "background_image_set": "Background image is set",
       "background_image_optional": "Optional: upload your own image (shown over the color)",
       "search_placeholder": "Search cards or lists…",
@@ -7406,7 +7409,10 @@
       "local": "This card only",
       "remove_confirm": "Remove field from card?",
       "no_categories": "No categories yet.",
-      "delete_category": "Delete category?"
+      "delete_category": "Delete category?",
+      "default_all_lists": "Default fields for all lists",
+      "default_all_lists_hint": "Selected fields are automatically set as defaults on all lists of this board and added to new cards.",
+      "default_all_lists_saved": "Default fields saved for all lists."
     },
     "card": {
       "description": "Description",

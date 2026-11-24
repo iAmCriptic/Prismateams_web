@@ -52,3 +52,29 @@ class CloudImportJob(db.Model):
 
     def __repr__(self):
         return f'<CloudImportJob {self.id} {self.status}>'
+
+
+class KanbanImportJob(db.Model):
+    __tablename__ = 'kanban_import_jobs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    source = db.Column(db.String(32), nullable=False, default='trello')  # trello | file
+    display_name = db.Column(db.String(255), nullable=True)
+    status = db.Column(db.String(20), nullable=False, default='pending', index=True)
+    visibility = db.Column(db.String(20), nullable=False, default='private')
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id'), nullable=True, index=True)
+    target_label = db.Column(db.String(255), nullable=True)
+    boards_total = db.Column(db.Integer, nullable=False, default=1)
+    boards_done = db.Column(db.Integer, nullable=False, default=0)
+    result_boards_json = db.Column(db.Text, nullable=True)
+    error_message = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    started_at = db.Column(db.DateTime, nullable=True)
+    completed_at = db.Column(db.DateTime, nullable=True)
+
+    user = db.relationship('User', backref='kanban_import_jobs')
+    team = db.relationship('Team', backref='kanban_import_jobs')
+
+    def __repr__(self):
+        return f'<KanbanImportJob {self.id} {self.status}>'

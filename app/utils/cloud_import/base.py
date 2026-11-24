@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Iterable, Optional, Protocol
 
 from app.utils.multi_mailboxes import decrypt_password, encrypt_password
@@ -18,6 +19,9 @@ class RemoteEntry:
     path: str = ''  # provider-specific path or breadcrumb
     etag: str = ''
     content_type: str = ''
+    owner: str = ''
+    created_at: Optional[datetime] = None
+    modified_at: Optional[datetime] = None
 
 
 class CloudProvider(Protocol):

@@ -293,7 +293,7 @@ def api_create_label(board_id):
     data = request.get_json(silent=True) or {}
     label = KanbanLabel(
         board_id=board.id,
-        name=(data.get('name') or 'Label').strip(),
+        name=(data.get('name') or '').strip()[:100],
         color=(data.get('color') or '#0d6efd').strip(),
         position=len(board.labels),
     )
@@ -563,6 +563,32 @@ def api_board_custom_fields(board_id):
     payload = _serialize_custom_field(field)
     _emit_board(board.id, 'custom_field_created', payload)
     return jsonify({'success': True, 'custom_field': payload, 'custom_fields': [_serialize_custom_field(f) for f in board.custom_fields]}), 201
+
+
+@kanban_bp.route('/api/boards/<int:board_id>/default-custom-fields', methods=['PUT'])
+@login_or_share_required
+def api_board_default_custom_fields(board_id):
+    board, err = _require_board_edit(board_id)
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    raw_ids = data.get('field_ids') or []
+    if not isinstance(raw_ids, list):
+        raw_ids = []
+    valid_ids = {f.id for f in board.custom_fields if f.card_id is None}
+    parsed_ids: list[int] = []
+    for item in raw_ids:
+        try:
+            fid = int(item)
+        except (TypeError, ValueError):
+            continue
+        if fid in valid_ids and fid not in parsed_ids:
+            parsed_ids.append(fid)
+    for lst in board.lists:
+        lst.set_default_custom_field_ids(parsed_ids)
+    db.session.commit()
+    _emit_board(board.id, 'board_updated', {'board_id': board.id, 'default_custom_field_ids': parsed_ids})
+    return jsonify({'success': True, 'field_ids': parsed_ids})
 
 
 @kanban_bp.route('/api/boards/<int:board_id>/custom-field-categories', methods=['GET', 'POST'])

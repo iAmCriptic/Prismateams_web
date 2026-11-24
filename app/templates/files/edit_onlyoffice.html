@@ -205,7 +205,7 @@
                         {% if guest_mode|default(false) and guest_name %}
                         {{ guest_name }}
                         {% else %}
-                        Von {{ file.uploader.full_name if file.uploader else '—' }}
+                        Von {{ file.remote_owner or (file.uploader.full_name if file.uploader else '—') }}
                         {% endif %}
                         -
                         {{ file.updated_at|localdatetime('%d.%m.%Y %H:%M') if file.updated_at else file.created_at|localdatetime('%d.%m.%Y %H:%M') }}

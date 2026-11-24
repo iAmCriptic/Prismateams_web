@@ -20,6 +20,7 @@ from app.utils.private_files import (
     can_edit_folder,
     can_view_file,
     can_view_folder,
+    natural_name_key,
     sanitize_files_item_name,
 )
 from werkzeug.security import generate_password_hash
@@ -170,11 +171,12 @@ def get_files():
     if not _check_files_access():
         return _files_access_denied_response()
     folder_id = request.args.get("folder_id", type=int)
-    files = File.query.filter_by(folder_id=folder_id, is_current=True).filter(File.deleted_at.is_(None)).order_by(File.name).all()
+    files = File.query.filter_by(folder_id=folder_id, is_current=True).filter(File.deleted_at.is_(None)).all()
     if _is_guest():
         files = [file for file in files if guest_has_file_access(current_user, file)]
     else:
         files = [file for file in files if can_view_file(file, current_user)]
+    files.sort(key=natural_name_key)
     return jsonify([{
         "id": file.id,
         "name": file.name,
@@ -189,13 +191,14 @@ def get_folders():
     if not _check_files_access():
         return _files_access_denied_response()
     parent_id = request.args.get("parent_id", type=int)
-    folders = Folder.query.filter_by(parent_id=parent_id).filter(Folder.deleted_at.is_(None)).order_by(Folder.name).all()
+    folders = Folder.query.filter_by(parent_id=parent_id).filter(Folder.deleted_at.is_(None)).all()
     folders = [
         folder for folder in folders
         if not folder.is_personal_root
         and not getattr(folder, "is_team_root", False)
         and (guest_has_folder_access(current_user, folder) if _is_guest() else can_view_folder(folder, current_user))
     ]
+    folders.sort(key=natural_name_key)
     return jsonify([{
         "id": folder.id,
         "name": folder.name,
