@@ -4,57 +4,40 @@
 
 {% block extra_css %}
 <style>
-.main-content:has(.canvas-shell) {
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-    padding-bottom: 0 !important;
-}
-.main-content:has(.canvas-shell) > .container-fluid {
-    padding: 0 !important;
-    margin: 0 !important;
-}
-.main-content:has(.canvas-shell) > .container-fluid > .container.mt-3 {
-    margin-top: 0 !important;
-    padding-left: 0 !important;
-    padding-right: 0 !important;
-}
-.canvas-shell.mod-shell--nav {
-    padding: 0 !important;
-    gap: 0;
-}
-.canvas-shell .canvas-main {
-    display: flex;
-    flex-direction: column;
+body:has(.canvas-shell) {
     overflow: hidden;
-    min-height: 0;
-    padding: 0 !important;
-    width: 100%;
+}
+.canvas-shell {
+    position: fixed;
+    top: var(--top-navbar-height, 64px);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1;
+    overflow: hidden;
+    background: var(--bs-body-bg);
+}
+@media (max-width: 767.98px) {
+    .canvas-shell {
+        bottom: var(--portal-mobile-nav-clearance, 0px);
+    }
 }
 .canvas-embed-frame {
-    flex: 1 1 auto;
     width: 100%;
     height: 100%;
-    min-height: calc(100dvh - 4rem);
     border: 0;
     display: block;
     background: var(--bs-body-bg);
-}
-@media (min-width: 992px) {
-    .canvas-embed-frame {
-        min-height: 0;
-    }
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="canvas-shell mod-shell--nav">
-    <div class="mod-main canvas-main flex-grow-1 min-width-0">
-        <iframe name="hycanvasFrame"
-                src="{{ hycanvas_url }}"
-                class="canvas-embed-frame"
-                title="{{ _('canvas.index.heading') }}"
-                allow="clipboard-read; clipboard-write; fullscreen"></iframe>
-    </div>
+<div class="canvas-shell">
+    <iframe name="hycanvasFrame"
+            src="{{ hycanvas_url }}"
+            class="canvas-embed-frame"
+            title="{{ _('canvas.index.heading') }}"
+            allow="clipboard-read; clipboard-write; fullscreen"></iframe>
 </div>
 {% endblock %}
