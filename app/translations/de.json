@@ -484,16 +484,36 @@
       "next": "Weiter",
       "welcome": {
         "title": "Willkommen zu Version {version}",
-        "text": "PrismaTeams {version} bringt die neuen Module Helferverwaltung und Booking, einen direkten Trello-Import für Kanban, eine Nextcloud-Verknüpfung für Dateien & Kalender, den neuen Windows Client sowie zahlreiche Bugfixes.",
+        "text": "PrismaTeams {version} bringt das neue Modul Canvas, die neue EuroOffice Mobile-Ansicht, die Umbenennung von Kanban zu Boards samt weiteren Bugfixes sowie alle Neuerungen der 3.5-Reihe.",
         "highlights": {
+          "canvas": "Neues Modul Canvas – Designs, Präsentationen und Whiteboards direkt im Portal erstellen.",
+          "eurooffice_mobile": "EuroOffice Mobile-Ansicht – Office-Dokumente jetzt auch auf Smartphones und kleinen Bildschirmen komfortabel bearbeiten.",
+          "kanban": "Kanban → Boards – Umbenennung zu Boards sowie erneute Bugfixes und Stabilitätsverbesserungen.",
           "helpers": "Neues Modul Helferverwaltung – Schichten, Einsatzbereiche, Anmeldung und Einsatzpläne zentral organisieren.",
           "booking": "Neues Modul Booking – Räume, Ressourcen und Buchungsanfragen strukturiert verwalten.",
-          "kanban": "Kanban – direkter Trello-Import sowie wichtige Bugfixes und Fehlerbehebungen.",
           "nextcloud": "Dateien & Kalender – neue Verknüpfungsmöglichkeit mit Nextcloud.",
           "windows_client": "Neuer PrismaTeams Windows Client – nutze PrismaTeams jetzt als native Windows-App."
         }
       },
       "modules": {
+        "canvas": {
+          "title": "Canvas",
+          "teaser": "Neues Modul",
+          "items": {
+            "overview": "Neues Modul zum Erstellen von Designs, Präsentationen und Team-Whiteboards direkt in PrismaTeams.",
+            "formats": "Vordefinierte Formate und Vorlagen wählen oder eigene Abmessungen in Pixeln festlegen.",
+            "sharing_export": "Sichtbarkeit für Teams und Nutzer steuern, umbenennen und als .hyc-Datei herunterladen."
+          }
+        },
+        "eurooffice_mobile": {
+          "title": "EuroOffice Mobile",
+          "teaser": "Mobile Ansicht",
+          "items": {
+            "overview": "Neue mobile Ansicht für EuroOffice zum komfortablen Ansehen und Bearbeiten von Dokumenten auf Smartphones.",
+            "auto_detect": "Automatische Mobil-Erkennung passt das Editor-Layout auf kleinen Bildschirmen an und blendet störende Desktop-Leisten aus.",
+            "mode_toggle": "Jederzeit manuell direkt im Editor zwischen Mobile- und Desktop-Ansicht umschalten."
+          }
+        },
         "helpers": {
           "title": "Helferverwaltung",
           "teaser": "Neues Modul",
@@ -515,12 +535,13 @@
           }
         },
         "kanban": {
-          "title": "Kanban",
-          "teaser": "Trello-Import & Fixes",
+          "title": "Boards",
+          "teaser": "Umbenennung & Bugfixes",
           "items": {
-            "trello_connect": "Direkter Trello-Import in den Kanban-Einstellungen: Trello-Konto einfach per API-Key und Token verbinden.",
-            "trello_import": "Boards direkt auswählen und inklusive Listen, Karten und Sichtbarkeit importieren.",
-            "bugfixes": "Verschiedene Bugfixes und Fehlerbehebungen bei Darstellung, Kartenaktionen und Bedienung."
+            "rename": "Umbenennung von Kanban zu Boards in der Navigation und den Modulansichten für mehr Klarheit.",
+            "bugfixes": "Erneute Bugfixes und Fehlerbehebungen bei Darstellung, Kartenaktionen, Anhängen und Bedienung.",
+            "trello_connect": "Direkter Trello-Import in den Boards-Einstellungen: Trello-Konto einfach per API-Key und Token verbinden.",
+            "trello_import": "Boards direkt auswählen und inklusive Listen, Karten und Sichtbarkeit importieren."
           }
         },
         "files_calendar": {

@@ -458,16 +458,36 @@
       "next": "Siguiente",
       "welcome": {
         "title": "Bienvenido a la versión {version}",
-        "text": "PrismaTeams {version} incorpora los nuevos módulos de Gestión de Ayudantes y Reservas, importación directa de Trello para Kanban, integración con Nextcloud para Archivos y Calendario, el nuevo cliente de Windows y varias correcciones de errores.",
+        "text": "PrismaTeams {version} incorpora el nuevo módulo Canvas, la nueva vista móvil de EuroOffice, el cambio de nombre de Kanban a Boards junto con nuevas correcciones de errores y todas las novedades de la serie 3.5.",
         "highlights": {
+          "canvas": "Nuevo módulo Canvas: crea diseños, presentaciones y pizarras directamente en el portal.",
+          "eurooffice_mobile": "Vista móvil de EuroOffice: edita y consulta documentos de Office cómodamente desde smartphones.",
+          "kanban": "Kanban → Boards: cambio de nombre a Boards junto con nuevas correcciones y mejoras de estabilidad.",
           "helpers": "Nuevo módulo Gestión de Ayudantes: organiza turnos, áreas, inscripciones y horarios en un solo lugar.",
           "booking": "Nuevo módulo Reservas: gestiona salas, recursos y solicitudes de reserva de forma estructurada.",
-          "kanban": "Kanban: importación directa desde Trello y varias correcciones de errores.",
           "nextcloud": "Archivos y Calendario: nueva opción de vinculación con Nextcloud.",
           "windows_client": "Nuevo cliente de PrismaTeams para Windows: utiliza PrismaTeams como una aplicación nativa de Windows."
         }
       },
       "modules": {
+        "canvas": {
+          "title": "Canvas",
+          "teaser": "Nuevo módulo",
+          "items": {
+            "overview": "Nuevo módulo para crear diseños, presentaciones y pizarras de equipo directamente en PrismaTeams.",
+            "formats": "Elige entre formatos y plantillas predefinidas o define dimensiones personalizadas en píxeles.",
+            "sharing_export": "Gestiona la visibilidad para equipos y usuarios, renombra y descarga en formato .hyc."
+          }
+        },
+        "eurooffice_mobile": {
+          "title": "EuroOffice Móvil",
+          "teaser": "Vista móvil",
+          "items": {
+            "overview": "Nueva vista móvil para EuroOffice que permite ver y editar documentos cómodamente en smartphones.",
+            "auto_detect": "La detección automática adapta el diseño del editor en pantallas pequeñas y oculta barras de escritorio.",
+            "mode_toggle": "Cambia manualmente entre vista móvil y de escritorio en cualquier momento desde el editor."
+          }
+        },
         "helpers": {
           "title": "Gestión de Ayudantes",
           "teaser": "Nuevo módulo",
@@ -489,12 +509,13 @@
           }
         },
         "kanban": {
-          "title": "Kanban",
-          "teaser": "Importación de Trello y mejoras",
+          "title": "Boards",
+          "teaser": "Renombrado y correcciones",
           "items": {
-            "trello_connect": "Importación directa de Trello en los ajustes de Kanban mediante clave API y token.",
-            "trello_import": "Selecciona tableros directamente e impórtalos con listas, tarjetas y visibilidad.",
-            "bugfixes": "Diversas correcciones de errores y mejoras en la visualización y acciones de tarjetas."
+            "rename": "Kanban pasa a llamarse Boards en la navegación y las vistas del módulo para mayor claridad.",
+            "bugfixes": "Nuevas correcciones de errores y mejoras en la visualización, acciones de tarjetas y adjuntos.",
+            "trello_connect": "Importación directa de Trello en los ajustes de Boards mediante clave API y token.",
+            "trello_import": "Selecciona tableros directamente e impórtalos con listas, tarjetas y visibilidad."
           }
         },
         "files_calendar": {

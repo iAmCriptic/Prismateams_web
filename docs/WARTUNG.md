@@ -104,6 +104,12 @@ sudo ./venv/bin/pip install -r requirements.txt
 sudo systemctl restart teamportal
 ```
 
+Optional:
+```bash
+# Integration Hycanvas Automatisch eirnichten
+sudo bash migrations/migrate_hycanvas.sh
+```
+
 **Hinweis:** Wenn Sie den `master`-Branch statt `main` verwenden, ersetzen Sie `origin/main` durch `origin/master` im `git reset`-Befehl.
 
 ## Datenbank-Migrationen ausführen

@@ -14,7 +14,7 @@
             <div class="modal-header border-0 pb-0">
                 <h5 class="modal-title" id="whatsNewModalLabel">
                     <i class="bi bi-stars" aria-hidden="true"></i>
-                    <span data-whats-new-title>{{ _('dashboard.whats_new.persistent_title', version=whats_new_version|default('3.5.0'), current=1, total=8) }}</span>
+                    <span data-whats-new-title>{{ _('dashboard.whats_new.persistent_title', version=whats_new_version|default('3.5.2'), current=1, total=10) }}</span>
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
             </div>
@@ -22,7 +22,7 @@
             <div class="whats-new-progress" id="whatsNewDots" aria-hidden="true">
                 <div class="whats-new-progress-meta">
                     <div class="whats-new-progress-bar" aria-hidden="true"><span id="whatsNewProgressFill"></span></div>
-                    <span class="whats-new-progress-count" id="whatsNewProgressCount">1/8</span>
+                    <span class="whats-new-progress-count" id="whatsNewProgressCount">1/10</span>
                 </div>
             </div>
 
@@ -30,13 +30,25 @@
                 <div class="whats-new-panels">
                 <div class="whats-new-panel is-active" data-panel="welcome">
                     <div class="whats-new-welcome">
-                        <span class="whats-new-welcome-badge">v{{ whats_new_version|default('3.5.0') }}</span>
+                        <span class="whats-new-welcome-badge">v{{ whats_new_version|default('3.5.2') }}</span>
                         <div class="whats-new-welcome-hero" aria-hidden="true">
                             <i class="bi bi-rocket-takeoff"></i>
                         </div>
-                        <h3 class="whats-new-welcome-title">{{ _('dashboard.whats_new.welcome.title', version=whats_new_version|default('3.5.0')) }}</h3>
-                        <p class="whats-new-welcome-text">{{ _('dashboard.whats_new.welcome.text', version=whats_new_version|default('3.5.0')) }}</p>
+                        <h3 class="whats-new-welcome-title">{{ _('dashboard.whats_new.welcome.title', version=whats_new_version|default('3.5.2')) }}</h3>
+                        <p class="whats-new-welcome-text">{{ _('dashboard.whats_new.welcome.text', version=whats_new_version|default('3.5.2')) }}</p>
                         <ul class="whats-new-welcome-highlights">
+                            <li>
+                                <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-palette"></i></span>
+                                <span class="whats-new-feature-text">{{ _('dashboard.whats_new.welcome.highlights.canvas') }}</span>
+                            </li>
+                            <li>
+                                <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-phone"></i></span>
+                                <span class="whats-new-feature-text">{{ _('dashboard.whats_new.welcome.highlights.eurooffice_mobile') }}</span>
+                            </li>
+                            <li>
+                                <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-kanban"></i></span>
+                                <span class="whats-new-feature-text">{{ _('dashboard.whats_new.welcome.highlights.kanban') }}</span>
+                            </li>
                             <li>
                                 <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-people-fill"></i></span>
                                 <span class="whats-new-feature-text">{{ _('dashboard.whats_new.welcome.highlights.helpers') }}</span>
@@ -44,10 +56,6 @@
                             <li>
                                 <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-calendar-check"></i></span>
                                 <span class="whats-new-feature-text">{{ _('dashboard.whats_new.welcome.highlights.booking') }}</span>
-                            </li>
-                            <li>
-                                <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-kanban"></i></span>
-                                <span class="whats-new-feature-text">{{ _('dashboard.whats_new.welcome.highlights.kanban') }}</span>
                             </li>
                             <li>
                                 <span class="whats-new-feature-icon" aria-hidden="true"><i class="bi bi-cloud-check"></i></span>
@@ -64,6 +72,27 @@
                 <div class="whats-new-panel" data-panel="overview">
                     <p class="whats-new-overview-subtitle">{{ _('dashboard.whats_new.overview_subtitle') }}</p>
                     <div class="whats-new-tile-grid">
+                        <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="canvas">
+                            <span class="whats-new-module-icon text-primary"><i class="bi bi-palette"></i></span>
+                            <span class="whats-new-tile-text">
+                                <strong>{{ _('dashboard.whats_new.modules.canvas.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.canvas.teaser') }}</small>
+                            </span>
+                        </button>
+                        <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="eurooffice_mobile">
+                            <span class="whats-new-module-icon text-info"><i class="bi bi-phone"></i></span>
+                            <span class="whats-new-tile-text">
+                                <strong>{{ _('dashboard.whats_new.modules.eurooffice_mobile.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.eurooffice_mobile.teaser') }}</small>
+                            </span>
+                        </button>
+                        <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="kanban">
+                            <span class="whats-new-module-icon text-info"><i class="bi bi-kanban"></i></span>
+                            <span class="whats-new-tile-text">
+                                <strong>{{ _('dashboard.whats_new.modules.kanban.title') }}</strong>
+                                <small>{{ _('dashboard.whats_new.modules.kanban.teaser') }}</small>
+                            </span>
+                        </button>
                         <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="helpers">
                             <span class="whats-new-module-icon text-success"><i class="bi bi-people-fill"></i></span>
                             <span class="whats-new-tile-text">
@@ -76,13 +105,6 @@
                             <span class="whats-new-tile-text">
                                 <strong>{{ _('dashboard.whats_new.modules.booking.title') }}</strong>
                                 <small>{{ _('dashboard.whats_new.modules.booking.teaser') }}</small>
-                            </span>
-                        </button>
-                        <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="kanban">
-                            <span class="whats-new-module-icon text-info"><i class="bi bi-kanban"></i></span>
-                            <span class="whats-new-tile-text">
-                                <strong>{{ _('dashboard.whats_new.modules.kanban.title') }}</strong>
-                                <small>{{ _('dashboard.whats_new.modules.kanban.teaser') }}</small>
                             </span>
                         </button>
                         <button type="button" class="whats-new-tile whats-new-tile--md whats-new-module-btn" data-goto="files_calendar">
@@ -107,6 +129,30 @@
                             </span>
                         </button>
                     </div>
+                </div>
+
+                <div class="whats-new-panel" data-panel="canvas">
+                    <div class="whats-new-detail-header">
+                        <span class="whats-new-module-icon whats-new-module-icon-lg text-primary"><i class="bi bi-palette"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.canvas.title') }}</h6></div>
+                    </div>
+                    <ul class="whats-new-feature-list">
+                        {{ wn_feature('easel2', 'dashboard.whats_new.modules.canvas.items.overview') }}
+                        {{ wn_feature('aspect-ratio', 'dashboard.whats_new.modules.canvas.items.formats') }}
+                        {{ wn_feature('share', 'dashboard.whats_new.modules.canvas.items.sharing_export') }}
+                    </ul>
+                </div>
+
+                <div class="whats-new-panel" data-panel="eurooffice_mobile">
+                    <div class="whats-new-detail-header">
+                        <span class="whats-new-module-icon whats-new-module-icon-lg text-info"><i class="bi bi-phone"></i></span>
+                        <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.eurooffice_mobile.title') }}</h6></div>
+                    </div>
+                    <ul class="whats-new-feature-list">
+                        {{ wn_feature('file-earmark-richtext', 'dashboard.whats_new.modules.eurooffice_mobile.items.overview') }}
+                        {{ wn_feature('phone', 'dashboard.whats_new.modules.eurooffice_mobile.items.auto_detect') }}
+                        {{ wn_feature('toggles', 'dashboard.whats_new.modules.eurooffice_mobile.items.mode_toggle') }}
+                    </ul>
                 </div>
 
                 <div class="whats-new-panel" data-panel="helpers">
@@ -141,9 +187,10 @@
                         <div><h6 class="mb-0">{{ _('dashboard.whats_new.modules.kanban.title') }}</h6></div>
                     </div>
                     <ul class="whats-new-feature-list">
+                        {{ wn_feature('tag', 'dashboard.whats_new.modules.kanban.items.rename') }}
+                        {{ wn_feature('bug', 'dashboard.whats_new.modules.kanban.items.bugfixes') }}
                         {{ wn_feature('box-arrow-in-down', 'dashboard.whats_new.modules.kanban.items.trello_connect') }}
                         {{ wn_feature('card-checklist', 'dashboard.whats_new.modules.kanban.items.trello_import') }}
-                        {{ wn_feature('bug', 'dashboard.whats_new.modules.kanban.items.bugfixes') }}
                     </ul>
                 </div>
 
