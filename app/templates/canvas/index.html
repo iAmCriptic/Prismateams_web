@@ -9,18 +9,32 @@ body:has(.canvas-shell) {
 }
 .canvas-shell {
     position: fixed;
-    top: var(--top-navbar-height, 64px);
+    top: 0;
     left: 0;
     right: 0;
-    bottom: 0;
+    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
     z-index: 1;
     overflow: hidden;
     background: var(--bs-body-bg);
 }
-@media (max-width: 767.98px) {
+@media (min-width: 992px) {
     .canvas-shell {
-        bottom: var(--portal-mobile-nav-clearance, 0px);
+        top: var(--top-navbar-height, 64px);
+        right: var(--favorites-rail-width, 56px);
+        bottom: 0;
     }
+}
+@media (min-width: 768px) {
+    body.force-desktop-layout .canvas-shell {
+        top: var(--top-navbar-height, 64px);
+        right: var(--favorites-rail-width, 56px);
+        bottom: 0;
+    }
+}
+body.force-mobile-layout .canvas-shell {
+    top: 0;
+    right: 0;
+    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
 }
 .canvas-embed-frame {
     width: 100%;
