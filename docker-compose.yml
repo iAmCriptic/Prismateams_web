@@ -65,6 +65,7 @@ services:
       MIROTALK_API_URL: ${MIROTALK_API_URL:-http://mirotalk:3010}
       HYCANVAS_API_URL: ${HYCANVAS_API_URL:-http://hycanvas:8005}
       HYCANVAS_JWT_SECRET: ${HYCANVAS_JWT_SECRET:-changeme-hycanvas-jwt}
+      HYCANVAS_DATABASE_URL: ${HYCANVAS_DATABASE_URL:-postgresql://${HYCANVAS_DB_USER:-hycanvas}:${HYCANVAS_DB_PASSWORD:-changeme-hycanvas-db}@hycanvas-db:5432/${HYCANVAS_DB_NAME:-hycanvas}}
     volumes:
       - app_uploads:/app/uploads
       - app_instance:/app/instance

@@ -8,12 +8,15 @@ import logging
 import os
 import re
 import time
+import uuid
 from typing import Any
 
 import jwt
 import requests
 from flask import current_app, url_for
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 
 logger = logging.getLogger(__name__)
@@ -96,6 +99,181 @@ def get_hycanvas_browser_url() -> str:
 
 def get_hycanvas_api_url() -> str:
     return (current_app.config.get('HYCANVAS_API_URL') or 'http://hycanvas:8005').strip().rstrip('/')
+
+
+def get_hycanvas_db_url() -> str | None:
+    url = (
+        current_app.config.get('HYCANVAS_DATABASE_URL')
+        or os.environ.get('HYCANVAS_DATABASE_URL')
+        or ''
+    ).strip()
+    if not url:
+        return None
+    if url.startswith('postgresql://'):
+        url = 'postgresql+pg8000://' + url[len('postgresql://'):]
+    elif url.startswith('postgres://'):
+        url = 'postgresql+pg8000://' + url[len('postgres://'):]
+    return url
+
+
+def _get_hycanvas_db_engine():
+    db_url = get_hycanvas_db_url()
+    if not db_url:
+        return None
+    engines = current_app.extensions.setdefault('hycanvas_db_engines', {})
+    engine = engines.get(db_url)
+    if engine is None:
+        engine = create_engine(db_url, pool_pre_ping=True)
+        engines[db_url] = engine
+    return engine
+
+
+def sync_hycanvas_user_and_workspaces(user) -> None:
+    """Mark user email verified in HyCanvas and sync Teamportal Teams/Admins to HyCanvas workspaces."""
+    if not user:
+        return
+    try:
+        engine = _get_hycanvas_db_engine()
+    except Exception as exc:
+        logger.warning('HyCanvas DB engine init failed: %s', exc)
+        return
+    if engine is None:
+        return
+
+    from app.models.team import Team, TeamMember
+    from app.models.user import User
+
+    email = (getattr(user, 'email', None) or f'user-{user.id}@portal.local').strip().lower()
+
+    try:
+        teams = Team.query.options(
+            joinedload(Team.members).joinedload(TeamMember.user),
+            joinedload(Team.leader),
+        ).all()
+        portal_admins = User.query.filter_by(is_admin=True, is_active=True).all()
+        admin_emails = {
+            (a.email or '').strip().lower()
+            for a in portal_admins
+            if getattr(a, 'email', None)
+        }
+
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    'UPDATE users '
+                    'SET email_verified = true, updated_at = NOW() '
+                    'WHERE lower(email) = :email AND email_verified = false'
+                ),
+                {'email': email},
+            )
+
+            rows = conn.execute(text('SELECT id::text AS id, lower(email) AS email FROM users')).fetchall()
+            hc_users = {row.email: row.id for row in rows}
+            if not hc_users:
+                return
+
+            first_admin_hc_id = next(
+                (hc_users[e] for e in admin_emails if e in hc_users),
+                None,
+            )
+
+            for team in teams:
+                leader_email = (
+                    (team.leader.email or '').strip().lower()
+                    if team.leader and getattr(team.leader, 'email', None)
+                    else ''
+                )
+                owner_hc_id = (
+                    hc_users.get(leader_email)
+                    or first_admin_hc_id
+                    or hc_users.get(email)
+                )
+                if not owner_hc_id:
+                    continue
+
+                slug = f'team-{team.id}'
+                ws_row = conn.execute(
+                    text(
+                        'INSERT INTO workspaces (id, kind, name, slug, owner_id, created_at, updated_at) '
+                        'VALUES (CAST(:id AS uuid), CAST(:kind AS "WorkspaceKind"), :name, :slug, CAST(:owner_id AS uuid), NOW(), NOW()) '
+                        'ON CONFLICT (slug) DO UPDATE '
+                        'SET name = EXCLUDED.name, updated_at = NOW() '
+                        'RETURNING id::text AS id'
+                    ),
+                    {
+                        'id': str(uuid.uuid4()),
+                        'kind': 'TEAM',
+                        'name': (team.name or f'Team {team.id}')[:100],
+                        'slug': slug,
+                        'owner_id': owner_hc_id,
+                    },
+                ).fetchone()
+                if not ws_row:
+                    continue
+                ws_id = ws_row.id
+
+                desired_roles: dict[str, str] = {}
+                for tm in team.members or []:
+                    u = tm.user
+                    if not u or not getattr(u, 'is_active', True) or not getattr(u, 'email', None):
+                        continue
+                    hc_uid = hc_users.get(u.email.strip().lower())
+                    if not hc_uid:
+                        continue
+                    if hc_uid == owner_hc_id:
+                        desired_roles[hc_uid] = 'OWNER'
+                    elif getattr(u, 'is_admin', False) or u.id == team.leader_id:
+                        desired_roles[hc_uid] = 'ADMIN'
+                    else:
+                        desired_roles[hc_uid] = 'MEMBER'
+
+                if leader_email and leader_email in hc_users:
+                    l_uid = hc_users[leader_email]
+                    desired_roles[l_uid] = 'OWNER' if l_uid == owner_hc_id else 'ADMIN'
+
+                for adm_email in admin_emails:
+                    adm_uid = hc_users.get(adm_email)
+                    if adm_uid:
+                        desired_roles[adm_uid] = 'OWNER' if adm_uid == owner_hc_id else 'ADMIN'
+
+                for hc_uid, role in desired_roles.items():
+                    conn.execute(
+                        text(
+                            'INSERT INTO workspace_members (id, workspace_id, user_id, role, status, joined_at, created_at, updated_at) '
+                            'VALUES (CAST(:id AS uuid), CAST(:ws_id AS uuid), CAST(:uid AS uuid), '
+                            'CAST(:role AS "Role"), CAST(:status AS "MembershipStatus"), NOW(), NOW(), NOW()) '
+                            'ON CONFLICT (workspace_id, user_id) DO UPDATE '
+                            'SET role = EXCLUDED.role, status = EXCLUDED.status, updated_at = NOW()'
+                        ),
+                        {
+                            'id': str(uuid.uuid4()),
+                            'ws_id': ws_id,
+                            'uid': hc_uid,
+                            'role': role,
+                            'status': 'ACTIVE',
+                        },
+                    )
+
+                existing_members = conn.execute(
+                    text(
+                        'SELECT wm.user_id::text AS uid '
+                        'FROM workspace_members wm '
+                        'WHERE wm.workspace_id = CAST(:ws_id AS uuid)'
+                    ),
+                    {'ws_id': ws_id},
+                ).fetchall()
+                for m in existing_members:
+                    if m.uid not in desired_roles:
+                        conn.execute(
+                            text(
+                                'DELETE FROM workspace_members '
+                                'WHERE workspace_id = CAST(:ws_id AS uuid) '
+                                'AND user_id = CAST(:uid AS uuid)'
+                            ),
+                            {'ws_id': ws_id, 'uid': m.uid},
+                        )
+    except Exception as exc:
+        logger.warning('HyCanvas workspace/user sync failed: %s', exc)
 
 
 def sign_canvas_avatar_token(user_id: int) -> str:
@@ -193,6 +371,7 @@ def authenticate_hycanvas_session(user) -> requests.Session | None:
                 )
 
         if sess.cookies:
+            sync_hycanvas_user_and_workspaces(user)
             avatar_url = get_user_avatar_external_url(user)
             if avatar_url:
                 try:
