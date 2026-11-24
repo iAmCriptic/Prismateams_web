@@ -95,13 +95,14 @@ patch_nginx_file() {
     local conf_file="$1"
     local upstream="$2"
     python3 - "${conf_file}" "${upstream}" << 'PYEOF'
-import sys, pathlib
+import sys, pathlib, re
 p = pathlib.Path(sys.argv[1])
 upstream = sys.argv[2]
 text = p.read_text(encoding='utf-8')
-if 'location /hycanvas/' in text:
+if 'location /hycanvas/' in text and 'sub_filter \'"/_next/' in text:
     sys.exit(0)
-block = f"""    # HyCanvas (Canvas-Modul)
+
+block = f"""    # HyCanvas (Canvas-Modul) – alles über /hycanvas/ per sub_filter
     location /hycanvas/ {{
         proxy_pass http://{upstream}/;
         proxy_http_version 1.1;
@@ -111,19 +112,38 @@ block = f"""    # HyCanvas (Canvas-Modul)
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Accept-Encoding "";
         proxy_hide_header X-Frame-Options;
         proxy_buffering off;
         proxy_read_timeout 600;
+
+        sub_filter_once off;
+        sub_filter_types text/html application/javascript text/javascript text/css application/json;
+        sub_filter '"/_next/' '"/hycanvas/_next/';
+        sub_filter "'/_next/" "'/hycanvas/_next/";
+        sub_filter '"/api/v1/' '"/hycanvas/api/v1/';
+        sub_filter "'/api/v1/" "'/hycanvas/api/v1/";
+        sub_filter '"/visitor-loader.svg"' '"/hycanvas/visitor-loader.svg"';
+        sub_filter '"/manifest.webmanifest"' '"/hycanvas/manifest.webmanifest"';
+        sub_filter '"/favicon.ico"' '"/hycanvas/favicon.ico"';
     }}
 
 """
+
+# Falls ein alter /hycanvas/ Block ohne sub_filter existiert, diesen sauber ersetzen
+old_hc = re.search(r'[ \t]*# HyCanvas[^\n]*\n[ \t]*location /hycanvas/ \{[^}]*\}\s*', text)
+if old_hc:
+    text = text[:old_hc.start()] + block + text[old_hc.end():]
+    p.write_text(text, encoding='utf-8')
+    print(f"  -> /hycanvas/ Block in {p} auf sub_filter aktualisiert.")
+    sys.exit(0)
+
 for anchor in ("    # WebSockets für Socket.IO", "    location /socket.io/"):
     if anchor in text:
         text = text.replace(anchor, block + anchor, 1)
         p.write_text(text, encoding='utf-8')
         print(f"  -> /hycanvas/ Proxy-Block in {p} eingefügt.")
         sys.exit(0)
-import re
 m = re.search(r'^([ \t]*)location\s+/\s*\{', text, re.MULTILINE)
 if m:
     indent = m.group(1)
@@ -136,7 +156,7 @@ print(f"  -> Hinweis: Kein passender Anker in {p} gefunden, bitte manuell prüfe
 PYEOF
 }
 
-if [[ -f "${DOCKER_NGINX_CONF}" ]] && ! grep -q "location /hycanvas/" "${DOCKER_NGINX_CONF}"; then
+if [[ -f "${DOCKER_NGINX_CONF}" ]]; then
     patch_nginx_file "${DOCKER_NGINX_CONF}" "hycanvas:8005"
 fi
 
@@ -144,7 +164,7 @@ if [[ -d /etc/nginx/sites-available ]]; then
     for site_conf in /etc/nginx/sites-available/*; do
         [[ -f "${site_conf}" ]] || continue
         [[ "${site_conf}" == *.bak* ]] && continue
-        if grep -qE "127\.0\.0\.1:5000|localhost:5000|teamportal" "${site_conf}" && ! grep -q "location /hycanvas/" "${site_conf}"; then
+        if grep -qE "127\.0\.0\.1:5000|localhost:5000|teamportal" "${site_conf}"; then
             patch_nginx_file "${site_conf}" "127.0.0.1:8005"
         fi
     done
