@@ -285,7 +285,10 @@ def register_request_hooks(app):
         if request.endpoint and request.endpoint.startswith('setup.'):
             return
 
-        from app.utils.session_manager import revoke_all_sessions
+        from app.utils.session_manager import (
+            clear_session_preserving_logout,
+            revoke_all_sessions,
+        )
         from app.utils.common import portal_now_naive
 
         try:
@@ -297,7 +300,7 @@ def register_request_hooks(app):
                         revoke_all_sessions(current_user.id, exclude_current=False)
                         db.session.commit()
                     logout_user()
-                    session.clear()
+                    clear_session_preserving_logout()
                     if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
                         return jsonify({'error': 'Guest access expired'}), 401
                     flash(translate('auth.flash.guest_access_expired_contact_admin'), 'warning')
@@ -305,7 +308,7 @@ def register_request_hooks(app):
 
             if not getattr(current_user, 'is_active', True):
                 logout_user()
-                session.clear()
+                clear_session_preserving_logout()
                 if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
                     return jsonify({'error': 'Account deactivated'}), 401
                 return redirect(url_for('auth.login'))
@@ -313,7 +316,7 @@ def register_request_hooks(app):
             current_session_id = session.get('session_id')
             if not current_session_id:
                 logout_user()
-                session.clear()
+                clear_session_preserving_logout()
                 if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
                     return jsonify({'error': 'Session invalidated'}), 401
                 return redirect(url_for('auth.login'))
@@ -323,7 +326,7 @@ def register_request_hooks(app):
             status, reason = touch_portal_session_cached(current_user.id)
             if status == 'invalid':
                 logout_user()
-                session.clear()
+                clear_session_preserving_logout()
                 if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
                     if reason == 'inactivity':
                         err = 'Session expired due to inactivity'

@@ -1,7 +1,7 @@
 # Prismateams – Docker Compose
 #
 # Kern:  docker compose up -d
-# Plus:  docker compose --profile onlyoffice --profile excalidraw --profile mirotalk up -d
+# Plus:  docker compose --profile onlyoffice --profile excalidraw --profile mirotalk --profile hycanvas up -d
 #
 # Voraussetzung: .env im Projektroot (siehe docs/env.docker.example)
 
@@ -63,6 +63,8 @@ services:
       UPLOAD_FOLDER: uploads
       # Server→Sidecar (Compose-DNS); Browser nutzt Proxy-Pfade aus .env
       MIROTALK_API_URL: ${MIROTALK_API_URL:-http://mirotalk:3010}
+      HYCANVAS_API_URL: ${HYCANVAS_API_URL:-http://hycanvas:8005}
+      HYCANVAS_JWT_SECRET: ${HYCANVAS_JWT_SECRET:-changeme-hycanvas-jwt}
     volumes:
       - app_uploads:/app/uploads
       - app_instance:/app/instance
@@ -154,6 +156,44 @@ services:
     networks:
       - portal
 
+  # HyCanvas – Visueller Canvas & Design-Workspace (optional)
+  hycanvas-db:
+    profiles: ["hycanvas"]
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${HYCANVAS_DB_USER:-hycanvas}
+      POSTGRES_PASSWORD: ${HYCANVAS_DB_PASSWORD:-changeme-hycanvas-db}
+      POSTGRES_DB: ${HYCANVAS_DB_NAME:-hycanvas}
+    volumes:
+      - hycanvas_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${HYCANVAS_DB_USER:-hycanvas} -d ${HYCANVAS_DB_NAME:-hycanvas}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks:
+      - portal
+
+  hycanvas:
+    profiles: ["hycanvas"]
+    image: ${HYCANVAS_IMAGE:-hycanvas/hycanvas:latest}
+    restart: unless-stopped
+    depends_on:
+      hycanvas-db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://${HYCANVAS_DB_USER:-hycanvas}:${HYCANVAS_DB_PASSWORD:-changeme-hycanvas-db}@hycanvas-db:5432/${HYCANVAS_DB_NAME:-hycanvas}?schema=public
+      JWT_SECRET: ${HYCANVAS_JWT_SECRET:-changeme-hycanvas-jwt}
+      COOKIE_SECURE: ${HYCANVAS_COOKIE_SECURE:-false}
+    volumes:
+      - hycanvas_storage:/app/.data/storage
+    ports:
+      - "${HYCANVAS_HOST_BIND:-127.0.0.1}:${HYCANVAS_HOST_PORT:-8005}:8005"
+    networks:
+      - portal
+
 networks:
   portal:
     driver: bridge
@@ -166,3 +206,5 @@ volumes:
   eurooffice_data:
   eurooffice_logs:
   eurooffice_fonts:
+  hycanvas_pgdata:
+  hycanvas_storage:

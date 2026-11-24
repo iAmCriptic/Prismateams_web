@@ -177,6 +177,13 @@ class Config:
     EXCALIDRAW_ROOM_URL = os.environ.get('EXCALIDRAW_ROOM_URL', '/excalidraw-room')
     EXCALIDRAW_PUBLIC_URL = os.environ.get('EXCALIDRAW_PUBLIC_URL', '')
 
+    # HyCanvas (Canvas-Modul)
+    HYCANVAS_ENABLED = os.environ.get('HYCANVAS_ENABLED', 'True').lower() in ('1', 'true', 'yes', 'on')
+    HYCANVAS_URL = (os.environ.get('HYCANVAS_URL') or '/hycanvas').strip().rstrip('/') or '/hycanvas'
+    HYCANVAS_API_URL = (os.environ.get('HYCANVAS_API_URL') or 'http://hycanvas:8005').strip().rstrip('/')
+    HYCANVAS_API_KEY = (os.environ.get('HYCANVAS_API_KEY') or '').strip()
+    HYCANVAS_JWT_SECRET = (os.environ.get('HYCANVAS_JWT_SECRET') or '').strip()
+
     MEDIA_DOWNLOADER_RETENTION_HOURS = int(os.environ.get('MEDIA_DOWNLOADER_RETENTION_HOURS', '1'))
     MEDIA_DOWNLOADER_MAX_CONCURRENT = int(os.environ.get('MEDIA_DOWNLOADER_MAX_CONCURRENT', '2'))
     # Systemweite Cap (alle Nutzer); schützt kleine VPS vor parallelen FFmpeg-Prozessen

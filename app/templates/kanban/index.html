@@ -105,11 +105,10 @@
         {% endif %}
         {% if unread_cnt > 0 %}
         {% set unread_label = unread_cnt ~ ' ' ~ (_('kanban.index.unread_many') if unread_cnt > 1 else _('kanban.index.unread_one')) %}
-        <span class="position-absolute top-0 end-0 m-2 badge rounded-pill bg-danger shadow-sm kanban-board-unread-badge kanban-unread-badge-sm d-flex align-items-center gap-1"
+        <span class="position-absolute top-0 end-0 m-2 badge rounded-pill bg-danger kanban-board-unread-badge"
               data-board-unread-badge="{{ b.id }}"
-              title="{{ unread_label }}">
-          <i class="bi bi-bell-fill kanban-unread-badge-sm" aria-hidden="true"></i>{{ unread_cnt }}
-        </span>
+              title="{{ unread_label }}"
+              aria-label="{{ unread_label }}">{{ unread_cnt }}</span>
         {% endif %}
       </div>
       <div class="d-flex justify-content-between align-items-start mb-1 gap-2">
@@ -148,9 +147,10 @@
       <span class="kanban-list-swatch" data-board-swatch="{{ b.id }}" style="background: {{ board_bg(b) }};" aria-hidden="true"></span>
       <span class="mod-item-name-text text-truncate" title="{{ b.title }}">{{ b.title }}</span>
       {% if unread_cnt > 0 %}
-      <span class="badge rounded-pill bg-danger ms-1 kanban-unread-badge-sm" title="{{ unread_cnt }} {{ _('kanban.index.unread_many') if unread_cnt > 1 else _('kanban.index.unread_one') }}">
-        <i class="bi bi-bell-fill me-1 kanban-unread-bell-xs" aria-hidden="true"></i>{{ unread_cnt }}
-      </span>
+      {% set unread_label = unread_cnt ~ ' ' ~ (_('kanban.index.unread_many') if unread_cnt > 1 else _('kanban.index.unread_one')) %}
+      <span class="badge rounded-pill bg-danger ms-1 kanban-board-unread-badge kanban-board-unread-badge--inline"
+            title="{{ unread_label }}"
+            aria-label="{{ unread_label }}">{{ unread_cnt }}</span>
       {% endif %}
     </a>
   </td>

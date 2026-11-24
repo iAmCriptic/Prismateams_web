@@ -669,17 +669,30 @@ def _serialize_attachment(att: KanbanAttachment, share_token: str | None = None)
                 from app.utils.private_files import can_view_file
                 file_obj = File.query.filter_by(id=portal_file_id, deleted_at=None).first()
                 if file_obj and (getattr(current_user, 'is_admin', False) or can_view_file(file_obj, current_user)):
-                    has_access = True
+                    if getattr(file_obj, 'storage_backend', 'local') == 'nextcloud' and file_obj.folder:
+                        try:
+                            from app.utils.nextcloud_storage import sync_folder_children
+                            sync_folder_children(file_obj.folder, user_id=current_user.id)
+                            file_obj = File.query.filter_by(id=portal_file_id, deleted_at=None).first()
+                        except Exception:
+                            pass
+                    if file_obj and (getattr(current_user, 'is_admin', False) or can_view_file(file_obj, current_user)):
+                        has_access = True
             if has_access and file_obj:
                 portal_file_access = True
                 name = file_obj.name or name
                 ext_f = (os.path.splitext(file_obj.name or '')[1] or '').lower().lstrip('.')
+                file_mime = file_obj.mime_type or ''
+                is_image = file_mime.startswith('image/') or ext_f in ('png', 'jpg', 'jpeg', 'gif', 'webp', 'svg')
+                preview_url = url_for('files.serve_media', file_id=file_obj.id) if is_image else None
                 if is_onlyoffice_enabled() and ext_f and is_onlyoffice_file_type(ext_f):
                     file_url = url_for('files.edit_onlyoffice', file_id=file_obj.id)
                 else:
                     file_url = url_for('files.view_file', file_id=file_obj.id)
             else:
                 portal_file_access = False
+                is_image = False
+                preview_url = None
                 name = translate('kanban.card.google_access_required')
                 file_url = '#'
         else:

@@ -1548,7 +1548,8 @@
         "meetings_needs_mirotalk": "Требуется MIROTALK_URL в .env. Без MiroTalk модуль остаётся выключенным.",
         "module_duty_roster": "Дежурства",
         "module_booking_personal": "Booking",
-        "module_helpers": "Управление волонтёрами"
+        "module_helpers": "Управление волонтёрами",
+        "module_canvas": "Canvas (HyCanvas)"
       },
       "users": {
         "page_title": "Управление пользователями — Администрирование",
@@ -2501,6 +2502,7 @@
         "search_no_user_results": "Подходящие участники портала не найдены.",
         "remove_member": "Удалить",
         "remove_member_confirm": "Удалить {name} из команды?",
+        "remove_member_confirm_title": "Подтвердить удаление",
         "badge_leader": "Lead",
         "assign_teams": "Назначить команды",
         "flash_name_required": "Укажите название команды.",
@@ -3566,7 +3568,10 @@
       "api_load_failed": "Не удалось загрузить Euro-Office",
       "api_load_failed_hint": "Проверьте, что Document Server доступен и ONLYOFFICE_DOCUMENT_SERVER_URL / JWT в .env указаны верно.",
       "editor_error": "Euro-Office сообщил об ошибке",
-      "editor_init_error": "Не удалось запустить редактор Euro-Office"
+      "editor_init_error": "Не удалось запустить редактор Euro-Office",
+      "switch_to_desktop": "Версия для ПК",
+      "switch_to_mobile": "Мобильная версия",
+      "mobile_banner": "Совместное редактирование в реальном времени на Document Server. Редактор работает в мобильном браузере."
     },
     "errors": {
       "file_type_not_supported": "Тип файла не поддерживается"
@@ -3679,84 +3684,95 @@
   },
   "canvas": {
     "index": {
-      "page_title": "Canvas — Командный портал",
+      "page_title": "Canvas",
       "heading": "Canvas",
-      "new_button": "Новый Canvas",
-      "stats": {
-        "text_fields_one": "1 текстовое поле",
-        "text_fields_other": "{count} текстовых полей",
-        "updated_at": "Обновлено {date}"
+      "new_button": "New",
+      "nav": {
+        "menu": "Open navigation"
       },
-      "buttons": {
-        "edit": "Редактировать",
-        "delete_confirm": "Удалить Canvas?"
+      "search": {
+        "placeholder": "Search canvas…"
+      },
+      "view_toggle": {
+        "label": "Switch view",
+        "list": "List view",
+        "grid": "Grid view"
+      },
+      "table": {
+        "name": "Name",
+        "format": "Format",
+        "owner": "Created by",
+        "updated": "Updated"
+      },
+      "card": {
+        "open": "Open",
+        "download": "Download (.hyc)",
+        "rename": "Rename",
+        "visibility": "Visibility",
+        "delete": "Delete",
+        "delete_confirm": "Really delete this canvas?"
       },
       "empty": {
-        "message": "Пока нет Canvas.",
-        "hint": "Создайте свой первый Canvas!"
+        "filtered": "No matching canvas documents found.",
+        "default": "No canvas documents yet.",
+        "hint": "Click “New” on the left to create a design or whiteboard."
       }
     },
     "create": {
-      "page_title": "Новый Canvas — Командный портал",
-      "breadcrumb": {
-        "index": "Canvas",
-        "current": "Новый Canvas"
-      },
-      "heading": "Создать новый Canvas",
-      "form": {
-        "name": "ФИО",
-        "description": "Описание (необязательно)"
-      },
-      "buttons": {
-        "submit": "Создать Canvas",
-        "cancel": "Отмена"
-      },
+      "modal_title": "Create new canvas",
+      "name_label": "Name",
+      "name_placeholder": "e.g. Quarterly presentation or Team whiteboard",
+      "visibility_label": "Visibility",
+      "format_label": "Choose format / preset",
+      "custom_width": "Width (px)",
+      "custom_height": "Height (px)",
+      "submit": "Create & Open",
       "alerts": {
-        "name_required": "Пожалуйста, введите название."
+        "name_required": "Please enter a name."
+      },
+      "cat": {
+        "workspace": "Workspace & Productivity",
+        "presentation": "Presentations & Video",
+        "documents": "Documents & Print",
+        "web": "Web & Digital",
+        "social": "Social Media",
+        "custom": "Custom"
       }
+    },
+    "preset": {
+      "whiteboard": "Whiteboard",
+      "sheet": "Spreadsheet",
+      "presentation": "Presentation",
+      "video": "Video",
+      "a4_doc": "A4 Document",
+      "document": "Document",
+      "poster": "Poster",
+      "flyer": "Flyer",
+      "business_card": "Business Card",
+      "banner": "Banner",
+      "desktop_bg": "Desktop Wallpaper",
+      "logo": "Logo",
+      "ig_post": "Instagram Post",
+      "ig_portrait": "Instagram Portrait",
+      "ig_story": "Instagram Story",
+      "fb_post": "Facebook Post",
+      "li_post": "LinkedIn Post",
+      "yt_thumb": "YouTube Thumbnail",
+      "custom": "Blank / Custom size",
+      "custom_hint": "Custom dimensions"
     },
     "edit": {
       "page_title_suffix": "Canvas",
-      "back_label": "Командный портал",
-      "toolbar": {
-        "lock": "Включить/выключить редактирование",
-        "hand": "Перемещать холст",
-        "select": "Выбрать и переместить объекты",
-        "rectangle": "Нарисовать прямоугольник",
-        "diamond": "Нарисовать ромб",
-        "circle": "Нарисовать круг",
-        "arrow": "Нарисовать стрелку",
-        "line": "Нарисовать линию",
-        "text": "Добавить текст",
-        "image": "Вставить изображение",
-        "eraser": "Удалить объекты"
-      },
-      "zoom": {
-        "out": "Уменьшить",
-        "in": "Увеличить"
-      },
-      "history": {
-        "undo": "Отменить",
-        "redo": "Повторить"
-      },
-      "comments": {
-        "toggle": "Показать/скрыть комментарии",
-        "title": "Комментарии"
-      },
-      "color": {
-        "title": "Цвета",
-        "toggle": "Цвета",
-        "stroke": "Цвет обводки",
-        "fill": "Цвет заливки",
-        "fill_none": "Без заливки",
-        "stroke_width": "Толщина обводки",
-        "text_color": "Цвет текста",
-        "text_size": "Размер текста"
-      }
+      "readonly": "Read only",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "save_failed": "Save failed"
     },
     "flash": {
-      "created": "Canvas «{name}» создан.",
-      "deleted": "Canvas «{name}» удалён."
+      "renamed": "Canvas renamed to “{name}”.",
+      "visibility_updated": "Visibility updated.",
+      "deleted": "Canvas “{name}” deleted.",
+      "no_snapshot": "No local .hyc snapshot yet. Please save in the editor first."
     }
   },
   "markdown": {

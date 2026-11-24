@@ -1977,6 +1977,11 @@ VISIBILITY_SETTINGS_MODULES = {
         'label_key': 'layout.nav.excalidraw',
         'icon': 'bi-pencil-square',
     },
+    'canvas': {
+        'module_key': 'module_canvas',
+        'label_key': 'layout.nav.canvas',
+        'icon': 'bi-easel2',
+    },
     'surveys': {
         'module_key': 'module_surveys',
         'label_key': 'layout.nav.surveys',

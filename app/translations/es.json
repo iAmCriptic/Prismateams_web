@@ -1548,7 +1548,8 @@
         "meetings_needs_mirotalk": "Requiere MIROTALK_URL en el .env. Sin MiroTalk el módulo permanece desactivado.",
         "module_duty_roster": "Horario de turnos",
         "module_booking_personal": "Booking",
-        "module_helpers": "Gestión de voluntarios"
+        "module_helpers": "Gestión de voluntarios",
+        "module_canvas": "Canvas (HyCanvas)"
       },
       "users": {
         "page_title": "Gestión de usuarios - Administración",
@@ -2501,6 +2502,7 @@
         "search_no_user_results": "No se han encontrado miembros del portal coincidentes.",
         "remove_member": "Remove",
         "remove_member_confirm": "¿Quitar a {name} del equipo?",
+        "remove_member_confirm_title": "Confirmar eliminación",
         "badge_leader": "Lead",
         "assign_teams": "Asignar equipos",
         "flash_name_required": "Indique un nombre de equipo.",
@@ -3566,7 +3568,10 @@
       "api_load_failed": "No se pudo cargar Euro-Office",
       "api_load_failed_hint": "Compruebe que el Document Server sea accesible y que ONLYOFFICE_DOCUMENT_SERVER_URL / JWT en .env sean correctos.",
       "editor_error": "Euro-Office ha informado de un error",
-      "editor_init_error": "No se pudo iniciar el editor de Euro-Office"
+      "editor_init_error": "No se pudo iniciar el editor de Euro-Office",
+      "switch_to_desktop": "Vista de escritorio",
+      "switch_to_mobile": "Vista móvil",
+      "mobile_banner": "Edición colaborativa en directo en el Document Server. El editor se ejecuta en el navegador móvil."
     },
     "errors": {
       "file_type_not_supported": "Tipo de archivo no compatible"
@@ -3679,84 +3684,95 @@
   },
   "canvas": {
     "index": {
-      "page_title": "Canvas - Team Portal",
+      "page_title": "Canvas",
       "heading": "Canvas",
-      "new_button": "Nuevo canvas",
-      "stats": {
-        "text_fields_one": "1 campo de texto",
-        "text_fields_other": "{count} campos de texto",
-        "updated_at": "Actualizado el {date}"
+      "new_button": "New",
+      "nav": {
+        "menu": "Open navigation"
       },
-      "buttons": {
-        "edit": "Editar",
-        "delete_confirm": "¿Eliminar canvas?"
+      "search": {
+        "placeholder": "Search canvas…"
+      },
+      "view_toggle": {
+        "label": "Switch view",
+        "list": "List view",
+        "grid": "Grid view"
+      },
+      "table": {
+        "name": "Name",
+        "format": "Format",
+        "owner": "Created by",
+        "updated": "Updated"
+      },
+      "card": {
+        "open": "Open",
+        "download": "Download (.hyc)",
+        "rename": "Rename",
+        "visibility": "Visibility",
+        "delete": "Delete",
+        "delete_confirm": "Really delete this canvas?"
       },
       "empty": {
-        "message": "Aún no hay canvas.",
-        "hint": "¡Cree su primer canvas!"
+        "filtered": "No matching canvas documents found.",
+        "default": "No canvas documents yet.",
+        "hint": "Click “New” on the left to create a design or whiteboard."
       }
     },
     "create": {
-      "page_title": "Nuevo Canvas - Team Portal",
-      "breadcrumb": {
-        "index": "Canvas",
-        "current": "Nuevo canvas"
-      },
-      "heading": "Crear nuevo canvas",
-      "form": {
-        "name": "Nombre",
-        "description": "Descripción (opcional)"
-      },
-      "buttons": {
-        "submit": "Crear canvas",
-        "cancel": "Cancelar"
-      },
+      "modal_title": "Create new canvas",
+      "name_label": "Name",
+      "name_placeholder": "e.g. Quarterly presentation or Team whiteboard",
+      "visibility_label": "Visibility",
+      "format_label": "Choose format / preset",
+      "custom_width": "Width (px)",
+      "custom_height": "Height (px)",
+      "submit": "Create & Open",
       "alerts": {
-        "name_required": "Introduzca un nombre."
+        "name_required": "Please enter a name."
+      },
+      "cat": {
+        "workspace": "Workspace & Productivity",
+        "presentation": "Presentations & Video",
+        "documents": "Documents & Print",
+        "web": "Web & Digital",
+        "social": "Social Media",
+        "custom": "Custom"
       }
+    },
+    "preset": {
+      "whiteboard": "Whiteboard",
+      "sheet": "Spreadsheet",
+      "presentation": "Presentation",
+      "video": "Video",
+      "a4_doc": "A4 Document",
+      "document": "Document",
+      "poster": "Poster",
+      "flyer": "Flyer",
+      "business_card": "Business Card",
+      "banner": "Banner",
+      "desktop_bg": "Desktop Wallpaper",
+      "logo": "Logo",
+      "ig_post": "Instagram Post",
+      "ig_portrait": "Instagram Portrait",
+      "ig_story": "Instagram Story",
+      "fb_post": "Facebook Post",
+      "li_post": "LinkedIn Post",
+      "yt_thumb": "YouTube Thumbnail",
+      "custom": "Blank / Custom size",
+      "custom_hint": "Custom dimensions"
     },
     "edit": {
       "page_title_suffix": "Canvas",
-      "back_label": "Portal del equipo",
-      "toolbar": {
-        "lock": "Activar/desactivar edición",
-        "hand": "Mover canvas",
-        "select": "Seleccionar y mover objetos",
-        "rectangle": "Dibujar rectángulo",
-        "diamond": "Dibujar diamante",
-        "circle": "Dibujar círculo",
-        "arrow": "Dibujar flecha",
-        "line": "Dibujar línea",
-        "text": "Añadir texto",
-        "image": "Insertar imagen",
-        "eraser": "Eliminar objetos"
-      },
-      "zoom": {
-        "out": "Alejar",
-        "in": "Acercar"
-      },
-      "history": {
-        "undo": "Deshacer",
-        "redo": "Rehacer"
-      },
-      "comments": {
-        "toggle": "Mostrar/ocultar comentarios",
-        "title": "Comentarios"
-      },
-      "color": {
-        "title": "Colores",
-        "toggle": "Colores",
-        "stroke": "Color del trazo",
-        "fill": "Color de relleno",
-        "fill_none": "Sin relleno",
-        "stroke_width": "Grosor del trazo",
-        "text_color": "Color del texto",
-        "text_size": "Tamaño del texto"
-      }
+      "readonly": "Read only",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "save_failed": "Save failed"
     },
     "flash": {
-      "created": "Se ha creado el canvas \"{name}\".",
-      "deleted": "Se ha eliminado el canvas \"{name}\"."
+      "renamed": "Canvas renamed to “{name}”.",
+      "visibility_updated": "Visibility updated.",
+      "deleted": "Canvas “{name}” deleted.",
+      "no_snapshot": "No local .hyc snapshot yet. Please save in the editor first."
     }
   },
   "markdown": {

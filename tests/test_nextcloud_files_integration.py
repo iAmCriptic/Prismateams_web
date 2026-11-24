@@ -691,3 +691,69 @@ def test_nextcloud_sync_and_ui_show_remote_owner_and_dates(app, client):
         assert '01.05.2025' in payload['file']['created_at']
 
 
+def test_kanban_portal_files_sync_and_link_nextcloud(app, client):
+    from app.models.kanban import KanbanBoard, KanbanCard, KanbanList
+    from app.utils.nextcloud_settings import upsert_nextcloud_setting
+
+    admin = _create_user('nc_kanban_admin', is_admin=True)
+    _login(client, admin)
+
+    upsert_nextcloud_setting(SETTING_NC_ENABLED, 'true')
+    upsert_nextcloud_setting(SETTING_NC_MODE, 'nextcloud')
+    upsert_nextcloud_setting(SETTING_NC_PUBLIC_ENABLED, 'true')
+    upsert_nextcloud_setting(SETTING_NC_PUBLIC_PATH, '/Public')
+    upsert_nextcloud_setting(SETTING_NC_PUBLIC_ACCESS, 'all')
+    db.session.commit()
+
+    board = KanbanBoard(title='NC Board', created_by=admin.id, visibility='public')
+    db.session.add(board)
+    db.session.flush()
+    lst = KanbanList(board_id=board.id, title='Todo', position=0)
+    db.session.add(lst)
+    db.session.flush()
+    card = KanbanCard(list_id=lst.id, title='NC Card', position=0, created_by=admin.id)
+    db.session.add(card)
+    db.session.commit()
+
+    fake = FakeNextcloudProvider()
+    fake.dirs.add('Public/Unterordner')
+    fake.files['Public/Unterordner/Konzertplan.pdf'] = b'%PDF-1.4\nhello'
+
+    with patch('app.utils.nextcloud_storage.get_portal_nextcloud_provider', return_value=fake):
+        # 1. api_portal_files must sync Nextcloud subfolders even if never browsed in /files
+        resp = client.get('/kanban/api/portal-files?q=Konzertplan')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['success'] is True
+        assert len(data['files']) == 1
+        assert data['files'][0]['name'] == 'Konzertplan.pdf'
+        assert data['files'][0]['folder_name'] == 'Unterordner'
+        nc_file_id = data['files'][0]['id']
+
+        # 2. Linking a Nextcloud portal file must return 201 (not 500) and store file_size
+        link_resp = client.post(
+            f'/kanban/api/cards/{card.id}/attachments',
+            json={'portal_file_id': nc_file_id},
+        )
+        assert link_resp.status_code == 201
+        link_data = link_resp.get_json()
+        assert link_data['success'] is True
+        att = link_data['attachment']
+        assert att['is_portal_file'] is True
+        assert att['portal_file_access'] is True
+        assert att['filename'] == 'Konzertplan.pdf'
+        assert att['file_size'] == len(b'%PDF-1.4\nhello')
+
+        # 3. Updating the file on Nextcloud must sync to the Kanban card when opened
+        invalidate_sync_cache()
+        fake.files['Public/Unterordner/Konzertplan.pdf'] = b'%PDF-1.4\nhello-updated-version'
+        card_resp = client.get(f'/kanban/api/cards/{card.id}')
+        assert card_resp.status_code == 200
+        card_data = card_resp.get_json()
+        assert card_data['attachments'][0]['filename'] == 'Konzertplan.pdf'
+        synced_file = db.session.get(File, nc_file_id)
+        assert synced_file is not None
+        assert synced_file.file_size == len(b'%PDF-1.4\nhello-updated-version')
+
+
+

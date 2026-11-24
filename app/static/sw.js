@@ -308,6 +308,12 @@ self.addEventListener('fetch', function(event) {
     requestUrl.pathname.startsWith('/onlyoffice/') ||
     requestUrl.pathname === '/eurooffice' ||
     requestUrl.pathname.startsWith('/eurooffice/') ||
+    requestUrl.pathname.startsWith('/web-apps/') ||
+    requestUrl.pathname.startsWith('/sdkjs/') ||
+    requestUrl.pathname.startsWith('/sdkjs-plugins/') ||
+    requestUrl.pathname.startsWith('/fonts/') ||
+    requestUrl.pathname.startsWith('/cache/') ||
+    requestUrl.pathname.startsWith('/doc/') ||
     requestUrl.pathname.startsWith('/excalidraw-room/') ||
     requestUrl.pathname === '/sw.js'
   ) {

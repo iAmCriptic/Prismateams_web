@@ -1,0 +1,26 @@
+{% from 'partials/visibility_nav.html' import visibility_space_links with context %}
+{% macro canvas_folder_nav(dismiss_offcanvas=false) %}
+{% set active_nav = active_nav|default('private') %}
+{% set query_base = {'q': search_query or none} %}
+<nav class="mod-sidebar-nav nav flex-column gap-1">
+    {{ visibility_space_links(
+        'canvas.index',
+        query_base,
+        'data-canvas-dismiss-offcanvas="1"' if dismiss_offcanvas else '',
+        allowed_visibilities,
+        visibility_teams,
+        active_nav
+    ) }}
+</nav>
+{% endmacro %}
+
+{% macro canvas_sidebar_chrome(id_suffix='', dismiss_offcanvas=false, include_new=true) %}
+{% if include_new %}
+<div class="mod-sidebar-new-wrap w-100">
+    <button type="button" class="btn mod-sidebar-new w-100 text-start" data-bs-toggle="modal" data-bs-target="#canvasCreateModal"{% if dismiss_offcanvas %} data-canvas-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-plus-lg me-2" aria-hidden="true"></i>{{ _('canvas.index.new_button') }}
+    </button>
+</div>
+{% endif %}
+{{ canvas_folder_nav(dismiss_offcanvas) }}
+{% endmacro %}

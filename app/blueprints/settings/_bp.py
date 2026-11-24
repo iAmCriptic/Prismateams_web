@@ -74,6 +74,7 @@ def _guest_account_form_options():
         ('module_shortlinks', 'Kurzlinks'),
         ('module_kanban', 'Kanban'),
         ('module_excalidraw', 'Excalidraw'),
+        ('module_canvas', 'Canvas'),
         ('module_surveys', 'Umfragen'),
         ('module_meetings', 'Meetings'),
     ]

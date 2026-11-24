@@ -1,0 +1,510 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('canvas.index.page_title') }}{% endblock %}
+
+{% block navbar_search %}
+<form method="GET" action="{{ url_for('canvas.index') }}" class="mod-search mod-search--icon" role="search">
+    {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
+    {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           value="{{ search_query }}"
+           class="form-control mod-search-input"
+           placeholder="{{ _('canvas.index.search.placeholder') }}"
+           aria-label="{{ _('canvas.index.search.placeholder') }}"
+           autocomplete="off"
+           spellcheck="false">
+</form>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.canvas-card {
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+    cursor: pointer;
+}
+.canvas-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.35rem 1rem rgba(0, 0, 0, 0.08);
+    border-color: var(--accent-color, var(--bs-primary));
+}
+.canvas-card-preview {
+    height: 7.5rem;
+    background: var(--bs-tertiary-bg);
+    border-bottom: 1px solid var(--bs-border-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    position: relative;
+}
+.canvas-card-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.canvas-card-preview-icon {
+    font-size: 2.25rem;
+    color: var(--bs-secondary-color);
+    opacity: 0.65;
+}
+.canvas-preset-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: 0.5rem;
+}
+.canvas-preset-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    width: 100%;
+    text-align: left;
+    padding: 0.55rem 0.7rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--bs-border-color);
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    transition: border-color 0.12s ease, background-color 0.12s ease;
+}
+.canvas-preset-btn:hover {
+    border-color: var(--accent-color, var(--bs-primary));
+    background: var(--bs-tertiary-bg);
+}
+.canvas-preset-btn.is-selected {
+    border-color: var(--accent-color, var(--bs-primary));
+    background: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, var(--bs-body-bg));
+}
+.canvas-preset-meta {
+    font-size: 0.72rem;
+    color: var(--bs-secondary-color);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+{% from 'canvas/_sidebar.html' import canvas_sidebar_chrome with context %}
+{% from 'partials/visibility_select.html' import visibility_select with context %}
+{% set heading_label = heading_label|default(_('canvas.index.heading')) %}
+{% set create_view = section_filter if section_filter in ('private', 'team', 'public') else none %}
+{% set editable_ids = editable_ids|default([]) %}
+
+{% macro canvas_view_toggle(suffix='') %}
+<div class="mod-view-toggle" role="group" aria-label="{{ _('canvas.index.view_toggle.label') }}">
+    <button type="button" class="mod-view-toggle__btn" id="canvasListViewBtn{{ suffix }}" title="{{ _('canvas.index.view_toggle.list') }}">
+        <i class="bi bi-list" aria-hidden="true"></i>
+    </button>
+    <button type="button" class="mod-view-toggle__btn active is-active" id="canvasGridViewBtn{{ suffix }}" title="{{ _('canvas.index.view_toggle.grid') }}">
+        <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>
+    </button>
+</div>
+{% endmacro %}
+
+{% macro doc_menu_items(doc) %}
+{% set can_manage = doc.id in editable_ids %}
+<li><a class="dropdown-item" href="{{ url_for('canvas.edit', doc_id=doc.id) }}">
+    <i class="bi bi-easel2 me-2" aria-hidden="true"></i>{{ _('canvas.index.card.open') }}
+</a></li>
+{% if doc.file_path %}
+<li><a class="dropdown-item" href="{{ url_for('canvas.download', doc_id=doc.id) }}">
+    <i class="bi bi-download me-2" aria-hidden="true"></i>{{ _('canvas.index.card.download') }}
+</a></li>
+{% endif %}
+{% if can_manage %}
+<li>
+    <button type="button" class="dropdown-item" data-canvas-rename="{{ doc.id }}" data-canvas-name="{{ doc.name }}">
+        <i class="bi bi-input-cursor-text me-2" aria-hidden="true"></i>{{ _('canvas.index.card.rename') }}
+    </button>
+</li>
+<li>
+    <button type="button" class="dropdown-item"
+            data-canvas-visibility="{{ doc.id }}"
+            data-canvas-name="{{ doc.name }}"
+            data-canvas-vis-value="{% if doc.visibility == 'team' and doc.team_id %}team:{{ doc.team_id }}{% else %}{{ doc.visibility or 'private' }}{% endif %}">
+        <i class="bi bi-eye me-2" aria-hidden="true"></i>{{ _('canvas.index.card.visibility') }}
+    </button>
+</li>
+<li><hr class="dropdown-divider"></li>
+<li>
+    <form method="POST" action="{{ url_for('canvas.delete', doc_id=doc.id) }}">
+        <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('canvas.index.card.delete_confirm') }}">
+            <i class="bi bi-trash me-2" aria-hidden="true"></i>{{ _('canvas.index.card.delete') }}
+        </button>
+    </form>
+</li>
+{% endif %}
+{% endmacro %}
+
+{% macro render_doc_card(doc) %}
+<div class="col-12 col-md-6 col-lg-4" data-lazy-item data-context-zone data-context-menu="dropdown">
+    <div class="card h-100 canvas-card" data-canvas-open-url="{{ url_for('canvas.edit', doc_id=doc.id) }}">
+        <div class="canvas-card-preview">
+            {% if doc.thumbnail_path %}
+            <img src="{{ url_for('canvas.thumbnail', doc_id=doc.id) }}" alt="{{ doc.name }}">
+            {% else %}
+            <i class="bi bi-easel2 canvas-card-preview-icon" aria-hidden="true"></i>
+            {% endif %}
+        </div>
+        <div class="card-body d-flex flex-column">
+            <div class="d-flex align-items-start justify-content-between gap-2">
+                <h5 class="card-title text-truncate mb-1" title="{{ doc.name }}">{{ doc.name }}</h5>
+                <div class="dropdown" data-canvas-stop-prop>
+                    <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('common.actions') }}">
+                        <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
+                        {{ doc_menu_items(doc) }}
+                    </ul>
+                </div>
+            </div>
+            <div class="text-muted small mb-2">
+                <span class="badge rounded-pill text-bg-secondary">{{ doc.width }}×{{ doc.height }}</span>
+            </div>
+            <div class="text-muted small mt-auto">
+                <div class="text-truncate">{{ doc.creator.full_name if doc.creator else '—' }}</div>
+                <div>{{ doc.updated_at | localtime('%d.%m.%Y %H:%M') if doc.updated_at else '' }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro render_doc_row(doc) %}
+<tr class="mod-list-row" data-lazy-item data-context-zone data-context-menu="dropdown">
+    <td>
+        <a class="mod-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0" href="{{ url_for('canvas.edit', doc_id=doc.id) }}">
+            <i class="bi bi-easel2 flex-shrink-0" aria-hidden="true"></i>
+            <span class="text-truncate">{{ doc.name }}</span>
+        </a>
+    </td>
+    <td class="d-none d-md-table-cell text-muted">
+        {{ doc.width }}×{{ doc.height }}
+    </td>
+    <td class="d-none d-lg-table-cell text-muted">
+        <span class="text-truncate d-inline-block mw-100">{{ doc.creator.full_name if doc.creator else '—' }}</span>
+    </td>
+    <td class="d-none d-xl-table-cell text-muted">
+        {{ doc.updated_at | localtime('%d.%m.%Y %H:%M') if doc.updated_at else '' }}
+    </td>
+    <td class="text-end">
+        <div class="mod-list-actions">
+            <div class="dropdown d-inline-block">
+                <button class="btn btn-sm btn-link" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('common.actions') }}">
+                    <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
+                    {{ doc_menu_items(doc) }}
+                </ul>
+            </div>
+        </div>
+    </td>
+</tr>
+{% endmacro %}
+
+{% macro empty_state() %}
+<div class="mod-empty-state">
+    <div>
+        <i class="bi bi-easel2 display-6 d-block mb-2 opacity-50" aria-hidden="true"></i>
+        {% if search_query %}
+        {{ _('canvas.index.empty.filtered') }}
+        {% else %}
+        {{ _('canvas.index.empty.default') }}
+        <div class="text-muted small mt-1">{{ _('canvas.index.empty.hint') }}</div>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+<div class="wiki-shell mod-shell--nav">
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+    <div class="mod-sidebar-brand">
+        <i class="bi bi-easel2" aria-hidden="true"></i>
+        <span>{{ _('canvas.index.heading') }}</span>
+    </div>
+    {{ canvas_sidebar_chrome('') }}
+</aside>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="canvasMobileNav" aria-labelledby="canvasMobileNavLabel">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title d-flex align-items-center gap-2" id="canvasMobileNavLabel">
+            <i class="bi bi-easel2" aria-hidden="true"></i>
+            <span>{{ _('canvas.index.heading') }}</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+    </div>
+    <div class="offcanvas-body pt-0">
+        {{ canvas_sidebar_chrome('-mobile', true, false) }}
+    </div>
+</div>
+
+<div class="mod-main flex-grow-1 min-width-0">
+    <div class="mod-mobile-topbar d-lg-none mb-3">
+        <div class="d-flex justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center min-width-0 gap-2">
+                <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#canvasMobileNav" aria-controls="canvasMobileNav" aria-label="{{ _('canvas.index.nav.menu') }}">
+                    <i class="bi bi-list" aria-hidden="true"></i>
+                </button>
+                <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                    <i class="bi bi-easel2" aria-hidden="true"></i>
+                    <span>{{ heading_label }}</span>
+                </h1>
+            </div>
+            <button type="button" class="btn mod-new-btn btn-sm flex-shrink-0" data-bs-toggle="modal" data-bs-target="#canvasCreateModal">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i> {{ _('canvas.index.new_button') }}
+            </button>
+        </div>
+        <div class="d-flex align-items-center gap-2 mt-2">
+            {{ canvas_view_toggle('Mobile') }}
+        </div>
+    </div>
+
+    <div class="row mb-4 page-toolbar-row align-items-center g-3 d-none d-lg-flex">
+        <div class="col min-width-0">
+            <h1 class="h4 mb-0 text-truncate">{{ heading_label }}</h1>
+        </div>
+        <div class="col-auto">
+            <div class="d-flex flex-wrap justify-content-lg-end align-items-center gap-2 w-100">
+                {{ canvas_view_toggle('') }}
+            </div>
+        </div>
+    </div>
+
+    <div id="canvasViewStage" class="mod-view-stage"
+         data-lazy-more
+         data-lazy-silent="1"
+         data-lazy-page="{{ list_page|default(1) }}"
+         data-lazy-has-more="{{ '1' if list_has_more|default(false) else '0' }}"
+         data-lazy-param="page"
+         data-lazy-items="[data-lazy-item]"
+         data-lazy-targets="#canvasGridRow,#canvasListBody">
+    <div id="canvasGridViewContainer">
+        {% if documents %}
+        <div class="row g-3" id="canvasGridRow">
+            {% for doc in documents %}{{ render_doc_card(doc) }}{% endfor %}
+        </div>
+        {% else %}
+        {{ empty_state() }}
+        {% endif %}
+    </div>
+
+    <div id="canvasListViewContainer" class="d-none">
+        {% if documents %}
+        <div class="mod-list-table-wrap">
+            <table class="table mod-list-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>{{ _('canvas.index.table.name') }}</th>
+                        <th class="d-none d-md-table-cell">{{ _('canvas.index.table.format') }}</th>
+                        <th class="d-none d-lg-table-cell">{{ _('canvas.index.table.owner') }}</th>
+                        <th class="d-none d-xl-table-cell">{{ _('canvas.index.table.updated') }}</th>
+                        <th class="text-end"></th>
+                    </tr>
+                </thead>
+                <tbody id="canvasListBody">
+                    {% for doc in documents %}{{ render_doc_row(doc) }}{% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        {{ empty_state() }}
+        {% endif %}
+    </div>
+    </div>
+</div>
+</div>
+
+<!-- Modals außerhalb von .mod-shell--nav (Z-Index-Schutz) -->
+<div class="modal fade" id="canvasCreateModal" tabindex="-1" aria-labelledby="canvasCreateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <form method="POST" action="{{ url_for('canvas.create') }}" class="modal-content">
+            {% if create_view %}<input type="hidden" name="view" value="{{ create_view }}">{% endif %}
+            {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+            <input type="hidden" name="preset" id="canvasPresetInput" value="whiteboard">
+            <div class="modal-header">
+                <h5 class="modal-title" id="canvasCreateModalLabel">
+                    <i class="bi bi-easel2 me-2" aria-hidden="true"></i>{{ _('canvas.create.modal_title') }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row g-3 mb-3">
+                    <div class="col-12 col-md-7">
+                        <label for="canvasCreateName" class="form-label">{{ _('canvas.create.name_label') }}</label>
+                        <input type="text" class="form-control mod-pill-input" id="canvasCreateName" name="name" placeholder="{{ _('canvas.create.name_placeholder') }}" required maxlength="255" autocomplete="off">
+                    </div>
+                    <div class="col-12 col-md-5">
+                        <label class="form-label">{{ _('canvas.create.visibility_label') }}</label>
+                        {{ visibility_select(allowed_visibilities, visibility_teams, visibility_selected, 'canvasCreateVisibility') }}
+                    </div>
+                </div>
+
+                <div class="mb-2 fw-semibold small text-uppercase text-muted">{{ _('canvas.create.format_label') }}</div>
+                {% for cat in preset_categories %}
+                <div class="mb-3">
+                    <div class="small fw-semibold text-muted mb-2">{{ _(cat.label_key) }}</div>
+                    <div class="canvas-preset-grid">
+                        {% for item in cat['items'] %}
+                        <button type="button"
+                                class="canvas-preset-btn{% if item.key == 'whiteboard' %} is-selected{% endif %}"
+                                data-canvas-preset="{{ item.key }}">
+                            <i class="bi {{ item.icon }} fs-5 flex-shrink-0" aria-hidden="true"></i>
+                            <div class="min-width-0">
+                                <div class="text-truncate fw-medium small">{{ _(item.label_key) }}</div>
+                                <div class="canvas-preset-meta">
+                                    {% if item.key == 'custom' %}{{ _('canvas.preset.custom_hint') }}{% else %}{{ item.width }}×{{ item.height }}{% endif %}
+                                </div>
+                            </div>
+                        </button>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+
+                <div class="row g-2 d-none mt-2" id="canvasCustomSizeRow">
+                    <div class="col-6">
+                        <label for="canvasCustomWidth" class="form-label small">{{ _('canvas.create.custom_width') }}</label>
+                        <input type="number" class="form-control mod-pill-input" id="canvasCustomWidth" name="custom_width" value="1920" min="64" max="8000">
+                    </div>
+                    <div class="col-6">
+                        <label for="canvasCustomHeight" class="form-label small">{{ _('canvas.create.custom_height') }}</label>
+                        <input type="number" class="form-control mod-pill-input" id="canvasCustomHeight" name="custom_height" value="1080" min="64" max="8000">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                <button type="submit" class="btn btn-accent mod-pill-btn">
+                    <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>{{ _('canvas.create.submit') }}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="canvasRenameModal" tabindex="-1" aria-labelledby="canvasRenameModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" id="canvasRenameForm" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="canvasRenameModalLabel">{{ _('canvas.index.card.rename') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <label for="canvasRenameInput" class="form-label">{{ _('canvas.create.name_label') }}</label>
+                <input type="text" class="form-control mod-pill-input" id="canvasRenameInput" name="name" required maxlength="255" autocomplete="off">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                <button type="submit" class="btn btn-accent mod-pill-btn">{{ _('common.save') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="modal fade" id="canvasVisibilityModal" tabindex="-1" aria-labelledby="canvasVisibilityModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form method="POST" id="canvasVisibilityForm" class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="canvasVisibilityModalLabel">{{ _('canvas.index.card.visibility') }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-2 fw-medium" id="canvasVisibilityDocName"></div>
+                {{ visibility_select(allowed_visibilities, visibility_teams, 'private', 'canvasVisibilitySelect') }}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary mod-pill-btn" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+                <button type="submit" class="btn btn-accent mod-pill-btn">{{ _('common.save') }}</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const gridContainer = document.getElementById('canvasGridViewContainer');
+    const listContainer = document.getElementById('canvasListViewContainer');
+    const viewButtons = {
+        grid: [document.getElementById('canvasGridViewBtn'), document.getElementById('canvasGridViewBtnMobile')],
+        list: [document.getElementById('canvasListViewBtn'), document.getElementById('canvasListViewBtnMobile')]
+    };
+
+    function setView(mode) {
+        const isList = mode === 'list';
+        gridContainer.classList.toggle('d-none', isList);
+        listContainer.classList.toggle('d-none', !isList);
+        viewButtons.grid.forEach(btn => { if (btn) { btn.classList.toggle('active', !isList); btn.classList.toggle('is-active', !isList); } });
+        viewButtons.list.forEach(btn => { if (btn) { btn.classList.toggle('active', isList); btn.classList.toggle('is-active', isList); } });
+        try { localStorage.setItem('canvas_view_mode', mode); } catch (_) {}
+    }
+
+    viewButtons.grid.forEach(btn => btn && btn.addEventListener('click', () => setView('grid')));
+    viewButtons.list.forEach(btn => btn && btn.addEventListener('click', () => setView('list')));
+    try {
+        if (localStorage.getItem('canvas_view_mode') === 'list') setView('list');
+    } catch (_) {}
+
+    document.querySelectorAll('[data-canvas-open-url]').forEach(card => {
+        card.addEventListener('click', function () {
+            window.location.href = this.dataset.canvasOpenUrl;
+        });
+    });
+    document.querySelectorAll('[data-canvas-stop-prop]').forEach(el => {
+        el.addEventListener('click', function (e) { e.stopPropagation(); });
+    });
+
+    const presetInput = document.getElementById('canvasPresetInput');
+    const customRow = document.getElementById('canvasCustomSizeRow');
+    document.querySelectorAll('[data-canvas-preset]').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('[data-canvas-preset]').forEach(b => b.classList.remove('is-selected'));
+            this.classList.add('is-selected');
+            const key = this.dataset.canvasPreset;
+            presetInput.value = key;
+            customRow.classList.toggle('d-none', key !== 'custom');
+        });
+    });
+
+    const renameModalEl = document.getElementById('canvasRenameModal');
+    const renameForm = document.getElementById('canvasRenameForm');
+    const renameInput = document.getElementById('canvasRenameInput');
+    document.querySelectorAll('[data-canvas-rename]').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const id = this.dataset.canvasRename;
+            renameForm.action = `/canvas/${id}/rename`;
+            renameInput.value = this.dataset.canvasName || '';
+            bootstrap.Modal.getOrCreateInstance(renameModalEl).show();
+        });
+    });
+
+    const visModalEl = document.getElementById('canvasVisibilityModal');
+    const visForm = document.getElementById('canvasVisibilityForm');
+    const visDocName = document.getElementById('canvasVisibilityDocName');
+    const visSelect = document.getElementById('canvasVisibilitySelect');
+    document.querySelectorAll('[data-canvas-visibility]').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const id = this.dataset.canvasVisibility;
+            visForm.action = `/canvas/${id}/visibility`;
+            visDocName.textContent = this.dataset.canvasName || '';
+            if (visSelect && this.dataset.canvasVisValue) {
+                visSelect.value = this.dataset.canvasVisValue;
+            }
+            bootstrap.Modal.getOrCreateInstance(visModalEl).show();
+        });
+    });
+
+    document.querySelectorAll('[data-confirm-delete]').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            if (!window.confirm(this.dataset.confirmDelete)) {
+                e.preventDefault();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

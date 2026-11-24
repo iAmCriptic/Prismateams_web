@@ -183,11 +183,24 @@ def api_fetch_url_title():
 @kanban_bp.route('/api/portal-files', methods=['GET'])
 @login_required
 def api_portal_files():
+    from sqlalchemy.orm import joinedload
     from app.models.file import File
+    from app.utils.nextcloud_settings import is_nextcloud_active
     from app.utils.private_files import can_view_file
 
+    if is_nextcloud_active():
+        try:
+            from app.utils.nextcloud_storage import sync_accessible_nextcloud_files
+            sync_accessible_nextcloud_files(current_user)
+        except Exception:
+            pass
+
     q = (request.args.get('q') or '').strip()
-    query = File.query.filter(File.deleted_at.is_(None))
+    query = (
+        File.query
+        .options(joinedload(File.folder))
+        .filter(File.deleted_at.is_(None), File.is_current.is_(True))
+    )
     if q:
         query = query.filter(File.name.ilike(f'%{q}%'))
     candidates = query.order_by(File.updated_at.desc(), File.id.desc()).limit(200).all()
@@ -231,13 +244,20 @@ def api_upload_attachment(card_id):
             file_obj = File.query.filter_by(id=file_id, deleted_at=None).first_or_404()
             if not (getattr(current_user, 'is_admin', False) or can_view_file(file_obj, current_user)):
                 return jsonify({'error': 'Forbidden'}), 403
+            if getattr(file_obj, 'storage_backend', 'local') == 'nextcloud' and file_obj.folder:
+                try:
+                    from app.utils.nextcloud_storage import sync_folder_children
+                    sync_folder_children(file_obj.folder, user_id=current_user.id)
+                except Exception:
+                    pass
+                file_obj = File.query.filter_by(id=file_id, deleted_at=None).first_or_404()
             title = (file_obj.name or f'Datei #{file_obj.id}')[:255]
             att = KanbanAttachment(
                 card_id=card.id,
                 filename='portal-file',
                 original_filename=title,
                 mime_type='text/uri-list',
-                file_size=file_obj.size,
+                file_size=file_obj.file_size,
                 storage_path='',
                 url=f'portal-file://{file_obj.id}',
                 uploaded_by=_actor_user_id(board),
@@ -480,6 +500,10 @@ def edit_onlyoffice(attachment_id):
 
     logging.info("Kanban OnlyOffice document_url=%s callback=%s", document_url, callback_url)
 
+    ua = (request.user_agent.string or '').lower()
+    is_mobile_ua = any(x in ua for x in ('iphone', 'ipod', 'android', 'mobile', 'ipad'))
+    force_desktop = request.args.get('desktop') == '1'
+
     return render_template(
         'files/edit_onlyoffice.html',
         file=file_proxy,
@@ -499,7 +523,8 @@ def edit_onlyoffice(attachment_id):
         current_language=get_current_language(),
         user_image=user_image or '',
         presence_enabled=False,
-        is_mobile_client=False,
+        is_mobile_client=is_mobile_ua and not force_desktop,
+        editor_mode="edit" if can_edit else "view",
         theme_dark=bool(getattr(current_user, 'dark_mode', False)),
         theme_oled=bool(getattr(current_user, 'oled_mode', False)),
         onlyoffice_ui_theme=editor_config["editorConfig"]["customization"]["uiTheme"],

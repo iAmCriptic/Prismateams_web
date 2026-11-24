@@ -27,6 +27,7 @@ AVAILABLE_MODULES = [
     'module_shortlinks',
     'module_kanban',
     'module_excalidraw',
+    'module_canvas',
     'module_surveys',
     'module_protocols',
     'module_meetings',

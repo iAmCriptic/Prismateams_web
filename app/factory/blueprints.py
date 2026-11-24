@@ -32,6 +32,7 @@ def register_blueprints(app):
     from app.blueprints.file_converter import file_converter_bp
     from app.blueprints.kanban import kanban_bp
     from app.blueprints.excalidraw import excalidraw_bp
+    from app.blueprints.canvas import canvas_bp
     from app.blueprints.surveys import surveys_bp
     from app.blueprints.protocols import protocols_bp
     from app.blueprints.meetings import meetings_bp
@@ -72,6 +73,7 @@ def register_blueprints(app):
     app.register_blueprint(file_converter_bp)
     app.register_blueprint(kanban_bp, url_prefix='/kanban')
     app.register_blueprint(excalidraw_bp)
+    app.register_blueprint(canvas_bp)
     app.register_blueprint(surveys_bp)
     app.register_blueprint(protocols_bp)
     app.register_blueprint(meetings_bp)

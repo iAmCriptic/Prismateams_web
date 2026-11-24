@@ -15,6 +15,7 @@ VISIBILITY_MODULE_KEYS = (
     'wiki',
     'shortlinks',
     'excalidraw',
+    'canvas',
     'surveys',
     'protocols',
 )
