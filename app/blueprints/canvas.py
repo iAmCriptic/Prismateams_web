@@ -382,7 +382,10 @@ def avatar(token):
     if not user or not user.profile_picture:
         abort(404)
     upload_dir = current_app.config.get('UPLOAD_FOLDER', 'uploads')
-    path = os.path.abspath(os.path.join(upload_dir, 'profiles', user.profile_picture))
-    if not os.path.exists(path):
+    if not os.path.isabs(upload_dir):
+        project_root = os.path.dirname(current_app.root_path)
+        upload_dir = os.path.join(project_root, upload_dir)
+    path = os.path.abspath(os.path.join(upload_dir, 'profile_pics', user.profile_picture))
+    if not os.path.isfile(path):
         abort(404)
     return send_file(path)

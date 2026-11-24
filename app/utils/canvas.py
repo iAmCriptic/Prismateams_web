@@ -13,7 +13,7 @@ from typing import Any
 
 import jwt
 import requests
-from flask import current_app, url_for
+from flask import current_app, has_request_context, url_for
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import joinedload
@@ -22,7 +22,7 @@ from werkzeug.utils import secure_filename
 logger = logging.getLogger(__name__)
 
 AVATAR_TOKEN_SALT = 'canvas-avatar-token'
-AVATAR_TOKEN_MAX_AGE = 86400
+AVATAR_TOKEN_MAX_AGE = 365 * 86400
 
 CANVAS_PRESET_CATEGORIES = [
     {
@@ -265,6 +265,29 @@ def sync_hycanvas_user_and_workspaces(user) -> None:
                 ),
                 {'emails': list(relevant_users_by_email.keys())},
             )
+
+            if has_request_context() and relevant_users_by_email:
+                cols_rows = conn.execute(
+                    text("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'")
+                ).fetchall()
+                user_cols = {r.column_name for r in cols_rows}
+                avatar_col = (
+                    'avatar_url'
+                    if 'avatar_url' in user_cols
+                    else ('avatarUrl' if 'avatarUrl' in user_cols else None)
+                )
+                if avatar_col:
+                    col_ident = f'"{avatar_col}"' if avatar_col != avatar_col.lower() else avatar_col
+                    for u_email, u_obj in relevant_users_by_email.items():
+                        u_avatar = get_user_avatar_external_url(u_obj)
+                        conn.execute(
+                            text(
+                                f'UPDATE users '
+                                f'SET {col_ident} = :avatar_url, updated_at = NOW() '
+                                f'WHERE lower(email) = :email AND {col_ident} IS DISTINCT FROM :avatar_url'
+                            ),
+                            {'email': u_email, 'avatar_url': u_avatar},
+                        )
 
             rows = conn.execute(text('SELECT id::text AS id, lower(email) AS email FROM users')).fetchall()
             hc_users = {row.email: row.id for row in rows}

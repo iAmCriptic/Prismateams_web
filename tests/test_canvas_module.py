@@ -181,7 +181,7 @@ def test_canvas_save_snapshot_and_delete(client, canvas_user, app, tmp_path):
 
 def test_canvas_signed_avatar_endpoint(client, canvas_user, app, tmp_path):
     app.config['UPLOAD_FOLDER'] = str(tmp_path)
-    profiles_dir = tmp_path / 'profiles'
+    profiles_dir = tmp_path / 'profile_pics'
     profiles_dir.mkdir(parents=True, exist_ok=True)
     avatar_file = profiles_dir / 'tester.png'
     avatar_file.write_bytes(b'\x89PNG\r\n\x1a\nfake')
