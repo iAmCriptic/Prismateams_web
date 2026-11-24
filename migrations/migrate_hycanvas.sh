@@ -99,7 +99,7 @@ import sys, pathlib, re
 p = pathlib.Path(sys.argv[1])
 upstream = sys.argv[2]
 text = p.read_text(encoding='utf-8')
-if 'location /hycanvas/' in text and 'location /api/v1/' in text and 'sub_filter \'"/api/\'' in text:
+if 'location /hycanvas/' in text and 'location /api/v1/' in text and 'location /_next/' in text and 'proxy_redirect / /hycanvas/' in text:
     sys.exit(0)
 
 block = f"""    # HyCanvas (Canvas-Modul) – API & Subpath-Proxy per sub_filter
@@ -116,6 +116,36 @@ block = f"""    # HyCanvas (Canvas-Modul) – API & Subpath-Proxy per sub_filter
         proxy_read_timeout 600;
     }}
 
+    location /_next/ {{
+        proxy_pass http://{upstream}/_next/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Accept-Encoding "";
+        proxy_buffering off;
+        proxy_read_timeout 600;
+    }}
+
+    location /design/ {{
+        proxy_pass http://{upstream}/design/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Accept-Encoding "";
+        proxy_hide_header X-Frame-Options;
+        proxy_redirect / /hycanvas/;
+        proxy_buffering off;
+        proxy_read_timeout 600;
+    }}
+
     location /hycanvas/ {{
         proxy_pass http://{upstream}/;
         proxy_http_version 1.1;
@@ -127,6 +157,7 @@ block = f"""    # HyCanvas (Canvas-Modul) – API & Subpath-Proxy per sub_filter
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Accept-Encoding "";
         proxy_hide_header X-Frame-Options;
+        proxy_redirect / /hycanvas/;
         proxy_buffering off;
         proxy_read_timeout 600;
 
@@ -150,8 +181,11 @@ block = f"""    # HyCanvas (Canvas-Modul) – API & Subpath-Proxy per sub_filter
 
 """
 
-# Falls ein alter /hycanvas/ Block ohne sub_filter existiert, diesen sauber ersetzen
-old_hc = re.search(r'[ \t]*# HyCanvas[^\n]*\n[ \t]*location /hycanvas/ \{[^}]*\}\s*', text)
+# Falls ein alter HyCanvas-Block existiert, diesen sauber ersetzen
+old_hc = re.search(
+    r'[ \t]*# HyCanvas[^\n]*\n(?:[ \t]*location /(?:api/v1|_next|design|hycanvas)/ \{[^}]*\}\s*)+',
+    text,
+)
 if old_hc:
     text = text[:old_hc.start()] + block + text[old_hc.end():]
     p.write_text(text, encoding='utf-8')
