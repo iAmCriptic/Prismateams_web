@@ -22,6 +22,7 @@ MODULE_KEYS = {
     'wiki': 'module_wiki',
     'shortlinks': 'module_shortlinks',
     'excalidraw': 'module_excalidraw',
+    'canvas': 'module_canvas',
     'surveys': 'module_surveys',
     'protocols': 'module_protocols',
 }
@@ -33,6 +34,7 @@ OWNER_ATTRS = {
     'wiki': 'created_by',
     'shortlinks': 'created_by',
     'excalidraw': 'created_by',
+    'canvas': 'created_by',
     'surveys': 'created_by',
     'protocols': 'created_by',
 }
@@ -44,6 +46,7 @@ DEFAULT_VISIBILITY = {
     'wiki': VISIBILITY_PUBLIC,
     'shortlinks': VISIBILITY_PRIVATE,
     'excalidraw': VISIBILITY_PUBLIC,
+    'canvas': VISIBILITY_PRIVATE,
     'surveys': VISIBILITY_PRIVATE,
     'protocols': VISIBILITY_PUBLIC,
 }

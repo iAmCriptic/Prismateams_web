@@ -950,6 +950,7 @@
         "search_no_user_results": "No matching portal members found.",
         "remove_member": "Remove",
         "remove_member_confirm": "Remove {name} from the team?",
+        "remove_member_confirm_title": "Confirm removal",
         "badge_leader": "Lead",
         "assign_teams": "Assign teams",
         "flash_name_required": "Please enter a team name.",
@@ -1072,7 +1073,8 @@
         "module_surveys": "Surveys",
         "lead_short": "Ativar e desativar módulos.",
         "module_meetings": "Reuniões (videochamadas)",
-        "module_helpers": "Gestão de voluntários"
+        "module_helpers": "Gestão de voluntários",
+        "module_canvas": "Canvas (HyCanvas)"
       },
       "kanban": {
         "lead_short": "Visibility and import.",
@@ -1507,7 +1509,10 @@
       "file_converter_label_short": "Conversor",
       "mirotalk_label": "MiroTalk",
       "mirotalk_active": "Ativo",
-      "mirotalk_inactive": "Inativo"
+      "mirotalk_inactive": "Inativo",
+      "hycanvas_label": "HyCanvas",
+      "hycanvas_active": "Ativo",
+      "hycanvas_inactive": "Inativo"
     },
     "cloud_import": {
       "page_title": "Cloud import",
@@ -2738,6 +2743,99 @@
       "no_chats": "Sem chats disponíveis",
       "message_label": "Mensagem",
       "message_placeholder": "Mensagem opcional com o ficheiro…"
+    }
+  },
+  "canvas": {
+    "index": {
+      "page_title": "Canvas",
+      "heading": "Canvas",
+      "new_button": "New",
+      "nav": {
+        "menu": "Open navigation"
+      },
+      "search": {
+        "placeholder": "Search canvas…"
+      },
+      "view_toggle": {
+        "label": "Switch view",
+        "list": "List view",
+        "grid": "Grid view"
+      },
+      "table": {
+        "name": "Name",
+        "format": "Format",
+        "owner": "Created by",
+        "updated": "Updated"
+      },
+      "card": {
+        "open": "Open",
+        "download": "Download (.hyc)",
+        "rename": "Rename",
+        "visibility": "Visibility",
+        "delete": "Delete",
+        "delete_confirm": "Really delete this canvas?"
+      },
+      "empty": {
+        "filtered": "No matching canvas documents found.",
+        "default": "No canvas documents yet.",
+        "hint": "Click “New” on the left to create a design or whiteboard."
+      }
+    },
+    "create": {
+      "modal_title": "Create new canvas",
+      "name_label": "Name",
+      "name_placeholder": "e.g. Quarterly presentation or Team whiteboard",
+      "visibility_label": "Visibility",
+      "format_label": "Choose format / preset",
+      "custom_width": "Width (px)",
+      "custom_height": "Height (px)",
+      "submit": "Create & Open",
+      "alerts": {
+        "name_required": "Please enter a name."
+      },
+      "cat": {
+        "workspace": "Workspace & Productivity",
+        "presentation": "Presentations & Video",
+        "documents": "Documents & Print",
+        "web": "Web & Digital",
+        "social": "Social Media",
+        "custom": "Custom"
+      }
+    },
+    "preset": {
+      "whiteboard": "Whiteboard",
+      "sheet": "Spreadsheet",
+      "presentation": "Presentation",
+      "video": "Video",
+      "a4_doc": "A4 Document",
+      "document": "Document",
+      "poster": "Poster",
+      "flyer": "Flyer",
+      "business_card": "Business Card",
+      "banner": "Banner",
+      "desktop_bg": "Desktop Wallpaper",
+      "logo": "Logo",
+      "ig_post": "Instagram Post",
+      "ig_portrait": "Instagram Portrait",
+      "ig_story": "Instagram Story",
+      "fb_post": "Facebook Post",
+      "li_post": "LinkedIn Post",
+      "yt_thumb": "YouTube Thumbnail",
+      "custom": "Blank / Custom size",
+      "custom_hint": "Custom dimensions"
+    },
+    "edit": {
+      "page_title_suffix": "Canvas",
+      "readonly": "Read only",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "save_failed": "Save failed"
+    },
+    "flash": {
+      "renamed": "Canvas renamed to “{name}”.",
+      "visibility_updated": "Visibility updated.",
+      "deleted": "Canvas “{name}” deleted.",
+      "no_snapshot": "No local .hyc snapshot yet. Please save in the editor first."
     }
   }
 }

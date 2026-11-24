@@ -152,7 +152,7 @@ def main():
     # 5. Compose Profiles (Standardmäßig alle aktiv: Opt-Out)
     profiles = existing_values.get("COMPOSE_PROFILES")
     if not profiles:
-        set_or_update_env_var(lines, "COMPOSE_PROFILES", "proxy,onlyoffice,excalidraw,mirotalk")
+        set_or_update_env_var(lines, "COMPOSE_PROFILES", "proxy,onlyoffice,excalidraw,mirotalk,hycanvas")
 
     # 6. Euro-Office
     oo_enabled = existing_values.get("ONLYOFFICE_ENABLED", "True")
@@ -188,6 +188,24 @@ def main():
     if is_placeholder_or_empty(mt_jwt):
         mt_jwt = generate_hex_secret(32)
     set_or_update_env_var(lines, "MIROTALK_JWT_SECRET", mt_jwt)
+
+    # 8b. HyCanvas
+    hc_enabled = existing_values.get("HYCANVAS_ENABLED", "True")
+    set_or_update_env_var(lines, "HYCANVAS_ENABLED", hc_enabled)
+    set_or_update_env_var(lines, "HYCANVAS_URL", existing_values.get("HYCANVAS_URL") or "/hycanvas")
+    set_or_update_env_var(lines, "HYCANVAS_API_URL", existing_values.get("HYCANVAS_API_URL") or "http://hycanvas:8005")
+    set_or_update_env_var(lines, "HYCANVAS_DB_USER", existing_values.get("HYCANVAS_DB_USER") or "hycanvas")
+    set_or_update_env_var(lines, "HYCANVAS_DB_NAME", existing_values.get("HYCANVAS_DB_NAME") or "hycanvas")
+
+    hc_db_pass = existing_values.get("HYCANVAS_DB_PASSWORD")
+    if is_placeholder_or_empty(hc_db_pass):
+        hc_db_pass = generate_password(24)
+    set_or_update_env_var(lines, "HYCANVAS_DB_PASSWORD", hc_db_pass)
+
+    hc_jwt = existing_values.get("HYCANVAS_JWT_SECRET")
+    if is_placeholder_or_empty(hc_jwt):
+        hc_jwt = generate_hex_secret(32)
+    set_or_update_env_var(lines, "HYCANVAS_JWT_SECRET", hc_jwt)
 
     # 9. Domain-URLs falls Domain angegeben
     domain = args.domain.strip() or existing_values.get("DOMAIN", "").strip()

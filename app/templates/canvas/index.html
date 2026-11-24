@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('canvas.index.page_title') }}{% endblock %}
+
+{% block extra_css %}
+<style>
+body:has(.canvas-shell) {
+    overflow: hidden;
+}
+.canvas-shell {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+    z-index: 1;
+    overflow: hidden;
+    background: var(--bs-body-bg);
+}
+@media (min-width: 992px) {
+    .canvas-shell {
+        top: var(--top-navbar-height, 64px);
+        right: var(--favorites-rail-width, 56px);
+        bottom: 0;
+    }
+}
+@media (min-width: 768px) {
+    body.force-desktop-layout .canvas-shell {
+        top: var(--top-navbar-height, 64px);
+        right: var(--favorites-rail-width, 56px);
+        bottom: 0;
+    }
+}
+body.force-mobile-layout .canvas-shell {
+    top: 0;
+    right: 0;
+    bottom: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+}
+.canvas-embed-frame {
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    background: var(--bs-body-bg);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="canvas-shell">
+    <iframe name="hycanvasFrame"
+            src="{{ hycanvas_url }}"
+            class="canvas-embed-frame"
+            title="{{ _('canvas.index.heading') }}"
+            allow="clipboard-read; clipboard-write; fullscreen"></iframe>
+</div>
+{% endblock %}

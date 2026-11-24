@@ -480,16 +480,36 @@
       "next": "Next",
       "welcome": {
         "title": "Welcome to Version {version}",
-        "text": "PrismaTeams {version} introduces the new Helper Management and Booking modules, direct Trello import for Kanban, Nextcloud integration for Files & Calendar, the new Windows Client, and numerous bug fixes.",
+        "text": "PrismaTeams {version} introduces the new Canvas module, the new EuroOffice Mobile view, the rename of Kanban to Boards along with further bug fixes, plus all highlights from the 3.5 series.",
         "highlights": {
+          "canvas": "New Canvas module – create designs, presentations, and whiteboards directly in the portal.",
+          "eurooffice_mobile": "EuroOffice Mobile view – comfortably view and edit Office documents on smartphones and small screens.",
+          "kanban": "Kanban → Boards – renamed to Boards along with further bug fixes and stability improvements.",
           "helpers": "New Helper Management module – organize shifts, areas, sign-ups, and schedules in one place.",
           "booking": "New Booking module – manage rooms, resources, and booking requests smoothly.",
-          "kanban": "Kanban – direct Trello import added along with important bug fixes.",
           "nextcloud": "Files & Calendar – new integration option with Nextcloud.",
           "windows_client": "New PrismaTeams Windows Client – use PrismaTeams as a native Windows app."
         }
       },
       "modules": {
+        "canvas": {
+          "title": "Canvas",
+          "teaser": "New module",
+          "items": {
+            "overview": "New module for creating designs, presentations, and team whiteboards directly in PrismaTeams.",
+            "formats": "Choose from predefined formats and templates or set custom dimensions in pixels.",
+            "sharing_export": "Manage visibility for teams and users, rename canvases, and download them as .hyc files."
+          }
+        },
+        "eurooffice_mobile": {
+          "title": "EuroOffice Mobile",
+          "teaser": "Mobile view",
+          "items": {
+            "overview": "New mobile view for EuroOffice to comfortably view and edit documents on smartphones.",
+            "auto_detect": "Automatic mobile detection adapts the editor layout on small screens and hides desktop-only toolbars.",
+            "mode_toggle": "Switch manually between Mobile and Desktop view anytime directly inside the editor."
+          }
+        },
         "helpers": {
           "title": "Helper Management",
           "teaser": "New module",
@@ -511,12 +531,13 @@
           }
         },
         "kanban": {
-          "title": "Kanban",
-          "teaser": "Trello import & fixes",
+          "title": "Boards",
+          "teaser": "Rename & bug fixes",
           "items": {
-            "trello_connect": "Direct Trello import in Kanban settings: connect your Trello account via API key and token.",
-            "trello_import": "Select boards directly and import them including lists, cards, and visibility settings.",
-            "bugfixes": "Several bug fixes and improvements to board rendering, card actions, and usability."
+            "rename": "Kanban has been renamed to Boards across navigation and module views for clearer orientation.",
+            "bugfixes": "Further bug fixes and improvements to board rendering, card actions, attachments, and usability.",
+            "trello_connect": "Direct Trello import in Boards settings: connect your Trello account via API key and token.",
+            "trello_import": "Select boards directly and import them including lists, cards, and visibility settings."
           }
         },
         "files_calendar": {
@@ -1520,7 +1541,10 @@
       "file_converter_label_short": "File converter",
       "mirotalk_label": "MiroTalk",
       "mirotalk_active": "Active",
-      "mirotalk_inactive": "Inactive"
+      "mirotalk_inactive": "Inactive",
+      "hycanvas_label": "HyCanvas",
+      "hycanvas_active": "Active",
+      "hycanvas_inactive": "Inactive"
     },
     "admin": {
       "page_title": "Administration - Settings",
@@ -1570,7 +1594,8 @@
         "meetings_needs_mirotalk": "Requires MIROTALK_URL in .env. Without MiroTalk the module stays off.",
         "module_duty_roster": "Duty Roster",
         "module_booking_personal": "Booking",
-        "module_helpers": "Helper Management"
+        "module_helpers": "Helper Management",
+        "module_canvas": "Canvas (HyCanvas)"
       },
       "users": {
         "page_title": "User Management - Administration",
@@ -2616,6 +2641,7 @@
         "search_no_user_results": "No matching portal members found.",
         "remove_member": "Remove",
         "remove_member_confirm": "Remove {name} from the team?",
+        "remove_member_confirm_title": "Confirm removal",
         "badge_leader": "Lead",
         "assign_teams": "Assign teams",
         "flash_name_required": "Please enter a team name.",
@@ -3698,7 +3724,10 @@
       "api_load_failed": "Euro-Office could not be loaded",
       "api_load_failed_hint": "Check that the Document Server is reachable and ONLYOFFICE_DOCUMENT_SERVER_URL / JWT in .env are correct.",
       "editor_error": "Euro-Office reported an error",
-      "editor_init_error": "Could not start the Euro-Office editor"
+      "editor_init_error": "Could not start the Euro-Office editor",
+      "switch_to_desktop": "Desktop view",
+      "switch_to_mobile": "Mobile view",
+      "mobile_banner": "Live co-editing on the Document Server. Running in the mobile browser editor."
     },
     "errors": {
       "file_type_not_supported": "File type not supported"
@@ -3811,84 +3840,95 @@
   },
   "canvas": {
     "index": {
-      "page_title": "Canvas - Team Portal",
+      "page_title": "Canvas",
       "heading": "Canvas",
-      "new_button": "New canvas",
-      "stats": {
-        "text_fields_one": "1 text field",
-        "text_fields_other": "{count} text fields",
-        "updated_at": "Updated on {date}"
+      "new_button": "New",
+      "nav": {
+        "menu": "Open navigation"
       },
-      "buttons": {
-        "edit": "Edit",
-        "delete_confirm": "Delete canvas?"
+      "search": {
+        "placeholder": "Search canvas…"
+      },
+      "view_toggle": {
+        "label": "Switch view",
+        "list": "List view",
+        "grid": "Grid view"
+      },
+      "table": {
+        "name": "Name",
+        "format": "Format",
+        "owner": "Created by",
+        "updated": "Updated"
+      },
+      "card": {
+        "open": "Open",
+        "download": "Download (.hyc)",
+        "rename": "Rename",
+        "visibility": "Visibility",
+        "delete": "Delete",
+        "delete_confirm": "Really delete this canvas?"
       },
       "empty": {
-        "message": "No canvases yet.",
-        "hint": "Create your first canvas!"
+        "filtered": "No matching canvas documents found.",
+        "default": "No canvas documents yet.",
+        "hint": "Click “New” on the left to create a design or whiteboard."
       }
     },
     "create": {
-      "page_title": "New Canvas - Team Portal",
-      "breadcrumb": {
-        "index": "Canvas",
-        "current": "New canvas"
-      },
-      "heading": "Create new canvas",
-      "form": {
-        "name": "Name",
-        "description": "Description (optional)"
-      },
-      "buttons": {
-        "submit": "Create canvas",
-        "cancel": "Cancel"
-      },
+      "modal_title": "Create new canvas",
+      "name_label": "Name",
+      "name_placeholder": "e.g. Quarterly presentation or Team whiteboard",
+      "visibility_label": "Visibility",
+      "format_label": "Choose format / preset",
+      "custom_width": "Width (px)",
+      "custom_height": "Height (px)",
+      "submit": "Create & Open",
       "alerts": {
         "name_required": "Please enter a name."
+      },
+      "cat": {
+        "workspace": "Workspace & Productivity",
+        "presentation": "Presentations & Video",
+        "documents": "Documents & Print",
+        "web": "Web & Digital",
+        "social": "Social Media",
+        "custom": "Custom"
       }
+    },
+    "preset": {
+      "whiteboard": "Whiteboard",
+      "sheet": "Spreadsheet",
+      "presentation": "Presentation",
+      "video": "Video",
+      "a4_doc": "A4 Document",
+      "document": "Document",
+      "poster": "Poster",
+      "flyer": "Flyer",
+      "business_card": "Business Card",
+      "banner": "Banner",
+      "desktop_bg": "Desktop Wallpaper",
+      "logo": "Logo",
+      "ig_post": "Instagram Post",
+      "ig_portrait": "Instagram Portrait",
+      "ig_story": "Instagram Story",
+      "fb_post": "Facebook Post",
+      "li_post": "LinkedIn Post",
+      "yt_thumb": "YouTube Thumbnail",
+      "custom": "Blank / Custom size",
+      "custom_hint": "Custom dimensions"
     },
     "edit": {
       "page_title_suffix": "Canvas",
-      "back_label": "Team portal",
-      "toolbar": {
-        "lock": "Enable/disable editing",
-        "hand": "Pan canvas",
-        "select": "Select and move objects",
-        "rectangle": "Draw rectangle",
-        "diamond": "Draw diamond",
-        "circle": "Draw circle",
-        "arrow": "Draw arrow",
-        "line": "Draw line",
-        "text": "Add text",
-        "image": "Insert image",
-        "eraser": "Delete objects"
-      },
-      "zoom": {
-        "out": "Zoom out",
-        "in": "Zoom in"
-      },
-      "history": {
-        "undo": "Undo",
-        "redo": "Redo"
-      },
-      "comments": {
-        "toggle": "Show/hide comments",
-        "title": "Comments"
-      },
-      "color": {
-        "title": "Colors",
-        "toggle": "Colors",
-        "stroke": "Stroke color",
-        "fill": "Fill color",
-        "fill_none": "No fill",
-        "stroke_width": "Stroke width",
-        "text_color": "Text color",
-        "text_size": "Text size"
-      }
+      "readonly": "Read only",
+      "saving": "Saving…",
+      "saved": "Saved",
+      "save_failed": "Save failed"
     },
     "flash": {
-      "created": "Canvas \"{name}\" has been created.",
-      "deleted": "Canvas \"{name}\" has been deleted."
+      "renamed": "Canvas renamed to “{name}”.",
+      "visibility_updated": "Visibility updated.",
+      "deleted": "Canvas “{name}” deleted.",
+      "no_snapshot": "No local .hyc snapshot yet. Please save in the editor first."
     }
   },
   "markdown": {

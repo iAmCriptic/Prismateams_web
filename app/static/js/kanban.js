@@ -477,13 +477,15 @@
         if (count > 0) {
           if (!badge && cover) {
             badge = document.createElement('span');
-            badge.className = 'position-absolute top-0 end-0 m-2 badge rounded-pill bg-danger shadow-sm kanban-board-unread-badge d-flex align-items-center gap-1';
+            badge.className = 'position-absolute top-0 end-0 m-2 badge rounded-pill bg-danger kanban-board-unread-badge';
             badge.dataset.boardUnreadBadge = boardId;
             cover.appendChild(badge);
           }
           if (badge) {
-            badge.innerHTML = '<i class="bi bi-bell-fill kanban-unread-badge-sm" aria-hidden="true"></i>' + count;
-            badge.title = count + ' ' + (count > 1 ? (idxI18n.unreadMany || 'neue Benachrichtigungen') : (idxI18n.unreadOne || 'neue Benachrichtigung'));
+            var unreadLabel = count + ' ' + (count > 1 ? (idxI18n.unreadMany || 'neue Benachrichtigungen') : (idxI18n.unreadOne || 'neue Benachrichtigung'));
+            badge.textContent = String(count);
+            badge.title = unreadLabel;
+            badge.setAttribute('aria-label', unreadLabel);
             badge.style.display = '';
           }
         } else if (badge) {

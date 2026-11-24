@@ -713,8 +713,9 @@ data-col-span="{{ col_span }}"
                 <span class="dash-widget-row-meta">{{ ev.start_date.strftime('%d.%m.') }}</span>
                 {% endif %}
             </div>
-            {% if ev.room or ev.default_location %}
-            <p class="dash-widget-row-sub">{{ ev.room.name if ev.room else ev.default_location }}</p>
+            {% set ev_rooms = ev.all_rooms %}
+            {% if ev_rooms or ev.default_location %}
+            <p class="dash-widget-row-sub">{{ ev_rooms | map(attribute='name') | join(', ') if ev_rooms else ev.default_location }}</p>
             {% endif %}
         </a>
         {% endfor %}

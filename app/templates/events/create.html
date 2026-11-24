@@ -46,13 +46,19 @@
                     <label class="form-label fw-semibold" for="event_location">Ort / Location</label>
                     {% if rooms %}
                     <div class="mb-2">
-                        <select class="form-select mod-pill-input" name="room_id" id="event_room_id">
-                            <option value="">-- Freitext / Manueller Ort --</option>
+                        <div class="form-text mb-1">Räume auswählen (optional, Mehrfachauswahl für größere Veranstaltungen möglich):</div>
+                        <div class="border rounded-4 p-2" style="max-height: 11.5rem; overflow-y: auto; background: var(--bs-body-bg);" role="group" aria-label="Räume auswählen">
                             {% for r in rooms %}
-                            <option value="{{ r.id }}" data-room-name="{{ r.name }}" data-room-loc="{{ r.location or '' }}">{{ r.name }}{% if r.location %} ({{ r.location }}){% endif %}{% if r.capacity %} · max. {{ r.capacity }} Pers.{% endif %}</option>
+                            <label class="form-check d-flex align-items-center gap-2 py-1 px-2 rounded-3 mb-0" for="event_room_{{ r.id }}" style="cursor: pointer;">
+                                <input class="form-check-input mt-0 flex-shrink-0" type="checkbox" name="room_ids" value="{{ r.id }}" id="event_room_{{ r.id }}">
+                                <span class="rounded-circle flex-shrink-0" style="width: 0.6rem; height: 0.6rem; background: {{ r.color or 'var(--accent-color, var(--bs-primary))' }};" aria-hidden="true"></span>
+                                <span class="form-check-label small">
+                                    <span class="fw-medium">{{ r.name }}</span>{% if r.location %} <span class="text-muted">({{ r.location }})</span>{% endif %}{% if r.capacity %} <span class="text-muted">· max. {{ r.capacity }} Pers.</span>{% endif %}
+                                </span>
+                            </label>
                             {% endfor %}
-                        </select>
-                        <small class="form-text text-muted">Bei Auswahl eines Raumes wird automatisch eine Raumbuchung im Raumbuchungssystem angelegt.</small>
+                        </div>
+                        <small class="form-text text-muted">Bei Auswahl eines oder mehrerer Räume wird für jeden gewählten Raum automatisch eine Raumbuchung im Raumbuchungssystem angelegt.</small>
                     </div>
                     {% endif %}
                     <input class="form-control mod-pill-input" id="event_location" name="default_location" placeholder="z. B. Hauptbühne, Vereinsheim, Stadtpark...">

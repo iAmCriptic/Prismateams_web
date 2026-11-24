@@ -84,6 +84,7 @@ from .file_converter import ConversionJob
 from .cloud_import import CloudImportConnection, CloudImportJob, KanbanImportJob
 from .team import Team, TeamMember, TeamModuleSetting, TeamInviteCode
 from .excalidraw import ExcalidrawDrawing, ExcalidrawDrawingVersion
+from .canvas import CanvasDocument
 from .survey import (
     Survey,
     SurveyPage,

@@ -178,6 +178,7 @@
     margin-top: 0.15rem;
     display: flex;
     flex-direction: column;
+    flex-wrap: nowrap;
     gap: 0.25rem;
     flex: 1 1 auto;
     min-height: 0;

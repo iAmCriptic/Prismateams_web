@@ -533,6 +533,7 @@ def about():
     from app.utils.file_converter import is_libreoffice_available, get_libreoffice_version
     from app.utils.excalidraw import is_excalidraw_collab_enabled, get_excalidraw_package_version
     from app.utils.mirotalk import mirotalk_configured, get_mirotalk_version
+    from app.utils.canvas import get_hycanvas_status
     onlyoffice_enabled = is_onlyoffice_enabled()
     onlyoffice_version = get_onlyoffice_version() if onlyoffice_enabled else None
     media_downloader_compatible = is_media_downloader_compatible()
@@ -543,6 +544,7 @@ def about():
     excalidraw_version = get_excalidraw_package_version() if excalidraw_enabled else None
     mirotalk_enabled = mirotalk_configured()
     mirotalk_version = get_mirotalk_version() if mirotalk_enabled else None
+    hycanvas_enabled, hycanvas_version = get_hycanvas_status()
 
     return render_template(
         'settings/about.html',
@@ -560,4 +562,6 @@ def about():
         excalidraw_version=excalidraw_version,
         mirotalk_enabled=mirotalk_enabled,
         mirotalk_version=mirotalk_version,
+        hycanvas_enabled=hycanvas_enabled,
+        hycanvas_version=hycanvas_version,
     )

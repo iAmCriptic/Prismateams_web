@@ -123,6 +123,10 @@ def rotate_session_on_login(preserve_keys=None):
             'google_register_prefill',
         )
     preserved = {key: session[key] for key in preserve_keys if key in session}
+    # Flask-Login setzt nach logout_user() session['_remember'] = 'clear', damit
+    # _update_remember_cookie das Remember-Cookie im after_request löscht.
+    if session.get('_remember') == 'clear':
+        preserved['_remember'] = 'clear'
     session.clear()
     session.update(preserved)
     try:
@@ -133,6 +137,18 @@ def rotate_session_on_login(preserve_keys=None):
         session.modified = True
     else:
         session.modified = True
+
+
+def clear_session_preserving_logout():
+    """
+    Leert die Flask-Session nach logout_user(), erhält aber ``_remember='clear'``,
+    damit Flask-Login das Remember-Me-Cookie im after_request zuverlässig löscht.
+    """
+    remember_clear = session.get('_remember') == 'clear'
+    session.clear()
+    if remember_clear:
+        session['_remember'] = 'clear'
+    session.modified = True
 
 
 def _parse_session_iso(value):

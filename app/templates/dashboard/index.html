@@ -250,17 +250,19 @@ updateClock();
 setInterval(updateClock, 1000);
 
 (function initWhatsNew() {
-    const VERSION = {{ (whats_new_version|default('3.5.0'))|tojson }};
+    const VERSION = {{ (whats_new_version|default('3.5.2'))|tojson }};
     const AUTO_OPEN = {{ 'true' if show_whats_new|default(false) else 'false' }};
-    const panelsOrder = ['welcome', 'overview', 'helpers', 'booking', 'kanban', 'files_calendar', 'windows_client', 'bugfixes'];
+    const panelsOrder = ['welcome', 'overview', 'canvas', 'eurooffice_mobile', 'kanban', 'helpers', 'booking', 'files_calendar', 'windows_client', 'bugfixes'];
     const titleEl = document.querySelector('[data-whats-new-title]');
-    const titleTemplate = {{ _('dashboard.whats_new.persistent_title', version=whats_new_version|default('3.5.0'), current='{current}', total='{total}')|tojson }};
+    const titleTemplate = {{ _('dashboard.whats_new.persistent_title', version=whats_new_version|default('3.5.2'), current='{current}', total='{total}')|tojson }};
     const moduleTitles = {
-        welcome: {{ _('dashboard.whats_new.welcome.title', version=whats_new_version|default('3.5.0'))|tojson }},
+        welcome: {{ _('dashboard.whats_new.welcome.title', version=whats_new_version|default('3.5.2'))|tojson }},
         overview: {{ _('dashboard.whats_new.overview_label')|tojson }},
+        canvas: {{ _('dashboard.whats_new.modules.canvas.title')|tojson }},
+        eurooffice_mobile: {{ _('dashboard.whats_new.modules.eurooffice_mobile.title')|tojson }},
+        kanban: {{ _('dashboard.whats_new.modules.kanban.title')|tojson }},
         helpers: {{ _('dashboard.whats_new.modules.helpers.title')|tojson }},
         booking: {{ _('dashboard.whats_new.modules.booking.title')|tojson }},
-        kanban: {{ _('dashboard.whats_new.modules.kanban.title')|tojson }},
         files_calendar: {{ _('dashboard.whats_new.modules.files_calendar.title')|tojson }},
         windows_client: {{ _('dashboard.whats_new.modules.windows_client.title')|tojson }},
         bugfixes: {{ _('dashboard.whats_new.modules.bugfixes.title')|tojson }}

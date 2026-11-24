@@ -163,7 +163,7 @@
                                 <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}" class="d-inline" data-sp-no-autosave>
                                     <input type="hidden" name="action" value="remove_member">
                                     <input type="hidden" name="user_id" value="{{ m.user_id }}">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill mod-pill-btn" data-confirm-delete="{{ _('settings.admin.teams.remove_member_confirm', name=m.user.full_name) }}" title="{{ _('settings.admin.teams.remove_member') }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger rounded-pill mod-pill-btn" data-confirm-delete="{{ _('settings.admin.teams.remove_member_confirm', name=m.user.full_name) }}" data-pt-confirm-title="{{ _('settings.admin.teams.remove_member_confirm_title') }}" data-pt-confirm-ok="{{ _('settings.admin.teams.remove_member') }}" title="{{ _('settings.admin.teams.remove_member') }}">
                                         <i class="bi bi-person-dash" aria-hidden="true"></i>
                                         <span class="d-none d-sm-inline">{{ _('settings.admin.teams.remove_member') }}</span>
                                     </button>

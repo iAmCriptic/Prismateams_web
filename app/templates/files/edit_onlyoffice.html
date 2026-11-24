@@ -11,7 +11,7 @@
       {% if _theme_oled %}data-oled-mode="true"{% endif %}>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="color-scheme" content="{{ 'dark' if _theme_dark else 'light' }}">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>{{ file.name }} - {{ _('files.onlyoffice.page_title_suffix') }}</title>
@@ -153,23 +153,67 @@
             background: inherit;
         }
 
+        .onlyoffice-editor-content > iframe,
         #eurooffice-editor {
             width: 100%;
             height: 100%;
             border: none;
+            display: block;
         }
 
         .onlyoffice-mobile-banner {
             background: var(--bs-warning-bg-subtle);
             color: var(--bs-warning-text-emphasis);
             border-bottom: 1px solid var(--bs-warning-border-subtle);
-            padding: 0.5rem 1rem;
-            font-size: 0.85rem;
+            padding: 0.35rem 0.75rem;
+            font-size: 0.78rem;
+            line-height: 1.3;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
             flex-shrink: 0;
             z-index: 10002;
         }
 
+        .onlyoffice-mobile-banner-close {
+            background: transparent;
+            border: none;
+            color: inherit;
+            padding: 0.15rem 0.35rem;
+            font-size: 1rem;
+            line-height: 1;
+            cursor: pointer;
+            opacity: 0.75;
+            flex-shrink: 0;
+        }
+
+        .onlyoffice-mobile-banner-close:hover {
+            opacity: 1;
+        }
+
+        @media (max-width: 768px) {
+            .onlyoffice-viewer-header {
+                padding: 0.45rem 0.75rem;
+            }
+
+            .onlyoffice-viewer-brand-logo,
+            .onlyoffice-viewer-brand-mark {
+                width: 1.8rem;
+                height: 1.8rem;
+                font-size: 0.85rem;
+            }
+
+            .onlyoffice-viewer-filename {
+                font-size: 0.95rem;
+            }
+        }
+
         @media (max-width: 576px) {
+            .onlyoffice-viewer-meta-line {
+                display: none;
+            }
+
             .onlyoffice-viewer-actions .btn-label {
                 display: none;
             }
@@ -185,8 +229,9 @@
 {% set oo_download_url = download_url|default(url_for('files.download_file', file_id=file.id)) %}
 <div class="onlyoffice-editor-container">
     {% if is_mobile_client|default(false) %}
-    <div class="onlyoffice-mobile-banner">
-        Live-Bearbeitung am Document Server (gemeinsam). Die Euro-Office-App kann Prismateams nicht live anbinden — Editor läuft im Browser.
+    <div class="onlyoffice-mobile-banner" role="status">
+        <span>{{ _('files.onlyoffice.mobile_banner') }}</span>
+        <button type="button" class="onlyoffice-mobile-banner-close" onclick="this.parentElement.remove()" aria-label="{{ _('files.view.close') }}" title="{{ _('files.view.close') }}">&times;</button>
     </div>
     {% endif %}
     <div class="onlyoffice-viewer-header">
@@ -213,6 +258,9 @@
                 </div>
             </div>
             <div class="onlyoffice-viewer-actions">
+                <a href="#" id="onlyofficeViewModeToggle" class="btn btn-outline-secondary mod-pill-btn d-none">
+                    <i class="bi bi-display"></i><span class="btn-label ms-1"></span>
+                </a>
                 <a href="{{ oo_download_url }}" class="btn btn-outline-primary mod-pill-btn" title="{{ _('files.view.download') }}">
                     <i class="bi bi-download"></i><span class="btn-label ms-1">{{ _('files.view.download') }}</span>
                 </a>
@@ -291,7 +339,9 @@ const OO_I18N = {
     apiLoadFailedHint: {{ _('files.onlyoffice.api_load_failed_hint')|tojson }},
     editorError: {{ _('files.onlyoffice.editor_error')|tojson }},
     editorInitError: {{ _('files.onlyoffice.editor_init_error')|tojson }},
-    backLabel: {{ _('files.view.close')|tojson }}
+    backLabel: {{ _('files.view.close')|tojson }},
+    switchToDesktop: {{ _('files.onlyoffice.switch_to_desktop')|tojson }},
+    switchToMobile: {{ _('files.onlyoffice.switch_to_mobile')|tojson }}
 };
 
 function showEuroOfficeApiError(title, detail) {
@@ -334,88 +384,145 @@ function waitForOnlyOfficeAPI(callback) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Build editor configuration
-    const config = {
-        document: {
-            fileType: {{ file_type|tojson }},
-            key: {{ document_key|tojson }},
-            title: {{ file.name|tojson }},
-            url: {{ document_url|tojson }}
-        },
-        documentType: {{ document_type|tojson }},
-        type: "desktop",
-        editorConfig: {
-            callbackUrl: {{ callback_url|tojson }},
-            mode: "edit",
-            lang: {{ onlyoffice_lang|tojson }},
-            coEditing: {
-                mode: "fast",
-                change: true
-            },
-            user: {
-                id: {{ (guest_mode and share_token or current_user.id)|string|tojson }},
-                name: {{ (guest_mode and guest_name or current_user.full_name)|tojson }}
-                {% if user_image %},
-                image: {{ user_image|tojson }}
-                {% endif %}
-            },
-            customization: {
-                autosave: true,
-                forcesave: true,
-                hideRightMenu: false,
-                hideRulers: false,
-                hideStatusBar: false,
-                showReviewChanges: true,
-                uiTheme: "{{ _oo_ui_theme }}"
-            }
-        },
-        width: "100%",
-        height: "100%",
-        events: {
-            onAppReady: function() {
-                isEditorReady = true;
-            },
-            onDocumentReady: function() {
-                isEditorReady = true;
-            },
-            onDocumentStateChange: function(event) {
-                hasUnsavedChanges = !!(event && event.data);
-            },
-            onError: function(error) {
-                console.error('ONLYOFFICE Error:', error);
-                var detail = '';
-                try {
-                    if (error && typeof error === 'object') {
-                        detail = error.data != null ? String(error.data) : JSON.stringify(error);
-                    } else if (error != null) {
-                        detail = String(error);
-                    }
-                } catch (_) {}
-                showEuroOfficeApiError(OO_I18N.editorError, detail);
-            },
-            onWarning: function(warning) {
-                console.warn('OnlyOffice warning:', warning);
-            },
-            onRequestClose: function() {
-                goBack();
-            }
-        }
-    };
+    const urlParams = new URLSearchParams(window.location.search);
+    const forceDesktop = urlParams.get('desktop') === '1';
+    const forceMobile = urlParams.get('mobile') === '1';
+    const isMobileUA = /Android.*Mobile|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const mobileMediaQuery = window.matchMedia('(max-width: 768px)');
 
-    startOoPresence();
-    
-    // Add token if available (OnlyOffice requires token when JWT is enabled)
-    {% if token and token|length > 0 %}
-    config.token = "{{ token }}";
-    {% else %}
-    console.warn('OnlyOffice JWT token not provided - JWT may be disabled or secret key not set');
-    console.warn('If OnlyOffice Document Server has JWT_ENABLED=true, you must set ONLYOFFICE_SECRET_KEY in .env');
-    {% endif %}
-    
-    // Wait for ONLYOFFICE API to load
-    waitForOnlyOfficeAPI(function() {
+    let manualMode = forceDesktop ? 'desktop' : (forceMobile ? 'mobile' : null);
+
+    function computeIsMobile() {
+        if (manualMode === 'desktop') return false;
+        if (manualMode === 'mobile') return true;
+        const isSmallViewport = mobileMediaQuery.matches || window.innerWidth <= 768;
+        return isSmallViewport || isMobileUA;
+    }
+
+    function updateViewModeToggle(isMobile) {
+        const viewToggleBtn = document.getElementById('onlyofficeViewModeToggle');
+        if (!viewToggleBtn) return;
+        if (!(isMobile || manualMode !== null)) {
+            viewToggleBtn.classList.add('d-none');
+            return;
+        }
+        const nextUrl = new URL(window.location.href);
+        if (isMobile) {
+            nextUrl.searchParams.delete('mobile');
+            nextUrl.searchParams.set('desktop', '1');
+            viewToggleBtn.title = OO_I18N.switchToDesktop;
+            viewToggleBtn.querySelector('i').className = 'bi bi-display';
+            viewToggleBtn.querySelector('.btn-label').textContent = OO_I18N.switchToDesktop;
+        } else {
+            nextUrl.searchParams.delete('desktop');
+            nextUrl.searchParams.set('mobile', '1');
+            viewToggleBtn.title = OO_I18N.switchToMobile;
+            viewToggleBtn.querySelector('i').className = 'bi bi-phone';
+            viewToggleBtn.querySelector('.btn-label').textContent = OO_I18N.switchToMobile;
+        }
+        viewToggleBtn.href = nextUrl.toString();
+        viewToggleBtn.classList.remove('d-none');
+    }
+
+    function ensureEditorPlaceholder() {
+        const container = document.querySelector('.onlyoffice-editor-content');
+        if (!container) return;
+        if (!document.getElementById('eurooffice-editor')) {
+            container.innerHTML = '<div id="eurooffice-editor"></div>';
+        }
+    }
+
+    let currentIsMobile = computeIsMobile();
+    updateViewModeToggle(currentIsMobile);
+
+    function buildEditorConfig(isMobile) {
+        const cfg = {
+            document: {
+                fileType: {{ file_type|tojson }},
+                key: {{ document_key|tojson }},
+                title: {{ file.name|tojson }},
+                url: {{ document_url|tojson }}
+            },
+            documentType: {{ document_type|tojson }},
+            type: isMobile ? "mobile" : "desktop",
+            editorConfig: {
+                callbackUrl: {{ callback_url|tojson }},
+                mode: {{ editor_mode|default('edit')|tojson }},
+                lang: {{ onlyoffice_lang|tojson }},
+                coEditing: {
+                    mode: "fast",
+                    change: true
+                },
+                user: {
+                    id: {{ (guest_mode and share_token or current_user.id)|string|tojson }},
+                    name: {{ (guest_mode and guest_name or current_user.full_name)|tojson }}
+                    {% if user_image %},
+                    image: {{ user_image|tojson }}
+                    {% endif %}
+                },
+                customization: {
+                    autosave: true,
+                    forcesave: true,
+                    hideRightMenu: isMobile,
+                    hideRulers: isMobile,
+                    hideStatusBar: false,
+                    showReviewChanges: true,
+                    uiTheme: "{{ _oo_ui_theme }}",
+                    mobile: {
+                        forceView: true,
+                        standardView: false,
+                        disableForceDesktop: true
+                    }
+                }
+            },
+            width: "100%",
+            height: "100%",
+            events: {
+                onAppReady: function() {
+                    isEditorReady = true;
+                },
+                onDocumentReady: function() {
+                    isEditorReady = true;
+                },
+                onDocumentStateChange: function(event) {
+                    hasUnsavedChanges = !!(event && event.data);
+                },
+                onError: function(error) {
+                    console.error('ONLYOFFICE Error:', error);
+                    var detail = '';
+                    try {
+                        if (error && typeof error === 'object') {
+                            detail = error.data != null ? String(error.data) : JSON.stringify(error);
+                        } else if (error != null) {
+                            detail = String(error);
+                        }
+                    } catch (_) {}
+                    showEuroOfficeApiError(OO_I18N.editorError, detail);
+                },
+                onWarning: function(warning) {
+                    console.warn('OnlyOffice warning:', warning);
+                },
+                onRequestClose: function() {
+                    goBack();
+                }
+            }
+        };
+        {% if token and token|length > 0 %}
+        cfg.token = "{{ token }}";
+        {% else %}
+        console.warn('OnlyOffice JWT token not provided - JWT may be disabled or secret key not set');
+        console.warn('If OnlyOffice Document Server has JWT_ENABLED=true, you must set ONLYOFFICE_SECRET_KEY in .env');
+        {% endif %}
+        return cfg;
+    }
+
+    function mountEditor(isMobile) {
         try {
-            docEditor = new DocsAPI.DocEditor("eurooffice-editor", config);
+            localStorage.removeItem('asc-force-editor-type');
+        } catch (_) {}
+        ensureEditorPlaceholder();
+        try {
+            docEditor = new DocsAPI.DocEditor("eurooffice-editor", buildEditorConfig(isMobile));
             if (!docEditor) {
                 console.error('OnlyOffice editor object is null');
                 showEuroOfficeApiError(OO_I18N.editorInitError);
@@ -424,6 +531,68 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error initializing ONLYOFFICE editor:', error);
             showEuroOfficeApiError(OO_I18N.editorInitError, error && error.message ? error.message : '');
         }
+    }
+
+    function switchEditorMode(nextIsMobile) {
+        currentIsMobile = nextIsMobile;
+        updateViewModeToggle(currentIsMobile);
+        if (typeof DocsAPI === 'undefined' || typeof DocsAPI.DocEditor === 'undefined') return;
+        if (docEditor) {
+            try {
+                docEditor.destroyEditor();
+            } catch (e) {
+                console.error('Error destroying OnlyOffice editor on mode switch:', e);
+            }
+            docEditor = null;
+        }
+        isEditorReady = false;
+        mountEditor(currentIsMobile);
+    }
+
+    const viewToggleBtn = document.getElementById('onlyofficeViewModeToggle');
+    if (viewToggleBtn) {
+        viewToggleBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (hasUnsavedChanges) {
+                isLeaving = true;
+                window.location.href = viewToggleBtn.href;
+                return;
+            }
+            const nextIsMobile = !currentIsMobile;
+            manualMode = nextIsMobile ? 'mobile' : 'desktop';
+            try {
+                window.history.replaceState(null, '', viewToggleBtn.href);
+            } catch (_) {}
+            switchEditorMode(nextIsMobile);
+        });
+    }
+
+    startOoPresence();
+
+    // Wait for ONLYOFFICE API to load
+    waitForOnlyOfficeAPI(function() {
+        mountEditor(currentIsMobile);
+    });
+
+    function handleViewportChange() {
+        if (manualMode !== null) return;
+        const nextIsMobile = computeIsMobile();
+        if (nextIsMobile === currentIsMobile) return;
+        if (hasUnsavedChanges) {
+            currentIsMobile = nextIsMobile;
+            updateViewModeToggle(currentIsMobile);
+            return;
+        }
+        switchEditorMode(nextIsMobile);
+    }
+
+    if (typeof mobileMediaQuery.addEventListener === 'function') {
+        mobileMediaQuery.addEventListener('change', handleViewportChange);
+    }
+    let resizeDebounceTimer = null;
+    window.addEventListener('resize', function() {
+        if (resizeDebounceTimer) clearTimeout(resizeDebounceTimer);
+        resizeDebounceTimer = setTimeout(handleViewportChange, 150);
     });
 });
 

@@ -113,6 +113,9 @@ class RedisSessionInterface(SessionInterface):
                     self.get_cookie_name(app),
                     domain=domain,
                     path=path,
+                    secure=self.get_cookie_secure(app),
+                    httponly=self.get_cookie_httponly(app),
+                    samesite=self.get_cookie_samesite(app),
                 )
             return
 
@@ -206,6 +209,9 @@ class FilesystemSessionInterface(SessionInterface):
                     self.get_cookie_name(app),
                     domain=domain,
                     path=path,
+                    secure=self.get_cookie_secure(app),
+                    httponly=self.get_cookie_httponly(app),
+                    samesite=self.get_cookie_samesite(app),
                 )
             return
 

@@ -45,13 +45,20 @@
         <div class="events-form-field">
             <label class="form-label" for="event_location">Standard-Ort</label>
             {% if rooms %}
+            {% set selected_room_ids = event.all_room_ids if event else [] %}
             <div class="mb-2">
-                <select class="form-select mod-pill-input" name="room_id" id="event_room_id">
-                    <option value="">-- Freitext / Manueller Ort --</option>
+                <div class="form-text mb-1">Räume (Mehrfachauswahl möglich):</div>
+                <div class="border rounded-4 p-2" style="max-height: 11.5rem; overflow-y: auto; background: var(--bs-body-bg);" role="group" aria-label="Räume auswählen">
                     {% for r in rooms %}
-                    <option value="{{ r.id }}" data-room-name="{{ r.name }}" data-room-loc="{{ r.location or '' }}" {% if event and event.room_id == r.id %}selected{% endif %}>{{ r.name }}{% if r.location %} ({{ r.location }}){% endif %}{% if r.capacity %} · max. {{ r.capacity }} Pers.{% endif %}</option>
+                    <label class="form-check d-flex align-items-center gap-2 py-1 px-2 rounded-3 mb-0" for="event_room_{{ r.id }}" style="cursor: pointer;">
+                        <input class="form-check-input mt-0 flex-shrink-0" type="checkbox" name="room_ids" value="{{ r.id }}" id="event_room_{{ r.id }}" {% if r.id in selected_room_ids %}checked{% endif %}>
+                        <span class="rounded-circle flex-shrink-0" style="width: 0.6rem; height: 0.6rem; background: {{ r.color or 'var(--accent-color, var(--bs-primary))' }};" aria-hidden="true"></span>
+                        <span class="form-check-label small">
+                            <span class="fw-medium">{{ r.name }}</span>{% if r.location %} <span class="text-muted">({{ r.location }})</span>{% endif %}{% if r.capacity %} <span class="text-muted">· max. {{ r.capacity }} Pers.</span>{% endif %}
+                        </span>
+                    </label>
                     {% endfor %}
-                </select>
+                </div>
             </div>
             {% endif %}
             <input class="form-control" id="event_location" name="default_location" value="{{ event.default_location if event else '' }}" placeholder="z. B. Hauptbühne, Vereinsheim, Stadtpark...">

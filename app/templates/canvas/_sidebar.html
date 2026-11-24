@@ -1,0 +1,17 @@
+{% macro canvas_sidebar_chrome(id_suffix='', dismiss_offcanvas=false) %}
+<nav class="mod-sidebar-nav nav flex-column gap-1">
+    <a class="nav-link mod-nav-link active"
+       href="{{ hycanvas_url }}"
+       target="hycanvasFrame"
+       {% if dismiss_offcanvas %}data-canvas-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-easel2" aria-hidden="true"></i>
+        <span>{{ _('canvas.index.heading') }}</span>
+    </a>
+    <a class="nav-link mod-nav-link mod-back-link mt-auto"
+       href="{{ url_for('dashboard.index') }}"
+       {% if dismiss_offcanvas %}data-canvas-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-arrow-left" aria-hidden="true"></i>
+        <span>{{ _('layout.nav.back') }}</span>
+    </a>
+</nav>
+{% endmacro %}

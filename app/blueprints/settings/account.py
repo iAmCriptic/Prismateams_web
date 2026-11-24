@@ -666,7 +666,8 @@ def profile_delete_confirm(token):
     # POST — final delete
     if current_user.is_authenticated and current_user.id == user.id:
         logout_user()
-    session.clear()
+    from app.utils.session_manager import clear_session_preserving_logout
+    clear_session_preserving_logout()
 
     try:
         erase_user_account(user)

@@ -484,16 +484,36 @@
       "next": "Weiter",
       "welcome": {
         "title": "Willkommen zu Version {version}",
-        "text": "PrismaTeams {version} bringt die neuen Module Helferverwaltung und Booking, einen direkten Trello-Import für Kanban, eine Nextcloud-Verknüpfung für Dateien & Kalender, den neuen Windows Client sowie zahlreiche Bugfixes.",
+        "text": "PrismaTeams {version} bringt das neue Modul Canvas, die neue EuroOffice Mobile-Ansicht, die Umbenennung von Kanban zu Boards samt weiteren Bugfixes sowie alle Neuerungen der 3.5-Reihe.",
         "highlights": {
+          "canvas": "Neues Modul Canvas – Designs, Präsentationen und Whiteboards direkt im Portal erstellen.",
+          "eurooffice_mobile": "EuroOffice Mobile-Ansicht – Office-Dokumente jetzt auch auf Smartphones und kleinen Bildschirmen komfortabel bearbeiten.",
+          "kanban": "Kanban → Boards – Umbenennung zu Boards sowie erneute Bugfixes und Stabilitätsverbesserungen.",
           "helpers": "Neues Modul Helferverwaltung – Schichten, Einsatzbereiche, Anmeldung und Einsatzpläne zentral organisieren.",
           "booking": "Neues Modul Booking – Räume, Ressourcen und Buchungsanfragen strukturiert verwalten.",
-          "kanban": "Kanban – direkter Trello-Import sowie wichtige Bugfixes und Fehlerbehebungen.",
           "nextcloud": "Dateien & Kalender – neue Verknüpfungsmöglichkeit mit Nextcloud.",
           "windows_client": "Neuer PrismaTeams Windows Client – nutze PrismaTeams jetzt als native Windows-App."
         }
       },
       "modules": {
+        "canvas": {
+          "title": "Canvas",
+          "teaser": "Neues Modul",
+          "items": {
+            "overview": "Neues Modul zum Erstellen von Designs, Präsentationen und Team-Whiteboards direkt in PrismaTeams.",
+            "formats": "Vordefinierte Formate und Vorlagen wählen oder eigene Abmessungen in Pixeln festlegen.",
+            "sharing_export": "Sichtbarkeit für Teams und Nutzer steuern, umbenennen und als .hyc-Datei herunterladen."
+          }
+        },
+        "eurooffice_mobile": {
+          "title": "EuroOffice Mobile",
+          "teaser": "Mobile Ansicht",
+          "items": {
+            "overview": "Neue mobile Ansicht für EuroOffice zum komfortablen Ansehen und Bearbeiten von Dokumenten auf Smartphones.",
+            "auto_detect": "Automatische Mobil-Erkennung passt das Editor-Layout auf kleinen Bildschirmen an und blendet störende Desktop-Leisten aus.",
+            "mode_toggle": "Jederzeit manuell direkt im Editor zwischen Mobile- und Desktop-Ansicht umschalten."
+          }
+        },
         "helpers": {
           "title": "Helferverwaltung",
           "teaser": "Neues Modul",
@@ -515,12 +535,13 @@
           }
         },
         "kanban": {
-          "title": "Kanban",
-          "teaser": "Trello-Import & Fixes",
+          "title": "Boards",
+          "teaser": "Umbenennung & Bugfixes",
           "items": {
-            "trello_connect": "Direkter Trello-Import in den Kanban-Einstellungen: Trello-Konto einfach per API-Key und Token verbinden.",
-            "trello_import": "Boards direkt auswählen und inklusive Listen, Karten und Sichtbarkeit importieren.",
-            "bugfixes": "Verschiedene Bugfixes und Fehlerbehebungen bei Darstellung, Kartenaktionen und Bedienung."
+            "rename": "Umbenennung von Kanban zu Boards in der Navigation und den Modulansichten für mehr Klarheit.",
+            "bugfixes": "Erneute Bugfixes und Fehlerbehebungen bei Darstellung, Kartenaktionen, Anhängen und Bedienung.",
+            "trello_connect": "Direkter Trello-Import in den Boards-Einstellungen: Trello-Konto einfach per API-Key und Token verbinden.",
+            "trello_import": "Boards direkt auswählen und inklusive Listen, Karten und Sichtbarkeit importieren."
           }
         },
         "files_calendar": {
@@ -1520,7 +1541,10 @@
       "file_converter_label_short": "Dateikonverter",
       "mirotalk_label": "MiroTalk",
       "mirotalk_active": "Aktiv",
-      "mirotalk_inactive": "Nicht aktiv"
+      "mirotalk_inactive": "Nicht aktiv",
+      "hycanvas_label": "HyCanvas",
+      "hycanvas_active": "Aktiv",
+      "hycanvas_inactive": "Nicht aktiv"
     },
     "admin": {
       "page_title": "Administration - Einstellungen",
@@ -1570,7 +1594,8 @@
         "meetings_needs_mirotalk": "Benötigt MIROTALK_URL in der .env. Ohne MiroTalk bleibt das Modul aus.",
         "module_duty_roster": "Dienstplan",
         "module_booking_personal": "Booking",
-        "module_helpers": "Helferverwaltung"
+        "module_helpers": "Helferverwaltung",
+        "module_canvas": "Canvas (HyCanvas)"
       },
       "users": {
         "page_title": "Benutzerverwaltung - Administration",
@@ -2616,6 +2641,7 @@
         "search_no_user_results": "Keine passenden Portalmitglieder gefunden.",
         "remove_member": "Entfernen",
         "remove_member_confirm": "{name} aus dem Team entfernen?",
+        "remove_member_confirm_title": "Entfernen bestätigen",
         "badge_leader": "Leitung",
         "assign_teams": "Teams zuweisen",
         "flash_name_required": "Bitte einen Teamnamen angeben.",
@@ -3701,7 +3727,10 @@
       "api_load_failed": "Euro-Office konnte nicht geladen werden",
       "api_load_failed_hint": "Prüfen Sie, ob der Document Server erreichbar ist und ONLYOFFICE_DOCUMENT_SERVER_URL / JWT in der .env stimmen.",
       "editor_error": "Euro-Office meldet einen Fehler",
-      "editor_init_error": "Euro-Office-Editor konnte nicht gestartet werden"
+      "editor_init_error": "Euro-Office-Editor konnte nicht gestartet werden",
+      "switch_to_desktop": "Desktop-Ansicht",
+      "switch_to_mobile": "Mobile Ansicht",
+      "mobile_banner": "Live-Bearbeitung am Document Server (gemeinsam). Editor läuft im Browser."
     },
     "trash_retention_banner": "Einträge im Papierkorb werden nach {days} Tagen automatisch endgültig gelöscht.",
     "trash_retention_disabled": "Für den Papierkorb ist keine automatische Endlöschung konfiguriert."
@@ -4380,84 +4409,95 @@
   },
   "canvas": {
     "index": {
-      "page_title": "Canvas - Team Portal",
+      "page_title": "Canvas",
       "heading": "Canvas",
-      "new_button": "Neues Canvas",
-      "stats": {
-        "text_fields_one": "1 Textfeld",
-        "text_fields_other": "{count} Textfelder",
-        "updated_at": "Aktualisiert am {date}"
+      "new_button": "Neu",
+      "nav": {
+        "menu": "Navigation öffnen"
       },
-      "buttons": {
-        "edit": "Bearbeiten",
-        "delete_confirm": "Canvas wirklich löschen?"
+      "search": {
+        "placeholder": "Canvas durchsuchen…"
+      },
+      "view_toggle": {
+        "label": "Ansicht wechseln",
+        "list": "Listenansicht",
+        "grid": "Kachelansicht"
+      },
+      "table": {
+        "name": "Name",
+        "format": "Format",
+        "owner": "Erstellt von",
+        "updated": "Geändert"
+      },
+      "card": {
+        "open": "Öffnen",
+        "download": "Herunterladen (.hyc)",
+        "rename": "Umbenennen",
+        "visibility": "Sichtbarkeit",
+        "delete": "Löschen",
+        "delete_confirm": "Dieses Canvas wirklich löschen?"
       },
       "empty": {
-        "message": "Keine Canvas vorhanden.",
-        "hint": "Erstellen Sie Ihr erstes Canvas!"
+        "filtered": "Keine passenden Canvas-Dokumente gefunden.",
+        "default": "Noch keine Canvas-Dokumente vorhanden.",
+        "hint": "Klicke links auf „Neu“, um ein Design oder Whiteboard zu erstellen."
       }
     },
     "create": {
-      "page_title": "Neues Canvas - Team Portal",
-      "breadcrumb": {
-        "index": "Canvas",
-        "current": "Neues Canvas"
-      },
-      "heading": "Neues Canvas erstellen",
-      "form": {
-        "name": "Name",
-        "description": "Beschreibung (optional)"
-      },
-      "buttons": {
-        "submit": "Canvas erstellen",
-        "cancel": "Abbrechen"
-      },
+      "modal_title": "Neues Canvas erstellen",
+      "name_label": "Name",
+      "name_placeholder": "z. B. Quartals-Präsentation oder Team-Whiteboard",
+      "visibility_label": "Sichtbarkeit",
+      "format_label": "Format / Vorlage wählen",
+      "custom_width": "Breite (px)",
+      "custom_height": "Höhe (px)",
+      "submit": "Erstellen & Öffnen",
       "alerts": {
-        "name_required": "Bitte geben Sie einen Namen ein."
+        "name_required": "Bitte einen Namen eingeben."
+      },
+      "cat": {
+        "workspace": "Arbeitsbereich & Produktivität",
+        "presentation": "Präsentationen & Video",
+        "documents": "Dokumente & Druck",
+        "web": "Web & Digital",
+        "social": "Social Media",
+        "custom": "Benutzerdefiniert"
       }
+    },
+    "preset": {
+      "whiteboard": "Whiteboard",
+      "sheet": "Tabelle",
+      "presentation": "Präsentation",
+      "video": "Video",
+      "a4_doc": "A4-Dokument",
+      "document": "Dokument",
+      "poster": "Poster",
+      "flyer": "Flyer",
+      "business_card": "Visitenkarte",
+      "banner": "Banner",
+      "desktop_bg": "Desktop-Hintergrund",
+      "logo": "Logo",
+      "ig_post": "Instagram-Beitrag",
+      "ig_portrait": "Instagram-Beitrag (Hoch)",
+      "ig_story": "Instagram-Story",
+      "fb_post": "Facebook-Beitrag",
+      "li_post": "LinkedIn-Beitrag",
+      "yt_thumb": "YouTube-Thumbnail",
+      "custom": "Leer / eigene Größe",
+      "custom_hint": "Eigene Maße"
     },
     "edit": {
       "page_title_suffix": "Canvas",
-      "back_label": "Teamportal",
-      "toolbar": {
-        "lock": "Bearbeitung aktivieren/deaktivieren",
-        "hand": "Canvas bewegen",
-        "select": "Objekte auswählen und bewegen",
-        "rectangle": "Rechteck zeichnen",
-        "diamond": "Diamant zeichnen",
-        "circle": "Kreis zeichnen",
-        "arrow": "Pfeil zeichnen",
-        "line": "Linie zeichnen",
-        "text": "Text hinzufügen",
-        "image": "Bild einfügen",
-        "eraser": "Objekte löschen"
-      },
-      "zoom": {
-        "out": "Rauszoomen",
-        "in": "Reinzoomen"
-      },
-      "history": {
-        "undo": "Rückgängig",
-        "redo": "Wiederholen"
-      },
-      "comments": {
-        "toggle": "Kommentare anzeigen/verstecken",
-        "title": "Kommentare"
-      },
-      "color": {
-        "title": "Farben",
-        "toggle": "Farben",
-        "stroke": "Strichfarbe",
-        "fill": "Füllfarbe",
-        "fill_none": "Keine Füllung",
-        "stroke_width": "Strichstärke",
-        "text_color": "Textfarbe",
-        "text_size": "Textgröße"
-      }
+      "readonly": "Nur Lesen",
+      "saving": "Speichert…",
+      "saved": "Gespeichert",
+      "save_failed": "Speichern fehlgeschlagen"
     },
     "flash": {
-      "created": "Canvas \"{name}\" wurde erstellt.",
-      "deleted": "Canvas \"{name}\" wurde gelöscht."
+      "renamed": "Canvas in „{name}“ umbenannt.",
+      "visibility_updated": "Sichtbarkeit aktualisiert.",
+      "deleted": "Canvas „{name}“ gelöscht.",
+      "no_snapshot": "Noch kein lokaler .hyc-Snapshot vorhanden. Bitte zuerst im Editor speichern."
     }
   },
   "markdown": {

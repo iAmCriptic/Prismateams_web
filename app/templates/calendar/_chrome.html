@@ -250,7 +250,7 @@
         {{ calendar_sidebar_filter('Desktop') }}
     </div>
     {% endif %}
-    <nav class="mod-sidebar-nav calendar-sidebar-nav nav flex-column gap-1" {% if interactive %}id="calendarSidebarNav"{% endif %}>
+    <nav class="mod-sidebar-nav calendar-sidebar-nav nav flex-column flex-nowrap gap-1" {% if interactive %}id="calendarSidebarNav"{% endif %}>
         {% macro cal_nav_item(cal, label=none) %}
         <div class="calendar-nav-item d-flex align-items-center gap-2"
              data-calendar-id="{{ cal.id }}"
@@ -473,7 +473,7 @@
         <div class="px-1 mb-2 flex-shrink-0">
             {{ calendar_sidebar_filter('Mobile') }}
         </div>
-        <div id="calendarMobileNavBody" class="mod-sidebar-nav calendar-sidebar-nav nav flex-column gap-1 flex-grow-1 min-height-0 overflow-auto"></div>
+        <div id="calendarMobileNavBody" class="mod-sidebar-nav calendar-sidebar-nav nav flex-column flex-nowrap gap-1 flex-grow-1 min-height-0 overflow-auto"></div>
     </div>
 </div>
 

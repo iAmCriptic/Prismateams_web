@@ -868,7 +868,10 @@ def share_edit_onlyoffice(token):
     accent_style = 'linear-gradient(45deg, #0d6efd, #0d6efd)'
     
     current_language = get_current_language()
-    
+    ua = (request.user_agent.string or '').lower()
+    is_mobile_ua = any(x in ua for x in ('iphone', 'ipod', 'android', 'mobile', 'ipad'))
+    force_desktop = request.args.get('desktop') == '1'
+
     return render_template(
         'files/edit_onlyoffice.html',
         file=file,
@@ -890,7 +893,7 @@ def share_edit_onlyoffice(token):
         current_language=current_language,
         user_image='',
         presence_enabled=True,
-        is_mobile_client=False,
+        is_mobile_client=is_mobile_ua and not force_desktop,
         theme_dark=False,
         theme_oled=False,
         onlyoffice_ui_theme='theme-classic-light',

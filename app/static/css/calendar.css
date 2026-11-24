@@ -1058,8 +1058,13 @@ body:not(.embed-scope):not(.assessment-scope-solo) .calendar-shell.mod-shell--na
 }
 
 .calendar-sidebar-nav {
+    flex-wrap: nowrap;
     overflow-x: hidden;
     overflow-y: auto;
+}
+
+.calendar-sidebar-nav > * {
+    flex-shrink: 0;
 }
 
 .calendar-sidebar-actions {
