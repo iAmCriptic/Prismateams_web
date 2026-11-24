@@ -103,7 +103,7 @@ import sys, pathlib, re
 p = pathlib.Path(sys.argv[1])
 upstream = sys.argv[2]
 text = p.read_text(encoding='utf-8')
-if 'location /hycanvas/' in text and 'location /api/v1/' in text and 'location /_next/' in text and 'location /realtime' in text and 'location /shared/' in text and 'proxy_redirect / /hycanvas/' in text:
+if 'location /hycanvas/' in text and 'location /api/v1/' in text and 'location /_next/' in text and 'location /realtime' in text and 'location /shared/' in text and 'signup|verify-email' in text and 'proxy_redirect / /hycanvas/' in text:
     sys.exit(0)
 
 block = f"""    # HyCanvas (Canvas-Modul) – API & Subpath-Proxy per sub_filter
@@ -161,6 +161,37 @@ block = f"""    # HyCanvas (Canvas-Modul) – API & Subpath-Proxy per sub_filter
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_buffering off;
         proxy_read_timeout 600;
+    }}
+
+    location ~ ^/(signup|verify-email|magic-link|forgot-password|invitations)(/|$) {{
+        proxy_pass http://{upstream};
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Accept-Encoding "";
+        proxy_buffering off;
+        proxy_read_timeout 600;
+
+        sub_filter_once off;
+        sub_filter_types text/html application/javascript text/javascript text/css application/json;
+        sub_filter '"/_next/' '"/hycanvas/_next/';
+        sub_filter "'/_next/" "'/hycanvas/_next/";
+        sub_filter '"/api/' '"/hycanvas/api/';
+        sub_filter "'/api/" "'/hycanvas/api/";
+        sub_filter '`/api/' '`/hycanvas/api/';
+        sub_filter '"/locales/' '"/hycanvas/locales/';
+        sub_filter "'/locales/" "'/hycanvas/locales/";
+        sub_filter '`/locales/' '`/hycanvas/locales/';
+        sub_filter '"/brand/' '"/hycanvas/brand/';
+        sub_filter "'/brand/" "'/hycanvas/brand/";
+        sub_filter '`/brand/' '`/hycanvas/brand/';
+        sub_filter '"/visitor-loader.svg"' '"/hycanvas/visitor-loader.svg"';
+        sub_filter '"/manifest.webmanifest"' '"/hycanvas/manifest.webmanifest"';
+        sub_filter '"/favicon.ico"' '"/hycanvas/favicon.ico"';
     }}
 
     location /shared/ {{
@@ -231,7 +262,7 @@ block = f"""    # HyCanvas (Canvas-Modul) – API & Subpath-Proxy per sub_filter
 
 # Falls ein alter HyCanvas-Block existiert, diesen sauber ersetzen
 old_hc = re.search(
-    r'[ \t]*# HyCanvas[^\n]*\n(?:[ \t]*location /(?:api/v1|_next|design|realtime|shared|hycanvas)/? \{[^}]*\}\s*)+',
+    r'[ \t]*# HyCanvas[^\n]*\n(?:[ \t]*location (?:~ \^/\(signup\|verify-email\|magic-link\|forgot-password\|invitations\)\(/\|\$\)|/(?:api/v1|_next|design|realtime|shared|hycanvas)/?) \{[^}]*\}\s*)+',
     text,
 )
 if old_hc:
@@ -317,14 +348,46 @@ os.environ['PRISMATEAMS_SKIP_BACKGROUND_JOBS'] = '1'
 from app import create_app, db
 from app.models.canvas import CanvasDocument
 from app.models.settings import SystemSettings
+from app.utils.main_mail_config import get_main_mail_config
 app = create_app()
 with app.app_context():
     db.create_all()
     if not SystemSettings.query.filter_by(key='module_canvas_enabled').first():
         db.session.add(SystemSettings(key='module_canvas_enabled', value='true', description='Canvas (HyCanvas) Modul'))
         db.session.commit()
+    mail_cfg = get_main_mail_config()
+    if mail_cfg.get('smtp_server'):
+        env_path = '${ENV_FILE}'
+        lines = open(env_path, encoding='utf-8').read().splitlines() if os.path.exists(env_path) else []
+        updates = {
+            'HYCANVAS_SMTP_HOST': str(mail_cfg.get('smtp_server') or ''),
+            'HYCANVAS_SMTP_PORT': str(mail_cfg.get('smtp_port') or 587),
+            'HYCANVAS_SMTP_USER': str(mail_cfg.get('smtp_username') or ''),
+            'HYCANVAS_SMTP_PASS': str(mail_cfg.get('smtp_password') or ''),
+            'HYCANVAS_SMTP_FROM': str(mail_cfg.get('default_sender') or mail_cfg.get('smtp_username') or ''),
+            'HYCANVAS_SMTP_SECURE': 'true' if mail_cfg.get('smtp_use_ssl') else 'false',
+        }
+        existing_keys = set()
+        new_lines = []
+        for ln in lines:
+            k = ln.split('=', 1)[0].strip() if '=' in ln else ''
+            if k in updates:
+                new_lines.append(f'{k}={updates[k]}')
+                existing_keys.add(k)
+            else:
+                new_lines.append(ln)
+        for k, v in updates.items():
+            if k not in existing_keys:
+                new_lines.append(f'{k}={v}')
+        with open(env_path, 'w', encoding='utf-8') as fh:
+            fh.write('\n'.join(new_lines) + '\n')
+        print('  -> Teamportal-SMTP-Daten in .env für HyCanvas übernommen.')
 print('  -> canvas_documents & module_canvas_enabled bereit.')
 "
+
+if command -v docker >/dev/null 2>&1; then
+    docker compose --profile hycanvas up -d hycanvas || true
+fi
 
 for svc in teamportal prismateams; do
     if systemctl is-active --quiet "${svc}" 2>/dev/null; then
