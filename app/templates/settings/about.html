@@ -77,6 +77,17 @@
           </div>
         </div>
         <div class="sp-row">
+          <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.about.hycanvas_label') }}</span></div>
+          <div class="sp-row-control">
+            {% if hycanvas_enabled %}
+            <span class="badge rounded-pill text-bg-success">{{ _('settings.about.hycanvas_active') }}</span>
+            {% if hycanvas_version %}<span class="settings-about-meta-value--mono ms-2">{{ hycanvas_version }}</span>{% endif %}
+            {% else %}
+            <span class="badge rounded-pill text-bg-secondary">{{ _('settings.about.hycanvas_inactive') }}</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="sp-row">
           <div class="sp-row-label"><span class="sp-row-label-text">{{ _('settings.about.media_downloader_label') }}</span></div>
           <div class="sp-row-control">
             {% if media_downloader_compatible %}

@@ -1498,7 +1498,10 @@
       "file_converter_label_short": "Конвертер",
       "mirotalk_label": "MiroTalk",
       "mirotalk_active": "Активно",
-      "mirotalk_inactive": "Не активно"
+      "mirotalk_inactive": "Не активно",
+      "hycanvas_label": "HyCanvas",
+      "hycanvas_active": "Активно",
+      "hycanvas_inactive": "Не активно"
     },
     "admin": {
       "page_title": "Администрирование — Настройки",

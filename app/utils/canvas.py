@@ -101,6 +101,37 @@ def get_hycanvas_api_url() -> str:
     return (current_app.config.get('HYCANVAS_API_URL') or 'http://hycanvas:8005').strip().rstrip('/')
 
 
+def get_hycanvas_status() -> tuple[bool, str | None]:
+    """Return (is_active, version) for HyCanvas on the About/System page."""
+    if not is_canvas_enabled():
+        return False, None
+    api_url = get_hycanvas_api_url()
+    if not api_url:
+        return False, None
+
+    reachable = False
+    for path in ('/api/v1/health', '/health', '/api/v1/version', '/'):
+        if path == '/' and reachable:
+            break
+        try:
+            resp = requests.get(f'{api_url}{path}', timeout=2)
+            if resp.status_code < 500:
+                reachable = True
+            if resp.ok and resp.content:
+                try:
+                    data = resp.json()
+                except ValueError:
+                    data = None
+                if isinstance(data, dict):
+                    nested = data.get('data') if isinstance(data.get('data'), dict) else {}
+                    ver = data.get('version') or nested.get('version')
+                    if ver:
+                        return True, str(ver).strip()
+        except Exception:
+            logger.debug('HyCanvas status check failed for %s%s', api_url, path, exc_info=True)
+    return reachable, None
+
+
 def get_hycanvas_db_url() -> str | None:
     url = (
         current_app.config.get('HYCANVAS_DATABASE_URL')

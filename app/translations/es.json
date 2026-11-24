@@ -1498,7 +1498,10 @@
       "file_converter_label_short": "Conversor",
       "mirotalk_label": "MiroTalk",
       "mirotalk_active": "Activo",
-      "mirotalk_inactive": "Inactivo"
+      "mirotalk_inactive": "Inactivo",
+      "hycanvas_label": "HyCanvas",
+      "hycanvas_active": "Activo",
+      "hycanvas_inactive": "Inactivo"
     },
     "admin": {
       "page_title": "Administración - Ajustes",

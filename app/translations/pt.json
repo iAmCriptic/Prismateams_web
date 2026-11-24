@@ -1509,7 +1509,10 @@
       "file_converter_label_short": "Conversor",
       "mirotalk_label": "MiroTalk",
       "mirotalk_active": "Ativo",
-      "mirotalk_inactive": "Inativo"
+      "mirotalk_inactive": "Inativo",
+      "hycanvas_label": "HyCanvas",
+      "hycanvas_active": "Ativo",
+      "hycanvas_inactive": "Inativo"
     },
     "cloud_import": {
       "page_title": "Cloud import",

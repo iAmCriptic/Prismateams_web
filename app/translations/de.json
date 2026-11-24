@@ -1520,7 +1520,10 @@
       "file_converter_label_short": "Dateikonverter",
       "mirotalk_label": "MiroTalk",
       "mirotalk_active": "Aktiv",
-      "mirotalk_inactive": "Nicht aktiv"
+      "mirotalk_inactive": "Nicht aktiv",
+      "hycanvas_label": "HyCanvas",
+      "hycanvas_active": "Aktiv",
+      "hycanvas_inactive": "Nicht aktiv"
     },
     "admin": {
       "page_title": "Administration - Einstellungen",
