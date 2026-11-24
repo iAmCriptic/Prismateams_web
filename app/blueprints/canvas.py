@@ -27,6 +27,7 @@ from app.utils.canvas import (
     CANVAS_PRESET_MAP,
     authenticate_hycanvas_session,
     build_hycanvas_sso_jwt,
+    get_hycanvas_browser_url,
     get_hycanvas_embed_url,
     hycanvas_create_design,
     hycanvas_delete_design,
@@ -128,55 +129,46 @@ def _apply_create_visibility(doc):
     apply_visibility_from_form(doc, MODULE, current_user, raw)
 
 
+def _attach_hycanvas_cookies(resp, user):
+    cookie_secure = bool(current_app.config.get('SESSION_COOKIE_SECURE', False)) and request.is_secure
+    hycanvas_sess = authenticate_hycanvas_session(user)
+    if hycanvas_sess:
+        for cookie in hycanvas_sess.cookies:
+            resp.set_cookie(
+                cookie.name,
+                cookie.value,
+                httponly=True,
+                samesite='Lax',
+                secure=cookie_secure,
+                path='/',
+            )
+    else:
+        sso_jwt = build_hycanvas_sso_jwt(user)
+        if sso_jwt:
+            resp.set_cookie(
+                'hycanvas_token',
+                sso_jwt,
+                httponly=True,
+                samesite='Lax',
+                secure=cookie_secure,
+                path='/',
+            )
+    return resp
+
+
 @canvas_bp.route('/')
 @login_required
 @check_module_access('module_canvas')
 def index():
-    search_query = (request.args.get('q') or '').strip()
-    section, filter_team_id = parse_section_args(MODULE, current_user)
-
-    if section == 'all':
-        default_section, default_team = _resolve_default_section(current_user)
-        kwargs = {'view': default_section}
-        if default_team:
-            kwargs['team_id'] = default_team
-        if search_query:
-            kwargs['q'] = search_query
-        return redirect(url_for('canvas.index', **kwargs))
-
-    _remember_section(section, filter_team_id)
-
-    query = accessible_query(current_user, CanvasDocument, MODULE).options(
-        joinedload(CanvasDocument.creator)
+    hycanvas_url = f'{get_hycanvas_browser_url()}/'
+    resp = make_response(
+        render_template(
+            'canvas/index.html',
+            hycanvas_url=hycanvas_url,
+            hycanvas_enabled=is_canvas_enabled(),
+        )
     )
-    if section in ('private', 'team', 'public'):
-        query = apply_section_filter(query, CanvasDocument, section, filter_team_id)
-    if search_query:
-        query = query.filter(CanvasDocument.name.ilike(f'%{search_query}%'))
-    documents, pagination = paginate_list(query.order_by(CanvasDocument.updated_at.desc()))
-    editable_ids = {d.id for d in documents if can_edit_item(current_user, d, MODULE)}
-
-    nav = visibility_nav_context(MODULE, current_user, section, filter_team_id)
-    heading = _heading_for_section(section, nav.get('visibility_teams') or [], filter_team_id)
-    form_ctx = visibility_form_context(
-        MODULE,
-        current_user,
-        preselect_section=section,
-        preselect_team_id=filter_team_id,
-    )
-    ctx = {**nav, **form_ctx}
-    return render_template(
-        'canvas/index.html',
-        documents=documents,
-        editable_ids=editable_ids,
-        search_query=search_query,
-        heading_label=heading,
-        list_page=pagination.page,
-        list_has_more=pagination.has_next,
-        preset_categories=CANVAS_PRESET_CATEGORIES,
-        hycanvas_enabled=is_canvas_enabled(),
-        **ctx,
-    )
+    return _attach_hycanvas_cookies(resp, current_user)
 
 
 @canvas_bp.route('/create', methods=['POST'])
@@ -263,30 +255,7 @@ def edit(doc_id):
             theme_oled=bool(getattr(current_user, 'oled_mode', False)),
         )
     )
-    cookie_secure = bool(current_app.config.get('SESSION_COOKIE_SECURE', False)) and request.is_secure
-    hycanvas_sess = authenticate_hycanvas_session(current_user)
-    if hycanvas_sess:
-        for cookie in hycanvas_sess.cookies:
-            resp.set_cookie(
-                cookie.name,
-                cookie.value,
-                httponly=True,
-                samesite='Lax',
-                secure=cookie_secure,
-                path='/',
-            )
-    else:
-        sso_jwt = build_hycanvas_sso_jwt(current_user)
-        if sso_jwt:
-            resp.set_cookie(
-                'hycanvas_token',
-                sso_jwt,
-                httponly=True,
-                samesite='Lax',
-                secure=cookie_secure,
-                path='/',
-            )
-    return resp
+    return _attach_hycanvas_cookies(resp, current_user)
 
 
 @canvas_bp.route('/<int:doc_id>/save', methods=['POST'])

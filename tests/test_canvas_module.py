@@ -51,13 +51,17 @@ def test_canvas_requires_login(client):
     assert resp.status_code in (302, 401)
 
 
-def test_canvas_index_renders_sidebar_and_modal(client, canvas_user):
+def test_canvas_index_renders_sidebar_and_hycanvas_embed(client, canvas_user, app):
     _login(client, canvas_user)
-    resp = client.get('/canvas/?view=private')
+    app.config['HYCANVAS_JWT_SECRET'] = 'test-hycanvas-secret-1234567890'
+    resp = client.get('/canvas/')
     assert resp.status_code == 200
     html = resp.get_data(as_text=True)
-    assert 'canvasCreateModal' in html
     assert 'mod-sidebar' in html
+    assert 'hycanvasFrame' in html
+    assert '/hycanvas/' in html
+    set_cookie = resp.headers.getlist('Set-Cookie')
+    assert any('hycanvas_token=' in c for c in set_cookie)
 
 
 def test_canvas_create_preset_and_custom(client, canvas_user, app):
