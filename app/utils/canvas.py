@@ -268,13 +268,15 @@ def sync_hycanvas_user_and_workspaces(user) -> None:
 
             if has_request_context() and relevant_users_by_email:
                 cols_rows = conn.execute(
-                    text("SELECT column_name FROM information_schema.columns WHERE table_name = 'users'")
+                    text(
+                        'SELECT column_name FROM information_schema.columns '
+                        "WHERE table_name = 'users' AND table_schema = current_schema()"
+                    )
                 ).fetchall()
                 user_cols = {r.column_name for r in cols_rows}
-                avatar_col = (
-                    'avatar_url'
-                    if 'avatar_url' in user_cols
-                    else ('avatarUrl' if 'avatarUrl' in user_cols else None)
+                avatar_col = next(
+                    (c for c in ('avatar_url', 'avatarUrl', 'avatar', 'image') if c in user_cols),
+                    None,
                 )
                 if avatar_col:
                     col_ident = f'"{avatar_col}"' if avatar_col != avatar_col.lower() else avatar_col
@@ -542,14 +544,17 @@ def authenticate_hycanvas_session(user) -> requests.Session | None:
             patch_payload: dict[str, Any] = {'name': name, 'theme': hc_theme}
             if avatar_url:
                 patch_payload['avatar_url'] = avatar_url
+                patch_payload['avatarUrl'] = avatar_url
             try:
-                sess.patch(
+                patch_resp = sess.patch(
                     f'{api_url}/api/v1/me',
                     json=patch_payload,
                     timeout=3,
                 )
-            except Exception:
-                pass
+                if not patch_resp.ok:
+                    logger.debug('HyCanvas PATCH /api/v1/me returned %s: %s', patch_resp.status_code, patch_resp.text[:200])
+            except Exception as exc:
+                logger.debug('HyCanvas PATCH /api/v1/me failed: %s', exc)
             return sess
     except Exception as exc:
         logger.debug('HyCanvas session auth skipped/failed: %s', exc)
