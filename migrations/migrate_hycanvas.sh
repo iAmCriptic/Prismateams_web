@@ -154,8 +154,24 @@ else
 fi
 
 echo "[4/4] Stelle Datenbank-Tabelle canvas_documents und Modul-Aktivierung sicher..."
-PY_BIN="python3"
-[[ -x "${PROJECT_ROOT}/.venv/bin/python" ]] && PY_BIN="${PROJECT_ROOT}/.venv/bin/python"
+PY_BIN=""
+for candidate in \
+    "${PROJECT_ROOT}/venv/bin/python" \
+    "${PROJECT_ROOT}/.venv/bin/python" \
+    "${PROJECT_ROOT}/venv/bin/python3" \
+    "${PROJECT_ROOT}/.venv/bin/python3" \
+    "$(command -v python3 || true)"; do
+    if [[ -n "${candidate}" && -x "${candidate}" ]] && "${candidate}" -c "import flask" >/dev/null 2>&1; then
+        PY_BIN="${candidate}"
+        break
+    fi
+done
+
+if [[ -z "${PY_BIN}" ]]; then
+    echo "  -> FEHLER: Kein Python mit installiertem Flask gefunden (venv/.venv geprüft)." >&2
+    exit 1
+fi
+echo "  -> Nutze Python: ${PY_BIN}"
 
 "${PY_BIN}" -c "
 import os
