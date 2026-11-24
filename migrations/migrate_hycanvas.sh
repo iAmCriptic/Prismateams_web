@@ -99,10 +99,23 @@ import sys, pathlib, re
 p = pathlib.Path(sys.argv[1])
 upstream = sys.argv[2]
 text = p.read_text(encoding='utf-8')
-if 'location /hycanvas/' in text and 'sub_filter \'"/api/\'' in text:
+if 'location /hycanvas/' in text and 'location /api/v1/' in text and 'sub_filter \'"/api/\'' in text:
     sys.exit(0)
 
-block = f"""    # HyCanvas (Canvas-Modul) – alles über /hycanvas/ per sub_filter
+block = f"""    # HyCanvas (Canvas-Modul) – API & Subpath-Proxy per sub_filter
+    location /api/v1/ {{
+        proxy_pass http://{upstream}/api/v1/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_read_timeout 600;
+    }}
+
     location /hycanvas/ {{
         proxy_pass http://{upstream}/;
         proxy_http_version 1.1;

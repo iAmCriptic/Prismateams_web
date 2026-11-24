@@ -234,6 +234,18 @@ def edit(doc_id):
         return _denied()
 
     can_edit = can_edit_item(current_user, doc, MODULE)
+    if not doc.hycanvas_design_id and can_edit:
+        remote_id = hycanvas_create_design(
+            title=doc.name,
+            design_type=doc.design_type,
+            width=doc.width,
+            height=doc.height,
+            user=current_user,
+        )
+        if remote_id:
+            doc.hycanvas_design_id = remote_id
+            db.session.commit()
+
     return_url = _index_url()
     embed_url = get_hycanvas_embed_url(doc, user=current_user)
     preset = CANVAS_PRESET_MAP.get(doc.preset_key)
@@ -251,6 +263,7 @@ def edit(doc_id):
             theme_oled=bool(getattr(current_user, 'oled_mode', False)),
         )
     )
+    cookie_secure = bool(current_app.config.get('SESSION_COOKIE_SECURE', False)) and request.is_secure
     hycanvas_sess = authenticate_hycanvas_session(current_user)
     if hycanvas_sess:
         for cookie in hycanvas_sess.cookies:
@@ -259,7 +272,7 @@ def edit(doc_id):
                 cookie.value,
                 httponly=True,
                 samesite='Lax',
-                secure=bool(current_app.config.get('SESSION_COOKIE_SECURE', False)),
+                secure=cookie_secure,
                 path='/',
             )
     else:
@@ -270,8 +283,8 @@ def edit(doc_id):
                 sso_jwt,
                 httponly=True,
                 samesite='Lax',
-                secure=bool(current_app.config.get('SESSION_COOKIE_SECURE', False)),
-                path='/hycanvas',
+                secure=cookie_secure,
+                path='/',
             )
     return resp
 
