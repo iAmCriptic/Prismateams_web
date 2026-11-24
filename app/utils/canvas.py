@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import logging
 import os
 import re
@@ -147,25 +149,64 @@ def _hycanvas_headers(user=None) -> dict[str, str]:
     return headers
 
 
-def ensure_hycanvas_user(user) -> None:
-    """Best-effort sync of user name, email and profile picture to HyCanvas."""
+def _hycanvas_user_credentials(user) -> tuple[str, str, str]:
+    email = getattr(user, 'email', None) or f'user-{user.id}@portal.local'
+    name = getattr(user, 'full_name', None) or getattr(user, 'username', None) or f'User {user.id}'
+    secret = (current_app.config.get('SECRET_KEY') or 'prismateams-hycanvas').encode('utf-8')
+    digest = hmac.new(secret, f'hycanvas:{user.id}:{email}'.encode('utf-8'), hashlib.sha256).hexdigest()
+    password = f'{digest[:20]}!Aa1'
+    return email, name, password
+
+
+def authenticate_hycanvas_session(user) -> requests.Session | None:
+    """
+    Ensure user exists in HyCanvas and return an authenticated requests.Session
+    holding HyCanvas's real session cookies (or None if HyCanvas is unreachable).
+    """
     api_url = get_hycanvas_api_url()
     if not api_url or not user:
-        return
-    payload = {
-        'email': getattr(user, 'email', None) or f'user-{user.id}@portal.local',
-        'name': getattr(user, 'full_name', None) or getattr(user, 'username', None) or f'User {user.id}',
-        'avatar_url': get_user_avatar_external_url(user),
-    }
+        return None
+    email, name, password = _hycanvas_user_credentials(user)
+    sess = requests.Session()
+    sess.headers.update({'Accept': 'application/json'})
+
     try:
-        requests.post(
-            f'{api_url}/api/v1/users/sync',
-            json=payload,
-            headers=_hycanvas_headers(user),
-            timeout=4,
+        resp = sess.post(
+            f'{api_url}/api/v1/auth/login',
+            json={'email': email, 'password': password},
+            timeout=5,
         )
+        if not resp.ok:
+            for endpoint in ('/api/v1/auth/register', '/api/v1/setup'):
+                reg = sess.post(
+                    f'{api_url}{endpoint}',
+                    json={'email': email, 'password': password, 'name': name},
+                    timeout=5,
+                )
+                if reg.ok:
+                    break
+            if not sess.cookies:
+                sess.post(
+                    f'{api_url}/api/v1/auth/login',
+                    json={'email': email, 'password': password},
+                    timeout=5,
+                )
+
+        if sess.cookies:
+            avatar_url = get_user_avatar_external_url(user)
+            if avatar_url:
+                try:
+                    sess.patch(
+                        f'{api_url}/api/v1/me',
+                        json={'name': name, 'avatar_url': avatar_url},
+                        timeout=3,
+                    )
+                except Exception:
+                    pass
+            return sess
     except Exception as exc:
-        logger.debug('HyCanvas user sync skipped/failed: %s', exc)
+        logger.debug('HyCanvas session auth skipped/failed: %s', exc)
+    return None
 
 
 def hycanvas_create_design(
@@ -180,7 +221,7 @@ def hycanvas_create_design(
     api_url = get_hycanvas_api_url()
     if not api_url:
         return None
-    ensure_hycanvas_user(user)
+    sess = authenticate_hycanvas_session(user)
     payload: dict[str, Any] = {
         'title': title,
         'type': design_type,
@@ -188,10 +229,11 @@ def hycanvas_create_design(
         'height': int(height),
     }
     try:
-        resp = requests.post(
+        client = sess or requests
+        resp = client.post(
             f'{api_url}/api/v1/designs',
             json=payload,
-            headers=_hycanvas_headers(user),
+            headers=_hycanvas_headers(user) if sess is None else None,
             timeout=6,
         )
         if resp.ok:

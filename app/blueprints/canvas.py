@@ -25,6 +25,7 @@ from app.utils.access_control import check_module_access
 from app.utils.canvas import (
     CANVAS_PRESET_CATEGORIES,
     CANVAS_PRESET_MAP,
+    authenticate_hycanvas_session,
     build_hycanvas_sso_jwt,
     get_hycanvas_embed_url,
     hycanvas_create_design,
@@ -250,16 +251,28 @@ def edit(doc_id):
             theme_oled=bool(getattr(current_user, 'oled_mode', False)),
         )
     )
-    sso_jwt = build_hycanvas_sso_jwt(current_user)
-    if sso_jwt:
-        resp.set_cookie(
-            'hycanvas_token',
-            sso_jwt,
-            httponly=True,
-            samesite='Lax',
-            secure=bool(current_app.config.get('SESSION_COOKIE_SECURE', False)),
-            path='/hycanvas',
-        )
+    hycanvas_sess = authenticate_hycanvas_session(current_user)
+    if hycanvas_sess:
+        for cookie in hycanvas_sess.cookies:
+            resp.set_cookie(
+                cookie.name,
+                cookie.value,
+                httponly=True,
+                samesite='Lax',
+                secure=bool(current_app.config.get('SESSION_COOKIE_SECURE', False)),
+                path='/hycanvas',
+            )
+    else:
+        sso_jwt = build_hycanvas_sso_jwt(current_user)
+        if sso_jwt:
+            resp.set_cookie(
+                'hycanvas_token',
+                sso_jwt,
+                httponly=True,
+                samesite='Lax',
+                secure=bool(current_app.config.get('SESSION_COOKIE_SECURE', False)),
+                path='/hycanvas',
+            )
     return resp
 
 
