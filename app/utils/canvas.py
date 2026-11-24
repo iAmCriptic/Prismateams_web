@@ -177,7 +177,7 @@ def authenticate_hycanvas_session(user) -> requests.Session | None:
             timeout=5,
         )
         if not resp.ok:
-            for endpoint in ('/api/v1/auth/register', '/api/v1/setup'):
+            for endpoint in ('/api/v1/auth/signup', '/api/v1/auth/register', '/api/v1/setup'):
                 reg = sess.post(
                     f'{api_url}{endpoint}',
                     json={'email': email, 'password': password, 'name': name},

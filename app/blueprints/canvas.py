@@ -260,7 +260,7 @@ def edit(doc_id):
                 httponly=True,
                 samesite='Lax',
                 secure=bool(current_app.config.get('SESSION_COOKIE_SECURE', False)),
-                path='/hycanvas',
+                path='/',
             )
     else:
         sso_jwt = build_hycanvas_sso_jwt(current_user)
