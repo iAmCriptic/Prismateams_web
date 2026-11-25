@@ -2202,11 +2202,34 @@
       }
     }
 
+    const lightboxItems = (attachments || [])
+      .filter((a) => a && a.is_image && (a.preview_url || a.url) && a.portal_file_access !== false)
+      .map((a) => ({
+        id: a.id,
+        src: a.preview_url || a.url,
+        title: a.filename || '',
+        meta: a.created_at ? formatAddedAt(a.created_at) : '',
+        openUrl: a.is_link ? a.url : (a.preview_url || a.url),
+        downloadUrl: a.url || a.preview_url,
+      }));
+    const lightboxIndexById = new Map();
+    lightboxItems.forEach((item, idx) => {
+      if (item.id != null) lightboxIndexById.set(Number(item.id), idx);
+    });
+
     function attachThumb(a) {
       if (a.is_portal_file) {
+        if (a.is_image && a.preview_url) {
+          const lbIdx = lightboxIndexById.get(Number(a.id));
+          return `<img class="kanban-attach-thumb" src="${esc(a.preview_url)}" alt=""${lbIdx != null ? ` data-lightbox-index="${lbIdx}"` : ''}>`;
+        }
         return `<div class="kanban-attach-thumb kanban-attach-thumb--icon"><i class="bi bi-file-earmark-text"></i></div>`;
       }
       if (a.is_link) {
+        if (a.is_image && a.preview_url) {
+          const lbIdx = lightboxIndexById.get(Number(a.id));
+          return `<img class="kanban-attach-thumb" src="${esc(a.preview_url)}" alt=""${lbIdx != null ? ` data-lightbox-index="${lbIdx}"` : ''}>`;
+        }
         const fav = a.favicon_url || getFaviconUrl(a.external_url || a.url);
         if (fav) {
           return `<div class="kanban-attach-thumb kanban-attach-thumb--icon kanban-attach-thumb--favicon">
@@ -2215,7 +2238,10 @@
         }
         return `<div class="kanban-attach-thumb kanban-attach-thumb--icon"><i class="bi bi-link-45deg"></i></div>`;
       }
-      if (a.is_image && a.preview_url) return `<img class="kanban-attach-thumb" src="${esc(a.preview_url)}" alt="">`;
+      if (a.is_image && a.preview_url) {
+        const lbIdx = lightboxIndexById.get(Number(a.id));
+        return `<img class="kanban-attach-thumb" src="${esc(a.preview_url)}" alt=""${lbIdx != null ? ` data-lightbox-index="${lbIdx}"` : ''}>`;
+      }
       if (a.is_pdf) return `<div class="kanban-attach-thumb kanban-attach-thumb--badge">PDF</div>`;
       const ext = ((a.filename || '').split('.').pop() || '').toUpperCase().slice(0, 4);
       return `<div class="kanban-attach-thumb kanban-attach-thumb--badge">${esc(ext || 'FILE')}</div>`;
@@ -2231,12 +2257,14 @@
       const accessBlocked = a.google_access === false || a.portal_file_access === false;
       const openDisabled = a.portal_file_access === false;
       const openTarget = useEuroOffice ? '_self' : '_blank';
+      const lbIdx = !useEuroOffice ? lightboxIndexById.get(Number(a.id)) : undefined;
+      const lbAttr = lbIdx != null ? ` data-lightbox-index="${lbIdx}"` : '';
       return `<div class="kanban-attach-row${isCover ? ' is-cover' : ''}" data-att-id="${a.id}">
         ${attachThumb(a)}
         <div class="kanban-attach-row__info">
           ${openDisabled
             ? `<span class="kanban-attach-row__name text-warning"><i class="bi bi-lock-fill me-1"></i>${esc(a.filename)}</span>`
-            : `<a class="kanban-attach-row__name${accessBlocked ? ' text-warning' : ''}" href="${esc(viewUrl)}" target="${openTarget}" rel="noopener">${accessBlocked ? '<i class="bi bi-lock-fill me-1"></i>' : ''}${esc(a.filename)}</a>`}
+            : `<a class="kanban-attach-row__name${accessBlocked ? ' text-warning' : ''}" href="${esc(viewUrl)}"${lbIdx != null ? lbAttr : ` target="${openTarget}" rel="noopener"`}>${accessBlocked ? '<i class="bi bi-lock-fill me-1"></i>' : ''}${esc(a.filename)}</a>`}
           ${showSubUrl ? `<div class="kanban-attach-row__url" title="${esc(rawUrl)}">${esc(rawUrl)}</div>` : ''}
           <div class="kanban-attach-row__meta">
             ${a.created_at ? `<span>${formatAddedAt(a.created_at)}</span>` : ''}
@@ -2244,7 +2272,7 @@
           </div>
         </div>
         <div class="kanban-attach-row__actions">
-          ${openDisabled ? '' : `<a class="btn btn-sm mod-pill-btn mod-pill-btn--icon" href="${esc(viewUrl)}" target="${openTarget}" rel="noopener" title="${esc(useEuroOffice ? (i18n.editEuroOffice || 'In Euro-Office bearbeiten') : (i18n.view || 'Ansehen'))}"><i class="bi ${useEuroOffice ? 'bi-pencil-square' : 'bi-box-arrow-up-right'}"></i></a>`}
+          ${openDisabled ? '' : `<a class="btn btn-sm mod-pill-btn mod-pill-btn--icon" href="${esc(viewUrl)}"${lbIdx != null ? lbAttr : ` target="${openTarget}" rel="noopener"`} title="${esc(useEuroOffice ? (i18n.editEuroOffice || 'In Euro-Office bearbeiten') : (i18n.view || 'Ansehen'))}"><i class="bi ${useEuroOffice ? 'bi-pencil-square' : (lbIdx != null ? 'bi-arrows-fullscreen' : 'bi-box-arrow-up-right')}"></i></a>`}
           ${!openDisabled && useEuroOffice && downloadUrl ? `<a class="btn btn-sm mod-pill-btn mod-pill-btn--icon" href="${esc(downloadUrl)}" target="_blank" rel="noopener" title="${esc(i18n.download || 'Herunterladen')}"><i class="bi bi-download"></i></a>` : ''}
           ${canEdit && a.is_image && !isCover ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-set-cover="${a.id}" title="${esc(i18n.setCover || 'Titelbild')}"><i class="bi bi-image"></i></button>` : ''}
           ${canEdit && isCover ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-clear-cover="1" title="${esc(i18n.removeCover || 'Titelbild entfernen')}"><i class="bi bi-image-fill text-warning"></i></button>` : ''}
@@ -2263,6 +2291,17 @@
         <div class="kanban-attach-section__list">${files.map(attachRow).join('')}</div></div>`;
     }
     attRoot.innerHTML = html || '<p class="text-muted small">Keine Anhänge</p>';
+
+    attRoot.querySelectorAll('[data-lightbox-index]').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const idx = Number(el.getAttribute('data-lightbox-index'));
+        if (Number.isFinite(idx) && lightboxItems[idx]) {
+          openImageLightbox(lightboxItems, idx);
+        }
+      });
+    });
 
     attRoot.querySelectorAll('[data-set-cover]').forEach((btn) => {
       btn.addEventListener('click', async () => {
@@ -3178,7 +3217,6 @@
       const membersData = await api(`/kanban/api/boards/${boardId}/members`);
       if (membersData && membersData.members) {
         board.members = membersData.members;
-        renderBoardMembers();
         renderPortalUsersRows(membersData.members, !!membersData.can_transfer_ownership);
       }
     } catch (err) {
@@ -4321,15 +4359,24 @@
     }
   }
 
+  let notifRefreshTimer = null;
+  function scheduleNotificationsRefresh() {
+    if (notifRefreshTimer) clearTimeout(notifRefreshTimer);
+    notifRefreshTimer = setTimeout(() => {
+      notifRefreshTimer = null;
+      refreshNotificationsBadge();
+      const notifPanel = document.getElementById('kanbanNotificationsPanel');
+      if (notifPanel && notifPanel.classList.contains('show')) {
+        loadNotifications();
+      }
+    }, 800);
+  }
+
   function handleLiveEvent(msg) {
     const event = msg.event || '';
     const data = msg.data || msg;
 
-    refreshNotificationsBadge();
-    const notifPanel = document.getElementById('kanbanNotificationsPanel');
-    if (notifPanel && notifPanel.classList.contains('show')) {
-      loadNotifications();
-    }
+    scheduleNotificationsRefresh();
 
     if (event.includes('activity_added')) {
       return;
@@ -4374,15 +4421,23 @@
     }
   }
 
+  let lastBoardEtag = null;
+
   async function refreshBoard() {
     try {
-      const data = await api(`/kanban/api/boards/${boardId}`);
+      const headers = { 'X-Requested-With': 'XMLHttpRequest' };
+      if (shareToken) headers['X-Share-Token'] = shareToken;
+      if (lastBoardEtag) headers['If-None-Match'] = lastBoardEtag;
+      const res = await fetch(`/kanban/api/boards/${boardId}`, { headers });
+      if (res.status === 304 || !res.ok) return;
+      const etag = res.headers.get('ETag');
+      if (etag) lastBoardEtag = etag;
+      const data = await res.json();
       if (data.lists) {
         board.lists = data.lists;
         board.labels = data.labels || board.labels;
         board.members = data.members || board.members;
         if (data.custom_fields) board.custom_fields = data.custom_fields;
-        renderBoardMembers();
         renderBoard();
       }
     } catch (_) { /* ignore */ }
@@ -4694,6 +4749,233 @@
   });
   document.getElementById('kanbanBoardMoveBtn')?.addEventListener('click', () => {
     openTransferModal({ kind: 'board', action: 'move', id: boardId });
+  });
+
+  // ── Image Lightbox (over card detail modal) ────────────────────────────
+  const lbRoot = document.getElementById('kanbanImageLightbox');
+  const lbStage = document.getElementById('kanbanLightboxStage');
+  const lbImg = document.getElementById('kanbanLightboxImg');
+  const lbTitle = document.getElementById('kanbanLightboxTitle');
+  const lbMeta = document.getElementById('kanbanLightboxMeta');
+  const lbOpenTab = document.getElementById('kanbanLightboxOpenTab');
+  const lbDownload = document.getElementById('kanbanLightboxDownload');
+  const lbCloseBtn = document.getElementById('kanbanLightboxClose');
+  const lbZoomInBtn = document.getElementById('kanbanLightboxZoomIn');
+  const lbZoomOutBtn = document.getElementById('kanbanLightboxZoomOut');
+  const lbZoomResetBtn = document.getElementById('kanbanLightboxZoomReset');
+  const lbPrevBtn = document.getElementById('kanbanLightboxPrev');
+  const lbNextBtn = document.getElementById('kanbanLightboxNext');
+
+  let lbItems = [];
+  let lbIndex = 0;
+  let lbScale = 1;
+  let lbPanX = 0;
+  let lbPanY = 0;
+  let lbDragging = false;
+  let lbDragMoved = false;
+  let lbStartX = 0;
+  let lbStartY = 0;
+
+  function applyLightboxTransform() {
+    if (!lbImg) return;
+    lbImg.style.transform = `translate3d(${lbPanX}px, ${lbPanY}px, 0) scale(${lbScale})`;
+    lbImg.classList.toggle('is-zoomed', lbScale > 1.01);
+    if (lbZoomResetBtn) {
+      lbZoomResetBtn.textContent = `${Math.round(lbScale * 100)}%`;
+    }
+  }
+
+  function resetLightboxZoom() {
+    lbScale = 1;
+    lbPanX = 0;
+    lbPanY = 0;
+    applyLightboxTransform();
+  }
+
+  function setLightboxZoom(nextScale) {
+    lbScale = Math.min(4, Math.max(0.5, Number(nextScale) || 1));
+    if (lbScale <= 1.01) {
+      lbPanX = 0;
+      lbPanY = 0;
+    }
+    applyLightboxTransform();
+  }
+
+  function renderLightboxSlide() {
+    const item = lbItems[lbIndex];
+    if (!item || !lbImg) return;
+    resetLightboxZoom();
+    lbImg.src = item.src || '';
+    lbImg.alt = item.title || '';
+    if (lbTitle) lbTitle.textContent = item.title || '';
+    if (lbMeta) {
+      lbMeta.textContent = item.meta || '';
+      lbMeta.hidden = !item.meta;
+    }
+    if (lbOpenTab) {
+      lbOpenTab.href = item.openUrl || item.src || '#';
+      lbOpenTab.hidden = !(item.openUrl || item.src);
+    }
+    if (lbDownload) {
+      lbDownload.href = item.downloadUrl || item.src || '#';
+      lbDownload.hidden = !(item.downloadUrl || item.src);
+    }
+    const multi = lbItems.length > 1;
+    if (lbPrevBtn) lbPrevBtn.hidden = !multi;
+    if (lbNextBtn) lbNextBtn.hidden = !multi;
+  }
+
+  function onLightboxKeyDown(e) {
+    if (!lbRoot || lbRoot.hidden) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      closeImageLightbox();
+    } else if (e.key === 'ArrowLeft' && lbItems.length > 1) {
+      e.preventDefault();
+      lbIndex = (lbIndex - 1 + lbItems.length) % lbItems.length;
+      renderLightboxSlide();
+    } else if (e.key === 'ArrowRight' && lbItems.length > 1) {
+      e.preventDefault();
+      lbIndex = (lbIndex + 1) % lbItems.length;
+      renderLightboxSlide();
+    } else if (e.key === '+' || e.key === '=') {
+      e.preventDefault();
+      setLightboxZoom(lbScale + 0.25);
+    } else if (e.key === '-') {
+      e.preventDefault();
+      setLightboxZoom(lbScale - 0.25);
+    } else if (e.key === '0') {
+      e.preventDefault();
+      resetLightboxZoom();
+    }
+  }
+
+  function openImageLightbox(items, startIndex = 0) {
+    if (!lbRoot || !items || !items.length) return;
+    lbItems = items;
+    lbIndex = Math.max(0, Math.min(startIndex, items.length - 1));
+    renderLightboxSlide();
+    lbRoot.hidden = false;
+    document.addEventListener('keydown', onLightboxKeyDown, true);
+  }
+
+  function closeImageLightbox() {
+    if (!lbRoot || lbRoot.hidden) return;
+    lbRoot.hidden = true;
+    if (lbImg) lbImg.src = '';
+    document.removeEventListener('keydown', onLightboxKeyDown, true);
+  }
+
+  if (lbRoot) {
+    lbCloseBtn?.addEventListener('click', closeImageLightbox);
+    lbZoomInBtn?.addEventListener('click', () => setLightboxZoom(lbScale + 0.25));
+    lbZoomOutBtn?.addEventListener('click', () => setLightboxZoom(lbScale - 0.25));
+    lbZoomResetBtn?.addEventListener('click', resetLightboxZoom);
+    lbPrevBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (lbItems.length < 2) return;
+      lbIndex = (lbIndex - 1 + lbItems.length) % lbItems.length;
+      renderLightboxSlide();
+    });
+    lbNextBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (lbItems.length < 2) return;
+      lbIndex = (lbIndex + 1) % lbItems.length;
+      renderLightboxSlide();
+    });
+
+    lbStage?.addEventListener('click', (e) => {
+      if (lbDragMoved) {
+        lbDragMoved = false;
+        return;
+      }
+      if (e.target === lbStage) {
+        closeImageLightbox();
+      }
+    });
+
+    lbStage?.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const delta = e.deltaY < 0 ? 0.2 : -0.2;
+      setLightboxZoom(lbScale + delta);
+    }, { passive: false });
+
+    lbImg?.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      if (lbScale > 1.05) {
+        resetLightboxZoom();
+      } else {
+        setLightboxZoom(2);
+      }
+    });
+
+    lbImg?.addEventListener('pointerdown', (e) => {
+      if (lbScale <= 1.01) return;
+      lbDragging = true;
+      lbDragMoved = false;
+      lbStartX = e.clientX - lbPanX;
+      lbStartY = e.clientY - lbPanY;
+      lbImg.classList.add('is-dragging');
+      lbImg.setPointerCapture?.(e.pointerId);
+    });
+
+    lbImg?.addEventListener('pointermove', (e) => {
+      if (!lbDragging) return;
+      lbDragMoved = true;
+      lbPanX = e.clientX - lbStartX;
+      lbPanY = e.clientY - lbStartY;
+      applyLightboxTransform();
+    });
+
+    const stopDrag = () => {
+      if (!lbDragging) return;
+      lbDragging = false;
+      lbImg?.classList.remove('is-dragging');
+    };
+    lbImg?.addEventListener('pointerup', stopDrag);
+    lbImg?.addEventListener('pointercancel', stopDrag);
+  }
+
+  document.getElementById('cardModalCover')?.addEventListener('click', (e) => {
+    const img = e.target.closest('img');
+    if (!img || !currentCardDetail || !currentCardDetail.cover) return;
+    const attachments = (currentCardDetail.attachments || [])
+      .filter((a) => a && a.is_image && (a.preview_url || a.url) && a.portal_file_access !== false);
+    const items = attachments.map((a) => ({
+      id: a.id,
+      src: a.preview_url || a.url,
+      title: a.filename || '',
+      meta: a.created_at ? formatAddedAt(a.created_at) : '',
+      openUrl: a.is_link ? a.url : (a.preview_url || a.url),
+      downloadUrl: a.url || a.preview_url,
+    }));
+    const coverId = currentCardDetail.cover_attachment_id || currentCardDetail.cover.id;
+    const idx = items.findIndex((x) => Number(x.id) === Number(coverId));
+    if (idx >= 0) {
+      openImageLightbox(items, idx);
+    } else {
+      const c = currentCardDetail.cover;
+      openImageLightbox([{
+        id: c.id,
+        src: c.preview_url || c.url,
+        title: c.filename || '',
+        meta: c.created_at ? formatAddedAt(c.created_at) : '',
+        openUrl: c.is_link ? c.url : (c.preview_url || c.url),
+        downloadUrl: c.url || c.preview_url,
+      }], 0);
+    }
+  });
+
+  document.getElementById('cardModalDescriptionView')?.addEventListener('click', (e) => {
+    const img = e.target.closest('img');
+    if (!img) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const src = img.getAttribute('src') || '';
+    if (!src) return;
+    const title = img.getAttribute('alt') || src.split('/').pop()?.split('?')[0] || '';
+    openImageLightbox([{ src, title, openUrl: src, downloadUrl: src }], 0);
   });
 
   renderBoardMembers();

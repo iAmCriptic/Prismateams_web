@@ -75,6 +75,8 @@ CRITICAL_TABLES = (
     "survey_response_locks",
     "protocols",
     "protocol_agenda_items",
+    "protocol_templates",
+    "protocol_template_agenda_items",
     "meetings",
     "meeting_invites",
     "duty_rosters",
@@ -133,7 +135,12 @@ def import_all_models() -> None:
         SurveyEmailVerification,
         SurveyResponseLock,
     )
-    from app.models.protocol import Protocol, ProtocolAgendaItem  # noqa: F401
+    from app.models.protocol import (  # noqa: F401
+        Protocol,
+        ProtocolAgendaItem,
+        ProtocolTemplate,
+        ProtocolTemplateAgendaItem,
+    )
     from app.models.meetings import Meeting, MeetingInvite  # noqa: F401
 
 

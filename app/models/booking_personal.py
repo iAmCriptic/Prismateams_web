@@ -422,6 +422,28 @@ class BookingPersonalEntry(db.Model):
             self.status = str(value)
 
     @staticmethod
+    def format_currency_value(val):
+        """Normalisiert Währungswerte auf das Format €X.XX (oder '' wenn leer)."""
+        if val is None:
+            return ''
+        s = str(val).strip()
+        if not s or s == '-':
+            return ''
+        cleaned = s.replace('€', '').replace(' ', '')
+        if '.' in cleaned and ',' in cleaned:
+            if cleaned.rfind(',') > cleaned.rfind('.'):
+                cleaned = cleaned.replace('.', '').replace(',', '.')
+            else:
+                cleaned = cleaned.replace(',', '')
+        elif ',' in cleaned:
+            cleaned = cleaned.replace(',', '.')
+        try:
+            num = float(cleaned)
+            return f'€{num:.2f}'
+        except (ValueError, TypeError):
+            return s
+
+    @staticmethod
     def _is_truthy(val):
         if isinstance(val, bool):
             return val

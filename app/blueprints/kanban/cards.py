@@ -265,10 +265,10 @@ def api_move_card(board_id):
     lst = KanbanList.query.filter_by(id=list_id, board_id=board.id).first_or_404()
     card.list_id = lst.id
     card.position = position
-    # compact sibling positions
+    # compact sibling positions among active (non-archived) cards
     siblings = (
         KanbanCard.query.filter_by(list_id=lst.id)
-        .filter(KanbanCard.id != card.id)
+        .filter(KanbanCard.archived_at.is_(None), KanbanCard.id != card.id)
         .order_by(KanbanCard.position)
         .all()
     )
@@ -278,6 +278,8 @@ def api_move_card(board_id):
     if old_list_id != lst.id:
         _log_activity(board.id, 'card_moved', detail=f"{old_list_title} → {lst.title}", card_id=card.id)
     db.session.commit()
+    from app.blueprints.kanban.helpers import _card_board_summary_load_options, _reload_with_options
+    card = _reload_with_options(KanbanCard, card, *_card_board_summary_load_options())
     payload = _serialize_card_summary(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_moved', payload)
     _enqueue_kanban_notify(board, card.id, 'change', push_suffix=f'move:{card.id}:{int(portal_now_naive().timestamp())}')

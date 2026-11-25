@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('protocols.templates.title') }}{% endblock %}
+
+{% block navbar_search %}
+<form method="GET" action="{{ url_for('protocols.templates_index') }}" class="mod-search mod-search--icon" role="search">
+    {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
+    {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
+    <input type="search"
+           name="q"
+           value="{{ search_query|default('') }}"
+           class="form-control mod-search-input"
+           placeholder="{{ _('protocols.templates.search_placeholder') }}"
+           aria-label="{{ _('protocols.templates.search_placeholder') }}"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+    {% if search_query %}
+    <a href="{{ url_for('protocols.templates_index', view=section_filter if section_filter and section_filter != 'all' else none, team_id=filter_team_id or none) }}"
+       class="btn mod-search-clear"
+       aria-label="{{ _('common.cancel') }}">
+        <i class="bi bi-x-lg"></i>
+    </a>
+    {% endif %}
+</form>
+{% endblock %}
+
+{% block content %}
+{% from 'protocols/_sidebar.html' import protocols_sidebar_chrome, protocols_template_create_url with context %}
+{% set create_tpl_url = protocols_template_create_url() %}
+
+<div class="protocols-shell mod-shell--nav">
+    <aside class="mod-sidebar d-none d-lg-flex flex-column">
+        <div class="mod-sidebar-brand">
+            <i class="bi bi-journal-richtext" aria-hidden="true"></i>
+            <span>{{ _('protocols.nav.title') }}</span>
+        </div>
+        {{ protocols_sidebar_chrome() }}
+    </aside>
+
+    <div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="protocolsMobileNav" aria-labelledby="protocolsMobileNavLabel">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title d-flex align-items-center gap-2" id="protocolsMobileNavLabel">
+                <i class="bi bi-journal-richtext" aria-hidden="true"></i>
+                <span>{{ _('protocols.nav.title') }}</span>
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+        </div>
+        <div class="offcanvas-body pt-0">
+            {{ protocols_sidebar_chrome(id_suffix='-mobile', dismiss_offcanvas=true, include_new=false) }}
+        </div>
+    </div>
+
+    <div class="mod-main protocols-main flex-grow-1 min-width-0">
+        <div class="mod-mobile-topbar d-lg-none mb-3">
+            <div class="d-flex justify-content-between align-items-center gap-2">
+                <div class="d-flex align-items-center min-width-0 gap-2">
+                    <button type="button" class="btn btn-outline-secondary mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#protocolsMobileNav" aria-controls="protocolsMobileNav" aria-label="{{ _('protocols.index.nav.menu') }}">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <h1 class="h5 mb-0 text-truncate mod-mobile-title">
+                        <i class="bi bi-file-earmark-ruled" aria-hidden="true"></i>
+                        <span>{{ _('protocols.templates.title') }}</span>
+                    </h1>
+                </div>
+                <a href="{{ create_tpl_url }}" class="btn mod-new-btn btn-sm flex-shrink-0">
+                    <i class="bi bi-plus-lg"></i> {{ _('protocols.templates.new') }}
+                </a>
+            </div>
+            <div class="mt-2">
+                <form method="GET" action="{{ url_for('protocols.templates_index') }}" class="mod-search mod-search--icon" role="search">
+                    {% if section_filter and section_filter != 'all' %}<input type="hidden" name="view" value="{{ section_filter }}">{% endif %}
+                    {% if filter_team_id %}<input type="hidden" name="team_id" value="{{ filter_team_id }}">{% endif %}
+                    <i class="bi bi-search mod-search-icon" aria-hidden="true"></i>
+                    <input type="search" name="q" value="{{ search_query|default('') }}" class="form-control mod-search-input" placeholder="{{ _('protocols.templates.search_placeholder') }}" autocomplete="off">
+                </form>
+            </div>
+        </div>
+
+        <div class="row mb-3 mb-lg-4 page-toolbar-row align-items-center g-3 d-none d-lg-flex">
+            <div class="col min-width-0">
+                <h1 class="h4 mb-0 text-truncate">{{ _('protocols.templates.title') }}</h1>
+            </div>
+            <div class="col-auto">
+                <a href="{{ create_tpl_url }}" class="btn btn-accent rounded-pill mod-pill-btn">
+                    <i class="bi bi-plus-lg"></i> {{ _('protocols.templates.new') }}
+                </a>
+            </div>
+        </div>
+
+        {% if templates %}
+        <div id="protocolsTemplatesStage"
+             data-lazy-more
+             data-lazy-silent="1"
+             data-lazy-page="{{ list_page|default(1) }}"
+             data-lazy-has-more="{{ '1' if list_has_more|default(false) else '0' }}"
+             data-lazy-param="page"
+             data-lazy-items="[data-lazy-item]"
+             data-lazy-targets="#protocolsTemplatesBody">
+        <div class="mod-list-table-wrap">
+            <table class="table mod-list-table align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th scope="col">{{ _('protocols.index.list.title') }}</th>
+                        <th scope="col" class="d-none d-sm-table-cell">{{ _('protocols.templates.members_label') }}</th>
+                        <th scope="col">{{ _('protocols.agenda.title') }}</th>
+                        <th scope="col" class="d-none d-md-table-cell">{{ _('protocols.index.list.visibility') }}</th>
+                        <th scope="col" class="text-end">{{ _('common.actions') }}</th>
+                    </tr>
+                </thead>
+                <tbody id="protocolsTemplatesBody">
+                    {% for tpl in templates %}
+                    {% set can_edit = can_edit_template(tpl) %}
+                    <tr class="mod-list-row" data-lazy-item>
+                        <td>
+                            <a class="mod-list-name text-decoration-none d-inline-flex align-items-center gap-2 min-width-0" href="{{ url_for('protocols.start_from_template', template_id=tpl.id) }}">
+                                <i class="bi bi-file-earmark-ruled flex-shrink-0 text-muted"></i>
+                                <span class="text-truncate">{{ tpl.title }}</span>
+                            </a>
+                        </td>
+                        <td class="text-muted d-none d-sm-table-cell">
+                            {{ _('protocols.templates.members_count', count=tpl.members_list()|length) }}
+                        </td>
+                        <td class="text-muted">
+                            {{ _('protocols.templates.tops_count', count=tpl.agenda_items|length) }}
+                        </td>
+                        <td class="d-none d-md-table-cell">
+                            <span class="protocols-status-chip protocols-status-chip--scope">{{ visibility_label(tpl) }}</span>
+                        </td>
+                        <td class="text-end">
+                            <div class="mod-list-actions d-inline-flex align-items-center gap-2">
+                                <a href="{{ url_for('protocols.start_from_template', template_id=tpl.id) }}"
+                                   class="btn btn-sm btn-accent rounded-pill mod-pill-btn">
+                                    <i class="bi bi-play-fill"></i>
+                                    <span class="d-none d-md-inline">{{ _('protocols.templates.start_action') }}</span>
+                                </a>
+                                {% if can_edit %}
+                                <div class="dropdown d-inline-block">
+                                    <button class="btn btn-sm" type="button" data-bs-toggle="dropdown" data-bs-popper-config='{"strategy":"fixed"}' aria-expanded="false" aria-label="{{ _('common.actions') }}">
+                                        <i class="bi bi-three-dots-vertical"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end mod-dropdown-menu">
+                                        <li>
+                                            <a class="dropdown-item" href="{{ url_for('protocols.template_edit', template_id=tpl.id) }}">
+                                                <i class="bi bi-pencil me-2"></i>{{ _('protocols.index.edit') }}
+                                            </a>
+                                        </li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li>
+                                            <form method="POST" action="{{ url_for('protocols.template_delete', template_id=tpl.id) }}" class="d-inline">
+                                                <button type="submit" class="dropdown-item text-danger" data-confirm-delete="{{ _('protocols.templates.delete_confirm') }}">
+                                                    <i class="bi bi-trash me-2"></i>{{ _('common.delete') }}
+                                                </button>
+                                            </form>
+                                        </li>
+                                    </ul>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include 'partials/mod_lazy_more.html' %}
+        </div>
+        {% else %}
+        <div class="protocols-empty mod-empty-state">
+            <i class="bi bi-file-earmark-ruled protocols-empty-icon" aria-hidden="true"></i>
+            <p>{{ _('protocols.templates.empty') }}</p>
+            <a href="{{ create_tpl_url }}" class="btn btn-accent rounded-pill mod-pill-btn">{{ _('protocols.templates.new') }}</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/lazy-load-more.js') }}"></script>
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+<script>
+(function () {
+    document.querySelectorAll('[data-protocols-dismiss-offcanvas]').forEach(function (el) {
+        el.addEventListener('click', function () {
+            var offcanvasEl = document.getElementById('protocolsMobileNav');
+            if (offcanvasEl && window.bootstrap) {
+                var instance = bootstrap.Offcanvas.getInstance(offcanvasEl);
+                if (instance) instance.hide();
+            }
+        });
+    });
+})();
+</script>
+{% endblock %}

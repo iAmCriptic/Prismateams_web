@@ -23,7 +23,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
@@ -105,7 +105,7 @@ def index():
     search_query = (request.args.get('q') or '').strip()
     base = (
         accessible_boards_query(current_user, include_closed=False)
-        .options(joinedload(KanbanBoard.team))
+        .options(joinedload(KanbanBoard.team), selectinload(KanbanBoard.members))
         .order_by(KanbanBoard.updated_at.desc())
     )
     if search_query:
@@ -122,7 +122,10 @@ def index():
 
     recent_views = (
         KanbanBoardView.query.filter_by(user_id=current_user.id)
-        .options(joinedload(KanbanBoardView.board).joinedload(KanbanBoard.team))
+        .options(
+            joinedload(KanbanBoardView.board).joinedload(KanbanBoard.team),
+            joinedload(KanbanBoardView.board).selectinload(KanbanBoard.members),
+        )
         .order_by(KanbanBoardView.viewed_at.desc())
         .limit(8)
         .all()
@@ -272,6 +275,7 @@ def index():
 def closed_boards():
     boards = (
         accessible_boards_query(current_user, include_closed=True)
+        .options(joinedload(KanbanBoard.team), selectinload(KanbanBoard.members))
         .filter(KanbanBoard.closed_at.isnot(None))
         .order_by(KanbanBoard.closed_at.desc())
         .all()

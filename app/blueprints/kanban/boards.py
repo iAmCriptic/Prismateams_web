@@ -22,6 +22,7 @@ from flask import (
     url_for,
 )
 from flask_login import current_user, login_required
+from sqlalchemy.orm import selectinload
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
@@ -128,6 +129,17 @@ def api_create_board():
         background = 'teal'
 
     template_id = data.get('template_id')
+    tmpl = None
+    if template_id not in (None, ''):
+        parsed_tid = _parse_int(template_id)
+        if parsed_tid is None:
+            return jsonify({'error': 'Invalid template_id'}), 400
+        tmpl = db.session.get(KanbanBoardTemplate, parsed_tid)
+        if not tmpl:
+            return jsonify({'error': 'Template not found'}), 404
+        if not (tmpl.is_global or tmpl.created_by == current_user.id):
+            return jsonify({'error': 'Forbidden'}), 403
+
     board = KanbanBoard(
         title=title,
         description=(data.get('description') or '').strip() or None,
@@ -150,26 +162,24 @@ def api_create_board():
     ]):
         db.session.add(KanbanLabel(board_id=board.id, name=name, color=color, position=i))
 
-    if template_id:
-        tmpl = KanbanBoardTemplate.query.get(int(template_id))
-        if tmpl:
-            try:
-                payload = json.loads(tmpl.payload_json or '{}')
-                for i, lst in enumerate(payload.get('lists') or []):
-                    db.session.add(KanbanList(
-                        board_id=board.id,
-                        title=lst.get('title') or f'Liste {i + 1}',
-                        position=i,
-                    ))
-                for i, lb in enumerate(payload.get('labels') or []):
-                    db.session.add(KanbanLabel(
-                        board_id=board.id,
-                        name=lb.get('name') or 'Label',
-                        color=lb.get('color') or '#0d6efd',
-                        position=10 + i,
-                    ))
-            except Exception:
-                pass
+    if tmpl:
+        try:
+            payload = json.loads(tmpl.payload_json or '{}')
+            for i, lst in enumerate(payload.get('lists') or []):
+                db.session.add(KanbanList(
+                    board_id=board.id,
+                    title=lst.get('title') or f'Liste {i + 1}',
+                    position=i,
+                ))
+            for i, lb in enumerate(payload.get('labels') or []):
+                db.session.add(KanbanLabel(
+                    board_id=board.id,
+                    name=lb.get('name') or 'Label',
+                    color=lb.get('color') or '#0d6efd',
+                    position=10 + i,
+                ))
+        except Exception:
+            pass
     else:
         for i, title_l in enumerate(['To Do', 'In Arbeit', 'Erledigt']):
             db.session.add(KanbanList(board_id=board.id, title=title_l, position=i))
@@ -312,7 +322,18 @@ def api_board(board_id):
         return err
 
     if request.method == 'GET':
-        return jsonify(_serialize_board(board, full=True, share_token=_share_token_from_request()))
+        import hashlib
+        payload = _serialize_board(board, full=True, share_token=_share_token_from_request())
+        body = json.dumps(payload, sort_keys=True, separators=(',', ':')).encode('utf-8')
+        etag = hashlib.sha256(body).hexdigest()[:32]
+        if request.if_none_match.contains(etag):
+            resp = current_app.response_class(status=304)
+            resp.set_etag(etag)
+            return resp
+        resp = current_app.response_class(body, status=200, mimetype='application/json')
+        resp.set_etag(etag)
+        resp.headers['Cache-Control'] = 'no-cache'
+        return resp
 
     if request.method == 'DELETE':
         if not can_manage_board(current_user, board):
@@ -393,8 +414,18 @@ def api_board(board_id):
         board.closed_at = portal_now_naive() if data['closed'] else None
         _log_activity(board.id, 'board_closed' if board.closed_at else 'board_reopened')
     db.session.commit()
-    _emit_board(board.id, 'board_updated', _serialize_board(board, full=True))
-    return jsonify({'success': True, 'board': _serialize_board(board, full=True)})
+    payload = _serialize_board(board, full=True)
+    _emit_board(board.id, 'board_updated', payload)
+    return jsonify({'success': True, 'board': payload})
+
+
+_SAFE_BOARD_COVER_MIMES = frozenset({
+    'image/png',
+    'image/jpeg',
+    'image/jpg',
+    'image/gif',
+    'image/webp',
+})
 
 
 @kanban_bp.route('/boards/<int:board_id>/background')
@@ -411,8 +442,13 @@ def board_background(board_id):
         if url.startswith(('http://', 'https://')):
             return redirect(url)
         return ('', 404)
-    mime = mimetypes.guess_type(path)[0] or 'image/jpeg'
-    return send_file(path, mimetype=mime, conditional=True)
+    mime = (mimetypes.guess_type(path)[0] or 'image/jpeg').split(';', 1)[0].strip().lower()
+    if mime in _SAFE_BOARD_COVER_MIMES:
+        resp = send_file(path, mimetype=mime, conditional=True)
+    else:
+        resp = send_file(path, as_attachment=True, download_name=os.path.basename(path))
+    resp.headers['X-Content-Type-Options'] = 'nosniff'
+    return resp
 
 
 @kanban_bp.route('/api/boards/<int:board_id>/background', methods=['POST', 'DELETE'])
@@ -435,15 +471,24 @@ def api_board_background(board_id):
     if not f or not f.filename:
         return jsonify({'error': 'No file'}), 400
     original = secure_filename(f.filename) or 'background.jpg'
-    mime = f.mimetype or mimetypes.guess_type(original)[0] or ''
-    if not mime.startswith('image/'):
-        return jsonify({'error': 'Image required'}), 400
+    mime = (mimetypes.guess_type(original)[0] or f.mimetype or '').split(';', 1)[0].strip().lower()
+    if mime not in _SAFE_BOARD_COVER_MIMES:
+        return jsonify({'error': 'Unsupported image type'}), 400
     stored = f'{uuid.uuid4().hex}_{original}'
     path = os.path.join(_boards_upload_root(), stored)
     _delete_board_cover_file(board)
     f.save(path)
     board.cover_path = path
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        try:
+            if os.path.isfile(path):
+                os.remove(path)
+        except OSError:
+            pass
+        raise
     payload = _serialize_board(board, full=True)
     _emit_board(board.id, 'board_updated', payload)
     return jsonify({'success': True, 'board': payload}), 201
@@ -537,10 +582,18 @@ def api_reorder_lists(board_id):
     elif not isinstance(raw_order, list):
         return jsonify({'error': 'order must be a list'}), 400
     order = _parse_int_list(raw_order)
-    for i, lid in enumerate(order):
-        lst = KanbanList.query.filter_by(id=lid, board_id=board.id).first()
-        if lst:
-            lst.position = i
+    if order:
+        lists_by_id = {
+            lst.id: lst
+            for lst in KanbanList.query.filter(
+                KanbanList.board_id == board.id,
+                KanbanList.id.in_(order),
+            ).all()
+        }
+        for i, lid in enumerate(order):
+            lst = lists_by_id.get(lid)
+            if lst:
+                lst.position = i
     db.session.commit()
     _emit_board(board.id, 'lists_reordered', {'order': order})
     return jsonify({'success': True})
@@ -661,15 +714,22 @@ def api_move_board(board_id):
     if not visibility_allowed(vis, current_user):
         return jsonify({'error': 'Visibility not allowed'}), 403
 
-    board.visibility = vis
     if vis == VISIBILITY_TEAM:
         raw_tid = data.get('team_id')
         try:
-            board.team_id = int(raw_tid) if raw_tid else None
+            team_id = int(raw_tid) if raw_tid else None
         except (TypeError, ValueError):
             return jsonify({'error': 'Invalid team_id'}), 400
+        if not team_id:
+            return jsonify({'error': 'Team required'}), 400
+        if not db.session.get(Team, team_id):
+            return jsonify({'error': 'Team not found'}), 404
+        if not _user_may_use_team(current_user, team_id):
+            return jsonify({'error': 'Forbidden'}), 403
+        board.team_id = team_id
     else:
         board.team_id = None
+    board.visibility = vis
 
     if 'position' in data and data.get('position') is not None:
         try:
@@ -687,8 +747,12 @@ def api_move_board(board_id):
 def api_transfer_targets():
     """Return editable boards with their active lists and cards for copy/move modals."""
     include_cards = request.args.get('include_cards') == '1'
+    list_opt = selectinload(KanbanBoard.lists)
+    if include_cards:
+        list_opt = list_opt.selectinload(KanbanList.cards)
     boards = (
         accessible_boards_query(current_user, include_closed=False)
+        .options(selectinload(KanbanBoard.members), list_opt)
         .order_by(KanbanBoard.position.asc(), KanbanBoard.title.asc())
         .all()
     )
@@ -712,12 +776,17 @@ def api_transfer_targets():
             'lists': lists_data,
         })
     allowed_vis = get_allowed_visibilities(current_user)
-    teams_q = Team.query.order_by(Team.name.asc()).all()
-    if not getattr(current_user, 'is_admin', False):
-        member_tids = {
+    if getattr(current_user, 'is_admin', False):
+        teams_q = Team.query.order_by(Team.name.asc()).all()
+    else:
+        member_tids = [
             tm.team_id for tm in TeamMember.query.filter_by(user_id=current_user.id).all()
-        }
-        teams_q = [t for t in teams_q if t.id in member_tids]
+        ]
+        teams_q = (
+            Team.query.filter(Team.id.in_(member_tids)).order_by(Team.name.asc()).all()
+            if member_tids
+            else []
+        )
     return jsonify({
         'boards': out,
         'allowed_visibilities': allowed_vis,

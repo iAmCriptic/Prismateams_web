@@ -1116,6 +1116,48 @@
   </div>
 </div>
 
+{# Image Lightbox overlay (above card detail modal) #}
+<div class="kanban-lightbox" id="kanbanImageLightbox" hidden role="dialog" aria-modal="true" aria-labelledby="kanbanLightboxTitle">
+  <div class="kanban-lightbox__topbar">
+    <div class="kanban-lightbox__zoom-controls">
+      <button type="button" class="kanban-lightbox__btn" id="kanbanLightboxZoomOut" aria-label="{{ _('mail.reader.zoom.out') }}" title="{{ _('mail.reader.zoom.out') }}">
+        <i class="bi bi-zoom-out" aria-hidden="true"></i>
+      </button>
+      <button type="button" class="kanban-lightbox__btn kanban-lightbox__btn--text" id="kanbanLightboxZoomReset" title="{{ _('mail.reader.zoom.reset') }}">100%</button>
+      <button type="button" class="kanban-lightbox__btn" id="kanbanLightboxZoomIn" aria-label="{{ _('mail.reader.zoom.in') }}" title="{{ _('mail.reader.zoom.in') }}">
+        <i class="bi bi-zoom-in" aria-hidden="true"></i>
+      </button>
+    </div>
+    <button type="button" class="kanban-lightbox__btn kanban-lightbox__close" id="kanbanLightboxClose" aria-label="{{ _('common.close') }}" title="{{ _('common.close') }}">
+      <i class="bi bi-x-lg" aria-hidden="true"></i>
+    </button>
+  </div>
+
+  <button type="button" class="kanban-lightbox__nav kanban-lightbox__nav--prev" id="kanbanLightboxPrev" hidden aria-label="Previous">
+    <i class="bi bi-chevron-left" aria-hidden="true"></i>
+  </button>
+  <button type="button" class="kanban-lightbox__nav kanban-lightbox__nav--next" id="kanbanLightboxNext" hidden aria-label="Next">
+    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+  </button>
+
+  <div class="kanban-lightbox__stage" id="kanbanLightboxStage">
+    <img class="kanban-lightbox__img" id="kanbanLightboxImg" src="" alt="" draggable="false">
+  </div>
+
+  <div class="kanban-lightbox__footer">
+    <div class="kanban-lightbox__title" id="kanbanLightboxTitle"></div>
+    <div class="kanban-lightbox__meta" id="kanbanLightboxMeta" hidden></div>
+    <div class="kanban-lightbox__actions">
+      <a class="kanban-lightbox__action" id="kanbanLightboxOpenTab" href="#" target="_blank" rel="noopener">
+        <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> {{ _('kanban.card.view') }}
+      </a>
+      <a class="kanban-lightbox__action" id="kanbanLightboxDownload" href="#" target="_blank" rel="noopener" download>
+        <i class="bi bi-download" aria-hidden="true"></i> {{ _('kanban.card.download') }}
+      </a>
+    </div>
+  </div>
+</div>
+
 <script>window.MARKDOWN_EDITOR_I18N = {{ i18n_ns('markdown', 'editor')|tojson }};</script>
 <script src="{{ url_for('static', filename='js/markdown-toolbar.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>

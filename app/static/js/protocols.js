@@ -435,9 +435,68 @@
         el.classList.add('protocols-ql-toolbar', 'ql-toolbar', 'ql-snow');
     }
 
+    function initAttendanceChecklist() {
+        var container = document.querySelector('[data-attendance-checklist]');
+        if (!container) return;
+
+        var rows = container.querySelectorAll('[data-attendance-row]');
+
+        function setRowStatus(row, status) {
+            var checkbox = row.querySelector('[data-member-present]');
+            var statusInput = row.querySelector('[data-member-status]');
+            var pills = row.querySelectorAll('[data-absent-choice]');
+            if (!statusInput || !checkbox) return;
+
+            if (status === 'present') {
+                checkbox.checked = true;
+                row.classList.add('is-present');
+                statusInput.value = 'present';
+            } else {
+                checkbox.checked = false;
+                row.classList.remove('is-present');
+                var choice = status === 'excused' ? 'excused' : 'absent';
+                statusInput.value = choice;
+                pills.forEach(function (pill) {
+                    pill.classList.toggle('is-selected', pill.getAttribute('data-absent-choice') === choice);
+                });
+            }
+        }
+
+        rows.forEach(function (row) {
+            var checkbox = row.querySelector('[data-member-present]');
+            var pills = row.querySelectorAll('[data-absent-choice]');
+            if (checkbox) {
+                checkbox.addEventListener('change', function () {
+                    if (checkbox.checked) {
+                        setRowStatus(row, 'present');
+                    } else {
+                        var selected = row.querySelector('[data-absent-choice].is-selected');
+                        setRowStatus(row, selected ? selected.getAttribute('data-absent-choice') : 'absent');
+                    }
+                });
+            }
+            pills.forEach(function (pill) {
+                pill.addEventListener('click', function () {
+                    var choice = pill.getAttribute('data-absent-choice') || 'absent';
+                    setRowStatus(row, choice);
+                });
+            });
+        });
+
+        container.querySelectorAll('[data-attendance-all]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var target = btn.getAttribute('data-attendance-all');
+                rows.forEach(function (row) {
+                    setRowStatus(row, target === 'present' ? 'present' : 'absent');
+                });
+            });
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         initChipFields();
         initAgenda();
+        initAttendanceChecklist();
         initQuillEditor();
     });
 })();

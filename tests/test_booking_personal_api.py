@@ -617,3 +617,52 @@ def test_booking_personal_mobile_navigation(client, app):
     assert 'mod-mobile-topbar' in html_settings
     assert 'id="bpMobileNav"' in html_settings
 
+
+def test_currency_formatting_on_save_and_render(client, app):
+    with app.app_context():
+        _login_test_user(client)
+
+        event = BookingPersonalEvent(name='Currency Test Event')
+        db.session.add(event)
+        db.session.flush()
+        apply_template_to_event(event, FESTIVAL_STANDARD_FIELDS, db.session)
+
+        entry = BookingPersonalEntry(event=event, name='DJ Euro')
+        # Unformatierter Bestandswert in DB
+        entry.set_value('gage', '150')
+        entry.set_value('booking_fee', '50')
+        db.session.add(entry)
+        db.session.commit()
+        event_id = event.id
+        entry_id = entry.id
+
+    # 1. SSR-Rendering formatiert auch unformatierte Bestandswerte als €-Betrag
+    resp = client.get(f'/booking-personal/?event_id={event_id}')
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert '€150.00' in html
+    assert '€50.00' in html
+
+    # 2. Inline-Cell-Save normalisiert rohe Zahlenwerte (inkl. Komma) auf €X.XX
+    res = client.post(
+        f'/booking-personal/api/entry/{entry_id}/cell',
+        data=json.dumps({'field_key': 'booking_fee', 'value': '75,5'}),
+        content_type='application/json'
+    )
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data['success'] is True
+    assert data['updated_custom_data']['booking_fee'] == '€75.50'
+
+    # 3. Update-All normalisiert ebenfalls Währungsfelder
+    res_all = client.post(
+        f'/booking-personal/api/entry/{entry_id}/update-all',
+        data=json.dumps({'gage': '200'}),
+        content_type='application/json'
+    )
+    assert res_all.status_code == 200
+    data_all = res_all.get_json()
+    assert data_all['success'] is True
+    assert data_all['entry']['custom_data']['gage'] == '€200.00'
+
+

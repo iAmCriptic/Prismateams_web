@@ -32,6 +32,36 @@
     </header>
 
     <div class="protocols-workspace-body protocols-workspace-body--scroll">
+        {% if not editing and templates %}
+        <div class="protocols-form protocols-form--wide mb-3">
+            <section class="protocols-form-card">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                    <div>
+                        <h2 class="h6 mb-0 d-flex align-items-center gap-2">
+                            <i class="bi bi-file-earmark-ruled text-muted" aria-hidden="true"></i>
+                            <span>{{ _('protocols.templates.pick_heading') }}</span>
+                        </h2>
+                        <p class="text-muted small mb-0">{{ _('protocols.templates.pick_hint') }}</p>
+                    </div>
+                    <a href="{{ url_for('protocols.templates_index') }}" class="btn btn-sm mod-pill-btn">
+                        <i class="bi bi-sliders"></i> {{ _('protocols.templates.nav') }}
+                    </a>
+                </div>
+                <div class="protocols-template-quicklist">
+                    {% for tpl in templates %}
+                    <a href="{{ url_for('protocols.start_from_template', template_id=tpl.id) }}" class="protocols-template-quickcard">
+                        <div class="protocols-template-quickcard-title text-truncate">{{ tpl.title }}</div>
+                        <div class="protocols-template-quickcard-meta">
+                            <span>{{ _('protocols.templates.tops_count', count=tpl.agenda_items|length) }}</span>
+                            <span>·</span>
+                            <span>{{ _('protocols.templates.members_count', count=tpl.members_list()|length) }}</span>
+                        </div>
+                    </a>
+                    {% endfor %}
+                </div>
+            </section>
+        </div>
+        {% endif %}
         <form method="POST" class="protocols-form protocols-form--wide" id="protocolsMetaForm" action="{{ form_action }}">
             <section class="protocols-form-card">
                 <div class="protocols-form-fields">

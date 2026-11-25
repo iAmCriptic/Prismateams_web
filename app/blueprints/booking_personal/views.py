@@ -506,6 +506,10 @@ def api_save_cell(entry_id):
     if not field_key:
         return jsonify({'success': False, 'error': 'field_key fehlt'}), 400
 
+    field_obj = next((f for f in entry.event.fields if f.field_key == field_key), None)
+    if field_obj and field_obj.field_type == 'currency':
+        value = BookingPersonalEntry.format_currency_value(value)
+
     entry.set_value(field_key, value)
     entry.compute_formula_values(entry.event.fields)
     db.session.commit()
@@ -701,7 +705,11 @@ def api_update_entry_all(entry_id):
     entry = BookingPersonalEntry.query.get_or_404(entry_id)
     data = request.get_json() or {}
 
+    fields_by_key = {f.field_key: f for f in entry.event.fields}
     for k, v in data.items():
+        field_obj = fields_by_key.get(k)
+        if field_obj and field_obj.field_type == 'currency':
+            v = BookingPersonalEntry.format_currency_value(v)
         entry.set_value(k, v)
 
     entry.compute_formula_values(entry.event.fields)

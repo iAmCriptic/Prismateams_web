@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('protocols.templates.edit_title') if editing else _('protocols.templates.new') }}{% endblock %}
+
+{% block content %}
+{% from 'protocols/_workspace_chrome.html' import protocols_chrome_nav, protocols_chrome_brand with context %}
+{% set templates_url = url_for('protocols.templates_index') %}
+{% set form_action = url_for('protocols.template_edit', template_id=template.id) if editing else url_for('protocols.template_create') %}
+
+<div class="protocols-workspace">
+    <header class="mod-toolbar protocols-workspace-toolbar">
+        <div class="protocols-workspace-toolbar-start">
+            {{ protocols_chrome_nav(back_url=templates_url, close_url=templates_url) }}
+            {{ protocols_chrome_brand(
+                'bi-file-earmark-ruled',
+                _('protocols.templates.edit_title') if editing else _('protocols.templates.new'),
+                _('protocols.templates.subtitle')
+            ) }}
+        </div>
+        <div class="protocols-workspace-toolbar-end">
+            {% if editing and template %}
+            <a href="{{ url_for('protocols.start_from_template', template_id=template.id) }}" class="btn mod-pill-btn">
+                <i class="bi bi-play-fill"></i>
+                <span class="d-none d-sm-inline">{{ _('protocols.templates.start_action') }}</span>
+            </a>
+            {% endif %}
+            <button type="submit" form="protocolsTemplateForm" class="btn btn-accent rounded-pill mod-pill-btn">
+                <i class="bi bi-check2"></i>
+                {{ _('protocols.templates.save') }}
+            </button>
+        </div>
+    </header>
+
+    <div class="protocols-workspace-body protocols-workspace-body--scroll">
+        <form method="POST" class="protocols-form protocols-form--wide" id="protocolsTemplateForm" action="{{ form_action }}">
+            <section class="protocols-form-card">
+                <div class="protocols-form-fields">
+                    <div class="protocols-form-field">
+                        <label for="templateTitle" class="form-label">{{ _('protocols.templates.title_label') }} <span class="text-danger">*</span></label>
+                        <input type="text"
+                               class="form-control form-control-lg mod-pill-input"
+                               id="templateTitle"
+                               name="title"
+                               value="{{ form.title|default('') }}"
+                               placeholder="{{ _('protocols.templates.title_placeholder') }}"
+                               required
+                               autofocus>
+                    </div>
+
+                    <div class="protocols-form-field">
+                        <label class="form-label" for="templateMembersInput">{{ _('protocols.templates.members_label') }}</label>
+                        <div class="protocols-chip-field" data-chip-field>
+                            <div class="protocols-chip-list" data-chip-list></div>
+                            <input type="text"
+                                   class="protocols-chip-input"
+                                   id="templateMembersInput"
+                                   data-chip-input
+                                   autocomplete="off"
+                                   placeholder="{{ _('protocols.create.chip_placeholder') }}">
+                            <input type="hidden" name="members_text" data-chip-value value="{{ form.members_text|default('') }}">
+                        </div>
+                        <div class="form-text">{{ _('protocols.templates.members_hint') }}</div>
+                    </div>
+
+                    <div class="protocols-form-field">
+                        {% from 'partials/visibility_select.html' import visibility_select with context %}
+                        {{ visibility_select(allowed=allowed_visibilities, teams=visibility_teams, selected=selected_visibility, select_class='form-select mod-pill-input', attrs='data-mod-pill-select') }}
+                    </div>
+                </div>
+            </section>
+
+            <section class="protocols-form-card mt-3">
+                <div class="mb-3">
+                    <h2 class="h6 mb-1">{{ _('protocols.templates.agenda_label') }}</h2>
+                    <p class="text-muted small mb-0">{{ _('protocols.templates.agenda_hint') }}</p>
+                </div>
+                <ul class="protocols-agenda-list list-unstyled mb-3" id="protocolsAgendaList">
+                    {% if editing and template and template.agenda_items %}
+                        {% for item in template.agenda_items %}
+                        <li class="protocols-agenda-item" data-agenda-item>
+                            <span class="protocols-agenda-handle" title="{{ _('protocols.agenda.reorder') }}" aria-hidden="true"><i class="bi bi-grip-vertical"></i></span>
+                            <input type="hidden" name="item_ids" value="{{ item.id }}">
+                            <input type="text" class="form-control mod-pill-input" name="titles" value="{{ item.title }}" placeholder="{{ _('protocols.agenda.item_placeholder') }}">
+                            <button type="button" class="protocols-agenda-remove" data-remove-agenda aria-label="{{ _('common.delete') }}"><i class="bi bi-trash"></i></button>
+                        </li>
+                        {% endfor %}
+                    {% elif agenda_titles %}
+                        {% for t in agenda_titles %}
+                        <li class="protocols-agenda-item" data-agenda-item>
+                            <span class="protocols-agenda-handle" title="{{ _('protocols.agenda.reorder') }}" aria-hidden="true"><i class="bi bi-grip-vertical"></i></span>
+                            <input type="hidden" name="item_ids" value="">
+                            <input type="text" class="form-control mod-pill-input" name="titles" value="{{ t }}" placeholder="{{ _('protocols.agenda.item_placeholder') }}">
+                            <button type="button" class="protocols-agenda-remove" data-remove-agenda aria-label="{{ _('common.delete') }}"><i class="bi bi-trash"></i></button>
+                        </li>
+                        {% endfor %}
+                    {% else %}
+                        <li class="protocols-agenda-item" data-agenda-item>
+                            <span class="protocols-agenda-handle" title="{{ _('protocols.agenda.reorder') }}" aria-hidden="true"><i class="bi bi-grip-vertical"></i></span>
+                            <input type="hidden" name="item_ids" value="">
+                            <input type="text" class="form-control mod-pill-input" name="titles" value="" placeholder="{{ _('protocols.agenda.item_placeholder') }}">
+                            <button type="button" class="protocols-agenda-remove" data-remove-agenda aria-label="{{ _('common.delete') }}"><i class="bi bi-trash"></i></button>
+                        </li>
+                    {% endif %}
+                </ul>
+                <button type="button" class="btn mod-pill-btn" id="protocolsAddAgenda">
+                    <i class="bi bi-plus-lg"></i> {{ _('protocols.agenda.add') }}
+                </button>
+            </section>
+        </form>
+    </div>
+</div>
+
+<template id="protocolsAgendaItemTpl">
+    <li class="protocols-agenda-item" data-agenda-item>
+        <span class="protocols-agenda-handle" title="{{ _('protocols.agenda.reorder') }}" aria-hidden="true"><i class="bi bi-grip-vertical"></i></span>
+        <input type="hidden" name="item_ids" value="">
+        <input type="text" class="form-control mod-pill-input" name="titles" value="" placeholder="{{ _('protocols.agenda.item_placeholder') }}">
+        <button type="button" class="protocols-agenda-remove" data-remove-agenda aria-label="{{ _('common.delete') }}"><i class="bi bi-trash"></i></button>
+    </li>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/protocols.js') }}"></script>
+{% endblock %}

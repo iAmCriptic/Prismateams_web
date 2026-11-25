@@ -181,10 +181,14 @@
     var url = getSaveUrl(form);
     var silent = !!opts.silent;
 
+    var csrfMeta = document.querySelector('meta[name="csrf-token"]');
     var headers = {
       'Accept': 'application/json',
       'X-Requested-With': 'XMLHttpRequest'
     };
+    if (csrfMeta && csrfMeta.getAttribute('content')) {
+      headers['X-CSRFToken'] = csrfMeta.getAttribute('content');
+    }
     var body;
     var method = (form.getAttribute('method') || 'POST').toUpperCase();
     var isMultipart = (form.getAttribute('enctype') || '').indexOf('multipart') !== -1;
@@ -229,6 +233,14 @@
       if (result.ok) {
         form.dispatchEvent(new CustomEvent('sp:saved', { detail: result.data }));
         if (result.data) applyLiveAppearance(result.data);
+        if (result.data && result.data.full_reload) {
+          if (!silent) {
+            var msgFull = (result.data && result.data.message) || t('saved', 'Gespeichert');
+            showToast(msgFull, 'success');
+          }
+          setTimeout(function () { window.location.reload(); }, 180);
+          return result;
+        }
         var needsReload = !!(result.data && result.data.reload) || form.dataset.spReloadOnSave === '1';
         if (needsReload) {
           softReloadMain().then(function () {

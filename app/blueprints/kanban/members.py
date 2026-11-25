@@ -263,7 +263,7 @@ def api_board_activity(board_id):
     if err:
         return err
     card_id = request.args.get('card_id', type=int)
-    q = KanbanActivity.query.filter_by(board_id=board.id)
+    q = KanbanActivity.query.filter_by(board_id=board.id).options(joinedload(KanbanActivity.user))
     if card_id:
         q = q.filter_by(card_id=card_id)
     rows = q.order_by(KanbanActivity.created_at.desc()).limit(100).all()
@@ -717,8 +717,9 @@ def api_boards_unread_counts():
             .all()
         )
         return jsonify({'unread_counts': {str(bid): cnt for bid, cnt in counts if cnt > 0}})
-    except Exception as e:
-        return jsonify({'unread_counts': {}, 'error': str(e)}), 500
+    except Exception:
+        current_app.logger.exception('Failed to fetch kanban unread counts')
+        return jsonify({'unread_counts': {}, 'error': 'Internal error'}), 500
 
 
 @kanban_bp.route('/api/boards/<int:board_id>/filter', methods=['GET', 'POST'])
@@ -727,6 +728,8 @@ def api_filter_cards(board_id):
     board, err = _require_board_view(board_id)
     if err:
         return err
+    from app.blueprints.kanban.helpers import _board_full_load_options, _reload_with_options
+    board = _reload_with_options(KanbanBoard, board, *_board_full_load_options())
     actor_id = _actor_user_id(board)
 
     # Accept query string or JSON body

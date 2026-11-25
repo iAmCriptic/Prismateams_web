@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+
+{% block title %}{{ _('protocols.templates.start_title') }} — {{ template.title }}{% endblock %}
+
+{% block content %}
+{% from 'protocols/_workspace_chrome.html' import protocols_chrome_nav, protocols_chrome_brand with context %}
+{% set templates_url = url_for('protocols.templates_index') %}
+
+<div class="protocols-workspace">
+    <header class="mod-toolbar protocols-workspace-toolbar">
+        <div class="protocols-workspace-toolbar-start">
+            {{ protocols_chrome_nav(back_url=templates_url, close_url=templates_url) }}
+            {{ protocols_chrome_brand(
+                'bi-play-circle',
+                _('protocols.templates.start_title'),
+                _('protocols.templates.start_subtitle')
+            ) }}
+        </div>
+        <div class="protocols-workspace-toolbar-end">
+            <button type="submit" form="protocolsStartTemplateForm" name="action" value="draft" class="btn mod-pill-btn">
+                <i class="bi bi-list-ol"></i>
+                <span class="d-none d-sm-inline">{{ _('protocols.templates.start_edit_agenda') }}</span>
+            </button>
+            <button type="submit" form="protocolsStartTemplateForm" name="action" value="start" class="btn btn-accent rounded-pill mod-pill-btn">
+                <i class="bi bi-play-fill"></i>
+                {{ _('protocols.templates.start_submit') }}
+            </button>
+        </div>
+    </header>
+
+    <div class="protocols-workspace-body protocols-workspace-body--scroll">
+        <form method="POST"
+              class="protocols-form protocols-form--wide"
+              id="protocolsStartTemplateForm"
+              action="{{ url_for('protocols.start_from_template', template_id=template.id) }}">
+            <input type="hidden" name="member_count" value="{{ members|length }}">
+
+            <section class="protocols-form-card">
+                <div class="protocols-form-fields">
+                    <div class="protocols-form-field">
+                        <label for="protocolTitle" class="form-label">{{ _('protocols.create.title_label') }} <span class="text-danger">*</span></label>
+                        <input type="text"
+                               class="form-control form-control-lg mod-pill-input"
+                               id="protocolTitle"
+                               name="title"
+                               value="{{ form.title|default(template.title) }}"
+                               placeholder="{{ _('protocols.create.title_placeholder') }}"
+                               required
+                               autofocus>
+                    </div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label for="meetingDate" class="form-label">{{ _('protocols.create.date_label') }}</label>
+                            <input type="date" class="form-control mod-pill-input" id="meetingDate" name="meeting_date" value="{{ form.meeting_date|default('') }}" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="startTime" class="form-label">{{ _('protocols.create.start_time_label') }}</label>
+                            <input type="time" class="form-control mod-pill-input" id="startTime" name="start_time" value="{{ form.start_time|default('') }}" required>
+                        </div>
+                    </div>
+                    <div class="protocols-form-field">
+                        {% from 'partials/visibility_select.html' import visibility_select with context %}
+                        {{ visibility_select(allowed=allowed_visibilities, teams=visibility_teams, selected=selected_visibility, select_class='form-select mod-pill-input', attrs='data-mod-pill-select') }}
+                    </div>
+                </div>
+            </section>
+
+            <section class="protocols-form-card mt-3" data-attendance-checklist>
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                    <div>
+                        <h2 class="h6 mb-1">{{ _('protocols.templates.attendance_heading') }}</h2>
+                        <p class="text-muted small mb-0">{{ _('protocols.templates.attendance_hint') }}</p>
+                    </div>
+                    {% if members %}
+                    <div class="d-flex flex-wrap gap-2">
+                        <button type="button" class="btn btn-sm mod-pill-btn" data-attendance-all="present">
+                            <i class="bi bi-check2-all"></i> {{ _('protocols.templates.mark_all_present') }}
+                        </button>
+                        <button type="button" class="btn btn-sm mod-pill-btn" data-attendance-all="absent">
+                            <i class="bi bi-x-lg"></i> {{ _('protocols.templates.mark_all_absent') }}
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if members %}
+                <ul class="protocols-attendance-list list-unstyled mb-3">
+                    {% for member in members %}
+                    <li class="protocols-attendance-row" data-attendance-row>
+                        <input type="hidden" name="member_name_{{ loop.index0 }}" value="{{ member }}">
+                        <input type="hidden" name="member_status_{{ loop.index0 }}" value="absent" data-member-status>
+                        <label class="protocols-attendance-check">
+                            <input type="checkbox" class="form-check-input" data-member-present>
+                            <span class="protocols-attendance-name">{{ member }}</span>
+                        </label>
+                        <div class="protocols-attendance-absent-pills" role="group" aria-label="{{ member }}">
+                            <button type="button"
+                                    class="protocols-attendance-pill"
+                                    data-absent-choice="excused">
+                                {{ _('protocols.templates.status_excused') }}
+                            </button>
+                            <button type="button"
+                                    class="protocols-attendance-pill is-selected"
+                                    data-absent-choice="absent">
+                                {{ _('protocols.templates.status_absent') }}
+                            </button>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted small mb-3">{{ _('protocols.templates.no_members') }}</p>
+                {% endif %}
+
+                <div class="protocols-form-field">
+                    <label class="form-label" for="extraParticipantsInput">{{ _('protocols.templates.extra_participants') }}</label>
+                    <div class="protocols-chip-field" data-chip-field>
+                        <div class="protocols-chip-list" data-chip-list></div>
+                        <input type="text"
+                               class="protocols-chip-input"
+                               id="extraParticipantsInput"
+                               data-chip-input
+                               autocomplete="off"
+                               placeholder="{{ _('protocols.create.chip_placeholder') }}">
+                        <input type="hidden" name="extra_participants_text" data-chip-value value="{{ form.extra_participants_text|default('') }}">
+                    </div>
+                </div>
+            </section>
+
+            <section class="protocols-form-card mt-3">
+                <div class="mb-3">
+                    <h2 class="h6 mb-1">{{ _('protocols.templates.agenda_label') }}</h2>
+                    <p class="text-muted small mb-0">{{ _('protocols.agenda.hint') }}</p>
+                </div>
+                <ul class="protocols-agenda-list list-unstyled mb-3" id="protocolsAgendaList">
+                    {% for item_title in agenda_titles %}
+                    <li class="protocols-agenda-item" data-agenda-item>
+                        <span class="protocols-agenda-handle" title="{{ _('protocols.agenda.reorder') }}" aria-hidden="true"><i class="bi bi-grip-vertical"></i></span>
+                        <input type="hidden" name="item_ids" value="">
+                        <input type="text" class="form-control mod-pill-input" name="titles" value="{{ item_title }}" placeholder="{{ _('protocols.agenda.item_placeholder') }}">
+                        <button type="button" class="protocols-agenda-remove" data-remove-agenda aria-label="{{ _('common.delete') }}"><i class="bi bi-trash"></i></button>
+                    </li>
+                    {% else %}
+                    <li class="protocols-agenda-item" data-agenda-item>
+                        <span class="protocols-agenda-handle" aria-hidden="true"><i class="bi bi-grip-vertical"></i></span>
+                        <input type="hidden" name="item_ids" value="">
+                        <input type="text" class="form-control mod-pill-input" name="titles" value="" placeholder="{{ _('protocols.agenda.item_placeholder') }}">
+                        <button type="button" class="protocols-agenda-remove" data-remove-agenda aria-label="{{ _('common.delete') }}"><i class="bi bi-trash"></i></button>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <button type="button" class="btn mod-pill-btn" id="protocolsAddAgenda">
+                    <i class="bi bi-plus-lg"></i> {{ _('protocols.agenda.add') }}
+                </button>
+            </section>
+        </form>
+    </div>
+</div>
+
+<template id="protocolsAgendaItemTpl">
+    <li class="protocols-agenda-item" data-agenda-item>
+        <span class="protocols-agenda-handle" aria-hidden="true"><i class="bi bi-grip-vertical"></i></span>
+        <input type="hidden" name="item_ids" value="">
+        <input type="text" class="form-control mod-pill-input" name="titles" value="" placeholder="{{ _('protocols.agenda.item_placeholder') }}">
+        <button type="button" class="protocols-agenda-remove" data-remove-agenda aria-label="{{ _('common.delete') }}"><i class="bi bi-trash"></i></button>
+    </li>
+</template>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/inventory_pill_select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/protocols.js') }}"></script>
+{% endblock %}

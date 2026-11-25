@@ -385,11 +385,12 @@
                                 {% endif %}
                             </div>
                             {% elif f.field_type == 'currency' %}
+                            {% set formatted_val = entry.format_currency_value(val) %}
                             <div class="bp-cell-editable" data-entry-id="{{ entry.id }}"
                                 data-field-key="{{ f.field_key }}" data-field-type="currency"
-                                data-raw-value="{{ val }}">
-                                {% if val and val != '-' %}
-                                {{ val }}
+                                data-raw-value="{{ formatted_val }}">
+                                {% if formatted_val %}
+                                {{ formatted_val }}
                                 {% else %}
                                 <span class="bp-cell-empty">-</span>
                                 {% endif %}

@@ -64,7 +64,8 @@ def upsert_setting(key: str, value: str, description: str | None = None) -> Syst
     with db.session.no_autoflush:
         setting = SystemSettings.query.filter_by(key=key).first()
     if setting:
-        setting.value = value
+        if setting.value != value:
+            setting.value = value
         if description and not setting.description:
             setting.description = description
     else:

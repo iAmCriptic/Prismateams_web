@@ -156,12 +156,32 @@
         });
     }
 
+    function formatCurrencyValue(val) {
+        if (val === null || val === undefined) return '';
+        const s = String(val).trim();
+        if (!s || s === '-') return '';
+        let cleaned = s.replace(/€/g, '').replace(/\s+/g, '');
+        if (cleaned.includes('.') && cleaned.includes(',')) {
+            if (cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')) {
+                cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+            } else {
+                cleaned = cleaned.replace(/,/g, '');
+            }
+        } else if (cleaned.includes(',')) {
+            cleaned = cleaned.replace(',', '.');
+        }
+        const num = parseFloat(cleaned);
+        return isNaN(num) ? s : `€${num.toFixed(2)}`;
+    }
+
     function startTextEdit(cell, entryId, fieldKey, currentValue, fieldType) {
         cell.classList.add('is-editing');
         const input = document.createElement('input');
         input.type = (fieldType === 'counter' || fieldType === 'number') ? 'number' : 'text';
         input.className = 'bp-cell-input';
-        input.value = currentValue;
+        input.value = fieldType === 'currency'
+            ? String(currentValue || '').replace(/€/g, '').trim()
+            : currentValue;
 
         cell.innerHTML = '';
         cell.appendChild(input);
@@ -174,7 +194,10 @@
         function save() {
             if (isSaving) return;
             isSaving = true;
-            const newVal = input.value.trim();
+            let newVal = input.value.trim();
+            if (fieldType === 'currency') {
+                newVal = formatCurrencyValue(newVal);
+            }
             saveCell(entryId, fieldKey, newVal, cell, fieldType);
         }
 
@@ -324,9 +347,12 @@
             });
             const data = await resp.json();
             if (data.success) {
-                cell.dataset.rawValue = value;
+                const savedValue = (data.updated_custom_data && Object.prototype.hasOwnProperty.call(data.updated_custom_data, fieldKey))
+                    ? data.updated_custom_data[fieldKey]
+                    : value;
+                cell.dataset.rawValue = savedValue ?? '';
                 cell.classList.remove('is-editing');
-                renderCellDisplay(cell, value, fieldType, badgeColor);
+                renderCellDisplay(cell, savedValue, fieldType, badgeColor);
 
                 if (data.updated_custom_data) {
                     const row = cell.closest('tr');
@@ -369,8 +395,8 @@
         }
 
         if (fieldType === 'currency') {
-            let num = parseFloat(String(value).replace('€', '').replace(',', '.').trim() || 0);
-            cell.innerHTML = `€${num.toFixed(2)}`;
+            const formatted = formatCurrencyValue(value);
+            cell.innerHTML = formatted ? escapeHtml(formatted) : '<span class="bp-cell-empty">-</span>';
         } else if (fieldType === 'badge_select') {
             const color = badgeColor || cell.dataset.badgeColor || 'secondary';
             cell.innerHTML = `<span class="bp-badge bp-badge-${color}">${escapeHtml(value)}</span>`;
@@ -1527,9 +1553,8 @@
                     if (finished) return;
                     finished = true;
                     let newVal = input.value.trim();
-                    if (fieldType === 'currency' && newVal && !newVal.startsWith('€')) {
-                        const num = parseFloat(newVal.replace(',', '.'));
-                        if (!isNaN(num)) newVal = `€${num.toFixed(2)}`;
+                    if (fieldType === 'currency') {
+                        newVal = formatCurrencyValue(newVal);
                     }
                     wrap.remove();
                     displayEl.classList.remove('d-none');
@@ -1572,7 +1597,9 @@
 
                 // Update visual display
                 if (fieldType === 'currency') {
-                    displayEl.innerHTML = `<span class="fw-semibold text-body small">${escapeHtml(value || '€0.00')}</span>`;
+                    const formatted = formatCurrencyValue(value) || '€0.00';
+                    row.dataset.rawValue = formatCurrencyValue(value);
+                    displayEl.innerHTML = `<span class="fw-semibold text-body small">${escapeHtml(formatted)}</span>`;
                 } else if (fieldType === 'badge_select') {
                     if (value) {
                         displayEl.innerHTML = `<span class="badge rounded-pill bg-body-secondary text-body border px-2.5 py-1">${escapeHtml(value)}</span>`;

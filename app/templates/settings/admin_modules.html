@@ -12,6 +12,7 @@
   </header>
 
   <form method="POST" data-sp-autosave data-sp-save-url="{{ url_for('settings.admin_modules') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <section class="sp-group" id="modules-list" data-settings-search-id="modules-list" aria-labelledby="modules-list-heading">
       <div class="sp-group-head">
         <h2 id="modules-list-heading" class="sp-group-title"><i class="bi bi-puzzle" aria-hidden="true"></i>{{ _('settings.admin.admin_modules.section_modules') }}</h2>

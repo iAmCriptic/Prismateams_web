@@ -204,7 +204,7 @@
                                  data-field-key="{{ f.field_key }}"
                                  data-field-type="{{ f.field_type }}"
                                  data-field-label="{{ f.label }}"
-                                 data-raw-value="{{ val if val is not none else '' }}"
+                                 data-raw-value="{{ entry.format_currency_value(val) if f.field_type == 'currency' else (val if val is not none else '') }}"
                                  {% if f.field_type in ('badge_select', 'multi_select') and f.options_json %}data-options="{{ f.options_json|e }}"{% endif %}
                                  role="button"
                                  tabindex="0"
@@ -237,8 +237,9 @@
                                                 <span class="text-muted small">-</span>
                                             {% endif %}
                                         {% elif f.field_type == 'currency' or f.field_key == 'gesamt' %}
+                                            {% set display_val = (entry.format_currency_value(val) or '€0.00') if f.field_type == 'currency' else (val or '-') %}
                                             <span class="{% if f.field_key == 'gesamt' %}fw-bold text-primary fs-6 bp-cell-formula{% else %}fw-semibold text-body{% endif %} small"
-                                                  data-field-key="{{ f.field_key }}">{{ val or ('€0.00' if f.field_type == 'currency' else '-') }}</span>
+                                                  data-field-key="{{ f.field_key }}">{{ display_val }}</span>
                                         {% elif f.field_type == 'boolean' %}
                                             {% set is_checked = val in (True, 'true', 'True', '1', 1, 'ja', 'Ja') %}
                                             <div class="form-check form-switch m-0 d-inline-flex align-items-center gap-2" onclick="event.stopPropagation()">
