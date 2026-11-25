@@ -300,7 +300,10 @@ def _parse_google_dt(dt_obj: Optional[dict], *, is_end: bool = False) -> Optiona
     return None
 
 
-def _parse_google_rrule(recurrence_list: Optional[list[str]]) -> dict:
+def _parse_google_rrule(
+    recurrence_list: Optional[list[str]],
+    start_time: Optional[datetime] = None,
+) -> dict:
     """Parst RRULE-Einträge aus Google Calendar Events in CalendarEvent-Felder."""
     result = {
         'recurrence_type': 'none',
@@ -360,11 +363,34 @@ def _parse_google_rrule(recurrence_list: Optional[list[str]]) -> dict:
                     result['recurrence_end_date'] = as_portal_wall_time(datetime.fromisoformat(norm))
         except Exception:
             pass
+    elif parts.get('COUNT') and start_time is not None:
+        try:
+            count = max(1, int(parts['COUNT']))
+            interval = result['recurrence_interval']
+            steps = count - 1
+            rtype = result['recurrence_type']
+            if rtype == 'daily':
+                end_dt = start_time + timedelta(days=steps * interval)
+            elif rtype == 'weekly':
+                end_dt = start_time + timedelta(weeks=steps * interval)
+            elif rtype == 'monthly':
+                from dateutil.relativedelta import relativedelta
+                end_dt = start_time + relativedelta(months=steps * interval)
+            elif rtype == 'yearly':
+                from dateutil.relativedelta import relativedelta
+                end_dt = start_time + relativedelta(years=steps * interval)
+            else:
+                end_dt = start_time
+            result['recurrence_end_date'] = datetime.combine(
+                end_dt.date(), datetime.max.time().replace(microsecond=0)
+            )
+        except Exception:
+            pass
 
     return result
 
 
-def _parse_google_event(item: dict, source_id: int) -> Optional[dict]:
+def _parse_google_event(item: dict, source_id: int, *, single_events: bool = True) -> Optional[dict]:
     """Konvertiert ein Google-Calendar-Event-JSON in ein CalendarEvent-Dict."""
     if item.get('status') == 'cancelled':
         return None
@@ -379,11 +405,23 @@ def _parse_google_event(item: dict, source_id: int) -> Optional[dict]:
         else:
             end_time = start_time + timedelta(hours=1)
 
-    uid_raw = (item.get('iCalUID') or item.get('id') or '').strip()
+    if single_events:
+        # Bei singleEvents=true teilen sich alle Instanzen einer Serie dieselbe iCalUID,
+        # aber jede Instanz besitzt eine eindeutige Google-Event-ID.
+        uid_raw = (item.get('id') or item.get('iCalUID') or '').strip()
+        rrule = {
+            'recurrence_type': 'none',
+            'recurrence_end_date': None,
+            'recurrence_interval': 1,
+            'recurrence_days': None,
+        }
+    else:
+        uid_raw = (item.get('iCalUID') or item.get('id') or '').strip()
+        rrule = _parse_google_rrule(item.get('recurrence'), start_time=start_time)
+
     if not uid_raw:
         uid_raw = f'gcal-{source_id}-{start_time.isoformat()}'
 
-    rrule = _parse_google_rrule(item.get('recurrence'))
     title = (item.get('summary') or 'Unbenannter Termin').strip() or 'Unbenannter Termin'
     description = (item.get('description') or '').strip() or None
     location = (item.get('location') or '').strip() or None
@@ -421,13 +459,19 @@ def sync_google_calendar_source(source: CalendarSyncSource, user_id=None, calend
         google_cal_id = extract_google_calendar_id(source.url)
         encoded_cal_id = quote(google_cal_id, safe='')
 
+        now_utc = datetime.utcnow()
+        time_min = (now_utc - timedelta(days=365)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        time_max = (now_utc + timedelta(days=730)).strftime('%Y-%m-%dT%H:%M:%SZ')
+
         items: list[dict] = []
         page_token: Optional[str] = None
         while True:
             params = {
-                'singleEvents': 'false',
+                'singleEvents': 'true',
                 'showDeleted': 'false',
-                'maxResults': 250,
+                'timeMin': time_min,
+                'timeMax': time_max,
+                'maxResults': 2500,
             }
             if page_token:
                 params['pageToken'] = page_token
@@ -442,7 +486,7 @@ def sync_google_calendar_source(source: CalendarSyncSource, user_id=None, calend
         updated = 0
 
         for item in items:
-            parsed = _parse_google_event(item, source.id)
+            parsed = _parse_google_event(item, source.id, single_events=True)
             if not parsed:
                 continue
 

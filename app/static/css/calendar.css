@@ -2281,3 +2281,100 @@ body:not(.embed-scope):not(.assessment-scope-solo) .calendar-shell.mod-shell--na
 .calendar-sidebar-folder-btn.collapsed .calendar-folder-chevron {
     transform: rotate(-90deg);
 }
+
+/* Calendar import & sync page (styleguide-compliant, theme-token driven) */
+
+.calendar-color-dot {
+    display: inline-block;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+    vertical-align: middle;
+    background: var(--bs-secondary-color);
+}
+
+.calendar-import-gcal-list {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid var(--calendar-form-border);
+    margin-top: 0.5rem;
+}
+
+.calendar-import-gcal-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 0.75rem;
+    padding: 0.65rem 0;
+    border-bottom: 1px solid var(--calendar-form-border);
+}
+
+.calendar-import-gcal-item:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.calendar-import-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: var(--mod-radius-pill, 1.5rem);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    border: 1px solid var(--bs-border-color);
+    background: color-mix(in srgb, var(--bs-body-color) 7%, transparent);
+    color: var(--bs-secondary-color);
+    white-space: nowrap;
+}
+
+.calendar-import-badge--success {
+    border-color: color-mix(in srgb, var(--bs-success) 40%, var(--bs-border-color));
+    background: color-mix(in srgb, var(--bs-success) 14%, transparent);
+    color: var(--bs-success);
+}
+
+.calendar-import-badge--danger {
+    border-color: color-mix(in srgb, var(--bs-danger) 40%, var(--bs-border-color));
+    background: color-mix(in srgb, var(--bs-danger) 14%, transparent);
+    color: var(--bs-danger);
+}
+
+.calendar-import-table th:nth-child(1),
+.calendar-import-table td:nth-child(1) {
+    width: 24%;
+}
+
+.calendar-import-table th:nth-child(2),
+.calendar-import-table td:nth-child(2) {
+    width: 34%;
+}
+
+.calendar-import-table th:nth-child(3),
+.calendar-import-table td:nth-child(3) {
+    width: 16%;
+    white-space: nowrap;
+}
+
+.calendar-import-table th:nth-child(4),
+.calendar-import-table td:nth-child(4) {
+    width: 12%;
+    white-space: nowrap;
+}
+
+.calendar-import-table th:nth-child(5),
+.calendar-import-table td:nth-child(5) {
+    width: 14%;
+    text-align: right;
+    white-space: nowrap;
+}
+
+.calendar-import-url {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--bs-secondary-color);
+    word-break: break-all;
+}

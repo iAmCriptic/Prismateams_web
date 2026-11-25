@@ -274,7 +274,8 @@
         try { document.activeElement.blur(); } catch (_) {}
       }
     });
-    cardModalEl.addEventListener('hidden.bs.modal', () => {
+    cardModalEl.addEventListener('hidden.bs.modal', async () => {
+      const closedCardId = currentCardId;
       currentCardId = null;
       currentCardDetail = null;
       if (commentSystem) {
@@ -298,9 +299,17 @@
           commentsList.classList.add('is-empty');
         }
       }
+      const hadLastFocus = Boolean(lastFocusedCardEl);
       if (lastFocusedCardEl) {
         try { lastFocusedCardEl.focus({ preventScroll: true }); } catch (_) {}
         lastFocusedCardEl = null;
+      }
+      await refreshBoard();
+      if (hadLastFocus && closedCardId && (!document.activeElement || document.activeElement === document.body)) {
+        const refreshedCardEl = listsEl?.querySelector(`.kanban-card[data-card-id="${closedCardId}"]`);
+        if (refreshedCardEl) {
+          try { refreshedCardEl.focus({ preventScroll: true }); } catch (_) {}
+        }
       }
     });
   }
@@ -2911,29 +2920,63 @@
     getModal('kanbanDueModal')?.show();
   });
 
-  document.getElementById('kanbanDueForm')?.addEventListener('submit', async (ev) => {
-    ev.preventDefault();
+  const dueModalEl = document.getElementById('kanbanDueModal');
+  let dueModalInitialValue = '';
+  let dueModalHandled = false;
+
+  async function saveDueDate(val, { closeModal = true } = {}) {
     if (!currentCardId) return;
-    const val = document.getElementById('kanbanDueInput')?.value || '';
+    const cardId = currentCardId;
+    const itemId = checklistItemDueTarget;
+    checklistItemDueTarget = null;
     try {
-      if (checklistItemDueTarget) {
-        await api(`/kanban/api/checklist-items/${checklistItemDueTarget}`, {
+      if (itemId) {
+        await api(`/kanban/api/checklist-items/${itemId}`, {
           method: 'PATCH',
           body: { due_date: val || null },
         });
-        checklistItemDueTarget = null;
       } else {
-        await api(`/kanban/api/cards/${currentCardId}`, {
+        await api(`/kanban/api/cards/${cardId}`, {
           method: 'PATCH',
           body: { due_date: val || null },
         });
       }
-      getModal('kanbanDueModal')?.hide();
-      openCard(currentCardId);
+      if (closeModal) getModal('kanbanDueModal')?.hide();
+      if (currentCardId === cardId) openCard(cardId);
       refreshBoard();
     } catch (err) {
       notify(err.message || 'Fehler');
     }
+  }
+
+  if (dueModalEl) {
+    dueModalEl.addEventListener('show.bs.modal', () => {
+      dueModalHandled = false;
+      dueModalInitialValue = document.getElementById('kanbanDueInput')?.value || '';
+    });
+    dueModalEl.addEventListener('hide.bs.modal', () => {
+      if (dueModalEl.contains(document.activeElement)) {
+        try { document.activeElement.blur(); } catch (_) {}
+      }
+      if (!dueModalHandled && currentCardId) {
+        const val = document.getElementById('kanbanDueInput')?.value || '';
+        if (val !== dueModalInitialValue) {
+          dueModalHandled = true;
+          saveDueDate(val || null, { closeModal: false });
+        }
+      }
+    });
+    dueModalEl.addEventListener('hidden.bs.modal', () => {
+      if (!dueModalHandled) checklistItemDueTarget = null;
+    });
+  }
+
+  document.getElementById('kanbanDueForm')?.addEventListener('submit', async (ev) => {
+    ev.preventDefault();
+    if (!currentCardId) return;
+    dueModalHandled = true;
+    const val = document.getElementById('kanbanDueInput')?.value || '';
+    await saveDueDate(val || null, { closeModal: true });
   });
 
   (function initPortalFileAttachPicker() {
@@ -3042,25 +3085,8 @@
 
   document.getElementById('kanbanDueClear')?.addEventListener('click', async () => {
     if (!currentCardId) return;
-    try {
-      if (checklistItemDueTarget) {
-        await api(`/kanban/api/checklist-items/${checklistItemDueTarget}`, {
-          method: 'PATCH',
-          body: { due_date: null },
-        });
-        checklistItemDueTarget = null;
-      } else {
-        await api(`/kanban/api/cards/${currentCardId}`, {
-          method: 'PATCH',
-          body: { due_date: null },
-        });
-      }
-      getModal('kanbanDueModal')?.hide();
-      openCard(currentCardId);
-      refreshBoard();
-    } catch (err) {
-      notify(err.message || 'Fehler');
-    }
+    dueModalHandled = true;
+    await saveDueDate(null, { closeModal: true });
   });
 
   function renderMembersPicker(opts) {

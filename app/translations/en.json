@@ -4758,7 +4758,8 @@
       "google_connected": "Google account connected for calendar synchronization.",
       "google_oauth_error": "Google Calendar connection failed: {error}",
       "google_connect_first": "Please connect your Google account first.",
-      "google_already_added": "This Google Calendar is already linked — sync started."
+      "google_already_added": "This Google Calendar is already linked — sync started.",
+      "sync_url_placeholder": "https://... or webcal://..."
     },
     "back_to_calendar": "Back"
   },

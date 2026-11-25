@@ -842,9 +842,9 @@
           <label class="form-label mb-0" for="kanbanDueInput">{{ _('kanban.card.due_datetime') }}</label>
           <input type="datetime-local" class="form-control mod-pill-input" id="kanbanDueInput" required>
         </div>
-        <div class="modal-footer border-0 pt-0">
-          <button type="button" class="btn mod-pill-btn mod-pill-btn--ghost" id="kanbanDueClear">{{ _('kanban.card.clear_due') }}</button>
+        <div class="modal-footer border-0 pt-0 flex-column align-items-end gap-2">
           <button type="submit" class="btn mod-pill-btn">{{ _('common.save') }}</button>
+          <button type="button" class="btn mod-pill-btn mod-pill-btn--ghost" id="kanbanDueClear">{{ _('kanban.card.clear_due') }}</button>
         </div>
       </form>
     </div>
