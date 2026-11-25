@@ -328,10 +328,16 @@
         var statusEl = document.getElementById('protocolsAutosaveStatus');
         var autosaveUrl = form.getAttribute('data-autosave-url');
         var timer = null;
-        var isDirty = false;
-        var isSubmitting = false;
         var inFlightSave = null;
         var i18n = window.PROTOCOLS_I18N || {};
+
+        function getCsrfToken() {
+            if (window.PrismateamsCsrf && typeof window.PrismateamsCsrf.getToken === 'function') {
+                return window.PrismateamsCsrf.getToken();
+            }
+            var meta = document.querySelector('meta[name="csrf-token"]');
+            return (meta && meta.content) ? meta.content : '';
+        }
 
         function autosave() {
             if (timer) {
@@ -346,35 +352,40 @@
                 title: titleInput ? titleInput.value : '',
                 content_html: hidden.value,
             });
-            inFlightSave = fetch(autosaveUrl, {
+            var headers = {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            };
+            var csrfToken = getCsrfToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            var req = fetch(autosaveUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
+                headers: headers,
                 body: payload,
                 credentials: 'same-origin',
-                keepalive: true,
             })
                 .then(function (r) {
                     if (!r.ok) throw new Error('autosave_failed');
                     return r.json();
                 })
                 .then(function (data) {
-                    if (data && data.ok) {
-                        isDirty = false;
-                        if (statusEl) statusEl.textContent = i18n.autosaved || '';
+                    if (data && data.ok && statusEl) {
+                        statusEl.textContent = i18n.autosaved || '';
                     }
                 })
                 .catch(function () { /* ignore */ })
                 .finally(function () {
-                    inFlightSave = null;
+                    if (inFlightSave === req) {
+                        inFlightSave = null;
+                    }
                 });
-            return inFlightSave;
+            inFlightSave = req;
+            return req;
         }
 
         function scheduleAutosave() {
-            isDirty = true;
             syncHidden();
             if (timer) clearTimeout(timer);
             timer = setTimeout(autosave, 1200);
@@ -391,8 +402,6 @@
         });
 
         form.addEventListener('submit', function () {
-            isSubmitting = true;
-            isDirty = false;
             if (timer) {
                 clearTimeout(timer);
                 timer = null;
@@ -400,26 +409,24 @@
             syncHidden();
         });
 
-        // Flush pending changes before navigating via TOP-pills, step-links, or back/close buttons
+        // Always save before navigating via TOP-pills, step-links, or back/close buttons
         var workspace = form.closest('.protocols-workspace--editor');
         if (workspace) {
             workspace.addEventListener('click', function (e) {
                 var link = e.target.closest('a[href]');
                 if (!link || link.target === '_blank' || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-                if (!isDirty && !inFlightSave) return;
                 e.preventDefault();
                 var href = link.href;
-                (inFlightSave || autosave()).finally(function () {
-                    window.location.href = href;
-                });
+                var waitForInFlight = inFlightSave ? inFlightSave.catch(function () {}) : Promise.resolve();
+                waitForInFlight
+                    .then(function () {
+                        return autosave();
+                    })
+                    .finally(function () {
+                        window.location.href = href;
+                    });
             });
         }
-
-        window.addEventListener('pagehide', function () {
-            if (!isSubmitting && isDirty) {
-                autosave();
-            }
-        });
     }
 
     function insertFallbackTable(quill) {
