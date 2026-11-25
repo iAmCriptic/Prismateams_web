@@ -544,3 +544,182 @@ def api_reorder_lists(board_id):
     db.session.commit()
     _emit_board(board.id, 'lists_reordered', {'order': order})
     return jsonify({'success': True})
+
+
+@kanban_bp.route('/api/lists/<int:list_id>/copy', methods=['POST'])
+@login_required
+@check_module_access('module_kanban')
+def api_copy_list(list_id):
+    from app.utils.kanban_transfer import copy_list
+
+    source_list = db.session.get(KanbanList, list_id)
+    if not source_list or source_list.archived_at:
+        return jsonify({'error': 'Not found'}), 404
+    _, err = _require_board_edit(source_list.board_id)
+    if err:
+        return err
+
+    data = request.get_json(silent=True) or {}
+    target_board_id = data.get('target_board_id') or source_list.board_id
+    target_board, target_err = _require_board_edit(target_board_id)
+    if target_err:
+        return target_err
+
+    new_list = copy_list(
+        source_list,
+        target_board,
+        current_user.id,
+        title=data.get('title'),
+        position=data.get('position'),
+    )
+    _log_activity(target_board.id, 'list_created', new_list.title)
+    db.session.commit()
+
+    payload = _serialize_list(new_list, share_token=_share_token_from_request())
+    _emit_board(target_board.id, 'list_created', payload)
+    return jsonify({'success': True, 'list': payload, 'target_board_id': target_board.id}), 201
+
+
+@kanban_bp.route('/api/lists/<int:list_id>/move', methods=['POST'])
+@login_required
+@check_module_access('module_kanban')
+def api_move_list(list_id):
+    from app.utils.kanban_transfer import move_list_to_board
+
+    lst = db.session.get(KanbanList, list_id)
+    if not lst or lst.archived_at:
+        return jsonify({'error': 'Not found'}), 404
+    source_board_id = lst.board_id
+    _, err = _require_board_edit(source_board_id)
+    if err:
+        return err
+
+    data = request.get_json(silent=True) or {}
+    target_board_id = data.get('target_board_id') or source_board_id
+    target_board, target_err = _require_board_edit(target_board_id)
+    if target_err:
+        return target_err
+
+    move_list_to_board(lst, target_board, position=data.get('position'))
+    db.session.commit()
+
+    payload = _serialize_list(lst, share_token=_share_token_from_request())
+    if source_board_id != target_board.id:
+        _emit_board(source_board_id, 'list_deleted', {'id': lst.id})
+        _emit_board(target_board.id, 'list_created', payload)
+    else:
+        _emit_board(target_board.id, 'list_updated', payload)
+    return jsonify({'success': True, 'list': payload, 'target_board_id': target_board.id})
+
+
+@kanban_bp.route('/api/boards/<int:board_id>/copy', methods=['POST'])
+@login_required
+@check_module_access('module_kanban')
+def api_copy_board(board_id):
+    from app.utils.kanban_transfer import copy_board
+
+    source_board, err = _require_board_view(board_id)
+    if err:
+        return err
+
+    data = request.get_json(silent=True) or {}
+    vis = data.get('visibility') or source_board.visibility
+    if not visibility_allowed(vis, current_user):
+        vis = VISIBILITY_PRIVATE
+    team_id = data.get('team_id') if 'team_id' in data else source_board.team_id
+    if vis != VISIBILITY_TEAM:
+        team_id = None
+
+    new_board = copy_board(
+        source_board,
+        current_user.id,
+        title=data.get('title'),
+        visibility=vis,
+        team_id=team_id,
+    )
+    _log_activity(new_board.id, 'board_created', new_board.title)
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'board': _serialize_board(new_board, full=False),
+        'board_url': url_for('kanban.board', board_id=new_board.public_id or new_board.id),
+    }), 201
+
+
+@kanban_bp.route('/api/boards/<int:board_id>/move', methods=['POST'])
+@login_required
+@check_module_access('module_kanban')
+def api_move_board(board_id):
+    board, err = _require_board_manage(board_id)
+    if err:
+        return err
+
+    data = request.get_json(silent=True) or {}
+    vis = (data.get('visibility') or board.visibility).strip()
+    if vis not in (VISIBILITY_PRIVATE, VISIBILITY_TEAM, VISIBILITY_PUBLIC):
+        return jsonify({'error': 'Invalid visibility'}), 400
+    if not visibility_allowed(vis, current_user):
+        return jsonify({'error': 'Visibility not allowed'}), 403
+
+    board.visibility = vis
+    if vis == VISIBILITY_TEAM:
+        raw_tid = data.get('team_id')
+        try:
+            board.team_id = int(raw_tid) if raw_tid else None
+        except (TypeError, ValueError):
+            return jsonify({'error': 'Invalid team_id'}), 400
+    else:
+        board.team_id = None
+
+    if 'position' in data and data.get('position') is not None:
+        try:
+            board.position = int(data.get('position'))
+        except (TypeError, ValueError):
+            pass
+
+    db.session.commit()
+    return jsonify({'success': True, 'board': _serialize_board(board, full=False)})
+
+
+@kanban_bp.route('/api/transfer-targets')
+@login_required
+@check_module_access('module_kanban')
+def api_transfer_targets():
+    """Return editable boards with their active lists and cards for copy/move modals."""
+    include_cards = request.args.get('include_cards') == '1'
+    boards = (
+        accessible_boards_query(current_user, include_closed=False)
+        .order_by(KanbanBoard.position.asc(), KanbanBoard.title.asc())
+        .all()
+    )
+    out = []
+    for b in boards:
+        if not can_edit_board(current_user, b):
+            continue
+        lists_data = []
+        for l in sorted([x for x in b.lists if not x.archived_at], key=lambda x: x.position):
+            entry = {'id': l.id, 'title': l.title}
+            if include_cards:
+                entry['cards'] = [
+                    {'id': c.id, 'title': c.title}
+                    for c in sorted([k for k in l.cards if not k.archived_at], key=lambda k: k.position)
+                ]
+            lists_data.append(entry)
+        out.append({
+            'id': b.id,
+            'public_id': b.public_id,
+            'title': b.title,
+            'lists': lists_data,
+        })
+    allowed_vis = get_allowed_visibilities(current_user)
+    teams_q = Team.query.order_by(Team.name.asc()).all()
+    if not getattr(current_user, 'is_admin', False):
+        member_tids = {
+            tm.team_id for tm in TeamMember.query.filter_by(user_id=current_user.id).all()
+        }
+        teams_q = [t for t in teams_q if t.id in member_tids]
+    return jsonify({
+        'boards': out,
+        'allowed_visibilities': allowed_vis,
+        'teams': [{'id': t.id, 'name': t.name} for t in teams_q],
+    })

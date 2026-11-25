@@ -239,6 +239,17 @@
                                         {% elif f.field_type == 'currency' or f.field_key == 'gesamt' %}
                                             <span class="{% if f.field_key == 'gesamt' %}fw-bold text-primary fs-6 bp-cell-formula{% else %}fw-semibold text-body{% endif %} small"
                                                   data-field-key="{{ f.field_key }}">{{ val or ('€0.00' if f.field_type == 'currency' else '-') }}</span>
+                                        {% elif f.field_type == 'boolean' %}
+                                            {% set is_checked = val in (True, 'true', 'True', '1', 1, 'ja', 'Ja') %}
+                                            <div class="form-check form-switch m-0 d-inline-flex align-items-center gap-2" onclick="event.stopPropagation()">
+                                                <input class="form-check-input bp-detail-boolean-toggle" type="checkbox" role="switch"
+                                                    data-entry-id="{{ entry.id }}"
+                                                    data-field-key="{{ f.field_key }}"
+                                                    {% if is_checked %}checked{% endif %}
+                                                    onchange="toggleDetailBoolean(this)"
+                                                    aria-label="{{ f.label }}">
+                                                <span class="small text-body fw-semibold bp-boolean-label">{{ 'Ja (zzgl. Steuern)' if is_checked else 'Nein' }}</span>
+                                            </div>
                                         {% elif f.field_type == 'counter' %}
                                             <span class="badge rounded-pill bg-body-secondary text-body border px-2.5 py-0.5 fw-bold small">{{ val or '0' }}</span>
                                         {% elif f.field_type == 'image_upload' %}
@@ -311,7 +322,7 @@
                                             {% endif %}
                                         {% endif %}
                                     </span>
-                                    {% if f.field_type not in ('formula', 'file_upload', 'image_upload', 'form_link', 'action_accept') and f.field_key != 'gesamt' %}
+                                    {% if f.field_type not in ('formula', 'file_upload', 'image_upload', 'form_link', 'action_accept', 'boolean') and f.field_key != 'gesamt' %}
                                     <i class="bi bi-pencil bp-field-edit-pen text-primary opacity-0 ms-1" style="font-size: 0.75rem;" aria-hidden="true"></i>
                                     {% endif %}
                                 </span>
@@ -476,6 +487,46 @@ function deleteEntryFromDetail(entryId) {
             }
         }
     });
+}
+
+async function toggleDetailBoolean(checkbox) {
+    const entryId = checkbox.dataset.entryId;
+    const fieldKey = checkbox.dataset.fieldKey;
+    const checked = checkbox.checked;
+    const label = checkbox.parentElement.querySelector('.bp-boolean-label');
+    if (label) label.textContent = checked ? 'Ja (zzgl. Steuern)' : 'Nein';
+
+    try {
+        const resp = await fetch(`/booking-personal/api/entry/${entryId}/cell`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({ field_key: fieldKey, value: checked })
+        });
+        const res = await resp.json();
+        if (res.success && res.updated_custom_data) {
+            const totalBox = document.getElementById('bpDetailTotalCostVal');
+            if (totalBox && res.updated_custom_data.gesamt) {
+                totalBox.textContent = res.updated_custom_data.gesamt;
+            }
+            for (const [k, v] of Object.entries(res.updated_custom_data)) {
+                document.querySelectorAll(`.bp-cell-formula[data-field-key="${k}"]`).forEach(el => {
+                    el.textContent = v || '€0.00';
+                });
+            }
+        } else if (!res.success) {
+            checkbox.checked = !checked;
+            if (label) label.textContent = !checked ? 'Ja (zzgl. Steuern)' : 'Nein';
+            showToast(res.error || 'Fehler beim Speichern.', 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        checkbox.checked = !checked;
+        if (label) label.textContent = !checked ? 'Ja (zzgl. Steuern)' : 'Nein';
+        showToast('Netzwerkfehler.', 'error');
+    }
 }
 
 async function changeActStatus(entryId, newStatus) {

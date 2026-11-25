@@ -103,6 +103,7 @@ def index():
             .all()
         )
 
+    events = deduplicate_multi_room_events(events)
     event_ids = [event.id for event in events]
     participations = participations_for_user(event_ids, current_user.id)
 
@@ -714,6 +715,8 @@ def get_events_for_month(year, month):
             )
         ).all()
 
+    events = deduplicate_multi_room_events(events)
+    master_events = deduplicate_multi_room_events(master_events)
     participations = participations_for_user(
         [event.id for event in events] + [master.id for master in master_events],
         current_user.id,
@@ -773,6 +776,7 @@ def search_events():
             .all()
         )
 
+    events = deduplicate_multi_room_events(events)
     participations = participations_for_user(
         [event.id for event in events],
         current_user.id,
@@ -830,6 +834,8 @@ def get_events_for_range(start_date, end_date):
                 )
             ).all()
 
+        events = deduplicate_multi_room_events(events)
+        master_events = deduplicate_multi_room_events(master_events)
         participations = participations_for_user(
             [event.id for event in events] + [master.id for master in master_events],
             current_user.id,

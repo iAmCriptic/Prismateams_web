@@ -26,6 +26,15 @@
 {% if row_span < 1 %}{% set row_span = 1 %}{% elif row_span > 6 %}{% set row_span = 6 %}{% endif %}
 {% if grid_x < 1 %}{% set grid_x = 1 %}{% elif grid_x > 4 %}{% set grid_x = 4 %}{% endif %}
 {% if grid_y < 1 %}{% set grid_y = 1 %}{% endif %}
+{% set mobile_col_span = (w.mobile_w if (w.mobile_w is defined and w.mobile_w is not none) else (w.get('mobile_w', 2) if w.get is defined else 2))|int %}
+{% set default_mh = row_span if row_span >= 2 else 2 %}
+{% set mobile_row_span = (w.mobile_h if (w.mobile_h is defined and w.mobile_h is not none) else (w.get('mobile_h', default_mh) if w.get is defined else default_mh))|int %}
+{% set mobile_grid_x = (w.mobile_x if (w.mobile_x is defined and w.mobile_x is not none) else (w.get('mobile_x', 1) if w.get is defined else 1))|int %}
+{% set mobile_grid_y = (w.mobile_y if (w.mobile_y is defined and w.mobile_y is not none) else (w.get('mobile_y', 1) if w.get is defined else 1))|int %}
+{% if mobile_col_span < 1 %}{% set mobile_col_span = 1 %}{% elif mobile_col_span > 2 %}{% set mobile_col_span = 2 %}{% endif %}
+{% if mobile_row_span < 1 %}{% set mobile_row_span = 1 %}{% elif mobile_row_span > 6 %}{% set mobile_row_span = 6 %}{% endif %}
+{% if mobile_grid_x < 1 %}{% set mobile_grid_x = 1 %}{% elif mobile_grid_x > 2 %}{% set mobile_grid_x = 2 %}{% endif %}
+{% if mobile_grid_y < 1 %}{% set mobile_grid_y = 1 %}{% endif %}
 {% set cfg = {
     'id': wid,
     'type': wtype,
@@ -33,6 +42,10 @@
     'h': row_span,
     'x': grid_x,
     'y': grid_y,
+    'mobile_w': mobile_col_span,
+    'mobile_h': mobile_row_span,
+    'mobile_x': mobile_grid_x,
+    'mobile_y': mobile_grid_y,
     'grid_v': 2,
     'calendar_ids': w.calendar_ids if w.calendar_ids is defined else w.get('calendar_ids', []),
     'contact_ids': w.contact_ids if w.contact_ids is defined else w.get('contact_ids', []),
@@ -45,7 +58,11 @@ data-col-span="{{ col_span }}"
      data-row-span="{{ row_span }}"
      data-grid-x="{{ grid_x }}"
      data-grid-y="{{ grid_y }}"
-     style="--dash-w: {{ col_span }}; --dash-h: {{ row_span }}; --dash-x: {{ grid_x }}; --dash-y: {{ grid_y }};"
+     data-mobile-col-span="{{ mobile_col_span }}"
+     data-mobile-row-span="{{ mobile_row_span }}"
+     data-mobile-grid-x="{{ mobile_grid_x }}"
+     data-mobile-grid-y="{{ mobile_grid_y }}"
+     style="--dash-w: {{ col_span }}; --dash-h: {{ row_span }}; --dash-x: {{ grid_x }}; --dash-y: {{ grid_y }}; --dash-mw: {{ mobile_col_span }}; --dash-mh: {{ mobile_row_span }}; --dash-mx: {{ mobile_grid_x }}; --dash-my: {{ mobile_grid_y }};"
 {% endset %}
 
 {% if wtype == 'termine' %}
@@ -516,6 +533,61 @@ data-col-span="{{ col_span }}"
     </div>
     {% else %}
     <div class="dash-widget-empty">{{ _('dashboard.widgets.kanban_changes.empty') }}</div>
+    {% endif %}
+</div>
+
+{% elif wtype == 'todos' %}
+{% set todo_items = data.get('items', []) %}
+<div class="dash-widget"
+     {{ widget_attrs|safe }}
+     data-context-zone
+     data-context-menu="dashboard-widget"
+     data-widget-id="{{ wid }}"
+     data-widget-type="todos"
+     data-widget-config='{{ cfg|tojson }}'
+     data-widget-href="{{ url_for('todos.index') }}"
+     data-empty-text="{{ _('dashboard.widgets.todos.empty') }}">
+    <div class="dash-widget-header">
+        <h3 class="dash-widget-title">
+            <i class="bi bi-grip-vertical dash-widget-handle d-none" aria-hidden="true"></i>
+            <i class="bi bi-check2-circle" aria-hidden="true"></i>
+            <span class="dash-widget-title-text">{{ _('dashboard.widgets.todos.title') }}</span>
+        </h3>
+        <div class="dash-widget-header-actions">
+            <span class="dash-widget-badge">{{ todo_items|length }}</span>
+        </div>
+    </div>
+    {% if todo_items %}
+    <div class="dash-widget-list">
+        {% for item in todo_items %}
+        <div class="dash-widget-row d-flex align-items-center gap-2"
+             data-todo-source="{{ item.source }}"
+             data-todo-id="{{ item.id }}"
+             data-stop-nav>
+            <input type="checkbox"
+                   class="form-check-input dash-todo-check m-0 flex-shrink-0"
+                   aria-label="{{ item.title }}"
+                   {% if not item.can_edit %}disabled{% endif %}>
+            <div class="flex-grow-1 min-w-0">
+                <div class="dash-widget-row-top">
+                    <p class="dash-widget-row-title mb-0 text-truncate">{{ item.title }}</p>
+                    {% if item.is_overdue %}
+                    <span class="badge bg-danger">{{ _('dashboard.widgets.todos.overdue') }}</span>
+                    {% elif item.due_time %}
+                    <span class="dash-widget-row-meta">{{ item.due_time }}</span>
+                    {% else %}
+                    <span class="dash-widget-row-meta">{{ _('dashboard.widgets.todos.today') }}</span>
+                    {% endif %}
+                </div>
+                {% if item.source_label %}
+                <p class="dash-widget-row-sub mb-0 text-truncate">{{ item.source_label }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="dash-widget-empty">{{ _('dashboard.widgets.todos.empty') }}</div>
     {% endif %}
 </div>
 

@@ -290,6 +290,7 @@ def register_request_hooks(app):
             revoke_all_sessions,
         )
         from app.utils.common import portal_now_naive
+        from datetime import datetime
 
         try:
             # Abgelaufene Gast-Accounts sofort deaktivieren und abmelden.
@@ -305,6 +306,24 @@ def register_request_hooks(app):
                         return jsonify({'error': 'Guest access expired'}), 401
                     flash(translate('auth.flash.guest_access_expired_contact_admin'), 'warning')
                     return redirect(url_for('auth.login'))
+
+            # Befristete Accounts nach Ablauf von account_active_until sofort deaktivieren und abmelden.
+            if (
+                not getattr(current_user, 'is_super_admin', False)
+                and getattr(current_user, 'account_active_until', None)
+                and portal_now_naive().date() > current_user.account_active_until
+            ):
+                if current_user.is_active:
+                    current_user.is_active = False
+                    current_user.auto_deactivated_at = datetime.utcnow()
+                    revoke_all_sessions(current_user.id, exclude_current=False)
+                    db.session.commit()
+                logout_user()
+                clear_session_preserving_logout()
+                if request.path.startswith('/api/') or request.path.startswith('/files/api/'):
+                    return jsonify({'error': 'Account expired'}), 401
+                flash(translate('auth.flash.account_expired_contact_admin'), 'warning')
+                return redirect(url_for('auth.login'))
 
             if not getattr(current_user, 'is_active', True):
                 logout_user()

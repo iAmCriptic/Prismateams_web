@@ -151,6 +151,7 @@ class KanbanCard(db.Model):
     due_date = db.Column(db.DateTime, nullable=True)
     cover_attachment_id = db.Column(db.Integer, nullable=True)  # logical FK to kanban_attachments.id
     position = db.Column(db.Integer, nullable=False, default=0)
+    is_template = db.Column(db.Boolean, nullable=False, default=False)
     completed_at = db.Column(db.DateTime, nullable=True)
     archived_at = db.Column(db.DateTime, nullable=True)
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
@@ -474,4 +475,23 @@ class KanbanCardFieldValue(db.Model):
 
     __table_args__ = (
         db.UniqueConstraint('card_id', 'field_id', name='unique_kanban_card_field_value'),
+    )
+
+
+class KanbanBoardNotificationPreference(db.Model):
+    """Per-user notification filter for external channels (portal, badge, push) per board."""
+    __tablename__ = 'kanban_board_notification_preferences'
+
+    id = db.Column(db.Integer, primary_key=True)
+    board_id = db.Column(db.Integer, db.ForeignKey('kanban_boards.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    # 'all' | 'mentions_checklist' | 'assigned'
+    mode = db.Column(db.String(32), nullable=False, default='all')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    board = db.relationship('KanbanBoard', backref=db.backref('notification_preferences', cascade='all, delete-orphan'))
+    user = db.relationship('User', backref=db.backref('kanban_notification_preferences', cascade='all, delete-orphan'))
+
+    __table_args__ = (
+        db.UniqueConstraint('board_id', 'user_id', name='unique_kanban_board_notif_pref'),
     )

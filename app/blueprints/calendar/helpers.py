@@ -315,6 +315,68 @@ def _add_participants_for_event(event, multi_mode, invitee_ids=None):
     return []
 
 
+def deduplicate_multi_room_events(events):
+    """Fasst Mehrfach-Raumbuchungen derselben Veranstaltung im selben Zeitraum zusammen.
+
+    Wenn mehrere Raum-Kalender ausgewählt sind, erzeugt eine Veranstaltung mit N Räumen
+    N einzelne CalendarEvents (über BookingRequest.event_id verknüpft). Diese Funktion
+    reduziert sie in der Gesamtansicht auf genau einen Eintrag und kombiniert die
+    Raum-Orte in `_display_location` (ohne das ORM-Modell zu mutieren).
+    """
+    events_list = list(events or [])
+    if len(events_list) <= 1:
+        return events_list
+
+    req_ids = sorted({
+        ev.booking_request_id
+        for ev in events_list
+        if getattr(ev, 'booking_request_id', None) is not None
+    })
+    if not req_ids:
+        return events_list
+
+    from app.models.booking import BookingRequest
+
+    req_rows = BookingRequest.query.filter(BookingRequest.id.in_(req_ids)).all()
+    event_id_by_req = {
+        row.id: row.event_id
+        for row in req_rows
+        if row.event_id is not None
+    }
+    if not event_id_by_req:
+        return events_list
+
+    grouped = {}
+    output = []
+    for ev in events_list:
+        linked_event_id = event_id_by_req.get(getattr(ev, 'booking_request_id', None))
+        if linked_event_id is None:
+            output.append(ev)
+            continue
+
+        key = (linked_event_id, ev.start_time, ev.end_time)
+        bucket = grouped.get(key)
+        if bucket is None:
+            grouped[key] = [ev]
+            output.append(ev)
+        else:
+            bucket.append(ev)
+
+    for bucket in grouped.values():
+        if len(bucket) <= 1:
+            continue
+        rep = bucket[0]
+        seen_locs = []
+        for item in bucket:
+            loc = (item.location or '').strip()
+            if loc and loc not in seen_locs:
+                seen_locs.append(loc)
+        if seen_locs:
+            rep._display_location = ', '.join(seen_locs)
+
+    return output
+
+
 def event_to_api_dict(event, participation_status=None, extra=None, user=None):
     duration = (event.end_time.date() - event.start_time.date()).days + 1
     is_all_day = (
@@ -332,7 +394,7 @@ def event_to_api_dict(event, participation_status=None, extra=None, user=None):
         'end_date': event.end_time.date().isoformat(),
         'duration_days': duration,
         'is_all_day': is_all_day,
-        'location': event.location,
+        'location': getattr(event, '_display_location', None) or event.location,
         'event_color': event.event_color or DEFAULT_EVENT_COLOR,
         'display_color': display_color,
         'description': event.description,
@@ -503,6 +565,7 @@ __all__ = [
     '_parse_invitee_ids',
     '_add_participants_for_event',
     'event_to_api_dict',
+    'deduplicate_multi_room_events',
     'generate_recurring_instances',
     '_participation_status',
     '_recurring_instance_api_dict',

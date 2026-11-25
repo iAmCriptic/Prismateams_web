@@ -77,6 +77,7 @@ def _guest_account_form_options():
         ('module_canvas', 'Canvas'),
         ('module_surveys', 'Umfragen'),
         ('module_meetings', 'Meetings'),
+        ('module_todos', 'ToDos'),
     ]
     from app.utils.mirotalk import mirotalk_configured
     if not mirotalk_configured():

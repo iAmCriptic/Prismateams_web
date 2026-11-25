@@ -224,6 +224,7 @@ def admin_roles_user_update(user_id):
             'module_duty_roster',
             'module_booking_personal',
             'module_helpers',
+            'module_todos',
         ]
         
         # Aktualisiere Modul-Rollen
@@ -339,6 +340,7 @@ def admin_roles_default():
         ('module_duty_roster', 'Dienstplan'),
         ('module_booking_personal', 'Booking'),
         ('module_helpers', 'Helferverwaltung'),
+        ('module_todos', 'ToDos'),
     ]
     
     from app.utils.access_control import load_default_module_roles, _roles_flag_enabled

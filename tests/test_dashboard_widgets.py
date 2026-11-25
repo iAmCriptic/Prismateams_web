@@ -203,3 +203,54 @@ def test_dashboard_guest_renders_cleanly(client, app):
     _login(client, email='dash_guest@example.com')
     resp = client.get('/dashboard')
     assert resp.status_code == 200
+
+
+def test_dashboard_mobile_and_pc_sizes_are_independent(client, app):
+    with app.app_context():
+        _create_admin()
+
+    _login(client)
+    save_resp = client.post('/api/dashboard/config', json={
+        'widgets': [
+            {
+                'id': 'wm1', 'type': 'termine',
+                'w': 3, 'h': 4, 'x': 1, 'y': 1,
+                'mobile_w': 1, 'mobile_h': 3, 'mobile_x': 1, 'mobile_y': 1,
+                'grid_v': 2,
+            },
+            {
+                'id': 'wm2', 'type': 'nachrichten',
+                'w': 1, 'h': 2, 'x': 4, 'y': 1,
+                'mobile_w': 1, 'mobile_h': 2, 'mobile_x': 2, 'mobile_y': 1,
+                'grid_v': 2,
+            },
+        ]
+    })
+    assert save_resp.status_code == 200
+    widgets = {w['id']: w for w in save_resp.get_json()['config']['widgets']}
+    assert widgets['wm1']['w'] == 3 and widgets['wm1']['h'] == 4 and widgets['wm1']['x'] == 1
+    assert widgets['wm1']['mobile_w'] == 1 and widgets['wm1']['mobile_h'] == 3 and widgets['wm1']['mobile_x'] == 1
+    assert widgets['wm2']['w'] == 1 and widgets['wm2']['h'] == 2 and widgets['wm2']['x'] == 4
+    assert widgets['wm2']['mobile_w'] == 1 and widgets['wm2']['mobile_h'] == 2 and widgets['wm2']['mobile_x'] == 2
+
+    # Update only mobile size of wm1 to full width (2) -> wm2 mobile_x/y should repack, PC sizes untouched
+    update_resp = client.post('/api/dashboard/config', json={
+        'widgets': [
+            {**widgets['wm1'], 'mobile_w': 2, 'mobile_h': 5},
+            widgets['wm2'],
+        ]
+    })
+    assert update_resp.status_code == 200
+    updated = {w['id']: w for w in update_resp.get_json()['config']['widgets']}
+    assert updated['wm1']['w'] == 3 and updated['wm1']['h'] == 4 and updated['wm1']['x'] == 1
+    assert updated['wm2']['w'] == 1 and updated['wm2']['h'] == 2 and updated['wm2']['x'] == 4
+    assert updated['wm1']['mobile_w'] == 2 and updated['wm1']['mobile_h'] == 5
+    assert updated['wm2']['mobile_y'] >= 6  # repacked below wm1 (y=1..5)
+
+    dash_resp = client.get('/dashboard')
+    assert dash_resp.status_code == 200
+    html = dash_resp.get_data(as_text=True)
+    assert 'data-mobile-col-span="2"' in html
+    assert 'data-mobile-row-span="5"' in html
+    assert '--dash-mw: 2;' in html
+    assert '--dash-mh: 5;' in html

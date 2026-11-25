@@ -77,6 +77,106 @@ def before_request():
     _check_access()
 
 
+def _cleanup_legacy_netto_field(event):
+    """Entfernt eventuell zuvor angelegte 'gage_netto'/'booking_fee_netto'-Felder, da Gage immer netto ist."""
+    removed = False
+    for f in list(event.fields):
+        if f.field_key in ('gage_netto', 'booking_fee_netto'):
+            db.session.delete(f)
+            removed = True
+    if removed:
+        db.session.commit()
+
+
+def _extract_option_values(field):
+    """Extrahiert definierte Option-Werte aus einem BookingPersonalField."""
+    values = []
+    if not field:
+        return values
+    for opt in field.get_options():
+        val = opt.get('value') if isinstance(opt, dict) else opt
+        if val is not None:
+            s = str(val).strip()
+            if s and s not in values:
+                values.append(s)
+    return values
+
+
+def _normalize_area_values(raw_val, area_field=None):
+    """Normalisiert Bereich/Stage-Werte (Einzelwert oder Multi-Select-Liste) zu einer String-Liste."""
+    if not raw_val:
+        return []
+    if area_field is not None:
+        return [v.strip() for v in area_field.parse_multi_value(raw_val) if str(v).strip()]
+    if isinstance(raw_val, list):
+        return [str(v).strip() for v in raw_val if str(v).strip()]
+    s = str(raw_val).strip()
+    if not s or s == '-':
+        return []
+    if s.startswith('[') and s.endswith(']'):
+        try:
+            parsed = json.loads(s)
+            if isinstance(parsed, list):
+                return [str(v).strip() for v in parsed if str(v).strip()]
+        except Exception:
+            pass
+    return [s]
+
+
+def _build_index_filter_metadata(fields, entries):
+    """Bereitet Status-/Bereichs-Optionen und normalisierte Zeilen-Metadaten für Filter & Sortierung auf."""
+    status_field = next(
+        (f for f in fields if f.field_key in ('status_booking', 'status')),
+        None
+    )
+    area_field = next(
+        (
+            f for f in fields
+            if f.field_key in ('bereich', 'stage', 'area', 'buehne')
+            or 'bereich' in (f.label or '').lower()
+            or 'stage' in (f.label or '').lower()
+            or 'stage' in (f.label_en or '').lower()
+        ),
+        None
+    )
+
+    status_field_key = status_field.field_key if status_field else 'status_booking'
+    area_field_key = area_field.field_key if area_field else 'bereich'
+
+    status_options = _extract_option_values(status_field)
+    area_options = _extract_option_values(area_field)
+    entry_filter_meta = {}
+
+    for entry in entries:
+        custom = entry.get_custom_data()
+        row_status = str(custom.get(status_field_key) or entry.status or '').strip()
+        if row_status and row_status != '-' and row_status not in status_options:
+            status_options.append(row_status)
+
+        raw_area = custom.get(area_field_key)
+        row_areas = _normalize_area_values(raw_area, area_field)
+        for area_val in row_areas:
+            if area_val != '-' and area_val not in area_options:
+                area_options.append(area_val)
+
+        row_name = str(
+            custom.get('project_name')
+            or custom.get('auftrittsname_projektname')
+            or custom.get('artist_name')
+            or custom.get('name')
+            or entry.name
+            or ''
+        ).strip()
+
+        entry_filter_meta[entry.id] = {
+            'status': row_status,
+            'areas': row_areas,
+            'name': row_name,
+        }
+
+    return status_field_key, area_field_key, status_options, area_options, entry_filter_meta
+
+
 @booking_personal_bp.route('/')
 @booking_personal_bp.route('/event/<int:event_id>')
 def index(event_id=None):
@@ -104,11 +204,16 @@ def index(event_id=None):
     fields = []
     entries = []
     if current_event:
+        _cleanup_legacy_netto_field(current_event)
         fields = current_event.fields
         entries = current_event.entries
         # Stelle sicher, dass Formelwerte aktuell berechnet sind
         for entry in entries:
             entry.compute_formula_values(fields)
+
+    status_field_key, area_field_key, status_options, area_options, entry_filter_meta = (
+        _build_index_filter_metadata(fields, entries)
+    )
 
     return render_template(
         'booking_personal/index.html',
@@ -118,6 +223,11 @@ def index(event_id=None):
         entries=entries,
         templates=templates,
         mailboxes=mailboxes,
+        status_field_key=status_field_key,
+        area_field_key=area_field_key,
+        status_options=status_options,
+        area_options=area_options,
+        entry_filter_meta=entry_filter_meta,
     )
 
 
@@ -172,8 +282,19 @@ def create_event():
         return redirect(url_for('booking_personal.index'))
 
     template_id = request.form.get('template_id')
+    raw_budget = request.form.get('total_budget', '').strip()
+    total_budget = None
+    if raw_budget:
+        try:
+            parsed_budget = float(raw_budget.replace('€', '').replace(',', '.').strip())
+            if parsed_budget >= 0:
+                total_budget = round(parsed_budget, 2)
+        except (ValueError, TypeError):
+            total_budget = None
+
     event = BookingPersonalEvent(
         name=name,
+        total_budget=total_budget,
         created_by=current_user.id
     )
     db.session.add(event)
@@ -229,9 +350,21 @@ def update_event_settings(event_id):
     event = BookingPersonalEvent.query.get_or_404(event_id)
     active_tab = request.form.get('active_tab', 'emails')
 
-    name = request.form.get('name', '').strip()
+    name = (request.form.get('event_name') or request.form.get('name') or '').strip()
     if name:
         event.name = name
+
+    if 'total_budget' in request.form:
+        raw_budget = request.form.get('total_budget', '').strip()
+        if not raw_budget:
+            event.total_budget = None
+        else:
+            try:
+                parsed_budget = float(raw_budget.replace('€', '').replace(',', '.').strip())
+                if parsed_budget >= 0:
+                    event.total_budget = round(parsed_budget, 2)
+            except (ValueError, TypeError):
+                pass
 
     mailbox_id = request.form.get('mailbox_id')
     if mailbox_id and mailbox_id.isdigit():
@@ -364,6 +497,16 @@ def api_create_entry(event_id):
     entry.set_value('project_name', name)
     entry.set_value('status_booking', 'Angefragt')
     entry.set_value('gage', '€0.00')
+
+    if data.get('gage') not in (None, ''):
+        try:
+            gage_num = float(str(data.get('gage')).replace('€', '').replace(',', '.').strip() or 0)
+            entry.set_value('gage', f'€{gage_num:.2f}')
+        except (ValueError, TypeError):
+            pass
+    if data.get('steuersatz'):
+        entry.set_value('steuersatz', str(data.get('steuersatz')).strip())
+
     entry.compute_formula_values(event.fields)
 
     db.session.add(entry)
@@ -372,6 +515,32 @@ def api_create_entry(event_id):
     return jsonify({
         'success': True,
         'entry': entry.to_dict()
+    })
+
+
+@booking_personal_bp.route('/api/event/<int:event_id>/budget', methods=['POST'])
+def api_update_event_budget(event_id):
+    """Aktualisiert das Gesamtbudget eines Events."""
+    event = BookingPersonalEvent.query.get_or_404(event_id)
+    data = request.get_json() or {}
+    raw_val = data.get('total_budget')
+
+    if raw_val in (None, ''):
+        event.total_budget = None
+    else:
+        try:
+            cleaned = str(raw_val).replace('€', '').replace(' ', '').replace(',', '.').strip()
+            budget = float(cleaned)
+            if budget < 0:
+                return jsonify({'success': False, 'error': 'Das Gesamtbudget darf nicht negativ sein.'}), 400
+            event.total_budget = round(budget, 2)
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'Ungültiger Budget-Betrag.'}), 400
+
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'total_budget': event.total_budget,
     })
 
 
@@ -953,10 +1122,22 @@ def template_field_add(template_id):
         'is_required': False,
     }
     fields.append(new_field_def)
+
+    added_tax_field = False
+    label_key_text = f"{label.lower()} {label_en.lower()} {field_key.lower()}"
+    if any(w in label_key_text for w in ('fee', 'gage')) and 'steuersatz' not in existing_keys:
+        steuer_preset = next((f for f in FESTIVAL_STANDARD_FIELDS if f.get('field_key') == 'steuersatz'), None)
+        if steuer_preset:
+            fields.append(dict(steuer_preset))
+            added_tax_field = True
+
     template.set_fields(fields)
     db.session.commit()
 
-    flash(f'Spalte „{label}“ erfolgreich zur Vorlage hinzugefügt.', 'success')
+    if added_tax_field:
+        flash(f'Spalte „{label}“ sowie automatisch „Steuersatz“ zur Vorlage hinzugefügt.', 'success')
+    else:
+        flash(f'Spalte „{label}“ erfolgreich zur Vorlage hinzugefügt.', 'success')
     return redirect(url_for('booking_personal.templates_view', template_id=template.id))
 
 

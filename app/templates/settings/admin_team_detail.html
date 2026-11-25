@@ -258,16 +258,20 @@
             <form method="POST" action="{{ url_for('settings.admin_team_detail', team_id=team.id) }}" class="mb-4" data-sp-no-autosave>
                 <input type="hidden" name="action" value="create_invite_code">
                 <div class="row g-3 align-items-end">
-                    <div class="col-12 {% if can_create_portal_invite %}col-md-3 col-xl-3{% else %}col-md-4 col-xl-4{% endif %}">
+                    <div class="col-12 col-md-6 {% if can_create_portal_invite %}col-xl-2{% else %}col-xl-3{% endif %}">
                         <label class="form-label small text-muted mb-1" for="inviteMaxUses">{{ _('settings.admin.teams.invite.max_uses') }}</label>
                         <input type="number" min="1" class="form-control" id="inviteMaxUses" name="max_uses" placeholder="{{ _('settings.admin.teams.invite.max_uses_placeholder') }}">
                     </div>
-                    <div class="col-12 {% if can_create_portal_invite %}col-md-3 col-xl-3{% else %}col-md-4 col-xl-4{% endif %}">
+                    <div class="col-12 col-md-6 {% if can_create_portal_invite %}col-xl-2{% else %}col-xl-3{% endif %}">
                         <label class="form-label small text-muted mb-1" for="inviteExpiresDays">{{ _('settings.admin.teams.invite.expires_days') }}</label>
                         <input type="number" min="1" class="form-control" id="inviteExpiresDays" name="expires_days" placeholder="{{ _('settings.admin.teams.invite.expires_days_placeholder') }}">
                     </div>
+                    <div class="col-12 col-md-6 {% if can_create_portal_invite %}col-xl-3{% else %}col-xl-3{% endif %}">
+                        <label class="form-label small text-muted mb-1" for="inviteAccountActiveUntil">{{ _('settings.admin.teams.invite.account_active_until') }}</label>
+                        <input type="date" class="form-control" id="inviteAccountActiveUntil" name="account_active_until" min="{{ today_iso }}" title="{{ _('settings.admin.teams.invite.account_active_until_help') }}">
+                    </div>
                     {% if can_create_portal_invite %}
-                    <div class="col-12 col-md-3 col-xl-3">
+                    <div class="col-12 col-md-6 col-xl-2">
                         <label class="form-label small text-muted mb-1" for="inviteRole">{{ _('settings.admin.teams.invite.role_label') }}</label>
                         <select class="form-select" id="inviteRole" name="role">
                             <option value="team_only" selected>{{ _('settings.admin.teams.invite.role_team_only') }}</option>
@@ -275,13 +279,14 @@
                         </select>
                     </div>
                     {% endif %}
-                    <div class="col-12 {% if can_create_portal_invite %}col-md-3 col-xl-3{% else %}col-md-4 col-xl-4{% endif %}">
+                    <div class="col-12 {% if can_create_portal_invite %}col-md-12 col-xl-3{% else %}col-md-6 col-xl-3{% endif %}">
                         <button type="submit" class="btn btn-accent rounded-pill mod-pill-btn w-100" data-sp-keep-submit>
                             <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
                             <span class="text-nowrap">{{ _('settings.admin.teams.invite.create') }}</span>
                         </button>
                     </div>
                 </div>
+                <div class="form-text mt-2">{{ _('settings.admin.teams.invite.account_active_until_help') }}</div>
             </form>
 
             {% if invite_codes %}
@@ -289,11 +294,12 @@
                 <table class="table mod-list-table align-middle mb-0">
                     <thead>
                         <tr>
-                            <th scope="col" style="width: 28%;">{{ _('settings.admin.teams.invite.code_label') }}</th>
-                            <th scope="col" style="width: 14%;">{{ _('settings.admin.teams.invite.status_label') }}</th>
-                            <th scope="col" style="width: 18%;">{{ _('settings.admin.teams.invite.col_access') }}</th>
-                            <th scope="col" class="d-none d-md-table-cell" style="width: 16%;">{{ _('settings.admin.teams.invite.usage_label') }}</th>
-                            <th scope="col" class="d-none d-lg-table-cell" style="width: 14%;">{{ _('settings.admin.teams.invite.expires_label') }}</th>
+                            <th scope="col" style="width: 24%;">{{ _('settings.admin.teams.invite.code_label') }}</th>
+                            <th scope="col" style="width: 12%;">{{ _('settings.admin.teams.invite.status_label') }}</th>
+                            <th scope="col" style="width: 16%;">{{ _('settings.admin.teams.invite.col_access') }}</th>
+                            <th scope="col" class="d-none d-md-table-cell" style="width: 14%;">{{ _('settings.admin.teams.invite.usage_label') }}</th>
+                            <th scope="col" class="d-none d-lg-table-cell" style="width: 12%;">{{ _('settings.admin.teams.invite.expires_label') }}</th>
+                            <th scope="col" class="d-none d-lg-table-cell" style="width: 12%;">{{ _('settings.admin.teams.invite.account_active_until_col') }}</th>
                             <th scope="col" class="text-end" style="width: 10%;"></th>
                         </tr>
                     </thead>
@@ -337,6 +343,13 @@
                             <td class="d-none d-lg-table-cell text-muted small">
                                 {% if invite.expires_at %}
                                 {{ invite.expires_at|localdatetime('%d.%m.%Y') }}
+                                {% else %}
+                                {{ _('settings.admin.teams.invite.unlimited') }}
+                                {% endif %}
+                            </td>
+                            <td class="d-none d-lg-table-cell text-muted small">
+                                {% if invite.account_active_until %}
+                                {{ invite.account_active_until.strftime('%d.%m.%Y') }}
                                 {% else %}
                                 {{ _('settings.admin.teams.invite.unlimited') }}
                                 {% endif %}

@@ -224,6 +224,8 @@ def _enqueue_kanban_notify(
     *,
     detail: str | None = None,
     push_suffix: str | None = None,
+    target_user_ids: set[int] | None = None,
+    is_checklist_assignment: bool = False,
 ) -> None:
     from app.utils.notifications import enqueue_kanban_notification
 
@@ -237,6 +239,8 @@ def _enqueue_kanban_notify(
         card_id=card_id,
         detail=detail,
         push_suffix=push_suffix,
+        target_user_ids=target_user_ids,
+        is_checklist_assignment=is_checklist_assignment,
     )
 
 
@@ -824,6 +828,7 @@ def _serialize_card_summary(
         'position': card.position,
         'archived': bool(card.archived_at),
         'completed': bool(card.completed_at),
+        'is_template': bool(card.is_template),
         'cover': cover,
         'cover_attachment_id': card.cover_attachment_id,
         'labels': [

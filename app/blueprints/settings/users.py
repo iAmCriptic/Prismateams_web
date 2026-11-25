@@ -95,6 +95,7 @@ def admin_users():
         ('module_duty_roster', 'Dienstplan'),
         ('module_booking_personal', 'Booking'),
         ('module_helpers', 'Helferverwaltung'),
+        ('module_todos', 'ToDos'),
     ]
     
     # Get all users, excluding guest accounts (system accounts)
@@ -545,6 +546,7 @@ def create_user():
                 'module_duty_roster',
                 'module_booking_personal',
                 'module_helpers',
+                'module_todos',
             ]
             
             selected_modules = request.form.getlist('allowed_modules')
@@ -673,6 +675,9 @@ def activate_user(user_id):
     
     user = User.query.get_or_404(user_id)
     user.is_active = True
+    user.auto_deactivated_at = None
+    if user.account_active_until and user.account_active_until < portal_now_naive().date():
+        user.account_active_until = None
 
     # Fehlende Standardrollen nachziehen (z.B. nach fehlgeschlagener Zuweisung bei Registrierung)
     from app.utils.access_control import apply_default_roles_to_user, user_lacks_module_access
@@ -874,6 +879,7 @@ def edit_guest_user(user_id):
             'module_duty_roster',
             'module_booking_personal',
             'module_helpers',
+            'module_todos',
         ]
 
         existing_roles = UserModuleRole.query.filter_by(user_id=user.id).all()

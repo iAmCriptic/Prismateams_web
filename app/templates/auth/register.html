@@ -26,6 +26,13 @@
         </svg>
     </span>
 </a>
+{% endif %}
+{% if not gp %}
+<a href="{{ url_for('auth.coderegister') }}" class="btn btn-outline-secondary auth-google-btn w-100 mb-2"
+    aria-label="{{ _('auth.register.with_invite_code_aria') }}">
+    <i class="bi bi-ticket-perforated" aria-hidden="true"></i>
+    <span>{{ _('auth.register.with_invite_code') }}</span>
+</a>
 <div class="auth-google-divider my-3" role="separator">
     <span>{{ _('auth.google.or') }}</span>
 </div>

@@ -353,6 +353,10 @@ def sync_calendar_source(source, user_id=None, calendar_id=None):
         except Exception:
             target_calendar_id = None
 
+    if (source.url or '').startswith('google-calendar://'):
+        from app.utils.google_calendar_sync import sync_google_calendar_source
+        return sync_google_calendar_source(source, user_id=owner_id, calendar_id=target_calendar_id)
+
     try:
         ical_data = fetch_ical_from_url(source.url)
         cal = Calendar.from_ical(ical_data)

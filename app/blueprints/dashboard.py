@@ -75,6 +75,7 @@ WIDGET_MODULE_MAP = {
     'meetings': 'module_meetings',
     'dienstplan': 'module_duty_roster',
     'excalidraw': 'module_excalidraw',
+    'todos': 'module_todos',
 }
 
 WIDGET_METADATA = {
@@ -91,6 +92,7 @@ WIDGET_METADATA = {
     'kontakte': {'icon': 'bi-person-lines-fill', 'category': 'communication'},
     'kanban_meine_karten': {'icon': 'bi-check2-square', 'category': 'projects'},
     'kanban_aenderungen': {'icon': 'bi-kanban', 'category': 'projects'},
+    'todos': {'icon': 'bi-check2-circle', 'category': 'planning'},
     'neue_wikieintraege': {'icon': 'bi-journal-text', 'category': 'projects'},
     'meine_wikis': {'icon': 'bi-star-fill', 'category': 'projects'},
     'protokolle': {'icon': 'bi-journal-richtext', 'category': 'projects'},
@@ -120,10 +122,11 @@ SIMPLE_WIDGET_TYPES = [
     'raumbuchung_kommende', 'booking_personal', 'helpers', 'veranstaltungen',
     'umfragen', 'protokolle', 'meetings', 'dienstplan', 'excalidraw',
     'kanban_aenderungen', 'kanban_meine_karten',
+    'todos',
 ]
 
 ALL_WIDGET_TYPES = [
-    'termine', 'veranstaltungen', 'dienstplan',
+    'termine', 'veranstaltungen', 'dienstplan', 'todos',
     'buchungen', 'raumbuchung_kommende', 'booking_personal', 'helpers',
     'nachrichten', 'emails', 'meetings', 'kontakte',
     'kanban_meine_karten', 'kanban_aenderungen',
@@ -132,6 +135,7 @@ ALL_WIDGET_TYPES = [
 ]
 
 DASHBOARD_GRID_COLS = 4
+DASHBOARD_MOBILE_GRID_COLS = 2
 DASHBOARD_WIDGET_LIST_LIMIT = 12
 
 
@@ -144,21 +148,15 @@ def _rects_overlap(a, b):
     )
 
 
-def _normalize_dashboard_widgets(widgets, cols=DASHBOARD_GRID_COLS):
-    """Ensure w/h/x/y on the 5.5rem grid (grid_v=2); pack missing positions."""
+def _pack_grid_positions(items, cols, x_key, y_key, w_key, h_key):
+    """Pack widgets into a grid of `cols` columns without overlaps."""
     occupied = []
-    result = []
 
-    def fits(x, y, w, h, skip_id=None):
+    def fits(x, y, w, h):
         if x < 1 or y < 1 or w < 1 or h < 1 or x + w - 1 > cols:
             return False
         rect = {'x': x, 'y': y, 'w': w, 'h': h}
-        for other in occupied:
-            if skip_id and other.get('id') == skip_id:
-                continue
-            if _rects_overlap(rect, other):
-                return False
-        return True
+        return not any(_rects_overlap(rect, other) for other in occupied)
 
     def first_fit(w, h):
         y = 1
@@ -168,6 +166,29 @@ def _normalize_dashboard_widgets(widgets, cols=DASHBOARD_GRID_COLS):
                     return x, y
             y += 1
         return 1, y
+
+    for item in items:
+        w = item[w_key]
+        h = item[h_key]
+        x = item.get(x_key)
+        y = item.get(y_key)
+        try:
+            x = int(x) if x is not None else None
+            y = int(y) if y is not None else None
+        except (TypeError, ValueError):
+            x, y = None, None
+
+        if x is None or y is None or not fits(x, y, w, h):
+            x, y = first_fit(w, h)
+
+        item[x_key] = x
+        item[y_key] = y
+        occupied.append({'id': item.get('id'), 'x': x, 'y': y, 'w': w, 'h': h})
+
+
+def _normalize_dashboard_widgets(widgets, cols=DASHBOARD_GRID_COLS, mobile_cols=DASHBOARD_MOBILE_GRID_COLS):
+    """Ensure desktop (w/h/x/y) and mobile (mobile_w/mobile_h/mobile_x/mobile_y) on the 5.5rem grid."""
+    result = []
 
     for raw in widgets or []:
         item = dict(raw)
@@ -188,20 +209,28 @@ def _normalize_dashboard_widgets(widgets, cols=DASHBOARD_GRID_COLS):
         w = max(1, min(cols, w))
         h = max(1, min(6, h))
 
-        x = item.get('x')
-        y = item.get('y')
         try:
-            x = int(x) if x is not None else None
-            y = int(y) if y is not None else None
+            mw_raw = item.get('mobile_w')
+            mobile_w = max(1, min(mobile_cols, int(mw_raw))) if mw_raw is not None else mobile_cols
         except (TypeError, ValueError):
-            x, y = None, None
+            mobile_w = mobile_cols
+        try:
+            mh_raw = item.get('mobile_h')
+            mobile_h = max(1, min(6, int(mh_raw))) if mh_raw is not None else max(2, min(6, h))
+        except (TypeError, ValueError):
+            mobile_h = max(2, min(6, h))
 
-        if x is None or y is None or not fits(x, y, w, h):
-            x, y = first_fit(w, h)
-
-        item.update({'w': w, 'h': h, 'x': x, 'y': y, 'grid_v': 2})
-        occupied.append({'id': item.get('id'), 'x': x, 'y': y, 'w': w, 'h': h})
+        item.update({
+            'w': w,
+            'h': h,
+            'grid_v': 2,
+            'mobile_w': mobile_w,
+            'mobile_h': mobile_h,
+        })
         result.append(item)
+
+    _pack_grid_positions(result, cols, 'x', 'y', 'w', 'h')
+    _pack_grid_positions(result, mobile_cols, 'mobile_x', 'mobile_y', 'mobile_w', 'mobile_h')
 
     result.sort(key=lambda w: (int(w.get('y') or 1), int(w.get('x') or 1)))
     return result
@@ -795,6 +824,11 @@ def _load_widget_payload(user, widgets):
         elif wtype == 'kanban_meine_karten' and has_module_access(user, 'module_kanban'):
             payload[wid] = {
                 'cards': _load_kanban_cards_for_widget(user, w.get('board_ids') or []),
+            }
+        elif wtype == 'todos' and has_module_access(user, 'module_todos'):
+            from app.blueprints.todos import collect_dashboard_todos
+            payload[wid] = {
+                'items': collect_dashboard_todos(user, limit=DASHBOARD_WIDGET_LIST_LIMIT),
             }
     return payload
 

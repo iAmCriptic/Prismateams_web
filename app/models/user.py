@@ -61,6 +61,10 @@ class User(UserMixin, db.Model):
     is_guest = db.Column(db.Boolean, default=False, nullable=False)  # Kennzeichnet Gast-Accounts
     guest_expires_at = db.Column(db.DateTime, nullable=True)  # Ablaufzeit für Gast-Accounts
     guest_username = db.Column(db.String(100), nullable=True)  # Gast-Benutzername (Login: {username}@{guest_email_domain})
+
+    # Invite Account Lifecycle (optional max active date from TeamInviteCode)
+    account_active_until = db.Column(db.Date, nullable=True)  # Letztes Datum (inkl.), an dem der Account aktiv bleiben darf
+    auto_deactivated_at = db.Column(db.DateTime, nullable=True)  # Zeitpunkt (UTC) der automatischen Deaktivierung nach Ablauf
     
     # Module Access Control
     has_full_access = db.Column(db.Boolean, default=False, nullable=False)  # Vollzugriff auf alle Module
@@ -304,6 +308,29 @@ class User(UserMixin, db.Model):
                     pos_val = item.get(pos_key)
                     if pos_val is not None:
                         entry[pos_key] = max(1, int(pos_val))
+                except (TypeError, ValueError):
+                    pass
+
+            # Mobile layout size: mobile_w = columns (1-2), mobile_h = rows (1-6, 5.5rem grid)
+            try:
+                mw_raw = item.get('mobile_w')
+                entry['mobile_w'] = max(1, min(2, int(mw_raw))) if mw_raw is not None else 2
+            except (TypeError, ValueError):
+                entry['mobile_w'] = 2
+            try:
+                mh_raw = item.get('mobile_h')
+                if mh_raw is not None:
+                    entry['mobile_h'] = max(1, min(6, int(mh_raw)))
+                else:
+                    entry['mobile_h'] = max(2, min(6, entry['h']))
+            except (TypeError, ValueError):
+                entry['mobile_h'] = max(2, min(6, entry['h']))
+            for mpos_key, mmax in (('mobile_x', 2), ('mobile_y', None)):
+                try:
+                    mpos_val = item.get(mpos_key)
+                    if mpos_val is not None:
+                        val = max(1, int(mpos_val))
+                        entry[mpos_key] = min(mmax, val) if mmax else val
                 except (TypeError, ValueError):
                     pass
 

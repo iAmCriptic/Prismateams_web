@@ -64,7 +64,7 @@ def _extract_room_ids_from_form(form):
 
 
 def _sync_event_rooms(event_obj, room_ids, user, event_date, start_time, end_time):
-    """Synchronisiert die zugeordneten Räume eines Events inkl. Raumbuchungen."""
+    """Synchronisiert die zugeordneten Räume eines Events inkl. Raumbuchungen für alle Event-Tage."""
     from app.models.booking import BookingRequest, BookingRoom
     from app.utils.booking_rooms import create_or_update_room_booking, delete_room_booking
 
@@ -84,8 +84,27 @@ def _sync_event_rooms(event_obj, room_ids, user, event_date, start_time, end_tim
     if not is_module_enabled('module_booking'):
         return
 
+    # Alle zu buchenden Tages-Slots des Events ermitteln
+    day_slots = []
+    if event_obj.days:
+        for day in sorted(event_obj.days, key=lambda d: (d.date, d.day_number)):
+            if not day.date:
+                continue
+            day_slots.append((
+                day.date,
+                day.start_time or start_time,
+                day.end_time or end_time,
+            ))
+    if not day_slots and event_date:
+        day_slots.append((event_date, start_time, end_time))
+
     selected_ids = {r.id for r in selected_rooms}
-    existing_reqs = BookingRequest.query.filter_by(event_id=event_obj.id).all()
+    existing_reqs = (
+        BookingRequest.query
+        .filter_by(event_id=event_obj.id)
+        .order_by(BookingRequest.event_date.asc(), BookingRequest.id.asc())
+        .all()
+    )
     reqs_by_room = {}
     for req in existing_reqs:
         if req.room_id and req.room_id not in selected_ids:
@@ -94,27 +113,55 @@ def _sync_event_rooms(event_obj, room_ids, user, event_date, start_time, end_tim
             except Exception as e:
                 current_app.logger.warning(f"Alte Raumbuchung konnte nicht gelöscht werden: {e}")
         elif req.room_id:
-            reqs_by_room[req.room_id] = req
+            reqs_by_room.setdefault(req.room_id, []).append(req)
 
     conflict_rooms = []
     for room in selected_rooms:
-        try:
-            existing_req = reqs_by_room.get(room.id)
-            _, has_conflict, _ = create_or_update_room_booking(
-                room_id=room.id,
-                event_name=event_obj.name,
-                event_date=event_date,
-                start_time=start_time,
-                end_time=end_time,
-                user=user,
-                event_id=event_obj.id,
-                booking_type='internal',
-                booking_request_id=existing_req.id if existing_req else None,
-            )
-            if has_conflict:
-                conflict_rooms.append(room.name)
-        except Exception as e:
-            current_app.logger.warning(f"Raumbuchung für Event fehlgeschlagen (Raum {room.id}): {e}")
+        room_reqs = list(reqs_by_room.get(room.id, []))
+        matched_ids = set()
+
+        # Pass 1: Bestehende Buchungen bevorzugt über das Datum zuordnen
+        slot_assignments = [None] * len(day_slots)
+        for s_idx, (s_date, _, _) in enumerate(day_slots):
+            for req in room_reqs:
+                if req.id not in matched_ids and req.event_date == s_date:
+                    slot_assignments[s_idx] = req
+                    matched_ids.add(req.id)
+                    break
+
+        # Pass 2: Übrige freie Buchungen dieses Raums wiederverwenden
+        remaining_reqs = [req for req in room_reqs if req.id not in matched_ids]
+        for s_idx in range(len(day_slots)):
+            if slot_assignments[s_idx] is None and remaining_reqs:
+                req = remaining_reqs.pop(0)
+                slot_assignments[s_idx] = req
+                matched_ids.add(req.id)
+
+        # Überzählige Buchungen (z. B. wenn Tage entfernt wurden) löschen
+        for leftover_req in remaining_reqs:
+            try:
+                delete_room_booking(leftover_req)
+            except Exception as e:
+                current_app.logger.warning(f"Überzählige Raumbuchung konnte nicht gelöscht werden: {e}")
+
+        for s_idx, (s_date, s_start, s_end) in enumerate(day_slots):
+            try:
+                existing_req = slot_assignments[s_idx]
+                _, has_conflict, _ = create_or_update_room_booking(
+                    room_id=room.id,
+                    event_name=event_obj.name,
+                    event_date=s_date,
+                    start_time=s_start,
+                    end_time=s_end,
+                    user=user,
+                    event_id=event_obj.id,
+                    booking_type='internal',
+                    booking_request_id=existing_req.id if existing_req else None,
+                )
+                if has_conflict and room.name not in conflict_rooms:
+                    conflict_rooms.append(room.name)
+            except Exception as e:
+                current_app.logger.warning(f"Raumbuchung für Event fehlgeschlagen (Raum {room.id}, {s_date}): {e}")
 
     if conflict_rooms:
         rooms_str = ', '.join(conflict_rooms)
@@ -675,26 +722,59 @@ def _store_form_data(event_obj, req):
             dates_dict[d].append(appt)
 
         sorted_dates = sorted(dates_dict.keys())
+        sorted_date_set = set(sorted_dates)
         event_obj.is_multiday = len(sorted_dates) > 1
         event_obj.start_date = sorted_dates[0]
         event_obj.end_date = sorted_dates[-1]
 
-        existing_days = {d.date: d for d in event_obj.days}
+        existing_days = {}
+        for d_obj in list(event_obj.days):
+            if d_obj.date not in sorted_date_set or d_obj.date in existing_days:
+                for tl in list(d_obj.todo_lists):
+                    tl.day_id = None
+                db.session.delete(d_obj)
+            else:
+                existing_days[d_obj.date] = d_obj
+        db.session.flush()
+
+        # Temporäre negative day_number vergeben, um UniqueConstraint-Kollisionen beim Umnummerieren zu vermeiden
+        for neg_idx, d_obj in enumerate(existing_days.values(), start=1):
+            d_obj.day_number = -neg_idx
+        if existing_days:
+            db.session.flush()
+
         for idx, d in enumerate(sorted_dates, start=1):
+            day_appts = dates_dict[d]
+            day_start = min(a.start_time.time() for a in day_appts)
+            day_end = max(a.end_time.time() for a in day_appts)
+            day_loc = next((a.location for a in day_appts if a.location), None) or event_obj.default_location
+
             day_obj = existing_days.get(d)
             if not day_obj:
                 day_obj = EventDay(
                     event_id=event_obj.id,
                     day_number=idx,
                     date=d,
+                    start_time=day_start,
+                    end_time=day_end,
+                    location=day_loc,
                     label=f"Tag {idx}" if event_obj.is_multiday else "Haupttermin",
                 )
                 db.session.add(day_obj)
                 db.session.flush()
             else:
                 day_obj.day_number = idx
-            for appt in dates_dict[d]:
+                day_obj.start_time = day_start
+                day_obj.end_time = day_end
+                day_obj.location = day_loc
+                if event_obj.is_multiday and day_obj.label == "Haupttermin":
+                    day_obj.label = f"Tag {idx}"
+                elif not event_obj.is_multiday and day_obj.label and day_obj.label.startswith("Tag "):
+                    day_obj.label = "Haupttermin"
+            for appt in day_appts:
                 appt.day_id = day_obj.id
+        db.session.flush()
+        db.session.expire(event_obj, ['days'])
 
     # Materialbedarf wird dem ersten Termin zugeordnet (warnend, nicht blockierend).
     if created_appointments:

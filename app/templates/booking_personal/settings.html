@@ -139,9 +139,6 @@
                                             {% if f.label_en %}
                                             <div class="text-muted small">({{ f.label_en }})</div>
                                             {% endif %}
-                                            {% if f.field_key %}
-                                            <div class="text-muted small font-monospace" style="font-size: 0.72rem;">key: {{ f.field_key }}</div>
-                                            {% endif %}
                                         </td>
                                         <td>
                                             <span class="badge rounded-pill bg-body-secondary text-secondary border px-2.5 py-1">
@@ -557,15 +554,21 @@
                         <form action="{{ url_for('booking_personal.update_event_settings', event_id=current_event.id) }}" method="POST" class="mb-4">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="active_tab" value="general">
-                            <div class="row mb-3">
+                            <div class="row g-3 mb-3">
                                 <div class="col-md-7">
                                     <label class="form-label small fw-semibold">Veranstaltungsname</label>
                                     <input type="text" name="event_name" class="form-control mod-pill-input"
                                         value="{{ current_event.name }}" required>
                                 </div>
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-semibold">Gesamtbudget (€)</label>
+                                    <input type="number" step="0.01" min="0" name="total_budget" class="form-control mod-pill-input"
+                                        placeholder="z. B. 15000.00"
+                                        value="{{ '%.2f'|format(current_event.total_budget) if current_event.total_budget is not none else '' }}">
+                                </div>
                             </div>
                             <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent px-4 py-1.5">
-                                <i class="bi bi-check-lg me-1"></i>Name speichern
+                                <i class="bi bi-check-lg me-1"></i>Einstellungen speichern
                             </button>
                         </form>
 

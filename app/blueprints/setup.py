@@ -42,6 +42,7 @@ MODULE_META = [
     {'key': 'module_duty_roster', 'icon': 'bi-calendar3', 'label': 'Dienstplan', 'settings_endpoint': None},
     {'key': 'module_booking_personal', 'icon': 'bi-person-badge', 'label': 'Booking', 'settings_endpoint': None},
     {'key': 'module_helpers', 'icon': 'bi-people-fill', 'label': 'Helferverwaltung', 'settings_endpoint': 'settings.admin_helpers_settings'},
+    {'key': 'module_todos', 'icon': 'bi-check2-circle', 'label': 'ToDos', 'settings_endpoint': None},
 ]
 
 

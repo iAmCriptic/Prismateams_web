@@ -219,7 +219,6 @@
                                         <th style="width: 44px;" class="text-center">#</th>
                                         <th>Spaltenbezeichnung (DE / EN)</th>
                                         <th>Kategorie</th>
-                                        <th>Schlüssel (Key)</th>
                                         <th>Feldtyp</th>
                                         <th>Herkunft / Pflege</th>
                                         <th>Zusage-Übersicht</th>
@@ -246,15 +245,14 @@
                                             </span>
                                         </td>
                                         <td>
-                                            <code class="small text-secondary">{{ f.field_key }}</code>
-                                        </td>
-                                        <td>
                                             {% if f.field_type == 'badge_select' %}
                                             <span class="badge rounded-pill bg-body-secondary text-body border">Badge / Dropdown</span>
                                             {% elif f.field_type == 'multi_select' %}
                                             <span class="badge rounded-pill bg-body-secondary text-body border">Multiple Choice</span>
                                             {% elif f.field_type == 'currency' %}
                                             <span class="badge rounded-pill bg-body-secondary text-body border">Währung (€)</span>
+                                            {% elif f.field_type == 'boolean' %}
+                                            <span class="badge rounded-pill bg-body-secondary text-body border">Schalter (Ja/Nein)</span>
                                             {% elif f.field_type == 'counter' %}
                                             <span class="badge rounded-pill bg-body-secondary text-body border">Zahl / Counter</span>
                                             {% elif f.field_type == 'formula' %}
@@ -301,7 +299,7 @@
                                     {% endif %}
                                     {% else %}
                                     <tr>
-                                        <td colspan="8" class="text-center py-4 text-muted">
+                                        <td colspan="{{ 7 if not selected_template.is_system_default else 6 }}" class="text-center py-4 text-muted">
                                             Keine Spalten in dieser Vorlage definiert.
                                         </td>
                                     </tr>
@@ -499,11 +497,6 @@
                         <label class="form-label fw-semibold">Auswahl-Optionen (eine Option pro Zeile; optional mit Farbe: Wert|Farbe)</label>
                         <textarea name="options" id="tmplFieldOptions" class="form-control rounded-4 font-monospace small" rows="4" placeholder="Option 1|primary&#10;Option 2|success&#10;Option 3|danger"></textarea>
                         <div class="form-text small">Farben: primary, success, danger, warning, info, secondary</div>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Technischer Feld-Key (optional)</label>
-                        <input type="text" name="field_key" id="tmplFieldKey" class="form-control mod-pill-input rounded-pill px-3 py-2 font-monospace small" placeholder="wird automatisch generiert">
                     </div>
 
                     <div class="form-check form-switch mb-2">

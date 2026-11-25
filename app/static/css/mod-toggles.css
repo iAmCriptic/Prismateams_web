@@ -71,6 +71,23 @@
     color: #fff;
 }
 
+/* Labeled text+icon pill toggle (variable button widths) */
+.mod-view-toggle--labeled .mod-view-toggle__btn {
+    width: auto;
+    min-width: 0;
+    padding: 0 0.85rem;
+    gap: 0.35rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.mod-view-toggle--labeled .mod-view-toggle__btn.active,
+.mod-view-toggle--labeled .mod-view-toggle__btn.is-active {
+    box-shadow: 0 0.15rem 0.45rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 35%, transparent);
+}
+
 /* View pane crossfade */
 .mod-view-stage {
     position: relative;

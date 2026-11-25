@@ -820,4 +820,73 @@ def test_event_multiple_rooms_create_and_edit(client, auth_user):
     assert {r.room_id for r in reqs_after} == {r2_id, r3_id}
 
 
+def test_multiday_event_room_bookings_create_and_edit(client, auth_user):
+    from app.models.booking import BookingRoom, BookingRequest
+
+    _login(client)
+
+    r1 = BookingRoom(name='Saal A', capacity=100, color='#3b82f6', is_active=True)
+    r2 = BookingRoom(name='Saal B', capacity=50, color='#10b981', is_active=True)
+    db.session.add_all([r1, r2])
+    db.session.commit()
+    r1_id, r2_id = r1.id, r2.id
+
+    # 1. Mehrtägiges Event (2 Tage) mit 2 Räumen erstellen
+    res = client.post('/events/create', data={
+        'name': 'HolyHorst 2026',
+        'event_mode': 'multi',
+        'multi_day_date[]': ['2026-12-05', '2026-12-06'],
+        'multi_day_start[]': ['14:00', '11:00'],
+        'multi_day_end[]': ['22:00', '19:00'],
+        'multi_day_location[]': ['', ''],
+        'multi_day_label[]': ['Tag 1', 'Tag 2'],
+        'room_ids': [str(r1_id), str(r2_id)],
+    }, follow_redirects=True)
+    assert res.status_code == 200
+
+    ev = Event.query.filter_by(name='HolyHorst 2026').first()
+    assert ev is not None
+    assert ev.is_multiday is True
+    assert len(ev.days) == 2
+    assert len(ev.appointments) == 2
+
+    reqs = BookingRequest.query.filter_by(event_id=ev.id).order_by(BookingRequest.room_id, BookingRequest.event_date).all()
+    assert len(reqs) == 4
+    assert {(r.room_id, r.event_date, r.event_start_time, r.event_end_time) for r in reqs} == {
+        (r1_id, date(2026, 12, 5), time(14, 0), time(22, 0)),
+        (r1_id, date(2026, 12, 6), time(11, 0), time(19, 0)),
+        (r2_id, date(2026, 12, 5), time(14, 0), time(22, 0)),
+        (r2_id, date(2026, 12, 6), time(11, 0), time(19, 0)),
+    }
+
+    # 2. Event bearbeiten: Termine auf 07.12. verschieben (1 Tag) und nur r1 behalten
+    res = client.post(f'/events/{ev.id}/edit', data={
+        'name': 'HolyHorst 2026',
+        'appointment_label[]': ['HolyHorst 2026 - Tag 1'],
+        'appointment_start[]': ['2026-12-07T15:00'],
+        'appointment_end[]': ['2026-12-07T21:00'],
+        'appointment_location[]': [''],
+        'appointment_description[]': [''],
+        'appointment_timeline_json[]': ['[]'],
+        'room_ids': [str(r1_id)],
+    }, follow_redirects=True)
+    assert res.status_code == 200
+
+    db.session.expire_all()
+    ev = db.session.get(Event, ev.id)
+    assert ev.is_multiday is False
+    assert len(ev.days) == 1
+    assert ev.days[0].date == date(2026, 12, 7)
+    assert ev.days[0].start_time == time(15, 0)
+    assert ev.days[0].end_time == time(21, 0)
+
+    reqs_after = BookingRequest.query.filter_by(event_id=ev.id).all()
+    assert len(reqs_after) == 1
+    assert reqs_after[0].room_id == r1_id
+    assert reqs_after[0].event_date == date(2026, 12, 7)
+    assert reqs_after[0].event_start_time == time(15, 0)
+    assert reqs_after[0].event_end_time == time(21, 0)
+
+
+
 

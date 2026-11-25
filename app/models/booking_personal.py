@@ -1,5 +1,6 @@
 from datetime import datetime
 import json
+import re
 import secrets
 from app import db
 
@@ -145,6 +146,9 @@ class BookingPersonalEvent(db.Model):
     form_intro_text_en = db.Column(db.Text, nullable=True)
     overview_intro_text = db.Column(db.Text, nullable=True)
     overview_intro_text_en = db.Column(db.Text, nullable=True)
+
+    # Gesamtbudget für Finanzen (optional pro Event eintragbar)
+    total_budget = db.Column(db.Float, nullable=True)
 
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -417,10 +421,32 @@ class BookingPersonalEntry(db.Model):
         elif field_key in ('status', 'status_booking') and value:
             self.status = str(value)
 
+    @staticmethod
+    def _is_truthy(val):
+        if isinstance(val, bool):
+            return val
+        if val is None:
+            return False
+        return str(val).strip().lower() in ('1', 'true', 'ja', 'yes', 'on')
+
+    @staticmethod
+    def _parse_tax_rate(steuersatz_val):
+        if not steuersatz_val:
+            return 0.0
+        match = re.search(r'(\d+(?:[.,]\d+)?)\s*%', str(steuersatz_val))
+        if not match:
+            return 0.0
+        try:
+            return float(match.group(1).replace(',', '.')) / 100.0
+        except (ValueError, TypeError):
+            return 0.0
+
     def compute_formula_values(self, fields):
         """Berechnet Formelfelder wie GESAMT."""
         data = self.get_custom_data()
         changed = False
+        tax_rate = self._parse_tax_rate(data.get('steuersatz'))
+
         for f in fields:
             if f.field_type == 'formula' and f.formula_definition:
                 expr = f.formula_definition
@@ -433,7 +459,10 @@ class BookingPersonalEntry(db.Model):
                         val = data.get(t)
                         if val is not None:
                             try:
-                                total += float(str(val).replace('€', '').replace(',', '.').strip() or 0)
+                                num = float(str(val).replace('€', '').replace(',', '.').strip() or 0)
+                                if t == 'gage' and tax_rate > 0:
+                                    num = num * (1.0 + tax_rate)
+                                total += num
                             except (ValueError, TypeError):
                                 pass
                     data[f.field_key] = f"€{total:.2f}"
@@ -499,6 +528,9 @@ class BookingPersonalTemplate(db.Model):
     description = db.Column(db.String(500), nullable=True)
     is_system_default = db.Column(db.Boolean, default=False, nullable=False)
     fields_schema_json = db.Column(db.Text, nullable=False)
+    # Gesamtbudget für Finanzen (optional pro Event eintragbar)
+    total_budget = db.Column(db.Float, nullable=True)
+
     created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 

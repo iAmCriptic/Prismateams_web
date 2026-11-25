@@ -78,6 +78,7 @@ def export_teams_bundle() -> Dict:
         "max_uses": c.max_uses,
         "uses_count": c.uses_count,
         "expires_at": c.expires_at.isoformat() if c.expires_at else None,
+        "account_active_until": c.account_active_until.isoformat() if getattr(c, "account_active_until", None) else None,
         "is_active": c.is_active,
         "role": c.role,
         "created_at": c.created_at.isoformat() if c.created_at else None,

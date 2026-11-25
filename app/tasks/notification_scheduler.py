@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta
 
 from app.tasks.guest_cleanup import cleanup_expired_guests
+from app.tasks.invite_account_cleanup import cleanup_expired_invite_accounts
 from app.tasks.interval_scheduler import IntervalScheduler
 from app.utils.notifications import (
     cleanup_inactive_subscriptions,
@@ -53,12 +54,13 @@ class NotificationScheduler(IntervalScheduler):
         if now.hour == 2 and now.minute < 15:
             cleanup_inactive_subscriptions()
 
-        # Guest-Cleanup höchstens stündlich
+        # Guest-Cleanup & befristete Einladungs-Accounts höchstens stündlich
         if (
             self._last_guest_cleanup is None
             or (now - self._last_guest_cleanup) >= timedelta(hours=1)
         ):
             cleanup_expired_guests()
+            cleanup_expired_invite_accounts()
             self._last_guest_cleanup = now
 
 

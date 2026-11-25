@@ -602,7 +602,7 @@
       form.className = 'kanban-new-checklist-form kanban-checklist';
       form.innerHTML = `
         <input class="form-control form-control-sm kanban-pill-input" name="title" maxlength="200"
-               placeholder="${esc(i18n.checklistName || 'Checklistenname')}" autocomplete="off" required>
+               placeholder="${esc(i18n.checklistName || 'Checklistenname (optional)')}" autocomplete="off">
         <div class="d-flex gap-2 mt-2">
           <button type="submit" class="btn btn-sm btn-accent mod-pill-btn">${esc(i18n.add || 'Hinzufügen')}</button>
           <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--ghost" data-cancel-new-cl>${esc(i18n.cancel || 'Abbrechen')}</button>
@@ -611,8 +611,7 @@
       form.addEventListener('submit', async (ev) => {
         ev.preventDefault();
         const titleInput = form.querySelector('input[name=title]');
-        const title = (titleInput && titleInput.value || '').trim();
-        if (!title) return;
+        const title = (titleInput && titleInput.value || '').trim() || 'Checkliste';
         try {
           await api(`/kanban/api/cards/${currentCardId}/checklists`, { method: 'POST', body: { title } });
           openCard(currentCardId);
@@ -853,9 +852,7 @@
     const cl = card.checklist || {};
     const meta = [];
     if (card.due_date) {
-      const cardDueState = getChecklistDueState(card.due_date, !!card.completed);
-      const cls = cardDueState ? `kanban-card__due kanban-card__due--${cardDueState}` : 'kanban-card__due';
-      meta.push(`<span class="${cls}" title="${esc(formatDueDisplay(card.due_date))}"><i class="bi bi-clock"></i> ${esc(formatChecklistDue(card.due_date))}</span>`);
+      meta.push(`<span class="kanban-card__due" title="${esc(formatDueDisplay(card.due_date))}"><i class="bi bi-calendar3"></i> ${esc(formatChecklistDue(card.due_date))}</span>`);
     }
     if (cl.total) {
       if (cl.next_due) {
@@ -870,13 +867,14 @@
     if (card.attachment_count) meta.push(`<span><i class="bi bi-paperclip"></i> ${card.attachment_count}</span>`);
     if (card.poll_text || card.vote_count) meta.push(`<span><i class="bi bi-hand-thumbs-up"></i> ${card.vote_count || 0}</span>`);
     const avatars = (card.assignees || []).map((a) => avatarHtml(a)).join('');
-    return `<div class="kanban-card${card.completed ? ' is-completed' : ''}" data-card-id="${card.id}" role="button" tabindex="0">
+    return `<div class="kanban-card${card.completed ? ' is-completed' : ''}${card.is_template ? ' is-template' : ''}" data-card-id="${card.id}" role="button" tabindex="0">
       ${cover}
       ${labels ? `<div class="kanban-card__labels">${labels}</div>` : ''}
       <div class="kanban-card__title-row">
         <span class="kanban-card__complete-icon" aria-hidden="true"><i class="bi ${card.completed ? 'bi-check-circle-fill' : 'bi-circle'}"></i></span>
         <div class="kanban-card__title">${esc(card.title)}</div>
       </div>
+      ${card.is_template ? `<div class="kanban-card__template-badge"><i class="bi bi-card-heading me-1"></i>${esc(i18n.cardIsTemplateBadge || 'Diese Karte ist eine Vorlage')}</div>` : ''}
       ${card.poll_text ? `<div class="kanban-card__poll-preview">${esc(card.poll_text)}</div>` : ''}
       <div class="kanban-card__footer">${meta.join('')}<div class="kanban-card__avatars">${avatars}</div></div>
     </div>`;
@@ -894,6 +892,10 @@
             <li><button type="button" class="dropdown-item" data-list-move-left="${list.id}"><i class="bi bi-arrow-left me-2"></i>${esc(i18n.moveListLeft || 'Nach links verschieben')}</button></li>
             <li><button type="button" class="dropdown-item" data-list-move-right="${list.id}"><i class="bi bi-arrow-right me-2"></i>${esc(i18n.moveListRight || 'Nach rechts verschieben')}</button></li>
             <li><button type="button" class="dropdown-item" data-list-default-fields="${list.id}"><i class="bi bi-ui-checks-grid me-2"></i>${esc(i18n.listDefaultFields || 'Standard-Felder')}</button></li>
+            ${!isShare ? `
+            <li><button type="button" class="dropdown-item" data-list-copy="${list.id}"><i class="bi bi-copy me-2"></i>${esc(i18n.copyList || 'Liste kopieren…')}</button></li>
+            <li><button type="button" class="dropdown-item" data-list-move="${list.id}"><i class="bi bi-arrow-right-circle me-2"></i>${esc(i18n.moveList || 'Liste verschieben…')}</button></li>
+            ` : ''}
             <li><hr class="dropdown-divider"></li>
             <li><button type="button" class="dropdown-item" data-list-rename="${list.id}">${esc(i18n.rename || 'Umbenennen')}</button></li>
             <li><button type="button" class="dropdown-item text-danger" data-list-delete="${list.id}">${esc(i18n.delete || 'Löschen')}</button></li>
@@ -1280,6 +1282,7 @@
         position: card.position,
         archived: card.archived,
         completed: !!card.completed,
+        is_template: !!card.is_template,
         cover: card.cover,
         labels: card.labels || [],
         assignees: card.assignees || [],
@@ -1476,6 +1479,20 @@
     if (defaultFieldsBtn) {
       e.preventDefault();
       openListDefaultFieldsModal(Number(defaultFieldsBtn.getAttribute('data-list-default-fields')));
+      return;
+    }
+
+    const listCopyBtn = e.target.closest('[data-list-copy]');
+    if (listCopyBtn) {
+      e.preventDefault();
+      openTransferModal({ kind: 'list', action: 'copy', id: Number(listCopyBtn.getAttribute('data-list-copy')) });
+      return;
+    }
+
+    const listMoveBtn = e.target.closest('[data-list-move]');
+    if (listMoveBtn) {
+      e.preventDefault();
+      openTransferModal({ kind: 'list', action: 'move', id: Number(listMoveBtn.getAttribute('data-list-move')) });
       return;
     }
 
@@ -1683,6 +1700,14 @@
       return;
     }
     currentCardDetail = card;
+    const tplBanner = document.getElementById('cardTemplateBanner');
+    if (tplBanner) tplBanner.hidden = !card.is_template;
+    const tplLabel = document.getElementById('cardToggleTemplateLabel');
+    if (tplLabel) {
+      tplLabel.textContent = card.is_template
+        ? (i18n.cardTemplateUnmark || 'Vorlage aufheben')
+        : (i18n.cardTemplateMark || 'Als Vorlage markieren');
+    }
     const titleEl = document.getElementById('cardModalTitle');
     const descEl = document.getElementById('cardModalDescription');
     const listHidden = document.getElementById('cardModalListSelect');
@@ -1772,6 +1797,18 @@
                 </button>
               </li>
               ${canEdit ? `
+              ${!isShare ? `
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <button type="button" class="dropdown-item" data-cl-copy="${cl.id}">
+                  <i class="bi bi-copy me-2"></i>${esc(i18n.copyChecklist || 'Checkliste kopieren…')}
+                </button>
+              </li>
+              <li>
+                <button type="button" class="dropdown-item" data-cl-move="${cl.id}">
+                  <i class="bi bi-arrow-right-circle me-2"></i>${esc(i18n.moveChecklist || 'Checkliste verschieben…')}
+                </button>
+              </li>` : ''}
               <li><hr class="dropdown-divider"></li>
               <li>
                 <button type="button" class="dropdown-item text-danger" data-del-checklist="${cl.id}">
@@ -1951,6 +1988,18 @@
         } catch (err) {
           notify(err.message || 'Fehler');
         }
+      });
+    });
+    clRoot.querySelectorAll('[data-cl-copy]').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        openTransferModal({ kind: 'checklist', action: 'copy', id: Number(btn.getAttribute('data-cl-copy')) });
+      });
+    });
+    clRoot.querySelectorAll('[data-cl-move]').forEach((btn) => {
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        openTransferModal({ kind: 'checklist', action: 'move', id: Number(btn.getAttribute('data-cl-move')) });
       });
     });
     clRoot.querySelectorAll('[data-item-del]').forEach((btn) => {
@@ -2173,18 +2222,21 @@
     }
 
     function attachRow(a) {
-      const viewUrl = a.is_link ? a.url : (a.preview_url || a.url);
+      const useEuroOffice = Boolean(!a.is_link && a.onlyoffice_enabled && a.onlyoffice_url);
+      const viewUrl = useEuroOffice ? a.onlyoffice_url : (a.is_link ? a.url : (a.preview_url || a.url));
+      const downloadUrl = a.url || a.preview_url;
       const isCover = coverId && Number(coverId) === Number(a.id);
       const rawUrl = a.external_url || (a.is_link ? a.url : null);
       const showSubUrl = a.is_link && !a.is_portal_file && rawUrl && rawUrl !== a.filename;
       const accessBlocked = a.google_access === false || a.portal_file_access === false;
       const openDisabled = a.portal_file_access === false;
+      const openTarget = useEuroOffice ? '_self' : '_blank';
       return `<div class="kanban-attach-row${isCover ? ' is-cover' : ''}" data-att-id="${a.id}">
         ${attachThumb(a)}
         <div class="kanban-attach-row__info">
           ${openDisabled
             ? `<span class="kanban-attach-row__name text-warning"><i class="bi bi-lock-fill me-1"></i>${esc(a.filename)}</span>`
-            : `<a class="kanban-attach-row__name${accessBlocked ? ' text-warning' : ''}" href="${esc(viewUrl)}" target="_blank" rel="noopener">${accessBlocked ? '<i class="bi bi-lock-fill me-1"></i>' : ''}${esc(a.filename)}</a>`}
+            : `<a class="kanban-attach-row__name${accessBlocked ? ' text-warning' : ''}" href="${esc(viewUrl)}" target="${openTarget}" rel="noopener">${accessBlocked ? '<i class="bi bi-lock-fill me-1"></i>' : ''}${esc(a.filename)}</a>`}
           ${showSubUrl ? `<div class="kanban-attach-row__url" title="${esc(rawUrl)}">${esc(rawUrl)}</div>` : ''}
           <div class="kanban-attach-row__meta">
             ${a.created_at ? `<span>${formatAddedAt(a.created_at)}</span>` : ''}
@@ -2192,7 +2244,8 @@
           </div>
         </div>
         <div class="kanban-attach-row__actions">
-          ${openDisabled ? '' : `<a class="btn btn-sm mod-pill-btn mod-pill-btn--icon" href="${esc(viewUrl)}" target="_blank" rel="noopener" title="${esc(i18n.view || 'Ansehen')}"><i class="bi bi-box-arrow-up-right"></i></a>`}
+          ${openDisabled ? '' : `<a class="btn btn-sm mod-pill-btn mod-pill-btn--icon" href="${esc(viewUrl)}" target="${openTarget}" rel="noopener" title="${esc(useEuroOffice ? (i18n.editEuroOffice || 'In Euro-Office bearbeiten') : (i18n.view || 'Ansehen'))}"><i class="bi ${useEuroOffice ? 'bi-pencil-square' : 'bi-box-arrow-up-right'}"></i></a>`}
+          ${!openDisabled && useEuroOffice && downloadUrl ? `<a class="btn btn-sm mod-pill-btn mod-pill-btn--icon" href="${esc(downloadUrl)}" target="_blank" rel="noopener" title="${esc(i18n.download || 'Herunterladen')}"><i class="bi bi-download"></i></a>` : ''}
           ${canEdit && a.is_image && !isCover ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-set-cover="${a.id}" title="${esc(i18n.setCover || 'Titelbild')}"><i class="bi bi-image"></i></button>` : ''}
           ${canEdit && isCover ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-clear-cover="1" title="${esc(i18n.removeCover || 'Titelbild entfernen')}"><i class="bi bi-image-fill text-warning"></i></button>` : ''}
           ${canEdit ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon mod-pill-btn--ghost" data-del-att="${a.id}" title="${esc(i18n.delete || 'Löschen')}"><i class="bi bi-trash"></i></button>` : ''}
@@ -2810,12 +2863,19 @@
   (function initPortalFileAttachPicker() {
     const toggleBtn = document.getElementById('cardAttachPortalFileBtn');
     const searchInput = document.getElementById('cardPortalFileSearch');
+    const progressEl = document.getElementById('cardPortalFileProgress');
     const listEl = document.getElementById('cardPortalFileList');
     if (!toggleBtn || !listEl) return;
 
     let searchTimer = null;
     let activeController = null;
     let requestSeq = 0;
+
+    function setLoading(isLoading) {
+      if (progressEl) {
+        progressEl.hidden = !isLoading;
+      }
+    }
 
     async function loadPortalFiles(q) {
       if (activeController) {
@@ -2824,6 +2884,7 @@
       const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
       activeController = controller;
       const seq = ++requestSeq;
+      setLoading(true);
       listEl.innerHTML = `<div class="small text-muted px-2 py-2">${esc(i18n.loading || 'Laden...')}</div>`;
       try {
         const res = await api(
@@ -2846,6 +2907,9 @@
         if (seq !== requestSeq) return;
         listEl.innerHTML = `<div class="small text-danger px-2 py-2">${esc((err && err.message) || 'Fehler')}</div>`;
       } finally {
+        if (seq === requestSeq) {
+          setLoading(false);
+        }
         if (activeController === controller) {
           activeController = null;
         }
@@ -2880,6 +2944,7 @@
       const fileId = Number(btn.getAttribute('data-portal-file-id'));
       if (!fileId) return;
       btn.disabled = true;
+      setLoading(true);
       try {
         await api(`/kanban/api/cards/${currentCardId}/attachments`, {
           method: 'POST',
@@ -2893,6 +2958,8 @@
       } catch (err) {
         notify(err.message || 'Fehler');
         btn.disabled = false;
+      } finally {
+        setLoading(false);
       }
     });
   })();
@@ -4151,6 +4218,35 @@
     }
   });
 
+  // Mobile collapsible topbar
+  const boardTopbar = document.getElementById('kanbanBoardTopbar');
+  const topbarToggleBtn = document.getElementById('kanbanTopbarToggleBtn');
+  const topbarToggleDot = document.getElementById('kanbanTopbarToggleDot');
+  const filterBadgeEl = document.getElementById('kanbanFilterBadge');
+  const notifBadgeEl = document.getElementById('kanbanNotificationsBadge');
+
+  function syncTopbarToggleDot() {
+    if (!topbarToggleDot || !boardTopbar) return;
+    const isExpanded = boardTopbar.classList.contains('is-mobile-expanded');
+    const hasFilter = filterBadgeEl ? !filterBadgeEl.hidden : false;
+    const hasNotif = notifBadgeEl ? !notifBadgeEl.hidden : false;
+    topbarToggleDot.classList.toggle('d-none', isExpanded || (!hasFilter && !hasNotif));
+  }
+
+  topbarToggleBtn?.addEventListener('click', () => {
+    if (!boardTopbar) return;
+    const expanded = boardTopbar.classList.toggle('is-mobile-expanded');
+    topbarToggleBtn.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    syncTopbarToggleDot();
+  });
+
+  if (topbarToggleDot && (filterBadgeEl || notifBadgeEl)) {
+    const badgeObserver = new MutationObserver(syncTopbarToggleDot);
+    if (filterBadgeEl) badgeObserver.observe(filterBadgeEl, { attributes: true, attributeFilter: ['hidden'] });
+    if (notifBadgeEl) badgeObserver.observe(notifBadgeEl, { attributes: true, attributeFilter: ['hidden'] });
+    syncTopbarToggleDot();
+  }
+
   function stopPolling() {
     if (pollTimer) {
       clearInterval(pollTimer);
@@ -4313,6 +4409,292 @@
   if (params.get('card')) {
     setTimeout(() => openCard(Number(params.get('card'))), 300);
   }
+
+  // Per-board external notification filter preference
+  const notifModeSelect = document.getElementById('kanbanBoardNotifModeSelect');
+  if (notifModeSelect && !isShare) {
+    (async () => {
+      try {
+        const res = await api(`/kanban/api/boards/${boardId}/notification-preference`);
+        if (res && res.mode) notifModeSelect.value = res.mode;
+      } catch (_) { /* ignore */ }
+    })();
+    notifModeSelect.addEventListener('change', async () => {
+      try {
+        await api(`/kanban/api/boards/${boardId}/notification-preference`, {
+          method: 'PATCH',
+          body: { mode: notifModeSelect.value },
+        });
+      } catch (err) {
+        notify(err.message || 'Fehler beim Speichern', 'danger');
+      }
+    });
+  }
+
+  // Copy & Move modal controller (cards, lists, checklists, boards)
+  let transferCtx = null;
+  let transferTargetsCache = null;
+
+  async function openTransferModal(ctx) {
+    if (isShare) return;
+    transferCtx = ctx;
+    const modalEl = document.getElementById('kanbanTransferModal');
+    if (!modalEl) return;
+
+    const titleEl = document.getElementById('kanbanTransferModalTitle');
+    const titleGroup = document.getElementById('kanbanTransferTitleGroup');
+    const titleInput = document.getElementById('kanbanTransferTitleInput');
+    const boardGroup = document.getElementById('kanbanTransferBoardGroup');
+    const boardSelect = document.getElementById('kanbanTransferBoardSelect');
+    const listGroup = document.getElementById('kanbanTransferListGroup');
+    const listSelect = document.getElementById('kanbanTransferListSelect');
+    const cardGroup = document.getElementById('kanbanTransferCardGroup');
+    const cardSelect = document.getElementById('kanbanTransferCardSelect');
+    const posGroup = document.getElementById('kanbanTransferPosGroup');
+    const posSelect = document.getElementById('kanbanTransferPosSelect');
+    const visGroup = document.getElementById('kanbanTransferVisibilityGroup');
+    const visSelect = document.getElementById('kanbanTransferVisibilitySelect');
+    const teamGroup = document.getElementById('kanbanTransferTeamGroup');
+    const teamSelect = document.getElementById('kanbanTransferTeamSelect');
+
+    [titleGroup, boardGroup, listGroup, cardGroup, posGroup, visGroup, teamGroup].forEach((g) => {
+      if (g) g.hidden = true;
+    });
+
+    const titleMap = {
+      'card:copy': i18n.copyCard || 'Karte kopieren',
+      'card:move': i18n.moveCard || 'Karte verschieben',
+      'list:copy': i18n.copyList || 'Liste kopieren',
+      'list:move': i18n.moveList || 'Liste verschieben',
+      'checklist:copy': i18n.copyChecklist || 'Checkliste kopieren',
+      'checklist:move': i18n.moveChecklist || 'Checkliste verschieben',
+      'board:copy': i18n.copyBoard || 'Board kopieren',
+      'board:move': i18n.moveBoard || 'Board verschieben',
+    };
+    if (titleEl) titleEl.textContent = titleMap[`${ctx.kind}:${ctx.action}`] || 'Aktion';
+
+    try {
+      const includeCards = ctx.kind === 'checklist' ? '?include_cards=1' : '';
+      transferTargetsCache = await api(`/kanban/api/transfer-targets${includeCards}`);
+    } catch (err) {
+      notify(err.message || 'Fehler beim Laden der Ziele', 'danger');
+      return;
+    }
+
+    const boardsList = (transferTargetsCache && transferTargetsCache.boards) || [];
+
+    function populatePositions(count, includeEnd = true) {
+      if (!posSelect) return;
+      const total = includeEnd ? count + 1 : Math.max(1, count);
+      posSelect.innerHTML = '';
+      for (let i = 0; i < total; i++) {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = String(i + 1);
+        posSelect.appendChild(opt);
+      }
+      posSelect.value = String(total - 1);
+    }
+
+    function populateCardsForList(bObj, listId) {
+      if (!cardSelect) return;
+      const lObj = (bObj && bObj.lists || []).find((l) => Number(l.id) === Number(listId));
+      const cardsArr = (lObj && lObj.cards) || [];
+      cardSelect.innerHTML = cardsArr.map((c) => `<option value="${c.id}">${esc(c.title)}</option>`).join('');
+      if (ctx.kind === 'checklist' && currentCardId && cardsArr.some((c) => Number(c.id) === Number(currentCardId))) {
+        cardSelect.value = String(currentCardId);
+      }
+    }
+
+    function populateListsForBoard(bId) {
+      if (!listSelect) return;
+      const bObj = boardsList.find((b) => Number(b.id) === Number(bId));
+      const listsArr = (bObj && bObj.lists) || [];
+      listSelect.innerHTML = listsArr.map((l) => `<option value="${l.id}">${esc(l.title)}</option>`).join('');
+      if (ctx.kind === 'list') {
+        populatePositions(listsArr.length, ctx.action === 'copy' || Number(bId) !== Number(boardId));
+      } else if (ctx.kind === 'checklist' && listSelect.value) {
+        populateCardsForList(bObj, listSelect.value);
+      }
+    }
+
+    if (boardSelect) {
+      boardSelect.innerHTML = boardsList.map((b) => `<option value="${b.id}">${esc(b.title)}</option>`).join('');
+      if (boardsList.some((b) => Number(b.id) === Number(boardId))) {
+        boardSelect.value = String(boardId);
+      }
+      boardSelect.onchange = () => populateListsForBoard(boardSelect.value);
+    }
+    if (listSelect) {
+      listSelect.onchange = () => {
+        if (ctx.kind === 'checklist') {
+          const bObj = boardsList.find((b) => Number(b.id) === Number(boardSelect.value));
+          populateCardsForList(bObj, listSelect.value);
+        }
+      };
+    }
+
+    if (ctx.kind === 'card') {
+      if (ctx.action === 'copy' && titleGroup && titleInput) {
+        titleGroup.hidden = false;
+        const srcCard = findCardLocal(ctx.id);
+        titleInput.value = srcCard ? (ctx.fromTemplate ? srcCard.title : `${srcCard.title} (Kopie)`) : '';
+      }
+      if (boardGroup) boardGroup.hidden = false;
+      if (listGroup) listGroup.hidden = false;
+      populateListsForBoard(boardSelect.value);
+      if (currentCardDetail && listSelect && Number(boardSelect.value) === Number(boardId)) {
+        listSelect.value = String(currentCardDetail.list_id);
+      }
+    } else if (ctx.kind === 'list') {
+      if (ctx.action === 'copy' && titleGroup && titleInput) {
+        titleGroup.hidden = false;
+        const srcList = (board.lists || []).find((l) => Number(l.id) === Number(ctx.id));
+        titleInput.value = srcList ? `${srcList.title} (Kopie)` : '';
+      }
+      if (boardGroup) boardGroup.hidden = false;
+      if (posGroup) posGroup.hidden = false;
+      populateListsForBoard(boardSelect.value);
+    } else if (ctx.kind === 'checklist') {
+      if (boardGroup) boardGroup.hidden = false;
+      if (listGroup) listGroup.hidden = false;
+      if (cardGroup) cardGroup.hidden = false;
+      populateListsForBoard(boardSelect.value);
+    } else if (ctx.kind === 'board') {
+      if (ctx.action === 'copy' && titleGroup && titleInput) {
+        titleGroup.hidden = false;
+        titleInput.value = `${board.title || ''} (Kopie)`;
+      }
+      if (visGroup && visSelect) {
+        visGroup.hidden = false;
+        const allowed = (transferTargetsCache && transferTargetsCache.allowed_visibilities) || ['private'];
+        Array.from(visSelect.options).forEach((o) => {
+          o.hidden = !allowed.includes(o.value);
+        });
+        visSelect.value = allowed.includes(board.visibility) ? board.visibility : allowed[0];
+        const teamsArr = (transferTargetsCache && transferTargetsCache.teams) || [];
+        if (teamSelect) {
+          teamSelect.innerHTML = teamsArr.map((t) => `<option value="${t.id}">${esc(t.name)}</option>`).join('');
+          if (board.team_id) teamSelect.value = String(board.team_id);
+        }
+        const syncTeamVis = () => {
+          if (teamGroup) teamGroup.hidden = visSelect.value !== 'team';
+        };
+        visSelect.onchange = syncTeamVis;
+        syncTeamVis();
+      }
+    }
+
+    getModal('kanbanTransferModal')?.show();
+  }
+
+  document.getElementById('kanbanTransferForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!transferCtx) return;
+    const { kind, action, id } = transferCtx;
+    const titleVal = (document.getElementById('kanbanTransferTitleInput')?.value || '').trim();
+    const targetBoardId = Number(document.getElementById('kanbanTransferBoardSelect')?.value || 0);
+    const targetListId = Number(document.getElementById('kanbanTransferListSelect')?.value || 0);
+    const targetCardId = Number(document.getElementById('kanbanTransferCardSelect')?.value || 0);
+    const posVal = document.getElementById('kanbanTransferPosSelect')?.value;
+    const visVal = document.getElementById('kanbanTransferVisibilitySelect')?.value;
+    const teamVal = document.getElementById('kanbanTransferTeamSelect')?.value;
+
+    try {
+      if (kind === 'card' && action === 'copy') {
+        await api(`/kanban/api/cards/${id}/copy`, {
+          method: 'POST',
+          body: { target_list_id: targetListId, title: titleVal || undefined },
+        });
+        if (targetBoardId === Number(boardId)) await refreshBoard();
+      } else if (kind === 'card' && action === 'move') {
+        await api(`/kanban/api/cards/${id}/move`, {
+          method: 'POST',
+          body: { target_list_id: targetListId },
+        });
+        getModal('kanbanCardModal')?.hide();
+        await refreshBoard();
+      } else if (kind === 'list' && action === 'copy') {
+        await api(`/kanban/api/lists/${id}/copy`, {
+          method: 'POST',
+          body: { target_board_id: targetBoardId, title: titleVal || undefined, position: posVal !== '' ? Number(posVal) : undefined },
+        });
+        if (targetBoardId === Number(boardId)) await refreshBoard();
+      } else if (kind === 'list' && action === 'move') {
+        await api(`/kanban/api/lists/${id}/move`, {
+          method: 'POST',
+          body: { target_board_id: targetBoardId, position: posVal !== '' ? Number(posVal) : undefined },
+        });
+        await refreshBoard();
+      } else if (kind === 'checklist' && action === 'copy') {
+        const res = await api(`/kanban/api/checklists/${id}/copy`, {
+          method: 'POST',
+          body: { target_card_id: targetCardId },
+        });
+        if (targetCardId === Number(currentCardId) && res && res.card) {
+          openCard(currentCardId);
+        }
+      } else if (kind === 'checklist' && action === 'move') {
+        await api(`/kanban/api/checklists/${id}/move`, {
+          method: 'POST',
+          body: { target_card_id: targetCardId },
+        });
+        if (currentCardId) openCard(currentCardId);
+      } else if (kind === 'board' && action === 'copy') {
+        const res = await api(`/kanban/api/boards/${boardId}/copy`, {
+          method: 'POST',
+          body: { title: titleVal || undefined, visibility: visVal, team_id: visVal === 'team' && teamVal ? Number(teamVal) : null },
+        });
+        getModal('kanbanTransferModal')?.hide();
+        if (res && res.board_url) {
+          window.location.href = res.board_url;
+          return;
+        }
+      } else if (kind === 'board' && action === 'move') {
+        await api(`/kanban/api/boards/${boardId}/move`, {
+          method: 'POST',
+          body: { visibility: visVal, team_id: visVal === 'team' && teamVal ? Number(teamVal) : null },
+        });
+      }
+      getModal('kanbanTransferModal')?.hide();
+      notify(i18n.transferSuccess || 'Erfolgreich durchgeführt', 'success');
+    } catch (err) {
+      notify(err.message || 'Fehler', 'danger');
+    }
+  });
+
+  document.getElementById('cardCopyBtn')?.addEventListener('click', () => {
+    if (currentCardId) openTransferModal({ kind: 'card', action: 'copy', id: currentCardId });
+  });
+  document.getElementById('cardCreateFromTemplateBtn')?.addEventListener('click', () => {
+    if (currentCardId) openTransferModal({ kind: 'card', action: 'copy', id: currentCardId, fromTemplate: true });
+  });
+  document.getElementById('cardToggleTemplateBtn')?.addEventListener('click', async () => {
+    if (!currentCardId || !currentCardDetail) return;
+    try {
+      const nextVal = !currentCardDetail.is_template;
+      const r = await api(`/kanban/api/cards/${currentCardId}`, {
+        method: 'PATCH',
+        body: { is_template: nextVal },
+      });
+      if (r && r.card) {
+        upsertCardLocal(r.card);
+        renderBoard();
+        openCard(currentCardId);
+      }
+    } catch (err) {
+      notify(err.message || 'Fehler', 'danger');
+    }
+  });
+  document.getElementById('cardMoveBtn')?.addEventListener('click', () => {
+    if (currentCardId) openTransferModal({ kind: 'card', action: 'move', id: currentCardId });
+  });
+  document.getElementById('kanbanBoardCopyBtn')?.addEventListener('click', () => {
+    openTransferModal({ kind: 'board', action: 'copy', id: boardId });
+  });
+  document.getElementById('kanbanBoardMoveBtn')?.addEventListener('click', () => {
+    openTransferModal({ kind: 'board', action: 'move', id: boardId });
+  });
 
   renderBoardMembers();
   renderBoard();

@@ -658,6 +658,45 @@ def api_board_notifications_count(board_id):
     return jsonify({'unread_count': count})
 
 
+@kanban_bp.route('/api/boards/<int:board_id>/notification-preference', methods=['GET', 'PATCH'])
+@login_required
+@check_module_access('module_kanban')
+def api_board_notification_preference(board_id):
+    from app.models.kanban import KanbanBoardNotificationPreference
+
+    board, err = _require_board_view(board_id)
+    if err:
+        return err
+
+    if request.method == 'GET':
+        pref = KanbanBoardNotificationPreference.query.filter_by(
+            board_id=board.id,
+            user_id=current_user.id,
+        ).first()
+        return jsonify({'mode': pref.mode if pref else 'all'})
+
+    data = request.get_json(silent=True) or {}
+    mode = (data.get('mode') or '').strip()
+    if mode not in ('all', 'mentions_checklist', 'assigned'):
+        return jsonify({'error': 'Invalid notification mode'}), 400
+
+    pref = KanbanBoardNotificationPreference.query.filter_by(
+        board_id=board.id,
+        user_id=current_user.id,
+    ).first()
+    if not pref:
+        pref = KanbanBoardNotificationPreference(
+            board_id=board.id,
+            user_id=current_user.id,
+            mode=mode,
+        )
+        db.session.add(pref)
+    else:
+        pref.mode = mode
+    db.session.commit()
+    return jsonify({'success': True, 'mode': pref.mode})
+
+
 @kanban_bp.route('/api/boards/unread_counts')
 @login_required
 @check_module_access('module_kanban')

@@ -597,6 +597,37 @@ def send_file_notification(
     return sent_count
 
 
+def _should_send_kanban_external_notification(
+    board_id: int,
+    card_id: int,
+    user_id: int,
+    *,
+    is_mention: bool = False,
+    is_checklist_assignment: bool = False,
+) -> bool:
+    """Check per-user board notification preference for external channels (portal/badge/push)."""
+    from app.models.kanban import KanbanBoardNotificationPreference, KanbanCardAssignee
+
+    pref = KanbanBoardNotificationPreference.query.filter_by(
+        board_id=board_id,
+        user_id=user_id,
+    ).first()
+    mode = (pref.mode if pref else 'all') or 'all'
+
+    if mode == 'all':
+        return True
+    if is_mention or is_checklist_assignment:
+        return True
+    if mode == 'mentions_checklist':
+        return False
+    if mode == 'assigned':
+        return (
+            KanbanCardAssignee.query.filter_by(card_id=card_id, user_id=user_id).first()
+            is not None
+        )
+    return True
+
+
 def send_kanban_notification(
     board_id: int,
     actor_id: int,
@@ -605,6 +636,8 @@ def send_kanban_notification(
     *,
     detail: Optional[str] = None,
     push_suffix: Optional[str] = None,
+    target_user_ids: Optional[set] = None,
+    is_checklist_assignment: bool = False,
 ) -> int:
     """Benachrichtigt Board-Mitglieder über Kanban-Ereignisse."""
     from app.models.kanban import KanbanBoard, KanbanCard
@@ -655,6 +688,16 @@ def send_kanban_notification(
             continue
         if not getattr(settings, toggle_attr, True):
             continue
+        is_direct_cl_assign = bool(
+            is_checklist_assignment and target_user_ids and user.id in target_user_ids
+        )
+        if not _should_send_kanban_external_notification(
+            board_id,
+            card_id,
+            user.id,
+            is_checklist_assignment=is_direct_cl_assign,
+        ):
+            continue
 
         title = _user_translate(user, title_key, board=board_title)
         body_kwargs = {
@@ -696,8 +739,23 @@ def enqueue_kanban_notification(
     *,
     detail: Optional[str] = None,
     push_suffix: Optional[str] = None,
+    target_user_ids: Optional[set] = None,
+    is_checklist_assignment: bool = False,
 ):
     app = current_app._get_current_object()
+
+    if app.config.get('TESTING'):
+        send_kanban_notification(
+            board_id=board_id,
+            actor_id=actor_id,
+            event_kind=event_kind,
+            card_id=card_id,
+            detail=detail,
+            push_suffix=push_suffix,
+            target_user_ids=target_user_ids,
+            is_checklist_assignment=is_checklist_assignment,
+        )
+        return
 
     def _run_in_background():
         with app.app_context():
@@ -709,6 +767,8 @@ def enqueue_kanban_notification(
                     card_id=card_id,
                     detail=detail,
                     push_suffix=push_suffix,
+                    target_user_ids=target_user_ids,
+                    is_checklist_assignment=is_checklist_assignment,
                 )
             except Exception as exc:
                 logging.error(f'Asynchroner Kanban-Push fehlgeschlagen: {exc}')
@@ -724,6 +784,8 @@ def enqueue_kanban_notification(
             card_id=card_id,
             detail=detail,
             push_suffix=push_suffix,
+            target_user_ids=target_user_ids,
+            is_checklist_assignment=is_checklist_assignment,
         )
 
 
@@ -1167,6 +1229,15 @@ def send_comment_notification(
 
     actor_name = actor.full_name if actor else (comment.author.full_name if getattr(comment, 'author', None) else "Jemand")
     comment_obj = comment.get_content_object() if hasattr(comment, 'get_content_object') else None
+    if getattr(comment, 'content_type', None) == 'kanban_card' and comment_obj and getattr(comment_obj, 'list', None):
+        board_id = comment_obj.list.board_id
+        if not _should_send_kanban_external_notification(
+            board_id,
+            comment_obj.id,
+            target_user_id,
+            is_mention=(event_kind == 'mention'),
+        ):
+            return False
     content_name = ""
     if comment_obj:
         content_name = getattr(comment_obj, 'name', None) or getattr(comment_obj, 'title', None) or "Inhalt"

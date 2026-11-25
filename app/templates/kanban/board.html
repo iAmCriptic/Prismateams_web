@@ -35,7 +35,7 @@
      data-bg-image-url="{{ background_image_url or '' }}"
      style="--kanban-bg: {{ background_css }};{% if background_image_url %} --kanban-bg-image: url('{{ background_image_url }}');{% endif %}">
 
-  <header class="kanban-board-topbar">
+  <header class="kanban-board-topbar" id="kanbanBoardTopbar">
     <div class="kanban-board-topbar__left">
       {% if not is_share %}
       <a href="{{ url_for('kanban.index') }}" class="mod-back-link"><i class="bi bi-arrow-left" aria-hidden="true"></i> {{ _('layout.nav.back') }}</a>
@@ -46,8 +46,18 @@
       {% else %}
       <span class="kanban-vis-chip">{{ _('kanban.index.vis_' + board.visibility) }}</span>
       {% endif %}
+      <button type="button"
+              class="btn mod-pill-btn mod-pill-btn--icon d-lg-none ms-auto kanban-topbar-toggle-btn"
+              id="kanbanTopbarToggleBtn"
+              aria-expanded="false"
+              aria-controls="kanbanBoardTopbarActions"
+              aria-label="{{ _('kanban.board.toggle_actions') }}"
+              title="{{ _('kanban.board.toggle_actions') }}">
+        <i class="bi bi-chevron-down kanban-topbar-toggle-icon" aria-hidden="true"></i>
+        <span class="kanban-topbar-toggle-dot d-none" id="kanbanTopbarToggleDot" aria-hidden="true"></span>
+      </button>
     </div>
-    <div class="kanban-board-topbar__right">
+    <div class="kanban-board-topbar__right" id="kanbanBoardTopbarActions">
       <div class="dropdown d-inline-block">
         <div class="kanban-board-members" id="kanbanBoardMembers" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="{{ _('kanban.board.members_hint') }}" tabindex="0"></div>
         <div class="dropdown-menu dropdown-menu-end kanban-board-members-dropdown kanban-members-dropdown p-3 shadow-lg" id="kanbanBoardMembersDropdown">
@@ -103,6 +113,18 @@
               <i class="bi bi-check2-all me-1"></i>{{ _('kanban.board.notifications_mark_all_short') }}
             </button>
           </div>
+          {% if current_user.is_authenticated and not is_share %}
+          <div class="px-3 py-2 border-bottom">
+            <label class="form-label small text-muted mb-1 d-block" for="kanbanBoardNotifModeSelect">
+              <i class="bi bi-sliders me-1"></i>{{ _('kanban.board.notifications_external_filter') }}
+            </label>
+            <select class="form-select form-select-sm mod-pill-input" id="kanbanBoardNotifModeSelect">
+              <option value="all">{{ _('kanban.board.notifications_mode_all') }}</option>
+              <option value="assigned">{{ _('kanban.board.notifications_mode_assigned') }}</option>
+              <option value="mentions_checklist">{{ _('kanban.board.notifications_mode_mentions_checklist') }}</option>
+            </select>
+          </div>
+          {% endif %}
           <div class="kanban-notifications-feed p-3" id="kanbanNotificationsFeed">
             <div class="text-center text-muted py-4 small">{{ _('kanban.board.notifications_loading') }}</div>
           </div>
@@ -126,7 +148,15 @@
           </li>
         </ul>
       </div>
+      {% if current_user.is_authenticated and not is_share %}
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanBoardCopyBtn" title="{{ _('kanban.transfer.copy_board') }}">
+        <i class="bi bi-copy" aria-hidden="true"></i>
+      </button>
+      {% endif %}
       {% if can_manage %}
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanBoardMoveBtn" title="{{ _('kanban.transfer.move_board') }}">
+        <i class="bi bi-folder-symlink" aria-hidden="true"></i>
+      </button>
       <button type="button" class="btn mod-pill-btn mod-pill-btn--icon" id="kanbanBgBtn" title="{{ _('kanban.board.background') }}">
         <i class="bi bi-palette" aria-hidden="true"></i>
       </button>
@@ -175,6 +205,17 @@
   <div class="modal-dialog modal-xl kanban-card-modal-dialog">
     <div class="modal-content kanban-card-modal">
       <div class="kanban-card-modal__cover" id="cardModalCover"></div>
+      <div class="kanban-card-template-banner" id="cardTemplateBanner" hidden>
+        <div class="d-flex align-items-center gap-2 min-width-0">
+          <i class="bi bi-card-heading fs-5 flex-shrink-0" aria-hidden="true"></i>
+          <span class="fw-semibold text-truncate">{{ _('kanban.card.template_banner') }}</span>
+        </div>
+        {% if can_edit and current_user.is_authenticated and not is_share %}
+        <button type="button" class="btn btn-sm btn-accent mod-pill-btn flex-shrink-0" id="cardCreateFromTemplateBtn">
+          <i class="bi bi-box-arrow-up-right me-1"></i>{{ _('kanban.card.create_from_template') }}
+        </button>
+        {% endif %}
+      </div>
       <div class="modal-header border-0 align-items-start kanban-card-modal__header">
         <div class="flex-grow-1 min-width-0">
           <div class="kanban-card-list-select-wrap mb-2 dropdown">
@@ -215,6 +256,24 @@
                   <i class="bi bi-image-alt me-2"></i>{{ _('kanban.card.remove_cover') }}
                 </button>
               </li>
+              {% if current_user.is_authenticated and not is_share %}
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <button type="button" class="dropdown-item" id="cardToggleTemplateBtn">
+                  <i class="bi bi-card-heading me-2"></i><span id="cardToggleTemplateLabel">{{ _('kanban.card.mark_template') }}</span>
+                </button>
+              </li>
+              <li>
+                <button type="button" class="dropdown-item" id="cardCopyBtn">
+                  <i class="bi bi-copy me-2"></i>{{ _('kanban.transfer.copy_card') }}
+                </button>
+              </li>
+              <li>
+                <button type="button" class="dropdown-item" id="cardMoveBtn">
+                  <i class="bi bi-arrow-right-circle me-2"></i>{{ _('kanban.transfer.move_card') }}
+                </button>
+              </li>
+              {% endif %}
               <li><hr class="dropdown-divider"></li>
               <li>
                 <button type="button" class="dropdown-item text-danger" id="cardDeleteBtn">
@@ -351,6 +410,13 @@
                            id="cardPortalFileSearch"
                            placeholder="{{ _('kanban.card.portal_file_search') }}"
                            autocomplete="off">
+                    <div id="cardPortalFileProgress"
+                         class="kanban-portal-files-progress"
+                         role="progressbar"
+                         aria-label="{{ _('common.loading') }}"
+                         hidden>
+                      <div class="kanban-portal-files-progress__bar"></div>
+                    </div>
                     <div id="cardPortalFileList" class="d-grid gap-1 kanban-portal-files-list"></div>
                   </div>
                 </div>
@@ -805,6 +871,58 @@
 {% endblock %}
 
 {% block extra_js %}
+{# Transfer (Copy / Move) modal for cards, lists, checklists, boards #}
+<div class="modal fade" id="kanbanTransferModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content kanban-modal">
+      <div class="modal-header">
+        <h5 class="modal-title" id="kanbanTransferModalTitle">{{ _('kanban.transfer.title') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="kanbanTransferForm">
+        <div class="modal-body d-grid gap-3">
+          <div id="kanbanTransferTitleGroup" hidden>
+            <label class="form-label small mb-1" for="kanbanTransferTitleInput">{{ _('kanban.transfer.new_title') }}</label>
+            <input type="text" class="form-control mod-pill-input" id="kanbanTransferTitleInput" maxlength="200">
+          </div>
+          <div id="kanbanTransferBoardGroup" hidden>
+            <label class="form-label small mb-1" for="kanbanTransferBoardSelect">{{ _('kanban.transfer.target_board') }}</label>
+            <select class="form-select mod-pill-input" id="kanbanTransferBoardSelect"></select>
+          </div>
+          <div id="kanbanTransferListGroup" hidden>
+            <label class="form-label small mb-1" for="kanbanTransferListSelect">{{ _('kanban.transfer.target_list') }}</label>
+            <select class="form-select mod-pill-input" id="kanbanTransferListSelect"></select>
+          </div>
+          <div id="kanbanTransferCardGroup" hidden>
+            <label class="form-label small mb-1" for="kanbanTransferCardSelect">{{ _('kanban.transfer.target_card') }}</label>
+            <select class="form-select mod-pill-input" id="kanbanTransferCardSelect"></select>
+          </div>
+          <div id="kanbanTransferPosGroup" hidden>
+            <label class="form-label small mb-1" for="kanbanTransferPosSelect">{{ _('kanban.transfer.position') }}</label>
+            <select class="form-select mod-pill-input" id="kanbanTransferPosSelect"></select>
+          </div>
+          <div id="kanbanTransferVisibilityGroup" hidden>
+            <label class="form-label small mb-1" for="kanbanTransferVisibilitySelect">{{ _('kanban.index.visibility') }}</label>
+            <select class="form-select mod-pill-input" id="kanbanTransferVisibilitySelect">
+              <option value="private">{{ _('kanban.index.vis_private') }}</option>
+              <option value="team">{{ _('kanban.index.vis_team') }}</option>
+              <option value="public">{{ _('kanban.index.vis_public') }}</option>
+            </select>
+          </div>
+          <div id="kanbanTransferTeamGroup" hidden>
+            <label class="form-label small mb-1" for="kanbanTransferTeamSelect">{{ _('kanban.index.team') }}</label>
+            <select class="form-select mod-pill-input" id="kanbanTransferTeamSelect"></select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn mod-pill-btn mod-pill-btn--ghost" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+          <button type="submit" class="btn btn-accent mod-pill-btn" id="kanbanTransferSubmitBtn">{{ _('common.save') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>
   window.KANBAN_BOARD = {{ board_json | tojson }};
   window.COMMENTS_I18N = {{ i18n_ns('comments') | tojson }};
@@ -835,6 +953,19 @@
     cancel: {{ _('common.cancel') | tojson }},
     download: {{ _('kanban.card.download') | tojson }},
     view: {{ _('kanban.card.view') | tojson }},
+    editEuroOffice: {{ _('kanban.card.edit_eurooffice') | tojson }},
+    copyCard: {{ _('kanban.transfer.copy_card') | tojson }},
+    moveCard: {{ _('kanban.transfer.move_card') | tojson }},
+    copyList: {{ _('kanban.transfer.copy_list') | tojson }},
+    moveList: {{ _('kanban.transfer.move_list') | tojson }},
+    copyChecklist: {{ _('kanban.transfer.copy_checklist') | tojson }},
+    moveChecklist: {{ _('kanban.transfer.move_checklist') | tojson }},
+    copyBoard: {{ _('kanban.transfer.copy_board') | tojson }},
+    moveBoard: {{ _('kanban.transfer.move_board') | tojson }},
+    transferSuccess: {{ _('kanban.transfer.success') | tojson }},
+    cardIsTemplateBadge: {{ _('kanban.card.template_badge') | tojson }},
+    cardTemplateMark: {{ _('kanban.card.mark_template') | tojson }},
+    cardTemplateUnmark: {{ _('kanban.card.unmark_template') | tojson }},
     setCover: {{ _('kanban.card.cover') | tojson }},
     customFields: {{ _('kanban.custom_fields.title') | tojson }},
     customFieldSelect: {{ _('kanban.custom_fields.select_ph') | tojson }},
@@ -933,8 +1064,60 @@
   };
 </script>
 <script src="{{ url_for('static', filename='js/comments.js') }}"></script>
+{# Transfer (Copy / Move) modal for cards, lists, checklists, boards #}
+<div class="modal fade" id="kanbanTransferModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content kanban-modal">
+      <div class="modal-header">
+        <h5 class="modal-title" id="kanbanTransferModalTitle">{{ _('kanban.transfer.title') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="kanbanTransferForm">
+        <div class="modal-body d-grid gap-3">
+          <div id="kanbanTransferTitleGroup" hidden>
+            <label class="form-label small mb-1" for="kanbanTransferTitleInput">{{ _('kanban.transfer.new_title') }}</label>
+            <input type="text" class="form-control mod-pill-input" id="kanbanTransferTitleInput" maxlength="200">
+          </div>
+          <div id="kanbanTransferBoardGroup" hidden>
+            <label class="form-label small mb-1" for="kanbanTransferBoardSelect">{{ _('kanban.transfer.target_board') }}</label>
+            <select class="form-select mod-pill-input" id="kanbanTransferBoardSelect"></select>
+          </div>
+          <div id="kanbanTransferListGroup" hidden>
+            <label class="form-label small mb-1" for="kanbanTransferListSelect">{{ _('kanban.transfer.target_list') }}</label>
+            <select class="form-select mod-pill-input" id="kanbanTransferListSelect"></select>
+          </div>
+          <div id="kanbanTransferCardGroup" hidden>
+            <label class="form-label small mb-1" for="kanbanTransferCardSelect">{{ _('kanban.transfer.target_card') }}</label>
+            <select class="form-select mod-pill-input" id="kanbanTransferCardSelect"></select>
+          </div>
+          <div id="kanbanTransferPosGroup" hidden>
+            <label class="form-label small mb-1" for="kanbanTransferPosSelect">{{ _('kanban.transfer.position') }}</label>
+            <select class="form-select mod-pill-input" id="kanbanTransferPosSelect"></select>
+          </div>
+          <div id="kanbanTransferVisibilityGroup" hidden>
+            <label class="form-label small mb-1" for="kanbanTransferVisibilitySelect">{{ _('kanban.index.visibility') }}</label>
+            <select class="form-select mod-pill-input" id="kanbanTransferVisibilitySelect">
+              <option value="private">{{ _('kanban.index.vis_private') }}</option>
+              <option value="team">{{ _('kanban.index.vis_team') }}</option>
+              <option value="public">{{ _('kanban.index.vis_public') }}</option>
+            </select>
+          </div>
+          <div id="kanbanTransferTeamGroup" hidden>
+            <label class="form-label small mb-1" for="kanbanTransferTeamSelect">{{ _('kanban.index.team') }}</label>
+            <select class="form-select mod-pill-input" id="kanbanTransferTeamSelect"></select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn mod-pill-btn mod-pill-btn--ghost" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+          <button type="submit" class="btn btn-accent mod-pill-btn" id="kanbanTransferSubmitBtn">{{ _('common.save') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <script>window.MARKDOWN_EDITOR_I18N = {{ i18n_ns('markdown', 'editor')|tojson }};</script>
 <script src="{{ url_for('static', filename='js/markdown-toolbar.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="{{ url_for('static', filename='js/kanban-board.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}&t=20261124_01"></script>
+<script src="{{ url_for('static', filename='js/kanban-board.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}&t=20261125_02"></script>
 {% endblock %}

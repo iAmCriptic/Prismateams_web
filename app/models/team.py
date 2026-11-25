@@ -86,6 +86,7 @@ class TeamInviteCode(db.Model):
     max_uses = db.Column(db.Integer, nullable=True)  # None = unlimited
     uses_count = db.Column(db.Integer, default=0, nullable=False)
     expires_at = db.Column(db.DateTime, nullable=True)
+    account_active_until = db.Column(db.Date, nullable=True)  # Optional max active date for registered accounts
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     role = db.Column(db.String(32), default='team_only', nullable=False)  # 'team_only' or 'portal_user'

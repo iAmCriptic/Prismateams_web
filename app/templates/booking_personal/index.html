@@ -9,12 +9,12 @@
         <input type="text"
                id="bpSearchInput"
                class="mod-search-input"
-               placeholder="In Booking suchen..."
+               placeholder="{{ _('booking_personal.search_placeholder') }}"
                autocomplete="off"
                spellcheck="false"
                enterkeyhint="search">
     </label>
-    <button type="button" class="btn mod-search-clear d-none" id="bpSearchClear" aria-label="Löschen">
+    <button type="button" class="btn mod-search-clear d-none" id="bpSearchClear" aria-label="{{ _('booking_personal.search_clear') }}">
         <i class="bi bi-x-lg"></i>
     </button>
 </div>
@@ -115,7 +115,23 @@
                 <div class="d-flex d-lg-none align-items-center gap-2 me-auto">
                     <span class="badge rounded-pill bg-secondary-subtle text-secondary border px-2.5 py-1">{{ entries|length }} Einträge</span>
                 </div>
-                <!-- Filter Dropdown Icon Button -->
+                <!-- Inline Suche -->
+                <div class="mod-search" role="search">
+                    <label class="mod-search-field" for="bpTableSearchInput">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                        <input type="text"
+                               id="bpTableSearchInput"
+                               class="mod-search-input"
+                               placeholder="{{ _('booking_personal.search_placeholder') }}"
+                               autocomplete="off"
+                               spellcheck="false"
+                               enterkeyhint="search">
+                    </label>
+                    <button type="button" class="btn mod-search-clear d-none" id="bpTableSearchClear" aria-label="{{ _('booking_personal.search_clear') }}">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                <!-- Filter & Sortierung Dropdown Icon Button -->
                 <div class="dropdown d-inline-block">
                     <button type="button"
                             id="bpFilterDropdownBtn"
@@ -123,41 +139,49 @@
                             data-bs-toggle="dropdown"
                             data-bs-auto-close="outside"
                             aria-expanded="false"
-                            title="Tabelle filtern">
+                            title="{{ _('booking_personal.filter_button_title') }}">
                         <i class="bi bi-funnel"></i>
                         <span id="bpFilterIndicator" class="position-absolute top-0 start-100 translate-middle p-1 bg-primary border border-light rounded-circle d-none">
-                            <span class="visually-hidden">Filter aktiv</span>
+                            <span class="visually-hidden">{{ _('booking_personal.filter_active') }}</span>
                         </span>
                     </button>
-                    <div class="dropdown-menu dropdown-menu-end mod-dropdown-menu p-3 shadow-lg border" style="min-width: 260px;">
+                    <div class="dropdown-menu dropdown-menu-end mod-dropdown-menu p-3 shadow-lg border" style="min-width: 270px;">
                         <div class="d-flex align-items-center justify-content-between mb-2">
-                            <span class="fw-semibold small"><i class="bi bi-funnel me-1 text-primary"></i>Filter</span>
+                            <span class="fw-semibold small"><i class="bi bi-funnel me-1 text-primary"></i>{{ _('booking_personal.filter_title') }}</span>
                             <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted" id="bpResetFiltersBtn" style="font-size: 0.75rem;">
-                                Zurücksetzen
+                                {{ _('booking_personal.filter_reset') }}
                             </button>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label small text-muted mb-1" for="bpStatusFilter">Status</label>
+                            <label class="form-label small text-muted mb-1" for="bpStatusFilter">{{ _('booking_personal.filter_status') }}</label>
                             <select id="bpStatusFilter" class="form-select form-select-sm mod-pill-input rounded-pill bg-body border" data-mod-pill-select>
-                                <option value="">Alle Status</option>
-                                <option value="Angefragt">Angefragt</option>
-                                <option value="Bewerbung eingegangen">Bewerbung eingegangen</option>
-                                <option value="Formular gesendet">Formular gesendet</option>
-                                <option value="Formular ausgefüllt">Formular ausgefüllt</option>
-                                <option value="Zusage gesendet">Zusage gesendet</option>
-                                <option value="Abgeschlossen">Abgeschlossen</option>
-                                <option value="Rechnung weitergeleitet">Rechnung weitergeleitet</option>
-                                <option value="Absage">Absage</option>
+                                <option value="">{{ _('booking_personal.filter_status_all') }}</option>
+                                {% for opt_val in status_options %}
+                                <option value="{{ opt_val }}">{{ opt_val }}</option>
+                                {% endfor %}
                             </select>
                         </div>
-                        <div>
-                            <label class="form-label small text-muted mb-1" for="bpAreaFilter">Bereich</label>
+                        <div class="mb-2">
+                            <label class="form-label small text-muted mb-1" for="bpAreaFilter">{{ _('booking_personal.filter_area') }}</label>
                             <select id="bpAreaFilter" class="form-select form-select-sm mod-pill-input rounded-pill bg-body border" data-mod-pill-select>
-                                <option value="">Alle Bereiche</option>
-                                <option value="Ambient">Ambient</option>
-                                <option value="Mühle">Mühle</option>
-                                <option value="Main Stage">Main Stage</option>
-                                <option value="Workshop">Workshop</option>
+                                <option value="">{{ _('booking_personal.filter_area_all') }}</option>
+                                {% for opt_val in area_options %}
+                                <option value="{{ opt_val }}">{{ opt_val }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="pt-2 mt-2 border-top">
+                            <label class="form-label small text-muted mb-1" for="bpSortSelect">{{ _('booking_personal.sort_by') }}</label>
+                            <select id="bpSortSelect" class="form-select form-select-sm mod-pill-input rounded-pill bg-body border" data-mod-pill-select>
+                                <option value="">{{ _('booking_personal.sort_default') }}</option>
+                                <option value="name_asc">{{ _('booking_personal.sort_name_asc') }}</option>
+                                <option value="name_desc">{{ _('booking_personal.sort_name_desc') }}</option>
+                                <option value="status_asc">{{ _('booking_personal.sort_status_asc') }}</option>
+                                <option value="status_desc">{{ _('booking_personal.sort_status_desc') }}</option>
+                                <option value="area_asc">{{ _('booking_personal.sort_area_asc') }}</option>
+                                <option value="area_desc">{{ _('booking_personal.sort_area_desc') }}</option>
+                                <option value="total_desc">{{ _('booking_personal.sort_total_desc') }}</option>
+                                <option value="total_asc">{{ _('booking_personal.sort_total_asc') }}</option>
                             </select>
                         </div>
                     </div>
@@ -246,7 +270,10 @@
 
         <!-- Interaktive Spreadsheet-Tabelle im Style wie bei Dateien -->
         <div class="mod-list-table-wrap bp-table-wrapper flex-grow-1 overflow-auto">
-            <table class="table mod-list-table bp-table align-middle mb-0" id="bpTable">
+            <table class="table mod-list-table bp-table align-middle mb-0"
+                   id="bpTable"
+                   data-status-field-key="{{ status_field_key }}"
+                   data-area-field-key="{{ area_field_key }}">
                 <thead>
                     <tr>
                         <th style="width: 44px;" class="text-center">#</th>
@@ -263,10 +290,14 @@
                 <tbody>
                     {% for entry in entries %}
                     {% set custom = entry.get_custom_data() %}
+                    {% set row_meta = entry_filter_meta.get(entry.id, {}) %}
                     <tr class="mod-list-row"
                         data-entry-id="{{ entry.id }}"
-                        data-status="{{ entry.status or custom.get('status_booking', '') }}"
-                        data-area="{{ custom.get('bereich', '') }}">
+                        data-order-index="{{ loop.index0 }}"
+                        data-name="{{ row_meta.get('name', '') }}"
+                        data-status="{{ row_meta.get('status', '') }}"
+                        data-area="{{ row_meta.get('areas', [])|join(', ') }}"
+                        data-areas='{{ row_meta.get("areas", [])|tojson }}'>
 
                         <td class="text-center text-muted small">{{ loop.index }}</td>
 
@@ -372,6 +403,16 @@
                                 <span class="bp-cell-empty">-</span>
                                 {% endif %}
                             </div>
+                            {% elif f.field_type == 'boolean' %}
+                            {% set is_checked = val in (True, 'true', 'True', '1', 1, 'ja', 'Ja') %}
+                            <div class="form-check form-switch m-0 d-inline-flex align-items-center gap-2 bp-cell-boolean-wrap">
+                                <input class="form-check-input bp-cell-boolean-toggle" type="checkbox" role="switch"
+                                    data-entry-id="{{ entry.id }}"
+                                    data-field-key="{{ f.field_key }}"
+                                    {% if is_checked %}checked{% endif %}
+                                    aria-label="{{ f.label }}">
+                                <span class="small text-muted bp-boolean-label">{{ 'Ja' if is_checked else 'Nein' }}</span>
+                            </div>
                             {% else %}
                             <div class="bp-cell-editable" data-entry-id="{{ entry.id }}"
                                 data-field-key="{{ f.field_key }}" data-field-type="{{ f.field_type }}"
@@ -459,7 +500,66 @@
                         </td>
                     </tr>
                     {% endfor %}
+                    {% if entries %}
+                    <tr id="bpNoFilterResultsRow" class="d-none">
+                        <td colspan="{{ fields|length + 2 }}" class="text-center py-4 text-muted">
+                            <i class="bi bi-search me-1" aria-hidden="true"></i>
+                            {{ _('booking_personal.no_filter_results') }}
+                        </td>
+                    </tr>
+                    {% endif %}
                 </tbody>
+                {% set visible_fields = fields|rejectattr('field_type', 'equalto', 'action_accept')|list %}
+                {% set ns_fin = namespace(target_key='') %}
+                {% for f in visible_fields %}
+                    {% if f.field_key == 'gesamt' %}
+                        {% set ns_fin.target_key = 'gesamt' %}
+                    {% elif f.field_key == 'gage' and ns_fin.target_key == '' %}
+                        {% set ns_fin.target_key = 'gage' %}
+                    {% elif f.field_type in ('formula', 'currency') and ns_fin.target_key == '' %}
+                        {% set ns_fin.target_key = f.field_key %}
+                    {% endif %}
+                {% endfor %}
+                <tfoot id="bpFinanceFooter"
+                       data-event-id="{{ current_event.id }}"
+                       data-finance-col-key="{{ ns_fin.target_key }}"
+                       data-total-budget="{{ current_event.total_budget if current_event.total_budget is not none else '' }}">
+                    <tr class="bp-finance-footer-row">
+                        <td class="text-center text-muted small">Σ</td>
+                        {% for f in visible_fields %}
+                        <td style="min-width: {{ f.width }}px;">
+                            {% if f.field_key in ('auftrittsname_projektname', 'project_name', 'artist_name', 'name') or loop.first %}
+                            <div class="d-inline-flex align-items-center gap-1.5 text-nowrap">
+                                <i class="bi bi-people text-primary" aria-hidden="true"></i>
+                                <span class="text-muted small">Artists:</span>
+                                <strong id="bpFooterArtistCount">0</strong>
+                            </div>
+                            {% elif f.field_key == ns_fin.target_key %}
+                            <div class="d-inline-flex align-items-center gap-1.5 text-nowrap">
+                                <strong id="bpFooterTotalSpent" class="text-body">€0.00</strong>
+                                <span class="text-muted">/</span>
+                                <div class="input-group input-group-sm" style="width: 8.75rem;">
+                                    <input type="number" step="0.01" min="0" id="bpFooterBudgetInput"
+                                        class="form-control mod-pill-input rounded-start-pill px-2"
+                                        placeholder="Budget €"
+                                        aria-label="Gesamtbudget in Euro"
+                                        value="{{ '%.2f'|format(current_event.total_budget) if current_event.total_budget is not none else '' }}">
+                                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline rounded-end-pill px-2"
+                                        id="bpFooterBudgetSaveBtn" title="Gesamtbudget speichern" aria-label="Gesamtbudget speichern">
+                                        <i class="bi bi-check2"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="small mt-1 d-flex align-items-center gap-1 text-nowrap" id="bpFooterRemainingWrap">
+                                <i class="bi bi-wallet2 text-secondary" id="bpFooterRemainingIcon" aria-hidden="true"></i>
+                                <span id="bpFooterRemaining" class="text-muted">Kein Budget hinterlegt</span>
+                            </div>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                        <td class="text-end" style="width: 12rem; min-width: 12rem;"></td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
         {% else %}
@@ -502,6 +602,10 @@
                         <input type="text" name="name" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Sommerfestival 2026" required autofocus>
                     </div>
                     <div class="mb-3">
+                        <label class="form-label small fw-semibold">Gesamtbudget (€) <span class="text-muted fw-normal">(optional)</span></label>
+                        <input type="number" step="0.01" min="0" name="total_budget" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. 15000.00">
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label small fw-semibold">Tabellen-Vorlage (Spalten-Set)</label>
                         <select name="template_id" class="form-select mod-pill-input rounded-pill px-3 py-2" data-mod-pill-select>
                             {% for tmpl in templates %}
@@ -535,6 +639,23 @@
                     <label class="form-label small fw-semibold">Name des Acts / Projekts</label>
                     <input type="text" id="bpAddActNameInput" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Luna Love oder DJ Set" required>
                 </div>
+                <div class="row g-3">
+                    <div class="col-sm-6">
+                        <label class="form-label small fw-semibold">Gage (Netto in €)</label>
+                        <input type="number" step="0.01" min="0" id="bpAddActGageInput" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. 500.00">
+                    </div>
+                    <div class="col-sm-6">
+                        <label class="form-label small fw-semibold">Steuersatz</label>
+                        <select id="bpAddActTaxRateSelect" class="form-select mod-pill-input rounded-pill px-3 py-2">
+                            <option value="">-- Keine Angabe --</option>
+                            <option value="0%">0%</option>
+                            <option value="7%">7%</option>
+                            <option value="19%">19%</option>
+                            <option value="Reverse Charge">Reverse Charge</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-text small mt-2">Die Gage wird immer netto angegeben; der gewählte Steuersatz wird automatisch in GESAMT aufgeschlagen.</div>
             </div>
             <div class="modal-footer border-top border-light-subtle pt-3 gap-2">
                 <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted px-4" data-bs-dismiss="modal">Abbrechen</button>

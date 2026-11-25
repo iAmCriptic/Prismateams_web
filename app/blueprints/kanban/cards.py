@@ -195,6 +195,8 @@ def api_card(card_id):
             card.title,
             card.id,
         )
+    if 'is_template' in data:
+        card.is_template = bool(data['is_template'])
     if 'cover_attachment_id' in data:
         cid = data.get('cover_attachment_id')
         if cid is None:
@@ -367,7 +369,7 @@ def api_create_checklist(card_id):
         return err
     board = card.list.board
     data = request.get_json(silent=True) or {}
-    title = (data.get('title') or 'Checkliste').strip()
+    title = (data.get('title') or '').strip() or 'Checkliste'
     cl = KanbanChecklist(
         card_id=card.id,
         title=title,
@@ -481,6 +483,7 @@ def api_checklist_item(item_id):
                 item.due_date = datetime.fromisoformat(str(raw_due).replace('Z', '+00:00')).replace(tzinfo=None)
             except (TypeError, ValueError):
                 return jsonify({'error': 'Invalid due_date'}), 400
+    assigned_checklist_user_id = None
     if 'assignee_id' in data:
         raw_assignee = data.get('assignee_id')
         cl_title = item.checklist.title if item.checklist else 'Checkliste'
@@ -499,6 +502,7 @@ def api_checklist_item(item_id):
                 return jsonify({'error': 'Assignee is not a board member'}), 400
             if item.assignee_id != assignee_id:
                 item.assignee_id = assignee_id
+                assigned_checklist_user_id = assignee_id
                 target_user = User.query.get(assignee_id)
                 uname = (target_user.full_name or target_user.email) if target_user else str(assignee_id)
                 _log_activity(board.id, 'checklist_assignee_added', detail=f"{assignee_id}::{uname}::{cl_title}::{item.text}", card_id=card.id)
@@ -512,6 +516,16 @@ def api_checklist_item(item_id):
             'checklist',
             detail=item.text,
             push_suffix=f'checklist-upd:{item.id}:{int(portal_now_naive().timestamp())}',
+        )
+    if assigned_checklist_user_id:
+        _enqueue_kanban_notify(
+            board,
+            card.id,
+            'checklist',
+            detail=item.text,
+            push_suffix=f'checklist-assign:{item.id}:{assigned_checklist_user_id}:{int(portal_now_naive().timestamp())}',
+            target_user_ids={assigned_checklist_user_id},
+            is_checklist_assignment=True,
         )
     return jsonify({'success': True, 'card': payload})
 
@@ -864,3 +878,145 @@ def api_vote_card(card_id):
     payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
     return jsonify({'success': True, 'voted': voted, 'card': payload})
+
+
+@kanban_bp.route('/api/cards/<int:card_id>/copy', methods=['POST'])
+@login_required
+@check_module_access('module_kanban')
+def api_copy_card(card_id):
+    from app.utils.kanban_transfer import copy_card
+
+    source_card, err = _require_card_edit(card_id)
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    target_list_id = data.get('target_list_id') or source_card.list_id
+    target_list = db.session.get(KanbanList, target_list_id)
+    if not target_list or target_list.archived_at or not target_list.board or target_list.board.closed_at:
+        return jsonify({'error': 'Target list not found'}), 404
+    _, target_err = _require_board_edit(target_list.board_id)
+    if target_err:
+        return target_err
+
+    new_card = copy_card(
+        source_card,
+        target_list,
+        current_user.id,
+        title=data.get('title'),
+        position=data.get('position'),
+    )
+    _log_activity(target_list.board_id, 'card_created', new_card.title, new_card.id)
+    db.session.commit()
+
+    payload = _serialize_card_summary(new_card)
+    _emit_board(target_list.board_id, 'card_created', payload)
+    return jsonify({
+        'success': True,
+        'card': payload,
+        'target_board_id': target_list.board_id,
+        'target_list_id': target_list.id,
+    }), 201
+
+
+@kanban_bp.route('/api/cards/<int:card_id>/move', methods=['POST'])
+@login_required
+@check_module_access('module_kanban')
+def api_move_card_cross_board(card_id):
+    from app.utils.kanban_transfer import move_card_to_list
+
+    card, err = _require_card_edit(card_id)
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    target_list_id = data.get('target_list_id')
+    if not target_list_id:
+        return jsonify({'error': 'target_list_id required'}), 400
+    target_list = db.session.get(KanbanList, target_list_id)
+    if not target_list or target_list.archived_at or not target_list.board or target_list.board.closed_at:
+        return jsonify({'error': 'Target list not found'}), 404
+    _, target_err = _require_board_edit(target_list.board_id)
+    if target_err:
+        return target_err
+
+    source_board_id = card.list.board_id
+    old_list_title = card.list.title
+    move_card_to_list(card, target_list, position=data.get('position'))
+    _log_activity(
+        target_list.board_id,
+        'card_moved',
+        detail=f"{old_list_title} → {target_list.title}",
+        card_id=card.id,
+    )
+    db.session.commit()
+
+    payload = _serialize_card_summary(card)
+    if source_board_id != target_list.board_id:
+        _emit_board(source_board_id, 'card_deleted', {'id': card.id})
+        _emit_board(target_list.board_id, 'card_created', payload)
+    else:
+        _emit_board(target_list.board_id, 'card_moved', payload)
+    return jsonify({
+        'success': True,
+        'card': payload,
+        'source_board_id': source_board_id,
+        'target_board_id': target_list.board_id,
+    })
+
+
+@kanban_bp.route('/api/checklists/<int:checklist_id>/copy', methods=['POST'])
+@login_required
+@check_module_access('module_kanban')
+def api_copy_checklist(checklist_id):
+    from app.utils.kanban_transfer import copy_checklist
+
+    cl = db.session.get(KanbanChecklist, checklist_id)
+    if not cl:
+        return jsonify({'error': 'Not found'}), 404
+    source_card, err = _require_card_edit(cl.card_id)
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    target_card_id = data.get('target_card_id') or source_card.id
+    target_card, target_err = _require_card_edit(target_card_id)
+    if target_err:
+        return target_err
+
+    new_cl = copy_checklist(cl, target_card, position=data.get('position'))
+    _log_activity(target_card.list.board_id, 'checklist_added', detail=new_cl.title, card_id=target_card.id)
+    db.session.commit()
+
+    payload = _serialize_card_detail(target_card, share_token=_share_token_from_request())
+    _emit_board(target_card.list.board_id, 'card_updated', payload)
+    return jsonify({'success': True, 'card': payload, 'checklist_id': new_cl.id}), 201
+
+
+@kanban_bp.route('/api/checklists/<int:checklist_id>/move', methods=['POST'])
+@login_required
+@check_module_access('module_kanban')
+def api_move_checklist(checklist_id):
+    from app.utils.kanban_transfer import move_checklist
+
+    cl = db.session.get(KanbanChecklist, checklist_id)
+    if not cl:
+        return jsonify({'error': 'Not found'}), 404
+    source_card, err = _require_card_edit(cl.card_id)
+    if err:
+        return err
+    data = request.get_json(silent=True) or {}
+    target_card_id = data.get('target_card_id')
+    if not target_card_id:
+        return jsonify({'error': 'target_card_id required'}), 400
+    target_card, target_err = _require_card_edit(target_card_id)
+    if target_err:
+        return target_err
+
+    source_board_id = source_card.list.board_id
+    move_checklist(cl, target_card, position=data.get('position'))
+    db.session.commit()
+
+    if source_card.id != target_card.id:
+        src_payload = _serialize_card_detail(source_card, share_token=_share_token_from_request())
+        _emit_board(source_board_id, 'card_updated', src_payload)
+    tgt_payload = _serialize_card_detail(target_card, share_token=_share_token_from_request())
+    _emit_board(target_card.list.board_id, 'card_updated', tgt_payload)
+    return jsonify({'success': True, 'card': tgt_payload})

@@ -50,6 +50,84 @@
             <div class="calendar-form-fields">
                 <p class="form-text mb-3">{{ _('calendar.import.sync_intro') }}</p>
 
+                {% if google_configured %}
+                <div class="border rounded p-3 mb-4">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                        <div>
+                            <h3 class="h6 mb-1">
+                                <i class="bi bi-google me-1" aria-hidden="true"></i>
+                                {{ _('calendar.import.google_title') }}
+                            </h3>
+                            <p class="small text-muted mb-0">{{ _('calendar.import.google_intro') }}</p>
+                        </div>
+                        <div>
+                            {% if google_connected and not google_needs_reauth %}
+                            <a href="{{ url_for('calendar.google_connect') }}" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>{{ _('calendar.import.google_reconnect') }}
+                            </a>
+                            {% else %}
+                            <a href="{{ url_for('calendar.google_connect') }}" class="btn btn-sm btn-accent">
+                                <i class="bi bi-google me-1" aria-hidden="true"></i>{{ _('calendar.import.google_connect_btn') }}
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if google_needs_reauth %}
+                    <div class="alert alert-warning small mb-0 mt-2">
+                        <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>
+                        {{ _('calendar.import.google_reauth_hint') }}
+                    </div>
+                    {% elif google_list_error %}
+                    <div class="alert alert-danger small mb-0 mt-2">
+                        {{ google_list_error }}
+                    </div>
+                    {% elif google_connected %}
+                        {% if google_account_label %}
+                        <p class="small text-muted mb-2">
+                            <i class="bi bi-check-circle text-success me-1" aria-hidden="true"></i>
+                            {{ google_account_label }}
+                        </p>
+                        {% endif %}
+                        {% if google_calendars %}
+                        <div class="list-group list-group-flush border-top mt-2">
+                            {% for gcal in google_calendars %}
+                            {% set gurl = 'google-calendar://' ~ gcal.id %}
+                            {% set already_synced = gurl in existing_google_urls %}
+                            <div class="list-group-item px-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                <div class="d-flex align-items-center gap-2 min-w-0">
+                                    <span class="calendar-color-dot flex-shrink-0" style="background:{{ gcal.background_color }};display:inline-block;width:.75rem;height:.75rem;border-radius:50%;"></span>
+                                    <div class="text-truncate">
+                                        <strong>{{ gcal.summary }}</strong>
+                                        {% if gcal.primary %}
+                                        <span class="badge text-bg-secondary ms-1">{{ _('calendar.import.google_primary') }}</span>
+                                        {% endif %}
+                                        <span class="badge text-bg-light border text-body ms-1">{{ gcal.access_role }}</span>
+                                    </div>
+                                </div>
+                                {% if already_synced %}
+                                <span class="badge text-bg-success">{{ _('calendar.import.google_already_synced') }}</span>
+                                {% else %}
+                                <form method="POST" class="d-inline">
+                                    <input type="hidden" name="action" value="add_google_sync">
+                                    <input type="hidden" name="google_calendar_id" value="{{ gcal.id }}">
+                                    <input type="hidden" name="sync_name" value="{{ gcal.summary }}">
+                                    <input type="hidden" name="sync_color" value="{{ gcal.background_color }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-plus-circle me-1" aria-hidden="true"></i>{{ _('calendar.import.google_add_btn') }}
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="small text-muted mb-0 mt-2">{{ _('calendar.import.google_empty') }}</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+                {% endif %}
+
                 <form method="POST" class="mb-4">
                     <input type="hidden" name="action" value="add_sync">
                     <div class="row g-2">
@@ -149,8 +227,13 @@
                                         </div>
                                         <div class="col-md-5">
                                             <label class="form-label" for="edit_url_{{ source.id }}">{{ _('calendar.import.sync_url') }}</label>
+                                            {% if source.url.startswith('google-calendar://') %}
+                                            <input type="text" class="form-control" id="edit_url_{{ source.id }}"
+                                                   name="sync_url" value="{{ source.url }}" readonly>
+                                            {% else %}
                                             <input type="url" class="form-control" id="edit_url_{{ source.id }}"
                                                    name="sync_url" value="{{ source.url }}" required>
+                                            {% endif %}
                                         </div>
                                         <div class="col-md-2">
                                             <label class="form-label" for="edit_color_{{ source.id }}">{{ _('calendar.import.sync_color') }}</label>

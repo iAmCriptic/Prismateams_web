@@ -144,6 +144,7 @@ from .kanban import (
     KanbanCardFieldEnabled,
     KanbanCardFieldValue,
 )
+from .todo import TodoItem
 
 __all__ = [
     'User', 'UserSession',
@@ -198,6 +199,7 @@ __all__ = [
     'HelperEvent', 'Helper', 'HelperArea', 'HelperAreaWish',
     'HelperShift', 'HelperFieldConfig', 'HelperVoucherRule',
     'BookingRoom', 'BookingForm', 'BookingFormField', 'BookingFormImage', 'BookingRequest', 'BookingRequestMessage', 'BookingRequestField', 'BookingRequestFile', 'BookingFormRole', 'BookingFormRoleUser', 'BookingRequestApproval',
+    'TodoItem',
 ]
 
 

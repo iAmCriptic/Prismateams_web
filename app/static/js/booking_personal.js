@@ -331,6 +331,19 @@
                 if (data.updated_custom_data) {
                     const row = cell.closest('tr');
                     if (row) {
+                        const statusFieldKey = tableEl?.dataset.statusFieldKey || 'status_booking';
+                        const areaFieldKey = tableEl?.dataset.areaFieldKey || 'bereich';
+                        if (fieldKey === statusFieldKey || fieldKey === 'status_booking' || fieldKey === 'status') {
+                            row.dataset.status = value || '';
+                        }
+                        if (fieldKey === areaFieldKey || fieldKey === 'bereich' || fieldKey === 'stage' || fieldKey === 'area' || fieldKey === 'buehne') {
+                            const areas = parseAreaValues(value);
+                            row.dataset.areas = JSON.stringify(areas);
+                            row.dataset.area = areas.join(', ');
+                        }
+                        if (['project_name', 'auftrittsname_projektname', 'artist_name', 'name'].includes(fieldKey)) {
+                            row.dataset.name = value || '';
+                        }
                         for (const [k, v] of Object.entries(data.updated_custom_data)) {
                             const formulaCell = row.querySelector(`.bp-cell-formula[data-field-key="${k}"]`);
                             if (formulaCell) {
@@ -339,6 +352,7 @@
                         }
                     }
                 }
+                applyFiltersAndSort();
             } else {
                 showToast(data.error || 'Fehler beim Speichern', 'error');
             }
@@ -400,55 +414,177 @@
     }
 
     // -------------------------------------------------------------
-    // Filter & Suche
+    // Filter, Sortierung & Suche
     // -------------------------------------------------------------
-    const searchInput = document.getElementById('bpSearchInput');
+    const navSearchInput = document.getElementById('bpSearchInput');
+    const navSearchClear = document.getElementById('bpSearchClear');
+    const tableSearchInput = document.getElementById('bpTableSearchInput');
+    const tableSearchClear = document.getElementById('bpTableSearchClear');
     const statusFilter = document.getElementById('bpStatusFilter');
     const areaFilter = document.getElementById('bpAreaFilter');
+    const sortSelect = document.getElementById('bpSortSelect');
 
-    function applyFilters() {
+    function parseAreaValues(raw) {
+        if (!raw) return [];
+        if (Array.isArray(raw)) {
+            return raw.map(v => String(v).trim()).filter(v => v && v !== '-');
+        }
+        const str = String(raw).trim();
+        if (!str || str === '-') return [];
+        if (str.startsWith('[') && str.endsWith(']')) {
+            try {
+                const parsed = JSON.parse(str);
+                if (Array.isArray(parsed)) {
+                    return parsed.map(v => String(v).trim()).filter(v => v && v !== '-');
+                }
+            } catch (e) {
+                // Fallback zu normalem String
+            }
+        }
+        return str.split(',').map(v => v.trim()).filter(v => v && v !== '-');
+    }
+
+    function getRowAreas(row) {
+        if (row.dataset.areas) {
+            return parseAreaValues(row.dataset.areas);
+        }
+        return parseAreaValues(row.dataset.area || '');
+    }
+
+    function getRowTotal(row) {
+        const gesamtCell = row.querySelector('.bp-cell-formula[data-field-key="gesamt"]');
+        return gesamtCell ? parseCurrencyVal(gesamtCell.textContent) : 0;
+    }
+
+    function getSearchQuery() {
+        return ((tableSearchInput?.value ?? navSearchInput?.value) || '').toLowerCase().trim();
+    }
+
+    function syncSearchInputs(value, sourceEl) {
+        if (navSearchInput && sourceEl !== navSearchInput) {
+            navSearchInput.value = value;
+        }
+        if (tableSearchInput && sourceEl !== tableSearchInput) {
+            tableSearchInput.value = value;
+        }
+        const hasText = value.trim().length > 0;
+        if (navSearchClear) navSearchClear.classList.toggle('d-none', !hasText);
+        if (tableSearchClear) tableSearchClear.classList.toggle('d-none', !hasText);
+    }
+
+    function compareText(a, b) {
+        return a.localeCompare(b, 'de', { sensitivity: 'base', numeric: true });
+    }
+
+    function applyFiltersAndSort() {
         if (!tableEl) return;
-        const q = (searchInput?.value || '').toLowerCase().trim();
-        const statusVal = (statusFilter?.value || '').toLowerCase();
-        const areaVal = (areaFilter?.value || '').toLowerCase();
+        const tbody = tableEl.querySelector('tbody');
+        if (!tbody) return;
+
+        const q = getSearchQuery();
+        const statusVal = (statusFilter?.value || '').trim().toLowerCase();
+        const areaVal = (areaFilter?.value || '').trim().toLowerCase();
+        const sortVal = (sortSelect?.value || '').trim();
 
         const filterIndicator = document.getElementById('bpFilterIndicator');
         const filterBtn = document.getElementById('bpFilterDropdownBtn');
-        const hasActiveFilter = Boolean(statusVal || areaVal);
+        const hasActiveFilterOrSort = Boolean(statusVal || areaVal || sortVal);
         if (filterIndicator) {
-            filterIndicator.classList.toggle('d-none', !hasActiveFilter);
+            filterIndicator.classList.toggle('d-none', !hasActiveFilterOrSort);
         }
         if (filterBtn) {
-            if (hasActiveFilter) {
-                filterBtn.classList.remove('btn-outline-secondary');
-                filterBtn.classList.add('btn-primary');
-            } else {
-                filterBtn.classList.add('btn-outline-secondary');
-                filterBtn.classList.remove('btn-primary');
-            }
+            filterBtn.classList.toggle('mod-pill-btn--accent', hasActiveFilterOrSort);
+            filterBtn.classList.toggle('mod-pill-btn--outline', !hasActiveFilterOrSort);
         }
 
-        const rows = tableEl.querySelectorAll('tbody tr');
+        const rows = Array.from(tbody.querySelectorAll('tr[data-entry-id]'));
+
+        rows.sort((a, b) => {
+            if (!sortVal) {
+                return Number(a.dataset.orderIndex || 0) - Number(b.dataset.orderIndex || 0);
+            }
+            if (sortVal === 'name_asc' || sortVal === 'name_desc') {
+                const cmp = compareText((a.dataset.name || '').trim(), (b.dataset.name || '').trim());
+                return sortVal === 'name_asc' ? cmp : -cmp;
+            }
+            if (sortVal === 'status_asc' || sortVal === 'status_desc') {
+                const cmp = compareText((a.dataset.status || '').trim(), (b.dataset.status || '').trim());
+                return sortVal === 'status_asc' ? cmp : -cmp;
+            }
+            if (sortVal === 'area_asc' || sortVal === 'area_desc') {
+                const areaA = getRowAreas(a)[0] || '';
+                const areaB = getRowAreas(b)[0] || '';
+                const cmp = compareText(areaA, areaB);
+                return sortVal === 'area_asc' ? cmp : -cmp;
+            }
+            if (sortVal === 'total_desc' || sortVal === 'total_asc') {
+                const diff = getRowTotal(a) - getRowTotal(b);
+                return sortVal === 'total_asc' ? diff : -diff;
+            }
+            return Number(a.dataset.orderIndex || 0) - Number(b.dataset.orderIndex || 0);
+        });
+
+        const noResultsRow = document.getElementById('bpNoFilterResultsRow');
+        let visibleCount = 0;
+
         rows.forEach(row => {
+            tbody.appendChild(row);
             const rowText = row.textContent.toLowerCase();
-            const rowStatus = (row.dataset.status || '').toLowerCase();
-            const rowArea = (row.dataset.area || '').toLowerCase();
+            const rowStatus = (row.dataset.status || '').trim().toLowerCase();
+            const rowAreas = getRowAreas(row).map(v => v.toLowerCase());
 
             const matchesSearch = !q || rowText.includes(q);
             const matchesStatus = !statusVal || rowStatus === statusVal;
-            const matchesArea = !areaVal || rowArea === areaVal;
+            const matchesArea = !areaVal || rowAreas.includes(areaVal);
 
-            if (matchesSearch && matchesStatus && matchesArea) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
+            const isVisible = matchesSearch && matchesStatus && matchesArea;
+            row.style.display = isVisible ? '' : 'none';
+
+            if (isVisible) {
+                visibleCount += 1;
+                const indexCell = row.querySelector('td:first-child');
+                if (indexCell) indexCell.textContent = String(visibleCount);
             }
+        });
+
+        if (noResultsRow) {
+            tbody.appendChild(noResultsRow);
+            noResultsRow.classList.toggle('d-none', !(rows.length > 0 && visibleCount === 0));
+        }
+
+        updateFinanceFooter();
+    }
+
+    if (navSearchInput) {
+        navSearchInput.addEventListener('input', function () {
+            syncSearchInputs(this.value, this);
+            applyFiltersAndSort();
+        });
+    }
+    if (tableSearchInput) {
+        tableSearchInput.addEventListener('input', function () {
+            syncSearchInputs(this.value, this);
+            applyFiltersAndSort();
+        });
+    }
+    if (navSearchClear) {
+        navSearchClear.addEventListener('click', function () {
+            syncSearchInputs('', null);
+            applyFiltersAndSort();
+            if (navSearchInput) navSearchInput.focus();
+        });
+    }
+    if (tableSearchClear) {
+        tableSearchClear.addEventListener('click', function () {
+            syncSearchInputs('', null);
+            applyFiltersAndSort();
+            if (tableSearchInput) tableSearchInput.focus();
         });
     }
 
-    if (searchInput) searchInput.addEventListener('input', applyFilters);
-    if (statusFilter) statusFilter.addEventListener('change', applyFilters);
-    if (areaFilter) areaFilter.addEventListener('change', applyFilters);
+    if (statusFilter) statusFilter.addEventListener('change', applyFiltersAndSort);
+    if (areaFilter) areaFilter.addEventListener('change', applyFiltersAndSort);
+    if (sortSelect) sortSelect.addEventListener('change', applyFiltersAndSort);
 
     const resetFiltersBtn = document.getElementById('bpResetFiltersBtn');
     if (resetFiltersBtn) {
@@ -461,24 +597,11 @@
                 areaFilter.value = '';
                 if (window.InventoryPillSelect) window.InventoryPillSelect.sync(areaFilter);
             }
-            applyFilters();
-        });
-    }
-
-    const searchClear = document.getElementById('bpSearchClear');
-    if (searchInput && searchClear) {
-        searchInput.addEventListener('input', function() {
-            if (this.value.trim().length > 0) {
-                searchClear.classList.remove('d-none');
-            } else {
-                searchClear.classList.add('d-none');
+            if (sortSelect) {
+                sortSelect.value = '';
+                if (window.InventoryPillSelect) window.InventoryPillSelect.sync(sortSelect);
             }
-        });
-        searchClear.addEventListener('click', function() {
-            searchInput.value = '';
-            searchClear.classList.add('d-none');
-            applyFilters();
-            searchInput.focus();
+            applyFiltersAndSort();
         });
     }
 
@@ -492,7 +615,11 @@
     if (addActBtn && addActModalEl) {
         addActBtn.addEventListener('click', function () {
             const input = document.getElementById('bpAddActNameInput');
+            const gageInput = document.getElementById('bpAddActGageInput');
+            const taxSelect = document.getElementById('bpAddActTaxRateSelect');
             if (input) input.value = '';
+            if (gageInput) gageInput.value = '';
+            if (taxSelect) taxSelect.value = '';
             const modal = new bootstrap.Modal(addActModalEl);
             modal.show();
             setTimeout(() => input && input.focus(), 300);
@@ -505,12 +632,19 @@
             const name = (input ? input.value : '').trim();
             if (!name) return;
 
+            const gageVal = document.getElementById('bpAddActGageInput')?.value || '';
+            const taxVal = document.getElementById('bpAddActTaxRateSelect')?.value || '';
+
             const eventId = addActBtn.dataset.eventId;
             try {
                 const resp = await fetch(`/booking-personal/api/event/${eventId}/entry`, {
                     method: 'POST',
                     headers: getHeaders(),
-                    body: JSON.stringify({ name: name })
+                    body: JSON.stringify({
+                        name: name,
+                        gage: gageVal,
+                        steuersatz: taxVal
+                    })
                 });
                 const data = await resp.json();
                 if (data.success) {
@@ -544,6 +678,7 @@
                     if (data.success) {
                         const row = document.querySelector(`tr[data-entry-id="${entryId}"]`);
                         if (row) row.remove();
+                        updateFinanceFooter();
                         showToast('Act erfolgreich gelöscht.', 'info');
                     } else {
                         showToast(data.error || 'Fehler beim Löschen.', 'error');
@@ -624,6 +759,12 @@
                 html += `</select>`;
             } else if (f.field_type === 'counter' || f.field_type === 'number') {
                 html += `<input type="number" class="form-control form-control-sm" name="${f.field_key}" value="${escapeHtml(val)}">`;
+            } else if (f.field_type === 'boolean') {
+                const isChecked = val === true || ['true', '1', 'ja', 'yes', 'on'].includes(String(val).toLowerCase());
+                html += `<div class="form-check form-switch pt-1">
+                    <input class="form-check-input" type="checkbox" role="switch" name="${f.field_key}" id="bpDetailField_${f.field_key}" ${isChecked ? 'checked' : ''}>
+                    <label class="form-check-label small text-muted" for="bpDetailField_${f.field_key}">Aktiv</label>
+                </div>`;
             } else {
                 html += `<input type="text" class="form-control form-control-sm" name="${f.field_key}" value="${escapeHtml(val)}">`;
             }
@@ -639,6 +780,9 @@
                 const formData = new FormData(form);
                 const payload = {};
                 formData.forEach((v, k) => payload[k] = v);
+                form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    payload[cb.name] = cb.checked;
+                });
 
                 try {
                     const resp = await fetch(`/booking-personal/api/entry/${entry.id}/update-all`, {
@@ -1451,6 +1595,183 @@
             showToast('Netzwerkfehler.', 'error');
         }
     }
+
+    // -------------------------------------------------------------
+    // Boolean-Toggle-Zellen (z. B. Booking Fee netto)
+    // -------------------------------------------------------------
+    if (tableEl) {
+        tableEl.addEventListener('change', async function (e) {
+            const toggle = e.target.closest('.bp-cell-boolean-toggle');
+            if (!toggle) return;
+
+            const entryId = toggle.dataset.entryId;
+            const fieldKey = toggle.dataset.fieldKey;
+            const checked = toggle.checked;
+            const label = toggle.parentElement?.querySelector('.bp-boolean-label');
+            if (label) label.textContent = checked ? 'Ja' : 'Nein';
+
+            try {
+                const resp = await fetch(`/booking-personal/api/entry/${entryId}/cell`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ field_key: fieldKey, value: checked })
+                });
+                const data = await resp.json();
+                if (data.success && data.updated_custom_data) {
+                    const row = toggle.closest('tr');
+                    if (row) {
+                        for (const [k, v] of Object.entries(data.updated_custom_data)) {
+                            const formulaCell = row.querySelector(`.bp-cell-formula[data-field-key="${k}"]`);
+                            if (formulaCell) {
+                                formulaCell.textContent = v || '€0.00';
+                            }
+                        }
+                    }
+                    updateFinanceFooter();
+                } else if (!data.success) {
+                    toggle.checked = !checked;
+                    if (label) label.textContent = !checked ? 'Ja' : 'Nein';
+                    showToast(data.error || 'Fehler beim Speichern', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                toggle.checked = !checked;
+                if (label) label.textContent = !checked ? 'Ja' : 'Nein';
+                showToast('Netzwerkfehler beim Speichern.', 'error');
+            }
+        });
+    }
+
+    // -------------------------------------------------------------
+    // Finanz-Fußzeile & Gesamtbudget
+    // -------------------------------------------------------------
+    function parseCurrencyVal(str) {
+        if (!str) return 0;
+        const num = parseFloat(String(str).replace('€', '').replace(',', '.').trim());
+        return Number.isFinite(num) ? num : 0;
+    }
+
+    function parseTaxRatePct(raw) {
+        if (!raw) return 0;
+        const m = String(raw).match(/(\d+(?:[.,]\d+)?)\s*%/);
+        if (!m) return 0;
+        const pct = parseFloat(m[1].replace(',', '.'));
+        return Number.isFinite(pct) ? pct / 100.0 : 0;
+    }
+
+    function updateFinanceFooter() {
+        const footer = document.getElementById('bpFinanceFooter');
+        if (!footer || !tableEl) return;
+
+        const targetKey = footer.dataset.financeColKey || 'gesamt';
+        const rows = tableEl.querySelectorAll('tbody tr[data-entry-id]');
+        let artistCount = 0;
+        let totalSpent = 0;
+
+        rows.forEach(row => {
+            if (row.style.display === 'none') return;
+            const status = (row.dataset.status || '').trim().toLowerCase();
+            if (status === 'absage') return;
+
+            artistCount += 1;
+            if (targetKey === 'gesamt') {
+                const gesamtCell = row.querySelector('.bp-cell-formula[data-field-key="gesamt"]');
+                if (gesamtCell) {
+                    totalSpent += parseCurrencyVal(gesamtCell.textContent);
+                }
+            } else if (targetKey) {
+                const valCell = row.querySelector(`[data-field-key="${targetKey}"]`);
+                if (valCell) {
+                    let amt = parseCurrencyVal(valCell.dataset.rawValue || valCell.textContent);
+                    if (targetKey === 'gage') {
+                        const taxCell = row.querySelector('[data-field-key="steuersatz"]');
+                        if (taxCell) {
+                            const rate = parseTaxRatePct(taxCell.dataset.rawValue || taxCell.textContent);
+                            if (rate > 0) amt = amt * (1 + rate);
+                        }
+                    }
+                    totalSpent += amt;
+                }
+            }
+        });
+
+        const countEl = document.getElementById('bpFooterArtistCount');
+        const spentEl = document.getElementById('bpFooterTotalSpent');
+        const remEl = document.getElementById('bpFooterRemaining');
+        const remIcon = document.getElementById('bpFooterRemainingIcon');
+
+        if (countEl) countEl.textContent = String(artistCount);
+        if (spentEl) spentEl.textContent = `€${totalSpent.toFixed(2)}`;
+
+        const rawBudget = footer.dataset.totalBudget;
+        const hasBudget = rawBudget !== undefined && rawBudget !== '' && !Number.isNaN(parseFloat(rawBudget));
+        if (remEl && remIcon) {
+            if (!hasBudget) {
+                remEl.textContent = 'Kein Budget';
+                remEl.className = 'text-muted';
+                remIcon.className = 'bi bi-wallet2 text-secondary';
+            } else {
+                const budgetVal = parseFloat(rawBudget);
+                const remaining = budgetVal - totalSpent;
+                if (remaining >= 0) {
+                    remEl.textContent = `Rest €${remaining.toFixed(2)} (Im Budget)`;
+                    remEl.className = 'text-success';
+                    remIcon.className = 'bi bi-check-circle-fill text-success';
+                } else {
+                    remEl.textContent = `Rest €${remaining.toFixed(2)} (Überschritten)`;
+                    remEl.className = 'text-danger';
+                    remIcon.className = 'bi bi-exclamation-triangle-fill text-danger';
+                }
+            }
+        }
+    }
+
+    const budgetInput = document.getElementById('bpFooterBudgetInput');
+    const budgetSaveBtn = document.getElementById('bpFooterBudgetSaveBtn');
+    const financeFooterEl = document.getElementById('bpFinanceFooter');
+
+    async function saveEventBudget() {
+        if (!financeFooterEl || !budgetInput) return;
+        const eventId = financeFooterEl.dataset.eventId;
+        const val = budgetInput.value.trim();
+        try {
+            const resp = await fetch(`/booking-personal/api/event/${eventId}/budget`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ total_budget: val === '' ? null : val })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                financeFooterEl.dataset.totalBudget = data.total_budget !== null && data.total_budget !== undefined ? String(data.total_budget) : '';
+                if (data.total_budget !== null && data.total_budget !== undefined) {
+                    budgetInput.value = Number(data.total_budget).toFixed(2);
+                } else {
+                    budgetInput.value = '';
+                }
+                updateFinanceFooter();
+                showToast('Gesamtbudget gespeichert.', 'success');
+            } else {
+                showToast(data.error || 'Fehler beim Speichern des Budgets.', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Netzwerkfehler beim Speichern des Budgets.', 'error');
+        }
+    }
+
+    if (budgetSaveBtn) {
+        budgetSaveBtn.addEventListener('click', saveEventBudget);
+    }
+    if (budgetInput) {
+        budgetInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveEventBudget();
+            }
+        });
+    }
+
+    updateFinanceFooter();
 
     // Global Pill-Select Enhancer fuer alle Selects im Modul
     function initPillSelects(root) {
