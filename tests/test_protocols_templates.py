@@ -212,3 +212,62 @@ def test_team_template_visibility_isolation(app, client):
     res_start = client.get(f'/protocols/templates/{tpl.id}/start', follow_redirects=False)
     assert res_start.status_code == 302
     assert '/protocols' in res_start.headers['Location']
+
+
+def test_protocol_edit_items_autosave_finalize_and_view(app, client):
+    _enable_protocols_module()
+    user = _create_user('proto_flow@example.com', 'Flow', is_admin=True)
+    _login(client, user)
+
+    protocol = Protocol(
+        title='Projektleitersitzung',
+        meeting_date=date(2026, 11, 25),
+        start_time=time(23, 10),
+        participants_text='Lars, Luise',
+        visibility='public',
+        created_by=user.id,
+    )
+    db.session.add(protocol)
+    db.session.flush()
+    item1 = ProtocolAgendaItem(protocol_id=protocol.id, position=0, title='Blitzlicht')
+    item2 = ProtocolAgendaItem(protocol_id=protocol.id, position=1, title='Lob & Kritik')
+    item3 = ProtocolAgendaItem(protocol_id=protocol.id, position=2, title='Sonderthemen')
+    db.session.add_all([item1, item2, item3])
+    db.session.commit()
+
+    # Autosave TOP 1
+    res_auto = client.post(
+        f'/protocols/{protocol.id}/item/{item1.id}/autosave',
+        json={'title': 'Blitzlicht', 'content_html': '<p>Kurzer Rückblick</p>'},
+    )
+    assert res_auto.status_code == 200
+    assert res_auto.get_json()['ok'] is True
+
+    # Submit TOP 2 via "next"
+    res_next = client.post(
+        f'/protocols/{protocol.id}/item/{item2.id}',
+        data={'title': 'Lob & Kritik', 'content_html': '<p>Super Einsatz vom Team</p>', 'action': 'next'},
+        follow_redirects=False,
+    )
+    assert res_next.status_code == 302
+    assert f'/protocols/{protocol.id}/item/{item3.id}' in res_next.headers['Location']
+
+    # Submit TOP 3 via "finalize" (including table-only HTML)
+    res_fin = client.post(
+        f'/protocols/{protocol.id}/item/{item3.id}',
+        data={
+            'title': 'Sonderthemen',
+            'content_html': '<table><tbody><tr><td>Aufgabe A</td></tr></tbody></table>',
+            'action': 'finalize',
+        },
+        follow_redirects=False,
+    )
+    assert res_fin.status_code == 302
+    assert f'/protocols/{protocol.id}/view' in res_fin.headers['Location']
+
+    res_view = client.get(f'/protocols/{protocol.id}/view')
+    assert res_view.status_code == 200
+    html = res_view.get_data(as_text=True)
+    assert 'Kurzer Rückblick' in html
+    assert 'Super Einsatz vom Team' in html
+    assert 'Aufgabe A' in html

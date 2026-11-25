@@ -328,35 +328,54 @@
         var statusEl = document.getElementById('protocolsAutosaveStatus');
         var autosaveUrl = form.getAttribute('data-autosave-url');
         var timer = null;
+        var isDirty = false;
+        var isSubmitting = false;
+        var inFlightSave = null;
         var i18n = window.PROTOCOLS_I18N || {};
 
         function autosave() {
-            if (!autosaveUrl) return;
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
             syncHidden();
+            if (!autosaveUrl) return Promise.resolve();
             if (statusEl) statusEl.textContent = i18n.saving || '';
             var titleInput = document.getElementById('itemTitle');
-            fetch(autosaveUrl, {
+            var payload = JSON.stringify({
+                title: titleInput ? titleInput.value : '',
+                content_html: hidden.value,
+            });
+            inFlightSave = fetch(autosaveUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest',
                 },
-                body: JSON.stringify({
-                    title: titleInput ? titleInput.value : '',
-                    content_html: hidden.value,
-                }),
+                body: payload,
                 credentials: 'same-origin',
+                keepalive: true,
             })
-                .then(function (r) { return r.json(); })
+                .then(function (r) {
+                    if (!r.ok) throw new Error('autosave_failed');
+                    return r.json();
+                })
                 .then(function (data) {
-                    if (statusEl && data && data.ok) {
-                        statusEl.textContent = i18n.autosaved || '';
+                    if (data && data.ok) {
+                        isDirty = false;
+                        if (statusEl) statusEl.textContent = i18n.autosaved || '';
                     }
                 })
-                .catch(function () { /* ignore */ });
+                .catch(function () { /* ignore */ })
+                .finally(function () {
+                    inFlightSave = null;
+                });
+            return inFlightSave;
         }
 
         function scheduleAutosave() {
+            isDirty = true;
+            syncHidden();
             if (timer) clearTimeout(timer);
             timer = setTimeout(autosave, 1200);
         }
@@ -365,8 +384,41 @@
         var titleInput = document.getElementById('itemTitle');
         if (titleInput) titleInput.addEventListener('input', scheduleAutosave);
 
+        document.querySelectorAll('button[form="protocolsItemForm"], #protocolsItemForm button[type="submit"]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                syncHidden();
+            });
+        });
+
         form.addEventListener('submit', function () {
+            isSubmitting = true;
+            isDirty = false;
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
             syncHidden();
+        });
+
+        // Flush pending changes before navigating via TOP-pills, step-links, or back/close buttons
+        var workspace = form.closest('.protocols-workspace--editor');
+        if (workspace) {
+            workspace.addEventListener('click', function (e) {
+                var link = e.target.closest('a[href]');
+                if (!link || link.target === '_blank' || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                if (!isDirty && !inFlightSave) return;
+                e.preventDefault();
+                var href = link.href;
+                (inFlightSave || autosave()).finally(function () {
+                    window.location.href = href;
+                });
+            });
+        }
+
+        window.addEventListener('pagehide', function () {
+            if (!isSubmitting && isDirty) {
+                autosave();
+            }
         });
     }
 
