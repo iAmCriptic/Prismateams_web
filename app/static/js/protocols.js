@@ -278,7 +278,8 @@
         }
 
         if (hasBetterTable) {
-            modules.table = false;
+            // Quill 1.3.7 has no built-in 'modules/table'; setting modules.table = false
+            // makes Theme.init() call addModule('table') -> new undefined() -> TypeError.
             modules['better-table'] = {
                 operationMenu: {
                     items: {
