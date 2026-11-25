@@ -202,11 +202,6 @@
         var hidden = document.getElementById('contentHtml');
         if (!editorEl || !form || !hidden || typeof Quill === 'undefined') return;
 
-        var hasBetterTable = typeof quillBetterTable !== 'undefined';
-        if (hasBetterTable) {
-            Quill.register({ 'modules/better-table': quillBetterTable }, true);
-        }
-
         var toolbarOptions = [
             [{ size: ['small', false, 'large', 'huge'] }],
             ['bold', 'italic', 'underline', 'strike'],
@@ -224,12 +219,7 @@
                 container: toolbarEl || toolbarOptions,
                 handlers: {
                     table: function () {
-                        if (!hasBetterTable) {
-                            insertFallbackTable(this.quill);
-                            return;
-                        }
-                        var tableModule = this.quill.getModule('better-table');
-                        if (tableModule) tableModule.insertTable(3, 3);
+                        insertFallbackTable(this.quill);
                     },
                 },
             },
@@ -275,31 +265,6 @@
                 });
                 toolbarEl.appendChild(formats);
             });
-        }
-
-        if (hasBetterTable) {
-            // Quill 1.3.7 has no built-in 'modules/table'; setting modules.table = false
-            // makes Theme.init() call addModule('table') -> new undefined() -> TypeError.
-            modules['better-table'] = {
-                operationMenu: {
-                    items: {
-                        insertColumnRight: { text: 'Spalte rechts' },
-                        insertColumnLeft: { text: 'Spalte links' },
-                        insertRowUp: { text: 'Zeile darüber' },
-                        insertRowDown: { text: 'Zeile darunter' },
-                        mergeCells: { text: 'Zellen verbinden' },
-                        unmergeCells: { text: 'Zellen trennen' },
-                        deleteColumn: { text: 'Spalte löschen' },
-                        deleteRow: { text: 'Zeile löschen' },
-                        deleteTable: { text: 'Tabelle löschen' },
-                    },
-                },
-            };
-            if (quillBetterTable.keyboardBindings) {
-                modules.keyboard = {
-                    bindings: quillBetterTable.keyboardBindings,
-                };
-            }
         }
 
         var quill = new Quill('#protocolsEditor', {
