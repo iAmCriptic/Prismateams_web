@@ -38,7 +38,8 @@
       "meetings": "Meetings",
       "duty_roster": "Duty Roster",
       "booking_personal": "Booking",
-      "helpers": "Helper Management"
+      "helpers": "Helper Management",
+      "todos": "ToDos"
     },
     "brand": {
       "separator": "–",
@@ -92,7 +93,8 @@
       "description": "Install the portal as an app for faster access and offline use.",
       "install": "Install",
       "later": "Later",
-      "never": "Don't show again"
+      "never": "Don't show again",
+      "ios_description": "In Safari, tap the Share button and choose \"Add to Home Screen\"."
     },
     "pwa_update": {
       "title": "New version available",
@@ -227,7 +229,9 @@
       "flash_company_mail_success": "Registration successful! Your account and corporate mailbox are active. You can now log in.",
       "company_email_hint": "Registration only permitted with authorized company email ({domains}).",
       "company_email_only_hint": "Registration only permitted with authorized company email",
-      "company_mailbox_login_note": "Please use your corporate mailbox password."
+      "company_mailbox_login_note": "Please use your corporate mailbox password.",
+      "with_invite_code": "With invite code",
+      "with_invite_code_aria": "Register with invite code"
     },
     "confirm_email": {
       "title": "Confirm email",
@@ -311,7 +315,8 @@
       "admin_mailserver_down_login_notice": "The company mail server is currently unreachable. You were signed in as an administrator using your local password.",
       "user_mailserver_down_login_notice": "The company mail server is currently unreachable. You were signed in using offline mode.",
       "mailserver_unreachable_login_blocked": "The company mail server is currently unreachable. Sign-in is temporarily unavailable.",
-      "company_mailbox_blocked_or_invalid": "Corporate mailbox login failed or account locked."
+      "company_mailbox_blocked_or_invalid": "Corporate mailbox login failed or account locked.",
+      "account_expired_contact_admin": "Your account has expired and was deactivated. Please contact an administrator."
     },
     "bot_protection": {
       "recaptcha_required": "Please confirm that you are not a robot."
@@ -380,7 +385,8 @@
       "submit": "Register with code",
       "flash_code_required": "Please enter an invitation code.",
       "flash_code_invalid": "This invitation code is invalid, expired, or used up.",
-      "code_team_portal_hint": "With this code you will receive a full portal account and become a member of team '{team}'."
+      "code_team_portal_hint": "With this code you will receive a full portal account and become a member of team '{team}'.",
+      "account_active_until_hint": "Your account will remain active up to and including {date}."
     },
     "maintenance": {
       "title": "Maintenance",
@@ -695,6 +701,12 @@
         "title": "Helper Management",
         "helpers_count": "{count} helpers",
         "empty": "No helper events available."
+      },
+      "todos": {
+        "title": "ToDos",
+        "empty": "No open ToDos for today",
+        "overdue": "Overdue",
+        "today": "Today"
       }
     },
     "module_bar": {
@@ -737,7 +749,19 @@
       "add_selected": "Add",
       "resize_width": "Width",
       "resize_height": "Height",
-      "resize_size": "Size"
+      "resize_size": "Size",
+      "size_section": "Size & Layout",
+      "size_tab_mobile": "Mobile",
+      "size_tab_desktop": "Desktop (PC)",
+      "size_width": "Width",
+      "size_height": "Height",
+      "size_half": "Half (1/2)",
+      "size_full": "Full (2/2)",
+      "size_mobile_hint": "Applies only to mobile view (< 768px) and does not affect desktop.",
+      "size_desktop_hint": "Applies only to desktop view (≥ 768px) and does not affect mobile.",
+      "mobile_height_decrease": "Decrease height",
+      "mobile_height_increase": "Increase height",
+      "mobile_width_toggle": "Toggle width"
     },
     "guest": {
       "use_modules": "Use the module bar above to open your available areas."
@@ -837,6 +861,10 @@
           "excalidraw": {
             "label": "Excalidraw Boards",
             "description": "Recently updated whiteboards and sketches."
+          },
+          "todos": {
+            "label": "ToDos",
+            "description": "Open and overdue checklist tasks for today"
           }
         },
         "add": "Add widget",
@@ -1544,7 +1572,19 @@
       "mirotalk_inactive": "Inactive",
       "hycanvas_label": "HyCanvas",
       "hycanvas_active": "Active",
-      "hycanvas_inactive": "Inactive"
+      "hycanvas_inactive": "Inactive",
+      "apple_shortcut": {
+        "title": "Apple (iOS / iPadOS) Share Shortcut",
+        "info": "Safari on iOS/iPadOS does not natively support the PWA Share Target API. With an Apple Shortcut, you can still send links directly from the Share Sheet to Prismateams.",
+        "description": "How to set up sharing for iPhone & iPad in the Apple Share Sheet:",
+        "step_1": "Open the Apple \"Shortcuts\" app, tap \"+\", and enable \"Show in Share Sheet\" under Info (i) (for URLs & Text).",
+        "step_2": "Add the \"URL\" action, copy the address below, and append the Shortcut Input right after \"?url=\".",
+        "step_3": "Add the \"Open URLs\" action afterwards — done.",
+        "url_label": "Shortcut target URL",
+        "copy_btn": "Copy URL",
+        "copied": "Copied",
+        "open_share_screen": "Open share screen"
+      }
     },
     "admin": {
       "page_title": "Administration - Settings",
@@ -1595,7 +1635,9 @@
         "module_duty_roster": "Duty Roster",
         "module_booking_personal": "Booking",
         "module_helpers": "Helper Management",
-        "module_canvas": "Canvas (HyCanvas)"
+        "module_canvas": "Canvas (HyCanvas)",
+        "module_todos": "ToDos",
+        "module_protocols": "Protocols"
       },
       "users": {
         "page_title": "User Management - Administration",
@@ -2695,7 +2737,11 @@
           "role_portal_user_badge": "Portal user",
           "role_team_only_help": "New user receives access to team areas only",
           "role_portal_user_help": "New user receives full portal access (Public/Private/Team)",
-          "col_access": "Access"
+          "col_access": "Access",
+          "account_active_until": "Account active until",
+          "account_active_until_col": "Account until",
+          "account_active_until_help": "Optional: Date until which registered accounts may remain active. They are deactivated the following day and deleted 7 days later unless reactivated.",
+          "flash_invalid_account_active_until": "Invalid account expiration date (cannot be in the past)."
         },
         "badge_member": "Member"
       },
@@ -4698,7 +4744,21 @@
       "sync_edit": "Edit",
       "sync_save": "Save",
       "sync_color": "Color",
-      "sync_empty": "No sync links yet. Any user can add one — visible to everyone."
+      "sync_empty": "No sync links yet. Any user can add one — visible to everyone.",
+      "google_title": "Google Calendar (OAuth)",
+      "google_intro": "Import shared Google Calendars as well, even if you only have read access and cannot generate a public iCal link.",
+      "google_connect_btn": "Connect with Google",
+      "google_reconnect": "Switch / reconnect account",
+      "google_reauth_hint": "Google Calendar permission is missing or expired. Please reconnect your Google account.",
+      "google_primary": "Primary",
+      "google_already_synced": "Already synced",
+      "google_add_btn": "Sync",
+      "google_empty": "No Google Calendars found.",
+      "google_not_configured": "Google OAuth is not configured in integrations yet.",
+      "google_connected": "Google account connected for calendar synchronization.",
+      "google_oauth_error": "Google Calendar connection failed: {error}",
+      "google_connect_first": "Please connect your Google account first.",
+      "google_already_added": "This Google Calendar is already linked — sync started."
     },
     "back_to_calendar": "Back"
   },
@@ -7405,6 +7465,7 @@
       "background_image_optional": "Optional: upload your own image (shown over the color)",
       "search_placeholder": "Search cards or lists…",
       "no_search_results": "No matching cards or lists found",
+      "toggle_actions": "Show or hide board actions",
       "move_list_left": "Move left",
       "move_list_right": "Move right",
       "list_default_fields": "Default fields for new cards",
@@ -7418,7 +7479,11 @@
       "notifications_unread_only": "Unread only",
       "notifications_mark_all": "Mark all as read",
       "notifications_mark_all_short": "Mark all read",
-      "notifications_loading": "Loading notifications…"
+      "notifications_loading": "Loading notifications…",
+      "notifications_external_filter": "Portal & Push (outside board)",
+      "notifications_mode_all": "All",
+      "notifications_mode_assigned": "Assigned cards & mentions",
+      "notifications_mode_mentions_checklist": "Only @mentions & checklists"
     },
     "custom_fields": {
       "title": "Custom fields",
@@ -7507,7 +7572,13 @@
       "delete_confirm": "Delete card?",
       "delete_list_confirm": "Delete list and all cards?",
       "delete_attachment_confirm": "Delete attachment?",
-      "delete_poll_confirm": "Remove poll?"
+      "delete_poll_confirm": "Remove poll?",
+      "edit_eurooffice": "Edit in Euro-Office",
+      "template_banner": "This is a card template.",
+      "create_from_template": "Create card from template",
+      "template_badge": "This card is a template",
+      "mark_template": "Mark as template",
+      "unmark_template": "Remove template mark"
     },
     "filter": {
       "keyword": "Keyword",
@@ -7568,6 +7639,23 @@
       "error_invalid_zip": "Invalid ZIP file",
       "error_empty_zip": "ZIP has no JSON/CSV files",
       "visibility": "Visibility"
+    },
+    "transfer": {
+      "title": "Copy / Move",
+      "new_title": "New title",
+      "target_board": "Target board",
+      "target_list": "Target list",
+      "target_card": "Target card",
+      "position": "Position",
+      "copy_card": "Copy card…",
+      "move_card": "Move card…",
+      "copy_list": "Copy list…",
+      "move_list": "Move list…",
+      "copy_checklist": "Copy checklist…",
+      "move_checklist": "Move checklist…",
+      "copy_board": "Copy board…",
+      "move_board": "Move board…",
+      "success": "Completed successfully"
     }
   },
   "visibility": {
@@ -7979,6 +8067,48 @@
       "size_normal": "Normal",
       "size_large": "Large",
       "size_huge": "Huge"
+    },
+    "templates": {
+      "nav": "Templates",
+      "title": "Protocol Templates",
+      "new": "New Template",
+      "edit_title": "Edit Template",
+      "subtitle": "Prepared members and agenda items for recurring meetings.",
+      "search_placeholder": "Search templates…",
+      "empty": "No templates yet.",
+      "title_label": "Template / Meeting Name",
+      "title_placeholder": "e.g. All-Hands Meeting",
+      "title_required": "Please enter a name for the template.",
+      "members_label": "Prepared Members",
+      "members_hint": "Add names as pills with Enter. You can simply check them off when starting a protocol.",
+      "agenda_label": "Prepared Agenda Items (TOPs)",
+      "agenda_hint": "These agenda items are copied directly when starting from this template.",
+      "save": "Save Template",
+      "delete_confirm": "Really delete this template?",
+      "save_as_template": "Save as template",
+      "start_action": "Conduct protocol",
+      "start_title": "Start Protocol from Template",
+      "start_subtitle": "Check off attendance and jump straight into the prepared agenda items.",
+      "start_submit": "Start Protocol Now",
+      "start_edit_agenda": "Edit Agenda",
+      "pick_heading": "Quick Start from Template",
+      "pick_hint": "Pick a template, check off members, and get started right away:",
+      "attendance_heading": "Check Attendance",
+      "attendance_hint": "Check who is present. Absent members can be marked as excused or unexcused.",
+      "mark_all_present": "All present",
+      "mark_all_absent": "Clear all",
+      "status_present": "Present",
+      "status_excused": "Excused",
+      "status_absent": "Absent",
+      "extra_participants": "Additional participants (optional)",
+      "members_count": "{count} members",
+      "tops_count": "{count} TOPs",
+      "no_members": "No members defined in this template.",
+      "flash": {
+        "created": "Template created.",
+        "deleted": "Template deleted.",
+        "saved_from_protocol": "Saved as template. You can review and adjust it now."
+      }
     }
   },
   "meetings": {
@@ -8503,5 +8633,67 @@
       "message_label": "Message",
       "message_placeholder": "Optional message with the file…"
     }
+  },
+  "todos": {
+    "title": "ToDos",
+    "new": "New",
+    "search_placeholder": "Search ToDos...",
+    "nav": {
+      "private": "Private",
+      "public": "Public"
+    },
+    "view": {
+      "today": "Today",
+      "all": "All ToDos"
+    },
+    "empty": "No open ToDos.",
+    "completed_section": "Completed",
+    "modal": {
+      "create_title": "Create new ToDo",
+      "create_submit": "Create",
+      "due_title": "Set due date",
+      "clear_due": "Remove date",
+      "assignee_title": "Assign person"
+    },
+    "field": {
+      "title": "Title",
+      "title_placeholder": "Describe task...",
+      "due_date": "Due date (optional)",
+      "due_time": "Time (optional)",
+      "assignee": "Assign to (optional)",
+      "unassigned_pool": "Open task pool (unassigned)"
+    },
+    "action": {
+      "claim": "Claim",
+      "add_due": "Set date",
+      "assign": "Assign person"
+    },
+    "source": {
+      "kanban": "Kanban",
+      "event": "Event"
+    }
+  },
+  "booking_personal": {
+    "search_placeholder": "Search in Booking...",
+    "search_clear": "Clear search",
+    "filter_title": "Filter & Sort",
+    "filter_button_title": "Filter & sort table",
+    "filter_active": "Filter active",
+    "filter_reset": "Reset",
+    "filter_status": "Status",
+    "filter_status_all": "All statuses",
+    "filter_area": "Area / Stage",
+    "filter_area_all": "All areas",
+    "sort_by": "Sort by",
+    "sort_default": "Default order",
+    "sort_name_asc": "Name (A–Z)",
+    "sort_name_desc": "Name (Z–A)",
+    "sort_status_asc": "Status (A–Z)",
+    "sort_status_desc": "Status (Z–A)",
+    "sort_area_asc": "Stage / Area (A–Z)",
+    "sort_area_desc": "Stage / Area (Z–A)",
+    "sort_total_desc": "Total (highest first)",
+    "sort_total_asc": "Total (lowest first)",
+    "no_filter_results": "No entries matching your search or filter."
   }
 }

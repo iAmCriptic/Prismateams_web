@@ -162,6 +162,8 @@ services:
     profiles: ["hycanvas"]
     image: postgres:16-alpine
     restart: unless-stopped
+    shm_size: 128m
+    command: ["postgres", "-c", "shared_buffers=128MB", "-c", "max_connections=100"]
     environment:
       POSTGRES_USER: ${HYCANVAS_DB_USER:-hycanvas}
       POSTGRES_PASSWORD: ${HYCANVAS_DB_PASSWORD:-changeme-hycanvas-db}
@@ -175,6 +177,12 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+    mem_limit: ${HYCANVAS_DB_MEM_LIMIT:-512m}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - portal
 
@@ -187,6 +195,7 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
+      NODE_OPTIONS: ${HYCANVAS_NODE_OPTIONS:---max-old-space-size=768}
       DATABASE_URL: postgresql://${HYCANVAS_DB_USER:-hycanvas}:${HYCANVAS_DB_PASSWORD:-changeme-hycanvas-db}@hycanvas-db:5432/${HYCANVAS_DB_NAME:-hycanvas}?schema=public
       JWT_SECRET: ${HYCANVAS_JWT_SECRET:-changeme-hycanvas-jwt}
       COOKIE_SECURE: ${HYCANVAS_COOKIE_SECURE:-false}
@@ -201,6 +210,18 @@ services:
       - hycanvas_storage:/app/.data/storage
     ports:
       - "${HYCANVAS_HOST_BIND:-127.0.0.1}:${HYCANVAS_HOST_PORT:-8005}:8005"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8005/').then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    mem_limit: ${HYCANVAS_MEM_LIMIT:-1g}
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - portal
 

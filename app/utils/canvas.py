@@ -7,14 +7,16 @@ import hmac
 import logging
 import os
 import re
+import threading
 import time
 import uuid
 from typing import Any
 
 import jwt
 import requests
-from flask import current_app, has_request_context, url_for
+from flask import current_app, g, has_app_context, has_request_context, url_for
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
+from requests.adapters import HTTPAdapter
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
@@ -23,6 +25,27 @@ logger = logging.getLogger(__name__)
 
 AVATAR_TOKEN_SALT = 'canvas-avatar-token'
 AVATAR_TOKEN_MAX_AGE = 365 * 86400
+HYCANVAS_FULL_SYNC_TTL_SECONDS = 300
+_HYCANVAS_SYNC_LOCK = threading.Lock()
+_HYCANVAS_HTTP_ADAPTER = HTTPAdapter(pool_connections=10, pool_maxsize=20)
+_HYCANVAS_SHARED_SESSION: requests.Session | None = None
+
+
+def _get_shared_http_session() -> requests.Session:
+    global _HYCANVAS_SHARED_SESSION
+    if _HYCANVAS_SHARED_SESSION is None:
+        sess = requests.Session()
+        sess.mount('http://', _HYCANVAS_HTTP_ADAPTER)
+        sess.mount('https://', _HYCANVAS_HTTP_ADAPTER)
+        _HYCANVAS_SHARED_SESSION = sess
+    return _HYCANVAS_SHARED_SESSION
+
+
+def _new_pooled_session() -> requests.Session:
+    sess = requests.Session()
+    sess.mount('http://', _HYCANVAS_HTTP_ADAPTER)
+    sess.mount('https://', _HYCANVAS_HTTP_ADAPTER)
+    return sess
 
 CANVAS_PRESET_CATEGORIES = [
     {
@@ -109,12 +132,13 @@ def get_hycanvas_status() -> tuple[bool, str | None]:
     if not api_url:
         return False, None
 
+    sess = _get_shared_http_session()
     reachable = False
     for path in ('/api/v1/health', '/health', '/api/v1/version', '/'):
         if path == '/' and reachable:
             break
         try:
-            resp = requests.get(f'{api_url}{path}', timeout=2)
+            resp = sess.get(f'{api_url}{path}', timeout=1.0)
             if resp.status_code < 500:
                 reachable = True
             if resp.ok and resp.content:
@@ -154,7 +178,13 @@ def _get_hycanvas_db_engine():
     engines = current_app.extensions.setdefault('hycanvas_db_engines', {})
     engine = engines.get(db_url)
     if engine is None:
-        engine = create_engine(db_url, pool_pre_ping=True)
+        engine = create_engine(
+            db_url,
+            pool_pre_ping=True,
+            pool_size=2,
+            max_overflow=3,
+            pool_recycle=1800,
+        )
         engines[db_url] = engine
     return engine
 
@@ -165,13 +195,13 @@ def _provision_hycanvas_user(user) -> None:
     if not api_url or not user:
         return
     email, name, password = _hycanvas_user_credentials(user)
-    sess = requests.Session()
-    sess.headers.update({'Accept': 'application/json'})
+    sess = _get_shared_http_session()
     for endpoint in ('/api/v1/auth/signup', '/api/v1/auth/register'):
         try:
             reg = sess.post(
                 f'{api_url}{endpoint}',
                 json={'email': email, 'password': password, 'name': name},
+                headers={'Accept': 'application/json'},
                 timeout=4,
             )
             if reg.ok or reg.status_code in (400, 409):
@@ -180,7 +210,53 @@ def _provision_hycanvas_user(user) -> None:
             continue
 
 
-def sync_hycanvas_user_and_workspaces(user) -> None:
+def _get_hycanvas_avatar_col(conn) -> str | None:
+    cache = current_app.extensions.setdefault('hycanvas_avatar_col_cache', {})
+    if 'col' in cache:
+        return cache['col']
+    cols_rows = conn.execute(
+        text(
+            'SELECT column_name FROM information_schema.columns '
+            "WHERE table_name = 'users' AND table_schema = current_schema()"
+        )
+    ).fetchall()
+    user_cols = {r.column_name for r in cols_rows}
+    avatar_col = next(
+        (c for c in ('avatar_url', 'avatarUrl', 'avatar', 'image') if c in user_cols),
+        None,
+    )
+    cache['col'] = avatar_col
+    return avatar_col
+
+
+def _sync_single_hycanvas_user(engine, user, email: str, hc_theme: str) -> None:
+    """Fast-path: update only the current user's theme, verification and avatar."""
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                'UPDATE users '
+                'SET theme = :theme, email_verified = true, updated_at = NOW() '
+                'WHERE lower(email) = :email '
+                'AND (theme IS DISTINCT FROM :theme OR email_verified = false)'
+            ),
+            {'email': email, 'theme': hc_theme},
+        )
+        if has_request_context():
+            avatar_col = _get_hycanvas_avatar_col(conn)
+            if avatar_col:
+                col_ident = f'"{avatar_col}"' if avatar_col != avatar_col.lower() else avatar_col
+                u_avatar = get_user_avatar_external_url(user)
+                conn.execute(
+                    text(
+                        f'UPDATE users '
+                        f'SET {col_ident} = :avatar_url, updated_at = NOW() '
+                        f'WHERE lower(email) = :email AND {col_ident} IS DISTINCT FROM :avatar_url'
+                    ),
+                    {'email': email, 'avatar_url': u_avatar},
+                )
+
+
+def sync_hycanvas_user_and_workspaces(user, *, force: bool = False) -> None:
     """Mark user email verified in HyCanvas and sync Teamportal Teams/Admins to HyCanvas workspaces."""
     if not user:
         return
@@ -192,13 +268,32 @@ def sync_hycanvas_user_and_workspaces(user) -> None:
     if engine is None:
         return
 
-    from app.models.team import Team, TeamMember
-    from app.models.user import User
-
     email = (getattr(user, 'email', None) or f'user-{user.id}@portal.local').strip().lower()
     hc_theme = 'dark' if (getattr(user, 'dark_mode', False) or getattr(user, 'oled_mode', False)) else 'light'
 
+    ttl = int(current_app.config.get('HYCANVAS_SYNC_TTL_SECONDS', HYCANVAS_FULL_SYNC_TTL_SECONDS) or 0)
+    now = time.monotonic()
+    last_sync = float(current_app.extensions.get('hycanvas_last_full_sync', 0.0))
+
+    if not force and ttl > 0 and (now - last_sync) < ttl:
+        try:
+            _sync_single_hycanvas_user(engine, user, email, hc_theme)
+        except Exception as exc:
+            logger.warning('HyCanvas single-user sync failed: %s', exc)
+        return
+
+    if not _HYCANVAS_SYNC_LOCK.acquire(blocking=False):
+        # Another request is already running the full workspace sync; only update current user.
+        try:
+            _sync_single_hycanvas_user(engine, user, email, hc_theme)
+        except Exception as exc:
+            logger.warning('HyCanvas single-user sync failed: %s', exc)
+        return
+
     try:
+        from app.models.team import Team, TeamMember
+        from app.models.user import User
+
         teams = Team.query.options(
             joinedload(Team.members).joinedload(TeamMember.user),
             joinedload(Team.leader),
@@ -267,28 +362,21 @@ def sync_hycanvas_user_and_workspaces(user) -> None:
             )
 
             if has_request_context() and relevant_users_by_email:
-                cols_rows = conn.execute(
-                    text(
-                        'SELECT column_name FROM information_schema.columns '
-                        "WHERE table_name = 'users' AND table_schema = current_schema()"
-                    )
-                ).fetchall()
-                user_cols = {r.column_name for r in cols_rows}
-                avatar_col = next(
-                    (c for c in ('avatar_url', 'avatarUrl', 'avatar', 'image') if c in user_cols),
-                    None,
-                )
+                avatar_col = _get_hycanvas_avatar_col(conn)
                 if avatar_col:
                     col_ident = f'"{avatar_col}"' if avatar_col != avatar_col.lower() else avatar_col
-                    for u_email, u_obj in relevant_users_by_email.items():
-                        u_avatar = get_user_avatar_external_url(u_obj)
+                    avatar_updates = [
+                        {'email': u_email, 'avatar_url': get_user_avatar_external_url(u_obj)}
+                        for u_email, u_obj in relevant_users_by_email.items()
+                    ]
+                    if avatar_updates:
                         conn.execute(
                             text(
                                 f'UPDATE users '
                                 f'SET {col_ident} = :avatar_url, updated_at = NOW() '
                                 f'WHERE lower(email) = :email AND {col_ident} IS DISTINCT FROM :avatar_url'
                             ),
-                            {'email': u_email, 'avatar_url': u_avatar},
+                            avatar_updates,
                         )
 
             rows = conn.execute(text('SELECT id::text AS id, lower(email) AS email FROM users')).fetchall()
@@ -364,7 +452,17 @@ def sync_hycanvas_user_and_workspaces(user) -> None:
                     l_uid = hc_users[leader_email]
                     desired_roles[l_uid] = 'OWNER' if l_uid == owner_hc_id else 'ADMIN'
 
-                for hc_uid, role in desired_roles.items():
+                if desired_roles:
+                    member_rows = [
+                        {
+                            'id': str(uuid.uuid4()),
+                            'ws_id': ws_id,
+                            'uid': hc_uid,
+                            'role': role,
+                            'status': 'ACTIVE',
+                        }
+                        for hc_uid, role in desired_roles.items()
+                    ]
                     conn.execute(
                         text(
                             'INSERT INTO workspace_members (id, workspace_id, user_id, role, status, joined_at, created_at, updated_at) '
@@ -373,13 +471,7 @@ def sync_hycanvas_user_and_workspaces(user) -> None:
                             'ON CONFLICT (workspace_id, user_id) DO UPDATE '
                             'SET role = EXCLUDED.role, status = EXCLUDED.status, updated_at = NOW()'
                         ),
-                        {
-                            'id': str(uuid.uuid4()),
-                            'ws_id': ws_id,
-                            'uid': hc_uid,
-                            'role': role,
-                            'status': 'ACTIVE',
-                        },
+                        member_rows,
                     )
 
                 existing_members = conn.execute(
@@ -390,16 +482,16 @@ def sync_hycanvas_user_and_workspaces(user) -> None:
                     ),
                     {'ws_id': ws_id},
                 ).fetchall()
-                for m in existing_members:
-                    if m.uid not in desired_roles:
-                        conn.execute(
-                            text(
-                                'DELETE FROM workspace_members '
-                                'WHERE workspace_id = CAST(:ws_id AS uuid) '
-                                'AND user_id = CAST(:uid AS uuid)'
-                            ),
-                            {'ws_id': ws_id, 'uid': m.uid},
-                        )
+                stale_uids = [m.uid for m in existing_members if m.uid not in desired_roles]
+                if stale_uids:
+                    conn.execute(
+                        text(
+                            'DELETE FROM workspace_members '
+                            'WHERE workspace_id = CAST(:ws_id AS uuid) '
+                            'AND user_id = ANY(CAST(:uids AS uuid[]))'
+                        ),
+                        {'ws_id': ws_id, 'uids': stale_uids},
+                    )
 
             pending_invs = conn.execute(
                 text(
@@ -439,8 +531,11 @@ def sync_hycanvas_user_and_workspaces(user) -> None:
                     ),
                     {'inv_id': inv.inv_id},
                 )
+        current_app.extensions['hycanvas_last_full_sync'] = time.monotonic()
     except Exception as exc:
         logger.warning('HyCanvas workspace/user sync failed: %s', exc)
+    finally:
+        _HYCANVAS_SYNC_LOCK.release()
 
 
 def sign_canvas_avatar_token(user_id: int) -> str:
@@ -507,12 +602,20 @@ def authenticate_hycanvas_session(user) -> requests.Session | None:
     """
     Ensure user exists in HyCanvas and return an authenticated requests.Session
     holding HyCanvas's real session cookies (or None if HyCanvas is unreachable).
+    Cached on flask.g for the duration of the current request to avoid duplicate logins.
     """
     api_url = get_hycanvas_api_url()
     if not api_url or not user:
         return None
+
+    uid = getattr(user, 'id', None)
+    if has_app_context() and uid is not None:
+        g_cache = getattr(g, '_hycanvas_auth_sessions', None)
+        if g_cache is not None and uid in g_cache:
+            return g_cache[uid]
+
     email, name, password = _hycanvas_user_credentials(user)
-    sess = requests.Session()
+    sess = _new_pooled_session()
     sess.headers.update({'Accept': 'application/json'})
 
     try:
@@ -555,9 +658,13 @@ def authenticate_hycanvas_session(user) -> requests.Session | None:
                     logger.debug('HyCanvas PATCH /api/v1/me returned %s: %s', patch_resp.status_code, patch_resp.text[:200])
             except Exception as exc:
                 logger.debug('HyCanvas PATCH /api/v1/me failed: %s', exc)
+            if has_app_context() and uid is not None:
+                g.setdefault('_hycanvas_auth_sessions', {})[uid] = sess
             return sess
     except Exception as exc:
         logger.debug('HyCanvas session auth skipped/failed: %s', exc)
+    if has_app_context() and uid is not None:
+        g.setdefault('_hycanvas_auth_sessions', {})[uid] = None
     return None
 
 
@@ -581,7 +688,7 @@ def hycanvas_create_design(
         'height': int(height),
     }
     try:
-        client = sess or requests
+        client = sess or _get_shared_http_session()
         resp = client.post(
             f'{api_url}/api/v1/designs',
             json=payload,
@@ -603,7 +710,7 @@ def hycanvas_export_hyc(design_id: str, user=None) -> bytes | None:
         return None
     api_url = get_hycanvas_api_url()
     sess = authenticate_hycanvas_session(user)
-    client = sess or requests
+    client = sess or _get_shared_http_session()
     headers = None if sess is not None else _hycanvas_headers(user)
     try:
         resp = client.get(
@@ -623,7 +730,7 @@ def hycanvas_export_thumbnail(design_id: str, user=None) -> bytes | None:
         return None
     api_url = get_hycanvas_api_url()
     sess = authenticate_hycanvas_session(user)
-    client = sess or requests
+    client = sess or _get_shared_http_session()
     headers = None if sess is not None else _hycanvas_headers(user)
     try:
         resp = client.get(
@@ -644,7 +751,7 @@ def hycanvas_delete_design(design_id: str, user=None) -> None:
         return
     api_url = get_hycanvas_api_url()
     try:
-        requests.delete(
+        _get_shared_http_session().delete(
             f'{api_url}/api/v1/designs/{design_id}',
             headers=_hycanvas_headers(user),
             timeout=5,

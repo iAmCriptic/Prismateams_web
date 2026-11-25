@@ -340,11 +340,36 @@
 
 .bp-table th:last-child,
 .bp-table td:last-child {
-    width: 12rem;
-    min-width: 12rem;
+    width: 15.5rem;
+    min-width: 15.5rem;
     overflow: visible;
     white-space: nowrap;
     text-align: right;
+}
+
+.bp-table tfoot td,
+.bp-table tfoot td:last-child {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    width: auto;
+    min-width: 0;
+    text-align: left;
+    background-color: var(--bs-tertiary-bg) !important;
+    border-top: 2px solid var(--bs-border-color);
+    border-bottom: none;
+    padding: 0.75rem 1rem;
+    vertical-align: middle;
+}
+
+.bp-footer-counts-grid {
+    display: grid;
+    grid-template-rows: repeat(3, auto);
+    grid-auto-flow: column;
+    gap: 0.15rem 0.85rem;
+    font-size: 0.75rem;
+    line-height: 1.3;
+    align-items: center;
 }
 
 /* Mod-list actions container */
@@ -357,27 +382,21 @@
     min-height: 2.2rem;
 }
 
-/* 3-Punkte-Menü wird beim Zeilen-Hover ausgeblendet (solange Dropdown nicht offen ist) */
+/* 3-Punkte-Menü bleibt auch beim Zeilen-Hover sichtbar und klickbar */
 .bp-table .mod-list-row .mod-list-actions > .dropdown {
-    transition: opacity 0.15s ease, visibility 0.15s ease;
+    position: relative;
+    z-index: 6;
+    transition: opacity 0.15s ease;
 }
 
-.bp-table .mod-list-row:hover .mod-list-actions > .dropdown:not(.show),
-.bp-table .mod-list-row:focus-within .mod-list-actions > .dropdown:not(.show) {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
-}
-
-/* Hover-Aktionen: nahtlos anstelle der 3 Punkte, vollkommen ohne Rahmenlinien */
+/* Hover-Aktionen: inline links neben dem 3-Punkte-Menü, keine Überlagerung möglich */
 .bp-table .mod-list-row .mod-list-hover-actions {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
+    position: static;
+    transform: none;
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: 0.2rem;
+    margin-right: 0.25rem;
     border: none !important;
     background: transparent !important;
     box-shadow: none !important;
@@ -386,7 +405,6 @@
     opacity: 0;
     pointer-events: none;
     white-space: nowrap;
-    z-index: 5;
     transition: opacity 0.15s ease, visibility 0.15s ease;
 }
 
@@ -1492,4 +1510,200 @@ body.bp-public-body {
 #bpApplyTemplateModal .modal-footer {
     border-top: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.12));
     padding: 0.9rem 1.4rem;
+}
+
+/* ==========================================================================
+   Dateien & Medien Darstellung (Liste & Detail-Übersicht)
+   ========================================================================== */
+.bp-file-count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.22rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--bs-body-color);
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, var(--bs-tertiary-bg));
+    border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 22%, var(--bs-border-color));
+    white-space: nowrap;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+a.bp-file-count-badge:hover {
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 16%, var(--bs-tertiary-bg));
+    border-color: var(--accent-color, var(--bs-primary));
+    color: var(--accent-color, var(--bs-primary));
+}
+
+.bp-file-count-badge .bi {
+    color: var(--accent-color, var(--bs-primary));
+    font-size: 0.8rem;
+}
+
+.bp-detail-media-block {
+    background-color: transparent;
+    border: 1px solid transparent;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.bp-detail-media-block:hover {
+    background-color: color-mix(in srgb, var(--bs-tertiary-bg) 60%, transparent);
+    border-color: var(--bs-border-color-translucent, var(--bs-border-color));
+}
+
+.bp-upload-trigger {
+    cursor: pointer;
+    font-size: 0.78rem;
+}
+
+.bp-upload-trigger .bi {
+    color: var(--accent-color, var(--bs-primary));
+}
+
+.bp-detail-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    width: 100%;
+}
+
+.bp-detail-file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 0.75rem;
+    background-color: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.bp-detail-file-item:hover {
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 45%, var(--bs-border-color));
+}
+
+.bp-detail-file-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: 0.5rem;
+    object-fit: cover;
+    border: 1px solid var(--bs-border-color);
+    display: block;
+}
+
+.bp-detail-file-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 0.55rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+    color: var(--accent-color, var(--bs-primary));
+    font-size: 1.1rem;
+}
+
+.bp-detail-file-name {
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: var(--bs-body-color);
+    line-height: 1.3;
+}
+
+.bp-detail-file-name:hover {
+    color: var(--accent-color, var(--bs-primary));
+}
+
+.bp-detail-file-ext {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+}
+
+.bp-detail-file-action-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--bs-secondary-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.bp-detail-file-action-btn:hover {
+    background-color: color-mix(in srgb, var(--bs-body-color) 8%, transparent);
+    color: var(--bs-body-color);
+}
+
+.bp-detail-file-action-btn--accent:hover {
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 14%, transparent);
+    color: var(--accent-color, var(--bs-primary));
+}
+
+.bp-detail-file-action-btn--danger:hover {
+    background-color: color-mix(in srgb, var(--bs-danger) 14%, transparent);
+    color: var(--bs-danger);
+}
+
+/* ── Vorlagen-Verwaltung: Mobile Responsive Table ──────────────────────── */
+@media (max-width: 767.98px) {
+    #templateFieldsTable {
+        table-layout: auto;
+    }
+
+    #templateFieldsTable thead {
+        display: none;
+    }
+
+    #templateFieldsTable,
+    #templateFieldsTable tbody {
+        display: block;
+        width: 100%;
+    }
+
+    #templateFieldsTable tr.template-field-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.45rem 0.6rem;
+        padding: 0.85rem 0.5rem;
+        border-bottom: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.16));
+    }
+
+    #templateFieldsTable tr.template-field-row:last-child {
+        border-bottom: 0;
+    }
+
+    #templateFieldsTable tr.template-field-row > td {
+        display: block;
+        width: auto;
+        padding: 0 !important;
+        border: 0 !important;
+    }
+
+    #templateFieldsTable tr.template-field-row > td:first-child {
+        min-width: 1.4rem;
+        text-align: left !important;
+        font-weight: 600;
+    }
+
+    #templateFieldsTable tr.template-field-row > td:nth-child(2) {
+        flex: 1 1 calc(100% - 5rem);
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    #templateFieldsTable tr.template-field-row > td.text-end {
+        margin-left: auto;
+    }
 }

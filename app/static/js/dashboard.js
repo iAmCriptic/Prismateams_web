@@ -157,6 +157,12 @@
         resizeDebounce = setTimeout(() => scheduleFitWidgetLists(), 120);
     }
 
+    const MOBILE_BREAKPOINT = 768;
+
+    function isMobileLayout() {
+        return window.innerWidth < MOBILE_BREAKPOINT;
+    }
+
     function collectWidgetsFromDom() {
         if (!grid) return widgets;
         const order = [];
@@ -167,15 +173,27 @@
                 cfg = JSON.parse(el.dataset.widgetConfig || '{}');
             } catch (_) { /* ignore */ }
             const existing = widgets.find((w) => w.id === id) || {};
+            const w = clamp(parseInt(el.dataset.colSpan, 10) || existing.w || cfg.w || 1, 1, 4);
+            const h = clamp(parseInt(el.dataset.rowSpan, 10) || existing.h || cfg.h || 2, 1, 6);
+            const x = clamp(parseInt(el.dataset.gridX, 10) || existing.x || cfg.x || 1, 1, 4);
+            const y = Math.max(1, parseInt(el.dataset.gridY, 10) || existing.y || cfg.y || 1);
+            const mobile_w = clamp(parseInt(el.dataset.mobileColSpan, 10) || existing.mobile_w || cfg.mobile_w || 2, 1, 2);
+            const mobile_h = clamp(parseInt(el.dataset.mobileRowSpan, 10) || existing.mobile_h || cfg.mobile_h || Math.max(2, h), 1, 6);
+            const mobile_x = clamp(parseInt(el.dataset.mobileGridX, 10) || existing.mobile_x || cfg.mobile_x || 1, 1, 2);
+            const mobile_y = Math.max(1, parseInt(el.dataset.mobileGridY, 10) || existing.mobile_y || cfg.mobile_y || 1);
             const merged = {
                 ...existing,
                 ...cfg,
                 id,
                 type: el.dataset.widgetType || cfg.type || existing.type,
-                w: clamp(parseInt(el.dataset.colSpan, 10) || existing.w || cfg.w || 1, 1, 4),
-                h: clamp(parseInt(el.dataset.rowSpan, 10) || existing.h || cfg.h || 2, 1, 6),
-                x: clamp(parseInt(el.dataset.gridX, 10) || existing.x || cfg.x || 1, 1, 4),
-                y: Math.max(1, parseInt(el.dataset.gridY, 10) || existing.y || cfg.y || 1),
+                w,
+                h,
+                x,
+                y,
+                mobile_w,
+                mobile_h,
+                mobile_x,
+                mobile_y,
                 grid_v: 2,
             };
             order.push(merged);
@@ -194,7 +212,48 @@
         }
     }
 
-    function applyWidgetPlacement(el, x, y, w, h) {
+    function updateMobileControlsUI(el) {
+        const bar = el.querySelector('.dash-widget-mobile-controls');
+        if (!bar) return;
+        const mw = clamp(parseInt(el.dataset.mobileColSpan, 10) || 2, 1, 2);
+        const mh = clamp(parseInt(el.dataset.mobileRowSpan, 10) || 2, 1, 6);
+        const widthBtn = bar.querySelector('[data-mobile-action="width"]');
+        const dimEl = bar.querySelector('.dash-widget-mobile-dim');
+        const decBtn = bar.querySelector('[data-mobile-action="h-dec"]');
+        const incBtn = bar.querySelector('[data-mobile-action="h-inc"]');
+        if (widthBtn) {
+            widthBtn.textContent = mw === 1 ? '1/2' : '2/2';
+            widthBtn.setAttribute('aria-pressed', mw === 2 ? 'true' : 'false');
+        }
+        if (dimEl) dimEl.textContent = `${mw}×${mh}`;
+        if (decBtn) decBtn.disabled = mh <= 1;
+        if (incBtn) incBtn.disabled = mh >= 6;
+    }
+
+    function applyWidgetPlacement(el, x, y, w, h, mobile = isMobileLayout()) {
+        const cfg = readWidgetConfig(el);
+        if (mobile) {
+            const nextW = clamp(w, 1, 2);
+            const nextH = clamp(h, 1, 6);
+            const nextX = clamp(x, 1, 3 - nextW);
+            const nextY = Math.max(1, y | 0);
+            el.dataset.mobileColSpan = String(nextW);
+            el.dataset.mobileRowSpan = String(nextH);
+            el.dataset.mobileGridX = String(nextX);
+            el.dataset.mobileGridY = String(nextY);
+            el.style.setProperty('--dash-mw', String(nextW));
+            el.style.setProperty('--dash-mh', String(nextH));
+            el.style.setProperty('--dash-mx', String(nextX));
+            el.style.setProperty('--dash-my', String(nextY));
+            cfg.mobile_w = nextW;
+            cfg.mobile_h = nextH;
+            cfg.mobile_x = nextX;
+            cfg.mobile_y = nextY;
+            cfg.grid_v = 2;
+            el.dataset.widgetConfig = JSON.stringify(cfg);
+            updateMobileControlsUI(el);
+            return { x: nextX, y: nextY, w: nextW, h: nextH };
+        }
         const nextW = clamp(w, 1, 4);
         const nextH = clamp(h, 1, 6);
         const nextX = clamp(x, 1, 5 - nextW);
@@ -207,7 +266,6 @@
         el.style.setProperty('--dash-h', String(nextH));
         el.style.setProperty('--dash-x', String(nextX));
         el.style.setProperty('--dash-y', String(nextY));
-        const cfg = readWidgetConfig(el);
         cfg.w = nextW;
         cfg.h = nextH;
         cfg.x = nextX;
@@ -217,37 +275,89 @@
         return { x: nextX, y: nextY, w: nextW, h: nextH };
     }
 
-    function applyWidgetSize(el, w, h) {
-        const x = parseInt(el.dataset.gridX, 10) || 1;
-        const y = parseInt(el.dataset.gridY, 10) || 1;
-        applyWidgetPlacement(el, x, y, w, h);
-    }
-
     function rectsOverlap(a, b) {
         return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
     }
 
-    function otherRects(excludeId) {
+    function otherRects(excludeId, mobile = isMobileLayout()) {
         if (!grid) return [];
         const out = [];
         grid.querySelectorAll('.dash-widget[data-widget-id]').forEach((el) => {
             const id = el.dataset.widgetId;
             if (id === excludeId) return;
-            out.push({
-                id,
-                x: parseInt(el.dataset.gridX, 10) || 1,
-                y: parseInt(el.dataset.gridY, 10) || 1,
-                w: parseInt(el.dataset.colSpan, 10) || 1,
-                h: parseInt(el.dataset.rowSpan, 10) || 2,
-            });
+            if (mobile) {
+                out.push({
+                    id,
+                    x: parseInt(el.dataset.mobileGridX, 10) || 1,
+                    y: parseInt(el.dataset.mobileGridY, 10) || 1,
+                    w: parseInt(el.dataset.mobileColSpan, 10) || 2,
+                    h: parseInt(el.dataset.mobileRowSpan, 10) || 2,
+                });
+            } else {
+                out.push({
+                    id,
+                    x: parseInt(el.dataset.gridX, 10) || 1,
+                    y: parseInt(el.dataset.gridY, 10) || 1,
+                    w: parseInt(el.dataset.colSpan, 10) || 1,
+                    h: parseInt(el.dataset.rowSpan, 10) || 2,
+                });
+            }
         });
         return out;
     }
 
-    function placementFits(x, y, w, h, excludeId) {
-        if (x < 1 || y < 1 || w < 1 || h < 1 || x + w - 1 > 4) return false;
+    function placementFits(x, y, w, h, excludeId, mobile = isMobileLayout()) {
+        const cols = mobile ? 2 : 4;
+        if (x < 1 || y < 1 || w < 1 || h < 1 || x + w - 1 > cols) return false;
         const rect = { x, y, w, h };
-        return !otherRects(excludeId).some((o) => rectsOverlap(rect, o));
+        return !otherRects(excludeId, mobile).some((o) => rectsOverlap(rect, o));
+    }
+
+    function reflowMobileWidgets(priorityEl, nextW, nextH) {
+        if (!grid || !priorityEl) return;
+        const curX = clamp(parseInt(priorityEl.dataset.mobileGridX, 10) || 1, 1, 3 - nextW);
+        const curY = Math.max(1, parseInt(priorityEl.dataset.mobileGridY, 10) || 1);
+        const placed = [];
+        const pRect = applyWidgetPlacement(priorityEl, nextW === 2 ? 1 : curX, curY, nextW, nextH, true);
+        placed.push(pRect);
+
+        const fitsIn = (x, y, w, h) => {
+            if (x < 1 || y < 1 || x + w - 1 > 2) return false;
+            const r = { x, y, w, h };
+            return !placed.some((o) => rectsOverlap(r, o));
+        };
+
+        const firstFit = (w, h) => {
+            for (let y = 1; y < 500; y += 1) {
+                for (let x = 1; x <= 3 - w; x += 1) {
+                    if (fitsIn(x, y, w, h)) return { x, y };
+                }
+            }
+            return { x: 1, y: 1 };
+        };
+
+        const others = [...grid.querySelectorAll('.dash-widget[data-widget-id]')]
+            .filter((el) => el !== priorityEl)
+            .sort((a, b) => {
+                const ay = parseInt(a.dataset.mobileGridY, 10) || 1;
+                const by = parseInt(b.dataset.mobileGridY, 10) || 1;
+                if (ay !== by) return ay - by;
+                return (parseInt(a.dataset.mobileGridX, 10) || 1) - (parseInt(b.dataset.mobileGridX, 10) || 1);
+            });
+
+        others.forEach((el) => {
+            const mw = clamp(parseInt(el.dataset.mobileColSpan, 10) || 2, 1, 2);
+            const mh = clamp(parseInt(el.dataset.mobileRowSpan, 10) || 2, 1, 6);
+            let mx = clamp(parseInt(el.dataset.mobileGridX, 10) || 1, 1, 3 - mw);
+            let my = Math.max(1, parseInt(el.dataset.mobileGridY, 10) || 1);
+            if (!fitsIn(mx, my, mw, mh)) {
+                const pos = firstFit(mw, mh);
+                mx = pos.x;
+                my = pos.y;
+            }
+            const rect = applyWidgetPlacement(el, mx, my, mw, mh, true);
+            placed.push(rect);
+        });
     }
 
     function ensureResizeHandles() {
@@ -260,6 +370,28 @@
                 `<span class="dash-widget-resize dash-widget-resize--s" data-resize="s" title="${escapeHtml(t('live.resize_height', 'Höhe'))}"></span>` +
                 `<span class="dash-widget-resize dash-widget-resize--se" data-resize="se" title="${escapeHtml(t('live.resize_size', 'Größe'))}"></span>`
             );
+        });
+    }
+
+    function ensureMobileControls() {
+        if (!grid) return;
+        grid.querySelectorAll('.dash-widget').forEach((el) => {
+            if (el.querySelector('.dash-widget-mobile-controls')) {
+                updateMobileControlsUI(el);
+                return;
+            }
+            el.insertAdjacentHTML(
+                'beforeend',
+                `<div class="dash-widget-mobile-controls" data-stop-nav>` +
+                    `<button type="button" class="dash-widget-mobile-btn" data-mobile-action="width" title="${escapeHtml(t('live.mobile_width_toggle', 'Breite umschalten'))}" aria-label="${escapeHtml(t('live.mobile_width_toggle', 'Breite umschalten'))}">2/2</button>` +
+                    `<div class="dash-widget-mobile-height">` +
+                        `<button type="button" class="dash-widget-mobile-btn" data-mobile-action="h-dec" title="${escapeHtml(t('live.mobile_height_decrease', 'Höhe verringern'))}" aria-label="${escapeHtml(t('live.mobile_height_decrease', 'Höhe verringern'))}"><i class="bi bi-dash" aria-hidden="true"></i></button>` +
+                        `<span class="dash-widget-mobile-dim">2×2</span>` +
+                        `<button type="button" class="dash-widget-mobile-btn" data-mobile-action="h-inc" title="${escapeHtml(t('live.mobile_height_increase', 'Höhe vergrößern'))}" aria-label="${escapeHtml(t('live.mobile_height_increase', 'Höhe vergrößern'))}"><i class="bi bi-plus" aria-hidden="true"></i></button>` +
+                    `</div>` +
+                `</div>`
+            );
+            updateMobileControlsUI(el);
         });
     }
 
@@ -302,10 +434,12 @@
         });
         if (arrangeMode) {
             ensureResizeHandles();
+            ensureMobileControls();
             bindModuleSortable();
         } else {
             destroyModuleSortable();
         }
+        scheduleFitWidgetLists();
     }
 
     function destroyModuleSortable() {
@@ -341,7 +475,7 @@
     let dragState = null;
 
     function onResizePointerDown(e) {
-        if (!arrangeMode || !grid) return;
+        if (!arrangeMode || !grid || isMobileLayout()) return;
         const handle = e.target.closest('.dash-widget-resize');
         if (!handle) return;
         e.preventDefault();
@@ -386,8 +520,8 @@
         nextW = clamp(nextW, 1, 5 - startGX);
         nextH = clamp(nextH, 1, 6);
         const id = widget.dataset.widgetId;
-        if (placementFits(startGX, startGY, nextW, nextH, id)) {
-            applyWidgetPlacement(widget, startGX, startGY, nextW, nextH);
+        if (placementFits(startGX, startGY, nextW, nextH, id, false)) {
+            applyWidgetPlacement(widget, startGX, startGY, nextW, nextH, false);
             resizeState.lastGood = { w: nextW, h: nextH };
             scheduleFitWidgetLists(widget);
         }
@@ -409,7 +543,11 @@
 
     function onDragPointerDown(e) {
         if (!arrangeMode || !grid || resizeState) return;
-        if (e.target.closest('.dash-widget-resize, .dash-widget-settings-btn, a, button, input, textarea, select')) {
+        if (e.target.closest('.dash-widget-resize, .dash-widget-mobile-controls, .dash-widget-settings-btn, a, button, input, textarea, select')) {
+            return;
+        }
+        const mobile = isMobileLayout();
+        if (mobile && !e.target.closest('.dash-widget-handle')) {
             return;
         }
         const widget = e.target.closest('.dash-widget[data-widget-id]');
@@ -417,11 +555,16 @@
         // Only primary button / touch
         if (e.button != null && e.button !== 0) return;
         e.preventDefault();
-        const startGX = parseInt(widget.dataset.gridX, 10) || 1;
-        const startGY = parseInt(widget.dataset.gridY, 10) || 1;
+        const startGX = mobile
+            ? (parseInt(widget.dataset.mobileGridX, 10) || 1)
+            : (parseInt(widget.dataset.gridX, 10) || 1);
+        const startGY = mobile
+            ? (parseInt(widget.dataset.mobileGridY, 10) || 1)
+            : (parseInt(widget.dataset.gridY, 10) || 1);
         const cell = cellFromPoint(e.clientX, e.clientY);
         dragState = {
             widget,
+            mobile,
             pointerId: e.pointerId,
             offsetX: cell.x - startGX,
             offsetY: cell.y - startGY,
@@ -434,15 +577,20 @@
 
     function onDragPointerMove(e) {
         if (!dragState) return;
-        const { widget, offsetX, offsetY } = dragState;
-        const w = parseInt(widget.dataset.colSpan, 10) || 1;
-        const h = parseInt(widget.dataset.rowSpan, 10) || 2;
+        const { widget, mobile, offsetX, offsetY } = dragState;
+        const cols = mobile ? 2 : 4;
+        const w = mobile
+            ? (parseInt(widget.dataset.mobileColSpan, 10) || 2)
+            : (parseInt(widget.dataset.colSpan, 10) || 1);
+        const h = mobile
+            ? (parseInt(widget.dataset.mobileRowSpan, 10) || 2)
+            : (parseInt(widget.dataset.rowSpan, 10) || 2);
         const cell = cellFromPoint(e.clientX, e.clientY);
-        let nextX = clamp(cell.x - offsetX, 1, 5 - w);
-        let nextY = Math.max(1, cell.y - offsetY);
+        const nextX = clamp(cell.x - offsetX, 1, cols + 1 - w);
+        const nextY = Math.max(1, cell.y - offsetY);
         const id = widget.dataset.widgetId;
-        if (placementFits(nextX, nextY, w, h, id)) {
-            applyWidgetPlacement(widget, nextX, nextY, w, h);
+        if (placementFits(nextX, nextY, w, h, id, mobile)) {
+            applyWidgetPlacement(widget, nextX, nextY, w, h, mobile);
             dragState.lastGood = { x: nextX, y: nextY };
             dragState.moved = true;
         }
@@ -534,9 +682,105 @@
             .replace(/"/g, '&quot;');
     }
 
+    function buildSizePills(field, values, activeValue, labelsMap) {
+        return `<div class="dashboard-size-pills" data-size-group="${field}">` +
+            values.map((v) => {
+                const label = (labelsMap && labelsMap[v]) || String(v);
+                const active = Number(activeValue) === v;
+                return `<button type="button" class="dashboard-size-pill${active ? ' is-active' : ''}" data-size-field="${field}" data-size-val="${v}" aria-pressed="${active ? 'true' : 'false'}">${escapeHtml(label)}</button>`;
+            }).join('') +
+            `<input type="hidden" name="${field}" value="${Number(activeValue)}">` +
+        `</div>`;
+    }
+
+    function buildSizeSection(widget) {
+        const activeTab = isMobileLayout() ? 'mobile' : 'desktop';
+        const pcW = clamp(parseInt(widget.w, 10) || 1, 1, 4);
+        const pcH = clamp(parseInt(widget.h, 10) || 2, 1, 6);
+        const mobW = clamp(parseInt(widget.mobile_w, 10) || 2, 1, 2);
+        const mobH = clamp(parseInt(widget.mobile_h, 10) || Math.max(2, pcH), 1, 6);
+        const mobWLabels = {
+            1: t('live.size_half', 'Halb (1/2)'),
+            2: t('live.size_full', 'Voll (2/2)'),
+        };
+
+        return `
+            <div class="dashboard-size-panel">
+                <div class="dashboard-size-panel__header">
+                    <h6 class="dashboard-size-panel__title">${escapeHtml(t('live.size_section', 'Größe & Layout'))}</h6>
+                    <div class="dashboard-size-tabs" role="tablist">
+                        <button type="button" class="dashboard-size-tab${activeTab === 'mobile' ? ' is-active' : ''}" data-size-tab="mobile" role="tab" aria-selected="${activeTab === 'mobile' ? 'true' : 'false'}">
+                            <i class="bi bi-phone" aria-hidden="true"></i>
+                            <span>${escapeHtml(t('live.size_tab_mobile', 'Mobil'))}</span>
+                        </button>
+                        <button type="button" class="dashboard-size-tab${activeTab === 'desktop' ? ' is-active' : ''}" data-size-tab="desktop" role="tab" aria-selected="${activeTab === 'desktop' ? 'true' : 'false'}">
+                            <i class="bi bi-display" aria-hidden="true"></i>
+                            <span>${escapeHtml(t('live.size_tab_desktop', 'Desktop (PC)'))}</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="dashboard-size-pane${activeTab === 'mobile' ? '' : ' d-none'}" data-size-pane="mobile">
+                    <div class="dashboard-size-row">
+                        <span class="dashboard-size-row__label">${escapeHtml(t('live.size_width', 'Breite'))}</span>
+                        ${buildSizePills('mobile_w', [1, 2], mobW, mobWLabels)}
+                    </div>
+                    <div class="dashboard-size-row">
+                        <span class="dashboard-size-row__label">${escapeHtml(t('live.size_height', 'Höhe'))}</span>
+                        ${buildSizePills('mobile_h', [1, 2, 3, 4, 5, 6], mobH)}
+                    </div>
+                    <p class="dashboard-size-hint">${escapeHtml(t('live.size_mobile_hint', 'Gilt nur für die Smartphone-Ansicht (< 768px) und beeinflusst den PC nicht.'))}</p>
+                </div>
+                <div class="dashboard-size-pane${activeTab === 'desktop' ? '' : ' d-none'}" data-size-pane="desktop">
+                    <div class="dashboard-size-row">
+                        <span class="dashboard-size-row__label">${escapeHtml(t('live.size_width', 'Breite'))}</span>
+                        ${buildSizePills('w', [1, 2, 3, 4], pcW)}
+                    </div>
+                    <div class="dashboard-size-row">
+                        <span class="dashboard-size-row__label">${escapeHtml(t('live.size_height', 'Höhe'))}</span>
+                        ${buildSizePills('h', [1, 2, 3, 4, 5, 6], pcH)}
+                    </div>
+                    <p class="dashboard-size-hint">${escapeHtml(t('live.size_desktop_hint', 'Gilt nur für die Desktop-Ansicht (≥ 768px) und beeinflusst Mobilgeräte nicht.'))}</p>
+                </div>
+            </div>
+        `;
+    }
+
+    function bindSizeSettings() {
+        if (!modalBody) return;
+        modalBody.querySelectorAll('[data-size-tab]').forEach((tab) => {
+            tab.addEventListener('click', () => {
+                const target = tab.dataset.sizeTab;
+                modalBody.querySelectorAll('[data-size-tab]').forEach((b) => {
+                    const active = b === tab;
+                    b.classList.toggle('is-active', active);
+                    b.setAttribute('aria-selected', active ? 'true' : 'false');
+                });
+                modalBody.querySelectorAll('[data-size-pane]').forEach((pane) => {
+                    pane.classList.toggle('d-none', pane.dataset.sizePane !== target);
+                });
+            });
+        });
+        modalBody.querySelectorAll('[data-size-field]').forEach((pill) => {
+            pill.addEventListener('click', () => {
+                const field = pill.dataset.sizeField;
+                const val = pill.dataset.sizeVal;
+                const group = pill.closest('[data-size-group]');
+                if (!group) return;
+                group.querySelectorAll('[data-size-field]').forEach((p) => {
+                    const active = p === pill;
+                    p.classList.toggle('is-active', active);
+                    p.setAttribute('aria-pressed', active ? 'true' : 'false');
+                });
+                const input = group.querySelector(`input[name="${field}"]`);
+                if (input) input.value = val;
+            });
+        });
+    }
+
     function buildSettingsForm(widget) {
         const type = widget.type;
         let html = `<p class="text-muted small">${escapeHtml((editItems[type] && editItems[type].description) || '')}</p>`;
+        html += buildSizeSection(widget);
 
         if (type === 'termine') {
             html += `<label class="form-label">${t('edit.widgets.calendars_label', 'Kalender')}</label>`;
@@ -658,6 +902,7 @@
         activeWidgetId = widgetId;
         if (modalDialog) modalDialog.classList.remove('modal-lg');
         if (modalBody) modalBody.innerHTML = buildSettingsForm(widget);
+        bindSizeSettings();
         const modal = openModal(t('live.settings', 'Widget-Einstellungen'));
         if (modal) modal.show();
         if (widget.type === 'kontakte') {
@@ -676,7 +921,7 @@
 
     async function addWidgetByType(type) {
         if (!type) return;
-        const entry = { id: newId(), type, w: 1, h: 2, grid_v: 2 };
+        const entry = { id: newId(), type, w: 1, h: 2, mobile_w: 2, mobile_h: 2, grid_v: 2 };
         if (type === 'termine') entry.calendar_ids = [];
         if (type === 'kontakte') entry.contact_ids = [];
         if (type === 'emails') entry.mailbox_id = null;
@@ -856,6 +1101,19 @@
 
     function readSettingsFromForm(type, base) {
         const next = { ...base };
+        const readInt = (name, fallback, min, max) => {
+            const inp = modalBody && modalBody.querySelector(`input[name="${name}"]`);
+            const parsed = inp ? parseInt(inp.value, 10) : NaN;
+            return Number.isNaN(parsed) ? fallback : clamp(parsed, min, max);
+        };
+        next.w = readInt('w', next.w || 1, 1, 4);
+        next.h = readInt('h', next.h || 2, 1, 6);
+        next.x = clamp(parseInt(next.x, 10) || 1, 1, 5 - next.w);
+        next.mobile_w = readInt('mobile_w', next.mobile_w || 2, 1, 2);
+        next.mobile_h = readInt('mobile_h', next.mobile_h || 2, 1, 6);
+        next.mobile_x = clamp(parseInt(next.mobile_x, 10) || 1, 1, 3 - next.mobile_w);
+        next.grid_v = 2;
+
         if (type === 'termine') {
             next.calendar_ids = [...modalBody.querySelectorAll('input[name="calendar_ids"]:checked')]
                 .map((el) => parseInt(el.value, 10))
@@ -928,6 +1186,35 @@
             e.stopPropagation();
             openSettings(btn.getAttribute('data-widget-settings'));
         });
+
+        grid.addEventListener('click', async (e) => {
+            const actionBtn = e.target.closest('[data-mobile-action]');
+            if (!actionBtn || !arrangeMode) return;
+            e.preventDefault();
+            e.stopPropagation();
+            const widget = actionBtn.closest('.dash-widget[data-widget-id]');
+            if (!widget) return;
+            const action = actionBtn.dataset.mobileAction;
+            let mw = clamp(parseInt(widget.dataset.mobileColSpan, 10) || 2, 1, 2);
+            let mh = clamp(parseInt(widget.dataset.mobileRowSpan, 10) || 2, 1, 6);
+            if (action === 'width') {
+                mw = mw === 1 ? 2 : 1;
+            } else if (action === 'h-dec') {
+                mh = clamp(mh - 1, 1, 6);
+            } else if (action === 'h-inc') {
+                mh = clamp(mh + 1, 1, 6);
+            } else {
+                return;
+            }
+            reflowMobileWidgets(widget, mw, mh);
+            scheduleFitWidgetLists();
+            try {
+                const next = collectWidgetsFromDom();
+                await saveConfig({ widgets: next });
+            } catch (err) {
+                console.error(err);
+            }
+        });
     }
 
     if (arrangeBtn) {
@@ -983,4 +1270,43 @@
     }
 
     window.dashboardFitWidgetLists = scheduleFitWidgetLists;
+
+    if (grid) {
+        grid.addEventListener('change', async (e) => {
+            const cb = e.target.closest('.dash-todo-check');
+            if (!cb) return;
+            const row = cb.closest('[data-todo-source][data-todo-id]');
+            if (!row) return;
+            const source = row.dataset.todoSource;
+            const itemId = row.dataset.todoId;
+            const widget = row.closest('.dash-widget[data-widget-type="todos"]');
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+            try {
+                const res = await fetch(`/todos/api/items/${source}/${itemId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrf,
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ is_completed: cb.checked }),
+                });
+                if (res.ok && cb.checked) {
+                    row.remove();
+                    if (widget) {
+                        const list = widget.querySelector('.dash-widget-list');
+                        const badge = widget.querySelector('.dash-widget-badge');
+                        const remaining = list ? list.querySelectorAll('[data-todo-id]').length : 0;
+                        if (badge) badge.textContent = String(remaining);
+                        if (remaining === 0 && list) {
+                            const emptyText = widget.dataset.emptyText || '';
+                            list.outerHTML = `<div class="dash-widget-empty">${emptyText}</div>`;
+                        }
+                    }
+                }
+            } catch (err) {
+                cb.checked = !cb.checked;
+            }
+        });
+    }
 })();

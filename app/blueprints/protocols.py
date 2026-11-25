@@ -24,6 +24,8 @@ from app.models.protocol import (
     PROTOCOL_STATUS_FINALIZED,
     Protocol,
     ProtocolAgendaItem,
+    ProtocolTemplate,
+    ProtocolTemplateAgendaItem,
 )
 from app.utils.access_control import check_module_access
 from app.utils.common import is_module_enabled, portal_now_naive
@@ -227,11 +229,11 @@ def _apply_meta_from_form(protocol: Protocol):
     apply_visibility_from_form(protocol, 'protocols', current_user)
 
 
-def _sync_agenda_from_form(protocol: Protocol):
-    """Replace agenda items from form lists titles[] / item_ids[]."""
+def _sync_agenda_items(parent_id: int, existing_items, item_cls, fk_field: str):
+    """Replace agenda items on a Protocol or ProtocolTemplate from form lists titles[] / item_ids[]."""
     titles = request.form.getlist('titles')
     item_ids = request.form.getlist('item_ids')
-    existing = {item.id: item for item in protocol.agenda_items}
+    existing = {item.id: item for item in existing_items}
     seen = set()
     position = 0
     for idx, title in enumerate(titles):
@@ -245,7 +247,7 @@ def _sync_agenda_from_form(protocol: Protocol):
             item_id = 0
         item = existing.get(item_id) if item_id else None
         if not item:
-            item = ProtocolAgendaItem(protocol_id=protocol.id)
+            item = item_cls(**{fk_field: parent_id})
             db.session.add(item)
         item.title = title[:500]
         item.position = position
@@ -256,6 +258,42 @@ def _sync_agenda_from_form(protocol: Protocol):
     for item_id, item in existing.items():
         if item_id not in seen:
             db.session.delete(item)
+
+
+def _sync_agenda_from_form(protocol: Protocol):
+    """Replace agenda items from form lists titles[] / item_ids[]."""
+    _sync_agenda_items(protocol.id, protocol.agenda_items, ProtocolAgendaItem, 'protocol_id')
+
+
+def _sync_template_agenda_from_form(template: ProtocolTemplate):
+    """Replace template agenda items from form lists titles[] / item_ids[]."""
+    _sync_agenda_items(template.id, template.agenda_items, ProtocolTemplateAgendaItem, 'template_id')
+
+
+def _combine_member_names(*texts: str | None) -> str:
+    """Merge comma/newline-separated member strings into a deduplicated comma-separated string."""
+    seen = set()
+    names = []
+    for raw in texts:
+        for part in re.split(r'[\n,;]+', raw or ''):
+            name = part.strip()
+            if not name:
+                continue
+            key = name.lower()
+            if key not in seen:
+                seen.add(key)
+                names.append(name)
+    return ', '.join(names)
+
+
+def _get_template(template_id: int, require_edit: bool = False):
+    template = ProtocolTemplate.query.get_or_404(template_id)
+    if require_edit:
+        if not can_edit_item(current_user, template, 'protocols'):
+            return None, _denied()
+    elif not can_view_item(current_user, template, 'protocols'):
+        return None, _denied()
+    return template, None
 
 
 # --- Routes ---
@@ -325,6 +363,11 @@ def index():
 @check_module_access('module_protocols')
 def create():
     form_kwargs = _form_kwargs()
+    templates = (
+        accessible_query(current_user, ProtocolTemplate, 'protocols')
+        .order_by(ProtocolTemplate.title.asc())
+        .all()
+    )
     default_date, default_time = _now_defaults()
     form_data = {
         'title': '',
@@ -349,7 +392,7 @@ def create():
         start_time = _parse_time(form_data['start_time']) or default_time
         if not title:
             flash(translate('protocols.create.title_required'), 'danger')
-            return render_template('protocols/create.html', form=form_data, **form_kwargs)
+            return render_template('protocols/create.html', form=form_data, templates=templates, **form_kwargs)
 
         protocol = Protocol(
             title=title[:255],
@@ -367,7 +410,7 @@ def create():
         flash(translate('protocols.flash.created'), 'success')
         return redirect(url_for('protocols.edit_agenda', protocol_id=protocol.id))
 
-    return render_template('protocols/create.html', form=form_data, **form_kwargs)
+    return render_template('protocols/create.html', form=form_data, templates=templates, **form_kwargs)
 
 
 @protocols_bp.route('/<int:protocol_id>/meta', methods=['GET', 'POST'])
@@ -590,3 +633,297 @@ def delete(protocol_id):
     db.session.commit()
     flash(translate('protocols.flash.deleted'), 'success')
     return redirect(url_for('protocols.index'))
+
+
+@protocols_bp.route('/<int:protocol_id>/save-as-template', methods=['POST'])
+@login_required
+@check_module_access('module_protocols')
+def save_as_template(protocol_id):
+    protocol, denied = _get_protocol(protocol_id)
+    if denied:
+        return denied
+
+    members_text = _combine_member_names(
+        protocol.participants_text,
+        protocol.excused_text,
+        protocol.absent_text,
+    )
+    tpl = ProtocolTemplate(
+        title=protocol.title[:255],
+        members_text=members_text or None,
+        visibility=protocol.visibility or 'public',
+        team_id=protocol.team_id,
+        created_by=current_user.id,
+    )
+    db.session.add(tpl)
+    db.session.flush()
+    for pos, item in enumerate(protocol.agenda_items):
+        db.session.add(ProtocolTemplateAgendaItem(
+            template_id=tpl.id,
+            position=pos,
+            title=item.title[:500],
+        ))
+    db.session.commit()
+    flash(translate('protocols.templates.flash.saved_from_protocol'), 'success')
+    return redirect(url_for('protocols.template_edit', template_id=tpl.id))
+
+
+# --- Protocol Template Routes ---
+
+@protocols_bp.route('/templates')
+@login_required
+@check_module_access('module_protocols')
+def templates_index():
+    if not is_module_enabled('module_protocols'):
+        flash(translate('protocols.flash.module_disabled'), 'warning')
+        return redirect(url_for('dashboard.index'))
+
+    search_query = (request.args.get('q') or '').strip()
+    section, filter_team_id = parse_section_args('protocols', current_user)
+    query = accessible_query(current_user, ProtocolTemplate, 'protocols')
+    if section in ('team', 'public'):
+        query = apply_section_filter(query, ProtocolTemplate, section, filter_team_id)
+
+    if search_query:
+        like = f'%{search_query}%'
+        query = query.filter(
+            or_(
+                ProtocolTemplate.title.ilike(like),
+                ProtocolTemplate.members_text.ilike(like),
+            )
+        )
+
+    query = query.order_by(ProtocolTemplate.updated_at.desc(), ProtocolTemplate.title.asc())
+    templates, pagination = paginate_list(query)
+    ctx = _sidebar_context()
+    ctx['active_nav'] = 'templates'
+    return render_template(
+        'protocols/templates.html',
+        templates=templates,
+        search_query=search_query,
+        visibility_label=_visibility_label,
+        can_edit_template=lambda tpl: can_edit_item(current_user, tpl, 'protocols'),
+        list_page=pagination.page,
+        list_has_more=pagination.has_next,
+        **ctx,
+    )
+
+
+@protocols_bp.route('/templates/create', methods=['GET', 'POST'])
+@login_required
+@check_module_access('module_protocols')
+def template_create():
+    form_kwargs = _form_kwargs()
+    form_data = {
+        'title': '',
+        'members_text': '',
+    }
+
+    if request.method == 'POST':
+        form_data.update({
+            'title': request.form.get('title', ''),
+            'members_text': request.form.get('members_text', ''),
+        })
+        title = (form_data['title'] or '').strip()
+        if not title:
+            flash(translate('protocols.templates.title_required'), 'danger')
+            return render_template(
+                'protocols/template_form.html',
+                form=form_data,
+                agenda_titles=request.form.getlist('titles'),
+                editing=False,
+                **form_kwargs,
+            )
+
+        tpl = ProtocolTemplate(
+            title=title[:255],
+            members_text=_combine_member_names(form_data['members_text']) or None,
+            created_by=current_user.id,
+        )
+        apply_visibility_from_form(tpl, 'protocols', current_user)
+        db.session.add(tpl)
+        db.session.flush()
+        _sync_template_agenda_from_form(tpl)
+        db.session.commit()
+        flash(translate('protocols.templates.flash.created'), 'success')
+        return redirect(url_for('protocols.templates_index'))
+
+    return render_template(
+        'protocols/template_form.html',
+        form=form_data,
+        agenda_titles=[],
+        editing=False,
+        **form_kwargs,
+    )
+
+
+@protocols_bp.route('/templates/<int:template_id>/edit', methods=['GET', 'POST'])
+@login_required
+@check_module_access('module_protocols')
+def template_edit(template_id):
+    tpl, denied = _get_template(template_id, require_edit=True)
+    if denied:
+        return denied
+
+    form_kwargs = _form_kwargs(tpl)
+    if request.method == 'POST':
+        title = (request.form.get('title') or '').strip()
+        members_text = request.form.get('members_text', '')
+        if not title:
+            flash(translate('protocols.templates.title_required'), 'danger')
+            return render_template(
+                'protocols/template_form.html',
+                form={'title': title, 'members_text': members_text},
+                template=tpl,
+                agenda_titles=request.form.getlist('titles'),
+                editing=True,
+                **form_kwargs,
+            )
+
+        tpl.title = title[:255]
+        tpl.members_text = _combine_member_names(members_text) or None
+        apply_visibility_from_form(tpl, 'protocols', current_user)
+        _sync_template_agenda_from_form(tpl)
+        db.session.commit()
+        flash(translate('protocols.flash.saved'), 'success')
+        return redirect(url_for('protocols.templates_index'))
+
+    form_data = {
+        'title': tpl.title,
+        'members_text': tpl.members_text or '',
+    }
+    return render_template(
+        'protocols/template_form.html',
+        form=form_data,
+        template=tpl,
+        agenda_titles=[it.title for it in tpl.agenda_items],
+        editing=True,
+        **form_kwargs,
+    )
+
+
+@protocols_bp.route('/templates/<int:template_id>/delete', methods=['POST'])
+@login_required
+@check_module_access('module_protocols')
+def template_delete(template_id):
+    tpl, denied = _get_template(template_id, require_edit=True)
+    if denied:
+        return denied
+    db.session.delete(tpl)
+    db.session.commit()
+    flash(translate('protocols.templates.flash.deleted'), 'success')
+    return redirect(url_for('protocols.templates_index'))
+
+
+@protocols_bp.route('/templates/<int:template_id>/start', methods=['GET', 'POST'])
+@login_required
+@check_module_access('module_protocols')
+def start_from_template(template_id):
+    tpl, denied = _get_template(template_id)
+    if denied:
+        return denied
+
+    form_kwargs = _form_kwargs(tpl)
+    default_date, default_time = _now_defaults()
+    members = tpl.members_list()
+
+    if request.method == 'POST':
+        title = (request.form.get('title') or '').strip()
+        meeting_date = _parse_date(request.form.get('meeting_date')) or default_date
+        start_time = _parse_time(request.form.get('start_time')) or default_time
+        extra_participants = request.form.get('extra_participants_text', '')
+
+        if not title:
+            flash(translate('protocols.create.title_required'), 'danger')
+            return render_template(
+                'protocols/start_from_template.html',
+                template=tpl,
+                members=members,
+                agenda_titles=request.form.getlist('titles'),
+                form={
+                    'title': title,
+                    'meeting_date': request.form.get('meeting_date', default_date.isoformat()),
+                    'start_time': request.form.get('start_time', default_time.strftime('%H:%M')),
+                    'extra_participants_text': extra_participants,
+                },
+                **form_kwargs,
+            )
+
+        present_names = []
+        excused_names = []
+        absent_names = []
+        try:
+            member_count = int(request.form.get('member_count', 0))
+        except (TypeError, ValueError):
+            member_count = 0
+
+        for idx in range(member_count):
+            name = (request.form.get(f'member_name_{idx}') or '').strip()
+            if not name:
+                continue
+            status = (request.form.get(f'member_status_{idx}') or 'absent').strip().lower()
+            if status == 'present':
+                present_names.append(name)
+            elif status == 'excused':
+                excused_names.append(name)
+            else:
+                absent_names.append(name)
+
+        participants_text = _combine_member_names(', '.join(present_names), extra_participants)
+        excused_text = _combine_member_names(', '.join(excused_names))
+        absent_text = _combine_member_names(', '.join(absent_names))
+
+        protocol = Protocol(
+            title=title[:255],
+            meeting_date=meeting_date,
+            start_time=start_time,
+            participants_text=participants_text or None,
+            excused_text=excused_text or None,
+            absent_text=absent_text or None,
+            status=PROTOCOL_STATUS_DRAFT,
+            created_by=current_user.id,
+        )
+        apply_visibility_from_form(protocol, 'protocols', current_user)
+        db.session.add(protocol)
+        db.session.flush()
+
+        pos = 0
+        for raw_title in request.form.getlist('titles'):
+            item_title = (raw_title or '').strip()
+            if not item_title:
+                continue
+            db.session.add(ProtocolAgendaItem(
+                protocol_id=protocol.id,
+                position=pos,
+                title=item_title[:500],
+            ))
+            pos += 1
+
+        db.session.commit()
+        flash(translate('protocols.flash.created'), 'success')
+        action = (request.form.get('action') or 'start').strip()
+        if action == 'start':
+            first_item = (
+                ProtocolAgendaItem.query
+                .filter_by(protocol_id=protocol.id)
+                .order_by(ProtocolAgendaItem.position)
+                .first()
+            )
+            if first_item:
+                return redirect(url_for('protocols.edit_item', protocol_id=protocol.id, item_id=first_item.id))
+        return redirect(url_for('protocols.edit_agenda', protocol_id=protocol.id))
+
+    form_data = {
+        'title': tpl.title,
+        'meeting_date': default_date.isoformat(),
+        'start_time': default_time.strftime('%H:%M'),
+        'extra_participants_text': '',
+    }
+    return render_template(
+        'protocols/start_from_template.html',
+        template=tpl,
+        members=members,
+        agenda_titles=[it.title for it in tpl.agenda_items],
+        form=form_data,
+        **form_kwargs,
+    )

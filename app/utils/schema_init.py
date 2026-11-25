@@ -75,6 +75,8 @@ CRITICAL_TABLES = (
     "survey_response_locks",
     "protocols",
     "protocol_agenda_items",
+    "protocol_templates",
+    "protocol_template_agenda_items",
     "meetings",
     "meeting_invites",
     "duty_rosters",
@@ -133,7 +135,12 @@ def import_all_models() -> None:
         SurveyEmailVerification,
         SurveyResponseLock,
     )
-    from app.models.protocol import Protocol, ProtocolAgendaItem  # noqa: F401
+    from app.models.protocol import (  # noqa: F401
+        Protocol,
+        ProtocolAgendaItem,
+        ProtocolTemplate,
+        ProtocolTemplateAgendaItem,
+    )
     from app.models.meetings import Meeting, MeetingInvite  # noqa: F401
 
 
@@ -373,6 +380,8 @@ def ensure_critical_columns(db) -> None:
                 ("can_access_private", bool_true),
                 ("has_full_access", bool_false),
                 ("dguv_signature_confirmed_until", "TIMESTAMP NULL" if is_pg else "DATETIME NULL"),
+                ("account_active_until", "DATE NULL"),
+                ("auto_deactivated_at", "TIMESTAMP NULL" if is_pg else "DATETIME NULL"),
             ]
             for col_name, ddl in user_column_defs:
                 if col_name not in user_cols:
@@ -396,6 +405,16 @@ def ensure_critical_columns(db) -> None:
                     logger.info("[OK] team_invite_codes.role ergänzt")
                 except Exception as role_err:
                     logger.warning("Konnte team_invite_codes.role nicht ergänzen: %s", role_err)
+            if "account_active_until" not in invite_cols:
+                try:
+                    logger.info("Ergänze team_invite_codes.account_active_until ...")
+                    with db.engine.begin() as conn:
+                        conn.execute(
+                            text("ALTER TABLE team_invite_codes ADD COLUMN account_active_until DATE NULL")
+                        )
+                    logger.info("[OK] team_invite_codes.account_active_until ergänzt")
+                except Exception as aau_err:
+                    logger.warning("Konnte team_invite_codes.account_active_until nicht ergänzen: %s", aau_err)
 
         if "booking_personal_events" in table_names:
             bpe_cols = {c["name"] for c in inspector.get_columns("booking_personal_events")}
@@ -435,6 +454,7 @@ def ensure_critical_columns(db) -> None:
                 ("form_intro_text_en", "TEXT NULL"),
                 ("overview_intro_text", "TEXT NULL"),
                 ("overview_intro_text_en", "TEXT NULL"),
+                ("total_budget", "FLOAT NULL"),
             ]
             for col_name, col_type in event_text_cols:
                 if col_name not in bpe_cols:
@@ -474,6 +494,19 @@ def ensure_critical_columns(db) -> None:
                     logger.info("[OK] booking_personal_fields.category ergänzt")
                 except Exception as bpf_err:
                     logger.warning("Konnte booking_personal_fields.category nicht ergänzen: %s", bpf_err)
+
+        if "booking_personal_templates" in table_names:
+            bpt_cols = {c["name"] for c in inspector.get_columns("booking_personal_templates")}
+            if "total_budget" not in bpt_cols:
+                try:
+                    logger.info("Ergänze booking_personal_templates.total_budget ...")
+                    with db.engine.begin() as conn:
+                        conn.execute(
+                            text("ALTER TABLE booking_personal_templates ADD COLUMN total_budget FLOAT NULL")
+                        )
+                    logger.info("[OK] booking_personal_templates.total_budget ergänzt")
+                except Exception as bpt_err:
+                    logger.warning("Konnte booking_personal_templates.total_budget nicht ergänzen: %s", bpt_err)
 
         if "helper_events" in table_names:
             he_cols = {c["name"] for c in inspector.get_columns("helper_events")}
@@ -622,6 +655,16 @@ def ensure_critical_columns(db) -> None:
                     logger.info("[OK] kanban_lists.default_custom_field_ids ergänzt")
                 except Exception as err:
                     logger.warning("Konnte kanban_lists.default_custom_field_ids nicht ergänzen: %s", err)
+
+        if inspector.has_table("kanban_cards"):
+            kc_cols = {col["name"] for col in inspector.get_columns("kanban_cards")}
+            if "is_template" not in kc_cols:
+                try:
+                    with db.engine.begin() as conn:
+                        conn.execute(text(f"ALTER TABLE kanban_cards ADD COLUMN is_template {bool_false}"))
+                    logger.info("[OK] kanban_cards.is_template ergänzt")
+                except Exception as err:
+                    logger.warning("Konnte kanban_cards.is_template nicht ergänzen: %s", err)
 
         if inspector.has_table("folders"):
             folder_cols = {col["name"] for col in inspector.get_columns("folders")}

@@ -170,7 +170,7 @@
                                     <span class="text-muted fw-normal">-</span>
                                 {% endif %}
                             {% elif f.field_type == 'currency' %}
-                                <span class="fw-bold text-success">{{ val or '€0.00' }}</span>
+                                <span class="fw-bold text-success">{{ entry.format_currency_value(val) or '€0.00' }}</span>
                             {% elif f.field_type == 'badge_select' %}
                                 {% if val and val != '-' %}
                                     <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-1">

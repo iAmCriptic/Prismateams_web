@@ -156,12 +156,32 @@
         });
     }
 
+    function formatCurrencyValue(val) {
+        if (val === null || val === undefined) return '';
+        const s = String(val).trim();
+        if (!s || s === '-') return '';
+        let cleaned = s.replace(/€/g, '').replace(/\s+/g, '');
+        if (cleaned.includes('.') && cleaned.includes(',')) {
+            if (cleaned.lastIndexOf(',') > cleaned.lastIndexOf('.')) {
+                cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+            } else {
+                cleaned = cleaned.replace(/,/g, '');
+            }
+        } else if (cleaned.includes(',')) {
+            cleaned = cleaned.replace(',', '.');
+        }
+        const num = parseFloat(cleaned);
+        return isNaN(num) ? s : `€${num.toFixed(2)}`;
+    }
+
     function startTextEdit(cell, entryId, fieldKey, currentValue, fieldType) {
         cell.classList.add('is-editing');
         const input = document.createElement('input');
         input.type = (fieldType === 'counter' || fieldType === 'number') ? 'number' : 'text';
         input.className = 'bp-cell-input';
-        input.value = currentValue;
+        input.value = fieldType === 'currency'
+            ? String(currentValue || '').replace(/€/g, '').trim()
+            : currentValue;
 
         cell.innerHTML = '';
         cell.appendChild(input);
@@ -174,7 +194,10 @@
         function save() {
             if (isSaving) return;
             isSaving = true;
-            const newVal = input.value.trim();
+            let newVal = input.value.trim();
+            if (fieldType === 'currency') {
+                newVal = formatCurrencyValue(newVal);
+            }
             saveCell(entryId, fieldKey, newVal, cell, fieldType);
         }
 
@@ -324,13 +347,29 @@
             });
             const data = await resp.json();
             if (data.success) {
-                cell.dataset.rawValue = value;
+                const savedValue = (data.updated_custom_data && Object.prototype.hasOwnProperty.call(data.updated_custom_data, fieldKey))
+                    ? data.updated_custom_data[fieldKey]
+                    : value;
+                cell.dataset.rawValue = savedValue ?? '';
                 cell.classList.remove('is-editing');
-                renderCellDisplay(cell, value, fieldType, badgeColor);
+                renderCellDisplay(cell, savedValue, fieldType, badgeColor);
 
                 if (data.updated_custom_data) {
                     const row = cell.closest('tr');
                     if (row) {
+                        const statusFieldKey = tableEl?.dataset.statusFieldKey || 'status_booking';
+                        const areaFieldKey = tableEl?.dataset.areaFieldKey || 'bereich';
+                        if (fieldKey === statusFieldKey || fieldKey === 'status_booking' || fieldKey === 'status') {
+                            row.dataset.status = value || '';
+                        }
+                        if (fieldKey === areaFieldKey || fieldKey === 'bereich' || fieldKey === 'stage' || fieldKey === 'area' || fieldKey === 'buehne') {
+                            const areas = parseAreaValues(value);
+                            row.dataset.areas = JSON.stringify(areas);
+                            row.dataset.area = areas.join(', ');
+                        }
+                        if (['project_name', 'auftrittsname_projektname', 'artist_name', 'name'].includes(fieldKey)) {
+                            row.dataset.name = value || '';
+                        }
                         for (const [k, v] of Object.entries(data.updated_custom_data)) {
                             const formulaCell = row.querySelector(`.bp-cell-formula[data-field-key="${k}"]`);
                             if (formulaCell) {
@@ -339,6 +378,7 @@
                         }
                     }
                 }
+                applyFiltersAndSort();
             } else {
                 showToast(data.error || 'Fehler beim Speichern', 'error');
             }
@@ -355,8 +395,8 @@
         }
 
         if (fieldType === 'currency') {
-            let num = parseFloat(String(value).replace('€', '').replace(',', '.').trim() || 0);
-            cell.innerHTML = `€${num.toFixed(2)}`;
+            const formatted = formatCurrencyValue(value);
+            cell.innerHTML = formatted ? escapeHtml(formatted) : '<span class="bp-cell-empty">-</span>';
         } else if (fieldType === 'badge_select') {
             const color = badgeColor || cell.dataset.badgeColor || 'secondary';
             cell.innerHTML = `<span class="bp-badge bp-badge-${color}">${escapeHtml(value)}</span>`;
@@ -400,85 +440,221 @@
     }
 
     // -------------------------------------------------------------
-    // Filter & Suche
+    // Filter, Sortierung & Suche
     // -------------------------------------------------------------
-    const searchInput = document.getElementById('bpSearchInput');
-    const statusFilter = document.getElementById('bpStatusFilter');
-    const areaFilter = document.getElementById('bpAreaFilter');
+    const navSearchInput = document.getElementById('bpSearchInput');
+    const navSearchClear = document.getElementById('bpSearchClear');
+    const tableSearchInput = document.getElementById('bpTableSearchInput');
+    const tableSearchClear = document.getElementById('bpTableSearchClear');
+    const dynamicFilters = Array.from(document.querySelectorAll('.bp-dynamic-filter'));
+    const sortSelect = document.getElementById('bpSortSelect');
 
-    function applyFilters() {
+    function getCellRawOrText(row, fieldKey) {
+        const td = row.querySelector(`td[data-field-key="${fieldKey}"]`);
+        if (!td) return '';
+        const editable = td.querySelector('[data-raw-value]');
+        if (editable && editable.dataset.rawValue !== undefined) {
+            return String(editable.dataset.rawValue).trim();
+        }
+        const formula = td.querySelector('.bp-cell-formula');
+        if (formula) {
+            return formula.textContent.trim();
+        }
+        const boolToggle = td.querySelector('.bp-cell-boolean-toggle');
+        if (boolToggle) {
+            return boolToggle.checked ? 'Ja' : 'Nein';
+        }
+        const txt = td.textContent.trim();
+        return txt === '-' ? '' : txt;
+    }
+
+    function parseAreaValues(raw) {
+        if (!raw) return [];
+        if (Array.isArray(raw)) {
+            return raw.map(v => String(v).trim()).filter(v => v && v !== '-');
+        }
+        const str = String(raw).trim();
+        if (!str || str === '-') return [];
+        if (str.startsWith('[') && str.endsWith(']')) {
+            try {
+                const parsed = JSON.parse(str);
+                if (Array.isArray(parsed)) {
+                    return parsed.map(v => String(v).trim()).filter(v => v && v !== '-');
+                }
+            } catch (e) {
+                // Fallback zu normalem String
+            }
+        }
+        return str.split(',').map(v => v.trim()).filter(v => v && v !== '-');
+    }
+
+    function getRowAreas(row) {
+        if (row.dataset.areas) {
+            return parseAreaValues(row.dataset.areas);
+        }
+        return parseAreaValues(row.dataset.area || '');
+    }
+
+    function getRowTotal(row) {
+        const gesamtCell = row.querySelector('.bp-cell-formula[data-field-key="gesamt"]');
+        return gesamtCell ? parseCurrencyVal(gesamtCell.textContent) : 0;
+    }
+
+    function getSearchQuery() {
+        return ((tableSearchInput?.value ?? navSearchInput?.value) || '').toLowerCase().trim();
+    }
+
+    function syncSearchInputs(value, sourceEl) {
+        if (navSearchInput && sourceEl !== navSearchInput) {
+            navSearchInput.value = value;
+        }
+        if (tableSearchInput && sourceEl !== tableSearchInput) {
+            tableSearchInput.value = value;
+        }
+        const hasText = value.trim().length > 0;
+        if (navSearchClear) navSearchClear.classList.toggle('d-none', !hasText);
+        if (tableSearchClear) tableSearchClear.classList.toggle('d-none', !hasText);
+    }
+
+    function compareText(a, b) {
+        return a.localeCompare(b, 'de', { sensitivity: 'base', numeric: true });
+    }
+
+    function applyFiltersAndSort() {
         if (!tableEl) return;
-        const q = (searchInput?.value || '').toLowerCase().trim();
-        const statusVal = (statusFilter?.value || '').toLowerCase();
-        const areaVal = (areaFilter?.value || '').toLowerCase();
+        const tbody = tableEl.querySelector('tbody');
+        if (!tbody) return;
+
+        const q = getSearchQuery();
+        const activeFilters = dynamicFilters
+            .map(sel => ({ key: sel.dataset.fieldKey, val: (sel.value || '').trim().toLowerCase() }))
+            .filter(f => f.key && f.val);
+        const sortVal = (sortSelect?.value || '').trim();
 
         const filterIndicator = document.getElementById('bpFilterIndicator');
         const filterBtn = document.getElementById('bpFilterDropdownBtn');
-        const hasActiveFilter = Boolean(statusVal || areaVal);
+        const hasActiveFilterOrSort = Boolean(activeFilters.length > 0 || sortVal);
         if (filterIndicator) {
-            filterIndicator.classList.toggle('d-none', !hasActiveFilter);
+            filterIndicator.classList.toggle('d-none', !hasActiveFilterOrSort);
         }
         if (filterBtn) {
-            if (hasActiveFilter) {
-                filterBtn.classList.remove('btn-outline-secondary');
-                filterBtn.classList.add('btn-primary');
-            } else {
-                filterBtn.classList.add('btn-outline-secondary');
-                filterBtn.classList.remove('btn-primary');
-            }
+            filterBtn.classList.toggle('mod-pill-btn--accent', hasActiveFilterOrSort);
+            filterBtn.classList.toggle('mod-pill-btn--outline', !hasActiveFilterOrSort);
         }
 
-        const rows = tableEl.querySelectorAll('tbody tr');
-        rows.forEach(row => {
-            const rowText = row.textContent.toLowerCase();
-            const rowStatus = (row.dataset.status || '').toLowerCase();
-            const rowArea = (row.dataset.area || '').toLowerCase();
+        const rows = Array.from(tbody.querySelectorAll('tr[data-entry-id]'));
 
-            const matchesSearch = !q || rowText.includes(q);
-            const matchesStatus = !statusVal || rowStatus === statusVal;
-            const matchesArea = !areaVal || rowArea === areaVal;
-
-            if (matchesSearch && matchesStatus && matchesArea) {
-                row.style.display = '';
-            } else {
-                row.style.display = 'none';
+        rows.sort((a, b) => {
+            if (!sortVal) {
+                return Number(a.dataset.orderIndex || 0) - Number(b.dataset.orderIndex || 0);
             }
+            if (sortVal.startsWith('col:')) {
+                const parts = sortVal.split(':');
+                const fieldKey = parts[1];
+                const dir = parts[2];
+                const valA = getCellRawOrText(a, fieldKey);
+                const valB = getCellRawOrText(b, fieldKey);
+                if (dir === 'num_asc' || dir === 'num_desc') {
+                    const diff = parseCurrencyVal(valA) - parseCurrencyVal(valB);
+                    return dir === 'num_asc' ? diff : -diff;
+                }
+                const cmp = compareText(valA, valB);
+                return dir === 'text_asc' ? cmp : -cmp;
+            }
+            if (sortVal === 'name_asc' || sortVal === 'name_desc') {
+                const cmp = compareText((a.dataset.name || '').trim(), (b.dataset.name || '').trim());
+                return sortVal === 'name_asc' ? cmp : -cmp;
+            }
+            if (sortVal === 'status_asc' || sortVal === 'status_desc') {
+                const cmp = compareText((a.dataset.status || '').trim(), (b.dataset.status || '').trim());
+                return sortVal === 'status_asc' ? cmp : -cmp;
+            }
+            if (sortVal === 'area_asc' || sortVal === 'area_desc') {
+                const areaA = getRowAreas(a)[0] || '';
+                const areaB = getRowAreas(b)[0] || '';
+                const cmp = compareText(areaA, areaB);
+                return sortVal === 'area_asc' ? cmp : -cmp;
+            }
+            if (sortVal === 'total_desc' || sortVal === 'total_asc') {
+                const diff = getRowTotal(a) - getRowTotal(b);
+                return sortVal === 'total_asc' ? diff : -diff;
+            }
+            return Number(a.dataset.orderIndex || 0) - Number(b.dataset.orderIndex || 0);
+        });
+
+        const noResultsRow = document.getElementById('bpNoFilterResultsRow');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            tbody.appendChild(row);
+            const rowText = row.textContent.toLowerCase();
+            const matchesSearch = !q || rowText.includes(q);
+            const matchesAllDynamic = activeFilters.every(f => {
+                const raw = getCellRawOrText(row, f.key);
+                const vals = parseAreaValues(raw).map(v => v.toLowerCase());
+                return vals.includes(f.val);
+            });
+
+            const isVisible = matchesSearch && matchesAllDynamic;
+            row.style.display = isVisible ? '' : 'none';
+
+            if (isVisible) {
+                visibleCount += 1;
+                const indexCell = row.querySelector('td:first-child');
+                if (indexCell) indexCell.textContent = String(visibleCount);
+            }
+        });
+
+        if (noResultsRow) {
+            tbody.appendChild(noResultsRow);
+            noResultsRow.classList.toggle('d-none', !(rows.length > 0 && visibleCount === 0));
+        }
+
+        updateFinanceFooter();
+    }
+
+    if (navSearchInput) {
+        navSearchInput.addEventListener('input', function () {
+            syncSearchInputs(this.value, this);
+            applyFiltersAndSort();
+        });
+    }
+    if (tableSearchInput) {
+        tableSearchInput.addEventListener('input', function () {
+            syncSearchInputs(this.value, this);
+            applyFiltersAndSort();
+        });
+    }
+    if (navSearchClear) {
+        navSearchClear.addEventListener('click', function () {
+            syncSearchInputs('', null);
+            applyFiltersAndSort();
+            if (navSearchInput) navSearchInput.focus();
+        });
+    }
+    if (tableSearchClear) {
+        tableSearchClear.addEventListener('click', function () {
+            syncSearchInputs('', null);
+            applyFiltersAndSort();
+            if (tableSearchInput) tableSearchInput.focus();
         });
     }
 
-    if (searchInput) searchInput.addEventListener('input', applyFilters);
-    if (statusFilter) statusFilter.addEventListener('change', applyFilters);
-    if (areaFilter) areaFilter.addEventListener('change', applyFilters);
+    dynamicFilters.forEach(sel => sel.addEventListener('change', applyFiltersAndSort));
+    if (sortSelect) sortSelect.addEventListener('change', applyFiltersAndSort);
 
     const resetFiltersBtn = document.getElementById('bpResetFiltersBtn');
     if (resetFiltersBtn) {
         resetFiltersBtn.addEventListener('click', function () {
-            if (statusFilter) {
-                statusFilter.value = '';
-                if (window.InventoryPillSelect) window.InventoryPillSelect.sync(statusFilter);
+            dynamicFilters.forEach(sel => {
+                sel.value = '';
+                if (window.InventoryPillSelect) window.InventoryPillSelect.sync(sel);
+            });
+            if (sortSelect) {
+                sortSelect.value = '';
+                if (window.InventoryPillSelect) window.InventoryPillSelect.sync(sortSelect);
             }
-            if (areaFilter) {
-                areaFilter.value = '';
-                if (window.InventoryPillSelect) window.InventoryPillSelect.sync(areaFilter);
-            }
-            applyFilters();
-        });
-    }
-
-    const searchClear = document.getElementById('bpSearchClear');
-    if (searchInput && searchClear) {
-        searchInput.addEventListener('input', function() {
-            if (this.value.trim().length > 0) {
-                searchClear.classList.remove('d-none');
-            } else {
-                searchClear.classList.add('d-none');
-            }
-        });
-        searchClear.addEventListener('click', function() {
-            searchInput.value = '';
-            searchClear.classList.add('d-none');
-            applyFilters();
-            searchInput.focus();
+            applyFiltersAndSort();
         });
     }
 
@@ -544,6 +720,7 @@
                     if (data.success) {
                         const row = document.querySelector(`tr[data-entry-id="${entryId}"]`);
                         if (row) row.remove();
+                        updateFinanceFooter();
                         showToast('Act erfolgreich gelöscht.', 'info');
                     } else {
                         showToast(data.error || 'Fehler beim Löschen.', 'error');
@@ -624,6 +801,12 @@
                 html += `</select>`;
             } else if (f.field_type === 'counter' || f.field_type === 'number') {
                 html += `<input type="number" class="form-control form-control-sm" name="${f.field_key}" value="${escapeHtml(val)}">`;
+            } else if (f.field_type === 'boolean') {
+                const isChecked = val === true || ['true', '1', 'ja', 'yes', 'on'].includes(String(val).toLowerCase());
+                html += `<div class="form-check form-switch pt-1">
+                    <input class="form-check-input" type="checkbox" role="switch" name="${f.field_key}" id="bpDetailField_${f.field_key}" ${isChecked ? 'checked' : ''}>
+                    <label class="form-check-label small text-muted" for="bpDetailField_${f.field_key}">Aktiv</label>
+                </div>`;
             } else {
                 html += `<input type="text" class="form-control form-control-sm" name="${f.field_key}" value="${escapeHtml(val)}">`;
             }
@@ -639,6 +822,9 @@
                 const formData = new FormData(form);
                 const payload = {};
                 formData.forEach((v, k) => payload[k] = v);
+                form.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                    payload[cb.name] = cb.checked;
+                });
 
                 try {
                     const resp = await fetch(`/booking-personal/api/entry/${entry.id}/update-all`, {
@@ -663,6 +849,44 @@
     // -------------------------------------------------------------
     // Spalten-Manager (Custom Fields)
     // -------------------------------------------------------------
+    window.insertFormulaToken = function (inputId, token, isOperator = false) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const val = input.value;
+        const start = typeof input.selectionStart === 'number' ? input.selectionStart : val.length;
+        const end = typeof input.selectionEnd === 'number' ? input.selectionEnd : val.length;
+        const before = val.slice(0, start);
+        const after = val.slice(end);
+        const trimmedBefore = before.trimEnd();
+
+        let insertText = token;
+        if (isOperator) {
+            if (['+', '-', '*', '/'].includes(token)) {
+                const needLeadSpace = trimmedBefore.length > 0 && !before.endsWith(' ');
+                const needTrailSpace = after.length > 0 && !after.startsWith(' ');
+                insertText = `${needLeadSpace ? ' ' : ''}${token}${needTrailSpace ? ' ' : ' '}`;
+            } else {
+                insertText = token;
+            }
+        } else {
+            const lastChar = trimmedBefore.slice(-1);
+            const afterBinaryOrOpen = !trimmedBefore || ['+', '-', '*', '/', '('].includes(lastChar);
+            if (afterBinaryOrOpen) {
+                const needSpace = trimmedBefore.length > 0 && lastChar !== '(' && !before.endsWith(' ');
+                insertText = `${needSpace ? ' ' : ''}${token}`;
+            } else {
+                insertText = ` + ${token}`;
+            }
+        }
+
+        input.value = before + insertText + after;
+        const newPos = before.length + insertText.length;
+        input.focus();
+        if (typeof input.setSelectionRange === 'function') {
+            input.setSelectionRange(newPos, newPos);
+        }
+    };
+
     const bpColType = document.getElementById('bpColType');
     if (bpColType) {
         bpColType.addEventListener('change', function () {
@@ -1367,9 +1591,8 @@
                     if (finished) return;
                     finished = true;
                     let newVal = input.value.trim();
-                    if (fieldType === 'currency' && newVal && !newVal.startsWith('€')) {
-                        const num = parseFloat(newVal.replace(',', '.'));
-                        if (!isNaN(num)) newVal = `€${num.toFixed(2)}`;
+                    if (fieldType === 'currency') {
+                        newVal = formatCurrencyValue(newVal);
                     }
                     wrap.remove();
                     displayEl.classList.remove('d-none');
@@ -1412,7 +1635,9 @@
 
                 // Update visual display
                 if (fieldType === 'currency') {
-                    displayEl.innerHTML = `<span class="fw-semibold text-body small">${escapeHtml(value || '€0.00')}</span>`;
+                    const formatted = formatCurrencyValue(value) || '€0.00';
+                    row.dataset.rawValue = formatCurrencyValue(value);
+                    displayEl.innerHTML = `<span class="fw-semibold text-body small">${escapeHtml(formatted)}</span>`;
                 } else if (fieldType === 'badge_select') {
                     if (value) {
                         displayEl.innerHTML = `<span class="badge rounded-pill bg-body-secondary text-body border px-2.5 py-1">${escapeHtml(value)}</span>`;
@@ -1451,6 +1676,242 @@
             showToast('Netzwerkfehler.', 'error');
         }
     }
+
+    // -------------------------------------------------------------
+    // Boolean-Toggle-Zellen (z. B. Booking Fee netto)
+    // -------------------------------------------------------------
+    if (tableEl) {
+        tableEl.addEventListener('change', async function (e) {
+            const toggle = e.target.closest('.bp-cell-boolean-toggle');
+            if (!toggle) return;
+
+            const entryId = toggle.dataset.entryId;
+            const fieldKey = toggle.dataset.fieldKey;
+            const checked = toggle.checked;
+            const label = toggle.parentElement?.querySelector('.bp-boolean-label');
+            if (label) label.textContent = checked ? 'Ja' : 'Nein';
+
+            try {
+                const resp = await fetch(`/booking-personal/api/entry/${entryId}/cell`, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: JSON.stringify({ field_key: fieldKey, value: checked })
+                });
+                const data = await resp.json();
+                if (data.success && data.updated_custom_data) {
+                    const row = toggle.closest('tr');
+                    if (row) {
+                        for (const [k, v] of Object.entries(data.updated_custom_data)) {
+                            const formulaCell = row.querySelector(`.bp-cell-formula[data-field-key="${k}"]`);
+                            if (formulaCell) {
+                                formulaCell.textContent = v || '€0.00';
+                            }
+                        }
+                    }
+                    updateFinanceFooter();
+                } else if (!data.success) {
+                    toggle.checked = !checked;
+                    if (label) label.textContent = !checked ? 'Ja' : 'Nein';
+                    showToast(data.error || 'Fehler beim Speichern', 'error');
+                }
+            } catch (err) {
+                console.error(err);
+                toggle.checked = !checked;
+                if (label) label.textContent = !checked ? 'Ja' : 'Nein';
+                showToast('Netzwerkfehler beim Speichern.', 'error');
+            }
+        });
+    }
+
+    // -------------------------------------------------------------
+    // Finanz-Fußzeile & Gesamtbudget
+    // -------------------------------------------------------------
+    function parseCurrencyVal(str) {
+        if (!str) return 0;
+        const num = parseFloat(String(str).replace('€', '').replace(',', '.').trim());
+        return Number.isFinite(num) ? num : 0;
+    }
+
+    function parseTaxRatePct(raw) {
+        if (!raw) return 0;
+        const m = String(raw).match(/(\d+(?:[.,]\d+)?)\s*%/);
+        if (!m) return 0;
+        const pct = parseFloat(m[1].replace(',', '.'));
+        return Number.isFinite(pct) ? pct / 100.0 : 0;
+    }
+
+    function updateFinanceFooter() {
+        const footer = document.getElementById('bpFinanceFooter');
+        if (!footer || !tableEl) return;
+
+        const targetKey = footer.dataset.financeColKey || 'gesamt';
+        const rows = tableEl.querySelectorAll('tbody tr[data-entry-id]');
+        let artistCount = 0;
+        let totalSpent = 0;
+
+        rows.forEach(row => {
+            if (row.style.display === 'none') return;
+            const status = (row.dataset.status || '').trim().toLowerCase();
+            if (status === 'absage') return;
+
+            artistCount += 1;
+            if (targetKey === 'gesamt') {
+                const gesamtCell = row.querySelector('.bp-cell-formula[data-field-key="gesamt"]');
+                if (gesamtCell) {
+                    totalSpent += parseCurrencyVal(gesamtCell.textContent);
+                }
+            } else if (targetKey) {
+                const valCell = row.querySelector(`[data-field-key="${targetKey}"]`);
+                if (valCell) {
+                    let amt = parseCurrencyVal(valCell.dataset.rawValue || valCell.textContent);
+                    if (targetKey === 'gage') {
+                        const taxCell = row.querySelector('[data-field-key="steuersatz"]');
+                        if (taxCell) {
+                            const rate = parseTaxRatePct(taxCell.dataset.rawValue || taxCell.textContent);
+                            if (rate > 0) amt = amt * (1 + rate);
+                        }
+                    }
+                    totalSpent += amt;
+                }
+            }
+        });
+
+        const countEl = document.getElementById('bpFooterArtistCount');
+        const spentEl = document.getElementById('bpFooterTotalSpent');
+        const remEl = document.getElementById('bpFooterRemaining');
+        const remIcon = document.getElementById('bpFooterRemainingIcon');
+
+        if (countEl) countEl.textContent = String(artistCount);
+        if (spentEl) spentEl.textContent = `€${totalSpent.toFixed(2)}`;
+
+        const rawBudget = footer.dataset.totalBudget;
+        const hasBudget = rawBudget !== undefined && rawBudget !== '' && !Number.isNaN(parseFloat(rawBudget));
+        if (remEl && remIcon) {
+            if (!hasBudget) {
+                remEl.textContent = 'Kein Budget';
+                remEl.className = 'text-muted';
+                remIcon.className = 'bi bi-wallet2 text-secondary';
+            } else {
+                const budgetVal = parseFloat(rawBudget);
+                const remaining = budgetVal - totalSpent;
+                if (remaining >= 0) {
+                    remEl.textContent = `Rest €${remaining.toFixed(2)} (Im Budget)`;
+                    remEl.className = 'text-success';
+                    remIcon.className = 'bi bi-check-circle-fill text-success';
+                } else {
+                    remEl.textContent = `Rest €${remaining.toFixed(2)} (Überschritten)`;
+                    remEl.className = 'text-danger';
+                    remIcon.className = 'bi bi-exclamation-triangle-fill text-danger';
+                }
+            }
+        }
+
+        // Zähler pro Status & Stage/Bereich in der Fußzeile aktualisieren (3 übereinander, dann daneben)
+        footer.querySelectorAll('.bp-footer-counts-grid[data-footer-counts-for]').forEach(grid => {
+            const key = grid.dataset.footerCountsFor;
+            const counts = new Map();
+            rows.forEach(row => {
+                if (row.style.display === 'none') return;
+                const raw = getCellRawOrText(row, key);
+                const vals = parseAreaValues(raw);
+                vals.forEach(v => {
+                    counts.set(v, (counts.get(v) || 0) + 1);
+                });
+            });
+            if (counts.size === 0) {
+                grid.innerHTML = '<span class="text-muted">-</span>';
+            } else {
+                const items = Array.from(counts.entries())
+                    .sort((a, b) => b[1] - a[1] || compareText(a[0], b[0]))
+                    .map(([label, cnt]) => `<span class="text-nowrap"><span class="text-muted">${escapeHtml(label)}:</span> <strong class="text-body">${cnt}</strong></span>`);
+                grid.innerHTML = items.join('');
+            }
+        });
+    }
+
+    const budgetInput = document.getElementById('bpFooterBudgetInput');
+    const budgetSaveBtn = document.getElementById('bpFooterBudgetSaveBtn');
+    const budgetDisplayBtn = document.getElementById('bpFooterBudgetDisplayBtn');
+    const budgetDisplayText = document.getElementById('bpFooterBudgetDisplayText');
+    const budgetEditWrap = document.getElementById('bpFooterBudgetEditWrap');
+    const financeFooterEl = document.getElementById('bpFinanceFooter');
+
+    function closeBudgetEditMode() {
+        if (budgetEditWrap) budgetEditWrap.classList.add('d-none');
+        if (budgetDisplayBtn) budgetDisplayBtn.classList.remove('d-none');
+    }
+
+    function openBudgetEditMode() {
+        if (budgetDisplayBtn) budgetDisplayBtn.classList.add('d-none');
+        if (budgetEditWrap) budgetEditWrap.classList.remove('d-none');
+        if (budgetInput) {
+            budgetInput.focus();
+            budgetInput.select();
+        }
+    }
+
+    async function saveEventBudget() {
+        if (!financeFooterEl || !budgetInput) return;
+        const eventId = financeFooterEl.dataset.eventId;
+        const val = budgetInput.value.trim();
+        try {
+            const resp = await fetch(`/booking-personal/api/event/${eventId}/budget`, {
+                method: 'POST',
+                headers: getHeaders(),
+                body: JSON.stringify({ total_budget: val === '' ? null : val })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                const hasBudget = data.total_budget !== null && data.total_budget !== undefined;
+                financeFooterEl.dataset.totalBudget = hasBudget ? String(data.total_budget) : '';
+                if (hasBudget) {
+                    const formatted = Number(data.total_budget).toFixed(2);
+                    budgetInput.value = formatted;
+                    if (budgetDisplayText) budgetDisplayText.textContent = `€${formatted}`;
+                } else {
+                    budgetInput.value = '';
+                    if (budgetDisplayText) budgetDisplayText.textContent = 'Budget festlegen';
+                }
+                closeBudgetEditMode();
+                updateFinanceFooter();
+                showToast('Gesamtbudget gespeichert.', 'success');
+            } else {
+                showToast(data.error || 'Fehler beim Speichern des Budgets.', 'error');
+            }
+        } catch (err) {
+            console.error(err);
+            showToast('Netzwerkfehler beim Speichern des Budgets.', 'error');
+        }
+    }
+
+    if (budgetDisplayBtn) {
+        budgetDisplayBtn.addEventListener('click', openBudgetEditMode);
+    }
+    if (budgetSaveBtn) {
+        budgetSaveBtn.addEventListener('click', saveEventBudget);
+    }
+    if (budgetInput) {
+        budgetInput.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                saveEventBudget();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                const rawBudget = financeFooterEl?.dataset.totalBudget || '';
+                budgetInput.value = rawBudget !== '' ? Number(rawBudget).toFixed(2) : '';
+                closeBudgetEditMode();
+            }
+        });
+        budgetInput.addEventListener('blur', function () {
+            setTimeout(() => {
+                if (document.activeElement !== budgetSaveBtn && budgetEditWrap && !budgetEditWrap.classList.contains('d-none')) {
+                    saveEventBudget();
+                }
+            }, 150);
+        });
+    }
+
+    updateFinanceFooter();
 
     // Global Pill-Select Enhancer fuer alle Selects im Modul
     function initPillSelects(root) {

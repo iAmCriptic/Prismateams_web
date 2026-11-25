@@ -20,11 +20,11 @@ class KanbanBoard(db.Model):
     cover_path = db.Column(db.String(500), nullable=True)
     background = db.Column(db.String(100), nullable=True)  # Phase 2: color/gradient key
     visibility = db.Column(db.String(20), nullable=False, default='private')  # private|team|public
-    team_id = db.Column(db.Integer, db.ForeignKey('teams.id', ondelete='SET NULL'), nullable=True)
-    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id', ondelete='SET NULL'), nullable=True, index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     position = db.Column(db.Integer, nullable=False, default=0)
-    archived_at = db.Column(db.DateTime, nullable=True)
-    closed_at = db.Column(db.DateTime, nullable=True)
+    archived_at = db.Column(db.DateTime, nullable=True, index=True)
+    closed_at = db.Column(db.DateTime, nullable=True, index=True)
     last_viewed_at = db.Column(db.DateTime, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -77,7 +77,7 @@ class KanbanBoardMember(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     board_id = db.Column(db.Integer, db.ForeignKey('kanban_boards.id', ondelete='CASCADE'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     role = db.Column(db.String(20), nullable=False, default='member')  # owner|admin|member
     joined_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -93,7 +93,7 @@ class KanbanList(db.Model):
     __tablename__ = 'kanban_lists'
 
     id = db.Column(db.Integer, primary_key=True)
-    board_id = db.Column(db.Integer, db.ForeignKey('kanban_boards.id', ondelete='CASCADE'), nullable=False)
+    board_id = db.Column(db.Integer, db.ForeignKey('kanban_boards.id', ondelete='CASCADE'), nullable=False, index=True)
     title = db.Column(db.String(200), nullable=False)
     position = db.Column(db.Integer, nullable=False, default=0)
     archived_at = db.Column(db.DateTime, nullable=True)
@@ -144,16 +144,17 @@ class KanbanCard(db.Model):
     __tablename__ = 'kanban_cards'
 
     id = db.Column(db.Integer, primary_key=True)
-    list_id = db.Column(db.Integer, db.ForeignKey('kanban_lists.id', ondelete='CASCADE'), nullable=False)
+    list_id = db.Column(db.Integer, db.ForeignKey('kanban_lists.id', ondelete='CASCADE'), nullable=False, index=True)
     title = db.Column(db.String(300), nullable=False)
     description = db.Column(db.Text, nullable=True)
     poll_text = db.Column(db.Text, nullable=True)  # Freitext-Abstimmung unter der Beschreibung
-    due_date = db.Column(db.DateTime, nullable=True)
+    due_date = db.Column(db.DateTime, nullable=True, index=True)
     cover_attachment_id = db.Column(db.Integer, nullable=True)  # logical FK to kanban_attachments.id
     position = db.Column(db.Integer, nullable=False, default=0)
+    is_template = db.Column(db.Boolean, nullable=False, default=False)
     completed_at = db.Column(db.DateTime, nullable=True)
-    archived_at = db.Column(db.DateTime, nullable=True)
-    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    archived_at = db.Column(db.DateTime, nullable=True, index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -224,7 +225,7 @@ class KanbanCardLabel(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     card_id = db.Column(db.Integer, db.ForeignKey('kanban_cards.id', ondelete='CASCADE'), nullable=False)
-    label_id = db.Column(db.Integer, db.ForeignKey('kanban_labels.id', ondelete='CASCADE'), nullable=False)
+    label_id = db.Column(db.Integer, db.ForeignKey('kanban_labels.id', ondelete='CASCADE'), nullable=False, index=True)
 
     card = db.relationship('KanbanCard', back_populates='card_labels')
     label = db.relationship('KanbanLabel', back_populates='card_labels')
@@ -239,7 +240,7 @@ class KanbanCardAssignee(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     card_id = db.Column(db.Integer, db.ForeignKey('kanban_cards.id', ondelete='CASCADE'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
 
     card = db.relationship('KanbanCard', back_populates='assignees')
     user = db.relationship('User', backref='kanban_card_assignments')
@@ -253,7 +254,7 @@ class KanbanChecklist(db.Model):
     __tablename__ = 'kanban_checklists'
 
     id = db.Column(db.Integer, primary_key=True)
-    card_id = db.Column(db.Integer, db.ForeignKey('kanban_cards.id', ondelete='CASCADE'), nullable=False)
+    card_id = db.Column(db.Integer, db.ForeignKey('kanban_cards.id', ondelete='CASCADE'), nullable=False, index=True)
     title = db.Column(db.String(200), nullable=False, default='Checkliste')
     position = db.Column(db.Integer, nullable=False, default=0)
 
@@ -270,12 +271,12 @@ class KanbanChecklistItem(db.Model):
     __tablename__ = 'kanban_checklist_items'
 
     id = db.Column(db.Integer, primary_key=True)
-    checklist_id = db.Column(db.Integer, db.ForeignKey('kanban_checklists.id', ondelete='CASCADE'), nullable=False)
+    checklist_id = db.Column(db.Integer, db.ForeignKey('kanban_checklists.id', ondelete='CASCADE'), nullable=False, index=True)
     text = db.Column(db.String(500), nullable=False)
     done = db.Column(db.Boolean, nullable=False, default=False)
     position = db.Column(db.Integer, nullable=False, default=0)
     due_date = db.Column(db.DateTime, nullable=True)
-    assignee_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    assignee_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
 
     checklist = db.relationship('KanbanChecklist', back_populates='items')
     assignee = db.relationship('User', foreign_keys=[assignee_id])
@@ -285,7 +286,7 @@ class KanbanAttachment(db.Model):
     __tablename__ = 'kanban_attachments'
 
     id = db.Column(db.Integer, primary_key=True)
-    card_id = db.Column(db.Integer, db.ForeignKey('kanban_cards.id', ondelete='CASCADE'), nullable=False)
+    card_id = db.Column(db.Integer, db.ForeignKey('kanban_cards.id', ondelete='CASCADE'), nullable=False, index=True)
     filename = db.Column(db.String(255), nullable=True)
     original_filename = db.Column(db.String(255), nullable=True)
     mime_type = db.Column(db.String(120), nullable=True)
@@ -309,7 +310,7 @@ class KanbanCardVote(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     card_id = db.Column(db.Integer, db.ForeignKey('kanban_cards.id', ondelete='CASCADE'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     card = db.relationship('KanbanCard', back_populates='votes')
@@ -325,12 +326,12 @@ class KanbanActivity(db.Model):
     __tablename__ = 'kanban_activities'
 
     id = db.Column(db.Integer, primary_key=True)
-    board_id = db.Column(db.Integer, db.ForeignKey('kanban_boards.id', ondelete='CASCADE'), nullable=False)
-    card_id = db.Column(db.Integer, db.ForeignKey('kanban_cards.id', ondelete='SET NULL'), nullable=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    board_id = db.Column(db.Integer, db.ForeignKey('kanban_boards.id', ondelete='CASCADE'), nullable=False, index=True)
+    card_id = db.Column(db.Integer, db.ForeignKey('kanban_cards.id', ondelete='SET NULL'), nullable=True, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True, index=True)
     action = db.Column(db.String(50), nullable=False)
     detail = db.Column(db.Text, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False, index=True)
 
     board = db.relationship('KanbanBoard', back_populates='activities')
     card = db.relationship('KanbanCard', backref='activities')
@@ -375,7 +376,7 @@ class KanbanBoardView(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     board_id = db.Column(db.Integer, db.ForeignKey('kanban_boards.id', ondelete='CASCADE'), nullable=False)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     viewed_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     board = db.relationship('KanbanBoard', backref=db.backref('views', cascade='all, delete-orphan', passive_deletes=True))
@@ -408,11 +409,11 @@ class KanbanCustomField(db.Model):
     __tablename__ = 'kanban_custom_fields'
 
     id = db.Column(db.Integer, primary_key=True)
-    board_id = db.Column(db.Integer, db.ForeignKey('kanban_boards.id', ondelete='CASCADE'), nullable=False)
+    board_id = db.Column(db.Integer, db.ForeignKey('kanban_boards.id', ondelete='CASCADE'), nullable=False, index=True)
     category_id = db.Column(
-        db.Integer, db.ForeignKey('kanban_custom_field_categories.id', ondelete='SET NULL'), nullable=True
+        db.Integer, db.ForeignKey('kanban_custom_field_categories.id', ondelete='SET NULL'), nullable=True, index=True
     )
-    card_id = db.Column(db.Integer, db.ForeignKey('kanban_cards.id', ondelete='CASCADE'), nullable=True)
+    card_id = db.Column(db.Integer, db.ForeignKey('kanban_cards.id', ondelete='CASCADE'), nullable=True, index=True)
     field_type = db.Column(db.String(20), nullable=False, default='text')
     label = db.Column(db.String(200), nullable=False)
     position = db.Column(db.Integer, nullable=False, default=0)
@@ -474,4 +475,23 @@ class KanbanCardFieldValue(db.Model):
 
     __table_args__ = (
         db.UniqueConstraint('card_id', 'field_id', name='unique_kanban_card_field_value'),
+    )
+
+
+class KanbanBoardNotificationPreference(db.Model):
+    """Per-user notification filter for external channels (portal, badge, push) per board."""
+    __tablename__ = 'kanban_board_notification_preferences'
+
+    id = db.Column(db.Integer, primary_key=True)
+    board_id = db.Column(db.Integer, db.ForeignKey('kanban_boards.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    # 'all' | 'mentions_checklist' | 'assigned'
+    mode = db.Column(db.String(32), nullable=False, default='all')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    board = db.relationship('KanbanBoard', backref=db.backref('notification_preferences', cascade='all, delete-orphan'))
+    user = db.relationship('User', backref=db.backref('kanban_notification_preferences', cascade='all, delete-orphan'))
+
+    __table_args__ = (
+        db.UniqueConstraint('board_id', 'user_id', name='unique_kanban_board_notif_pref'),
     )

@@ -122,6 +122,7 @@ def import_teams_bundle(
         if not tid or not code:
             continue
         if not TeamInviteCode.query.filter_by(code=code).first():
+            aau_dt = parse_dt(row.get("account_active_until"))
             db.session.add(TeamInviteCode(
                 code=code,
                 team_id=tid,
@@ -129,6 +130,7 @@ def import_teams_bundle(
                 max_uses=row.get("max_uses"),
                 uses_count=row.get("uses_count", 0),
                 expires_at=parse_dt(row.get("expires_at")),
+                account_active_until=aau_dt.date() if aau_dt else None,
                 is_active=bool(row.get("is_active", True)),
                 role=row.get("role") or "team_only",
                 created_at=parse_dt(row.get("created_at")),

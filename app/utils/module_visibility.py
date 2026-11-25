@@ -25,6 +25,7 @@ MODULE_KEYS = {
     'canvas': 'module_canvas',
     'surveys': 'module_surveys',
     'protocols': 'module_protocols',
+    'todos': 'module_todos',
 }
 
 OWNER_ATTRS = {
@@ -37,6 +38,7 @@ OWNER_ATTRS = {
     'canvas': 'created_by',
     'surveys': 'created_by',
     'protocols': 'created_by',
+    'todos': 'created_by_id',
 }
 
 DEFAULT_VISIBILITY = {
@@ -49,6 +51,7 @@ DEFAULT_VISIBILITY = {
     'canvas': VISIBILITY_PRIVATE,
     'surveys': VISIBILITY_PRIVATE,
     'protocols': VISIBILITY_PUBLIC,
+    'todos': VISIBILITY_PRIVATE,
 }
 
 # Modules that never support private items (team/public only).

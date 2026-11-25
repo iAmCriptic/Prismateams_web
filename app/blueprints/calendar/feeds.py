@@ -348,6 +348,29 @@ def delete_imported_calendar(calendar_id):
     return redirect(url_for('calendar.index'))
 
 
+@calendar_bp.route('/import/google-connect')
+@login_required
+@check_module_access('module_calendar')
+def google_connect():
+    """Startet den Google-OAuth-Flow für schreibgeschützte Kalender-Synchronisation."""
+    if not is_calendar_import_enabled():
+        flash(translate('calendar.flash.import_disabled'), 'warning')
+        return redirect(url_for('calendar.index'))
+
+    from app.utils.google_calendar_sync import get_google_calendar_oauth_url
+    from app.utils.integrations import google_oauth_configured
+
+    if not google_oauth_configured():
+        flash(translate('calendar.import.google_not_configured'), 'warning')
+        return redirect(url_for('calendar.import_calendar'))
+
+    try:
+        return redirect(get_google_calendar_oauth_url())
+    except Exception as exc:
+        flash(translate('calendar.import.google_oauth_error', error=str(exc)), 'danger')
+        return redirect(url_for('calendar.import_calendar'))
+
+
 @calendar_bp.route('/import', methods=['GET', 'POST'])
 @login_required
 @check_module_access('module_calendar')
@@ -388,6 +411,48 @@ def import_calendar():
             flash(translate('calendar.flash.sync_started'), 'info')
             return redirect(url_for('calendar.import_calendar'))
 
+        if action == 'add_google_sync':
+            from app.utils.google_calendar_sync import (
+                GOOGLE_CALENDAR_URL_PREFIX,
+                get_google_calendar_connection,
+            )
+
+            if not get_google_calendar_connection(current_user.id):
+                flash(translate('calendar.import.google_connect_first'), 'warning')
+                return redirect(url_for('calendar.import_calendar'))
+
+            google_cal_id = request.form.get('google_calendar_id', '').strip()
+            name = request.form.get('sync_name', '').strip()
+            color = sanitize_event_color(request.form.get('sync_color', ''))
+            if not google_cal_id or not name:
+                flash(translate('calendar.flash.sync_missing_fields'), 'danger')
+                return redirect(url_for('calendar.import_calendar'))
+
+            url = f'{GOOGLE_CALENDAR_URL_PREFIX}{google_cal_id}'
+            existing = CalendarSyncSource.query.filter_by(url=url[:1000]).first()
+            if existing:
+                _enqueue_calendar_source_sync(existing.id, current_user.id)
+                flash(translate('calendar.import.google_already_added'), 'info')
+                return redirect(url_for('calendar.import_calendar'))
+
+            source = CalendarSyncSource(
+                name=name[:200],
+                url=url[:1000],
+                created_by=current_user.id,
+                is_active=True,
+            )
+            db.session.add(source)
+            db.session.flush()
+            if multi:
+                cal = ensure_imported_calendar_for_source(source)
+                if color:
+                    cal.color = color
+            db.session.commit()
+
+            _enqueue_calendar_source_sync(source.id, current_user.id)
+            flash(translate('calendar.flash.sync_started'), 'info')
+            return redirect(url_for('calendar.import_calendar'))
+
         if action == 'sync_now':
             source_id = request.form.get('source_id', type=int)
             source = CalendarSyncSource.query.get_or_404(source_id)
@@ -418,16 +483,18 @@ def import_calendar():
                 flash(translate('calendar.flash.sync_edit_denied'), 'danger')
                 return redirect(url_for('calendar.import_calendar'))
             name = request.form.get('sync_name', '').strip()
-            url = normalize_ical_url(request.form.get('sync_url', ''))
+            is_google_source = (source.url or '').startswith('google-calendar://')
+            url = source.url if is_google_source else normalize_ical_url(request.form.get('sync_url', ''))
             color = sanitize_event_color(request.form.get('sync_color', ''))
             if not name or not url:
                 flash(translate('calendar.flash.sync_missing_fields'), 'danger')
                 return redirect(url_for('calendar.import_calendar'))
-            if not url.lower().startswith(('http://', 'https://', 'file://')):
+            if not is_google_source and not url.lower().startswith(('http://', 'https://', 'file://')):
                 flash(translate('calendar.flash.sync_invalid_url'), 'danger')
                 return redirect(url_for('calendar.import_calendar'))
             source.name = name[:200]
-            source.url = url[:1000]
+            if not is_google_source:
+                source.url = url[:1000]
             cal = Calendar.query.filter_by(sync_source_id=source.id).first()
             if cal:
                 cal.name = source.name
@@ -504,9 +571,42 @@ def import_calendar():
         cal = Calendar.query.filter_by(sync_source_id=source.id).first()
         if cal:
             source_calendars[source.id] = cal
+
+    from app.utils.google_calendar_sync import (
+        GOOGLE_CALENDAR_URL_PREFIX,
+        GoogleCalendarAuthError,
+        get_google_calendar_connection,
+        list_google_calendars,
+    )
+    from app.utils.integrations import google_oauth_configured
+
+    google_configured = google_oauth_configured()
+    google_conn = get_google_calendar_connection(current_user.id) if google_configured else None
+    google_calendars = []
+    google_needs_reauth = False
+    google_list_error = None
+    if google_conn:
+        try:
+            google_calendars = list_google_calendars(current_user.id)
+        except GoogleCalendarAuthError:
+            google_needs_reauth = True
+        except Exception as exc:
+            google_list_error = str(exc)
+
+    existing_google_urls = {
+        s.url for s in sync_sources if (s.url or '').startswith(GOOGLE_CALENDAR_URL_PREFIX)
+    }
+
     return render_template(
         'calendar/import.html',
         sync_sources=sync_sources,
         source_calendars=source_calendars,
+        google_configured=google_configured,
+        google_connected=bool(google_conn),
+        google_account_label=google_conn.display_name if google_conn else None,
+        google_needs_reauth=google_needs_reauth,
+        google_list_error=google_list_error,
+        google_calendars=google_calendars,
+        existing_google_urls=existing_google_urls,
         **_page_shell_context(),
     )

@@ -180,6 +180,13 @@
                                             </a>
                                         </li>
                                         {% endif %}
+                                        <li>
+                                            <form method="POST" action="{{ url_for('protocols.save_as_template', protocol_id=p.id) }}" class="d-inline">
+                                                <button type="submit" class="dropdown-item">
+                                                    <i class="bi bi-file-earmark-ruled me-2"></i>{{ _('protocols.templates.save_as_template') }}
+                                                </button>
+                                            </form>
+                                        </li>
                                         <li><hr class="dropdown-divider"></li>
                                         <li>
                                             <form method="POST" action="{{ url_for('protocols.delete', protocol_id=p.id) }}" class="d-inline">

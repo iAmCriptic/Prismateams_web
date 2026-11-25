@@ -29,6 +29,16 @@
 {%- endif -%}
 {% endmacro %}
 
+{% macro protocols_template_create_url() %}
+{%- if section_filter|default('') == 'public' -%}
+{{ url_for('protocols.template_create', view='public') }}
+{%- elif section_filter|default('') == 'team' and filter_team_id -%}
+{{ url_for('protocols.template_create', view='team', team_id=filter_team_id) }}
+{%- else -%}
+{{ url_for('protocols.template_create') }}
+{%- endif -%}
+{% endmacro %}
+
 {% macro protocols_folder_nav(dismiss_offcanvas=false) %}
 {% set active_nav = active_nav|default('all') %}
 <nav class="mod-sidebar-nav nav flex-column gap-1 mb-3">
@@ -36,6 +46,11 @@
        href="{{ url_for('protocols.index', sort=sort_by|default('date'), dir=sort_dir|default('desc'), status=status_filter or none, q=search_query or none) }}"
        {% if dismiss_offcanvas %}data-protocols-dismiss-offcanvas="1"{% endif %}>
         <i class="bi bi-journal-richtext me-2"></i>{{ _('protocols.nav.all') }}
+    </a>
+    <a class="nav-link mod-nav-link {% if active_nav == 'templates' %}active{% endif %}"
+       href="{{ url_for('protocols.templates_index') }}"
+       {% if dismiss_offcanvas %}data-protocols-dismiss-offcanvas="1"{% endif %}>
+        <i class="bi bi-file-earmark-ruled me-2"></i>{{ _('protocols.templates.nav') }}
     </a>
     {{ visibility_space_links(
         'protocols.index',

@@ -27,6 +27,7 @@ MOBILE_NAV_SLOT_KEYS = (
     'duty_roster',
     'booking_personal',
     'helpers',
+    'todos',
 )
 
 MOBILE_NAV_DEFAULT_SLOTS = {
@@ -63,6 +64,7 @@ DESKTOP_NAV_ORDER = (
     'duty_roster',
     'booking_personal',
     'helpers',
+    'todos',
 )
 
 NAV_LINK_REGISTRY = {
@@ -210,6 +212,14 @@ NAV_LINK_REGISTRY = {
         'label_key': 'layout.nav.surveys',
         'module': 'module_surveys',
         'active_prefix': 'surveys',
+        'in_launcher': True,
+    },
+    'todos': {
+        'endpoint': 'todos.index',
+        'icon': 'bi-check2-circle',
+        'label_key': 'layout.nav.todos',
+        'module': 'module_todos',
+        'active_prefix': 'todos',
         'in_launcher': True,
     },
     'protocols': {

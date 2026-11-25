@@ -1,0 +1,77 @@
+<div class="todo-item-row{% if item.is_completed %} is-done{% endif %}"
+     data-source="{{ item.source }}"
+     data-item-id="{{ item.id }}"
+     data-due-date="{{ item.due_date or '' }}"
+     data-due-time="{{ item.due_time or '' }}"
+     data-assignee-id="{{ item.assignee_id or '' }}">
+  <input type="checkbox"
+         class="form-check-input todo-item-row__check"
+         {% if item.is_completed %}checked{% endif %}
+         {% if not item.can_edit %}disabled{% endif %}
+         aria-label="{{ item.title }}">
+
+  <div class="todo-item-row__body">
+    <span class="todo-item-row__text{% if item.source == 'todo' and item.can_edit %} is-editable{% endif %}">{{ item.title }}</span>
+    {% if item.source_url and item.source_label %}
+    <a class="todo-item-row__source" href="{{ item.source_url }}">
+      <i class="bi {% if item.source == 'kanban' %}bi-kanban{% else %}bi-calendar2-week{% endif %}" aria-hidden="true"></i>
+      <span>{{ item.source_label }}</span>
+    </a>
+    {% elif item.source_label and section == 'private' %}
+    <span class="todo-item-row__source">
+      <i class="bi bi-people" aria-hidden="true"></i>
+      <span>{{ item.source_label }}</span>
+    </span>
+    {% endif %}
+  </div>
+
+  <div class="todo-item-row__meta">
+    {% if item.can_claim %}
+    <button type="button" class="todo-item-row__claim-btn" data-todo-claim="{{ item.id }}">
+      {{ _('todos.action.claim') }}
+    </button>
+    {% endif %}
+
+    {% if item.due_label %}
+    <button type="button"
+            class="todo-item-row__due todo-item-row__due--{{ item.due_state }}"
+            {% if item.source == 'todo' and item.can_edit %}data-todo-due="{{ item.id }}"{% else %}disabled{% endif %}
+            title="{{ item.due_label }}">
+      <i class="bi bi-calendar-event" aria-hidden="true"></i>
+      <span>{{ item.due_label }}</span>
+    </button>
+    {% elif item.source == 'todo' and item.can_edit %}
+    <button type="button" class="todo-item-row__icon-btn" data-todo-due="{{ item.id }}" title="{{ _('todos.action.add_due') }}" aria-label="{{ _('todos.action.add_due') }}">
+      <i class="bi bi-calendar-plus" aria-hidden="true"></i>
+    </button>
+    {% endif %}
+
+    {% if item.assignee %}
+      {% if item.assignee.avatar_url %}
+      <button type="button"
+              class="todo-item-row__avatar"
+              {% if item.source == 'todo' and item.visibility != 'private' and item.can_edit %}data-todo-assignee="{{ item.id }}"{% else %}disabled{% endif %}
+              title="{{ item.assignee.name }}">
+        <img src="{{ item.assignee.avatar_url }}" alt="{{ item.assignee.name }}">
+      </button>
+      {% else %}
+      <button type="button"
+              class="todo-item-row__avatar"
+              {% if item.source == 'todo' and item.visibility != 'private' and item.can_edit %}data-todo-assignee="{{ item.id }}"{% else %}disabled{% endif %}
+              title="{{ item.assignee.name }}">
+        <span>{{ item.assignee.initials }}</span>
+      </button>
+      {% endif %}
+    {% elif item.source == 'todo' and item.visibility != 'private' and item.can_edit %}
+    <button type="button" class="todo-item-row__icon-btn" data-todo-assignee="{{ item.id }}" title="{{ _('todos.action.assign') }}" aria-label="{{ _('todos.action.assign') }}">
+      <i class="bi bi-person-plus" aria-hidden="true"></i>
+    </button>
+    {% endif %}
+
+    {% if item.can_delete %}
+    <button type="button" class="btn btn-sm btn-link text-muted p-1" data-todo-delete="{{ item.id }}" title="{{ _('common.delete') }}" aria-label="{{ _('common.delete') }}">
+      <i class="bi bi-trash" aria-hidden="true"></i>
+    </button>
+    {% endif %}
+  </div>
+</div>

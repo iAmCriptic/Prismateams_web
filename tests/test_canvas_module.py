@@ -193,3 +193,18 @@ def test_canvas_signed_avatar_endpoint(client, canvas_user, app, tmp_path):
     resp = client.get(f'/canvas/avatar/{token}')
     assert resp.status_code == 200
     assert resp.data.startswith(b'\x89PNG')
+
+
+def test_canvas_auth_cookie_cache_skips_redundant_login(client, canvas_user, app):
+    _login(client, canvas_user)
+    app.config['HYCANVAS_JWT_SECRET'] = 'test-hycanvas-secret-1234567890'
+
+    with patch('app.blueprints.canvas.authenticate_hycanvas_session', return_value=None) as mock_auth:
+        resp1 = client.get('/canvas/')
+        assert resp1.status_code == 200
+        assert mock_auth.call_count == 1
+
+        # Second request within TTL with hycanvas_token cookie present skips re-auth
+        resp2 = client.get('/canvas/')
+        assert resp2.status_code == 200
+        assert mock_auth.call_count == 1

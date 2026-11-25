@@ -9,12 +9,12 @@
         <input type="text"
                id="bpSearchInput"
                class="mod-search-input"
-               placeholder="In Booking suchen..."
+               placeholder="{{ _('booking_personal.search_placeholder') }}"
                autocomplete="off"
                spellcheck="false"
                enterkeyhint="search">
     </label>
-    <button type="button" class="btn mod-search-clear d-none" id="bpSearchClear" aria-label="Löschen">
+    <button type="button" class="btn mod-search-clear d-none" id="bpSearchClear" aria-label="{{ _('booking_personal.search_clear') }}">
         <i class="bi bi-x-lg"></i>
     </button>
 </div>
@@ -115,7 +115,23 @@
                 <div class="d-flex d-lg-none align-items-center gap-2 me-auto">
                     <span class="badge rounded-pill bg-secondary-subtle text-secondary border px-2.5 py-1">{{ entries|length }} Einträge</span>
                 </div>
-                <!-- Filter Dropdown Icon Button -->
+                <!-- Inline Suche -->
+                <div class="mod-search" role="search">
+                    <label class="mod-search-field" for="bpTableSearchInput">
+                        <i class="bi bi-search" aria-hidden="true"></i>
+                        <input type="text"
+                               id="bpTableSearchInput"
+                               class="mod-search-input"
+                               placeholder="{{ _('booking_personal.search_placeholder') }}"
+                               autocomplete="off"
+                               spellcheck="false"
+                               enterkeyhint="search">
+                    </label>
+                    <button type="button" class="btn mod-search-clear d-none" id="bpTableSearchClear" aria-label="{{ _('booking_personal.search_clear') }}">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+                <!-- Filter & Sortierung Dropdown Icon Button -->
                 <div class="dropdown d-inline-block">
                     <button type="button"
                             id="bpFilterDropdownBtn"
@@ -123,41 +139,48 @@
                             data-bs-toggle="dropdown"
                             data-bs-auto-close="outside"
                             aria-expanded="false"
-                            title="Tabelle filtern">
+                            title="{{ _('booking_personal.filter_button_title') }}">
                         <i class="bi bi-funnel"></i>
                         <span id="bpFilterIndicator" class="position-absolute top-0 start-100 translate-middle p-1 bg-primary border border-light rounded-circle d-none">
-                            <span class="visually-hidden">Filter aktiv</span>
+                            <span class="visually-hidden">{{ _('booking_personal.filter_active') }}</span>
                         </span>
                     </button>
-                    <div class="dropdown-menu dropdown-menu-end mod-dropdown-menu p-3 shadow-lg border" style="min-width: 260px;">
+                    <div class="dropdown-menu dropdown-menu-end mod-dropdown-menu p-3 shadow-lg border" style="min-width: 270px;">
                         <div class="d-flex align-items-center justify-content-between mb-2">
-                            <span class="fw-semibold small"><i class="bi bi-funnel me-1 text-primary"></i>Filter</span>
+                            <span class="fw-semibold small"><i class="bi bi-funnel me-1 text-primary"></i>{{ _('booking_personal.filter_title') }}</span>
                             <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none text-muted" id="bpResetFiltersBtn" style="font-size: 0.75rem;">
-                                Zurücksetzen
+                                {{ _('booking_personal.filter_reset') }}
                             </button>
                         </div>
-                        <div class="mb-2">
-                            <label class="form-label small text-muted mb-1" for="bpStatusFilter">Status</label>
-                            <select id="bpStatusFilter" class="form-select form-select-sm mod-pill-input rounded-pill bg-body border" data-mod-pill-select>
-                                <option value="">Alle Status</option>
-                                <option value="Angefragt">Angefragt</option>
-                                <option value="Bewerbung eingegangen">Bewerbung eingegangen</option>
-                                <option value="Formular gesendet">Formular gesendet</option>
-                                <option value="Formular ausgefüllt">Formular ausgefüllt</option>
-                                <option value="Zusage gesendet">Zusage gesendet</option>
-                                <option value="Abgeschlossen">Abgeschlossen</option>
-                                <option value="Rechnung weitergeleitet">Rechnung weitergeleitet</option>
-                                <option value="Absage">Absage</option>
-                            </select>
+                        <div style="max-height: 18rem; overflow-y: auto;">
+                            {% for df in dynamic_filters %}
+                            <div class="mb-2">
+                                <label class="form-label small text-muted mb-1" for="bpFilter_{{ df.field_key }}">{{ df.label }}</label>
+                                <select id="bpFilter_{{ df.field_key }}"
+                                        class="form-select form-select-sm mod-pill-input rounded-pill bg-body border bp-dynamic-filter"
+                                        data-field-key="{{ df.field_key }}"
+                                        data-mod-pill-select>
+                                    <option value="">Alle ({{ df.label }})</option>
+                                    {% for opt_val in df.options %}
+                                    <option value="{{ opt_val }}">{{ opt_val }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            {% endfor %}
                         </div>
-                        <div>
-                            <label class="form-label small text-muted mb-1" for="bpAreaFilter">Bereich</label>
-                            <select id="bpAreaFilter" class="form-select form-select-sm mod-pill-input rounded-pill bg-body border" data-mod-pill-select>
-                                <option value="">Alle Bereiche</option>
-                                <option value="Ambient">Ambient</option>
-                                <option value="Mühle">Mühle</option>
-                                <option value="Main Stage">Main Stage</option>
-                                <option value="Workshop">Workshop</option>
+                        <div class="{% if dynamic_filters %}pt-2 mt-2 border-top{% endif %}">
+                            <label class="form-label small text-muted mb-1" for="bpSortSelect">{{ _('booking_personal.sort_by') }}</label>
+                            <select id="bpSortSelect" class="form-select form-select-sm mod-pill-input rounded-pill bg-body border" data-mod-pill-select>
+                                <option value="">{{ _('booking_personal.sort_default') }}</option>
+                                {% for ds in dynamic_sorts %}
+                                    {% if ds.is_numeric %}
+                                    <option value="col:{{ ds.field_key }}:num_desc">{{ ds.label }} (höchste zuerst)</option>
+                                    <option value="col:{{ ds.field_key }}:num_asc">{{ ds.label }} (niedrigste zuerst)</option>
+                                    {% else %}
+                                    <option value="col:{{ ds.field_key }}:text_asc">{{ ds.label }} (A–Z)</option>
+                                    <option value="col:{{ ds.field_key }}:text_desc">{{ ds.label }} (Z–A)</option>
+                                    {% endif %}
+                                {% endfor %}
                             </select>
                         </div>
                     </div>
@@ -246,7 +269,10 @@
 
         <!-- Interaktive Spreadsheet-Tabelle im Style wie bei Dateien -->
         <div class="mod-list-table-wrap bp-table-wrapper flex-grow-1 overflow-auto">
-            <table class="table mod-list-table bp-table align-middle mb-0" id="bpTable">
+            <table class="table mod-list-table bp-table align-middle mb-0"
+                   id="bpTable"
+                   data-status-field-key="{{ status_field_key }}"
+                   data-area-field-key="{{ area_field_key }}">
                 <thead>
                     <tr>
                         <th style="width: 44px;" class="text-center">#</th>
@@ -257,23 +283,27 @@
                         </th>
                         {% endif %}
                         {% endfor %}
-                        <th scope="col" class="text-end" style="width: 12rem; min-width: 12rem;"></th>
+                        <th scope="col" class="text-end" style="width: 14rem; min-width: 14rem;"></th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for entry in entries %}
                     {% set custom = entry.get_custom_data() %}
+                    {% set row_meta = entry_filter_meta.get(entry.id, {}) %}
                     <tr class="mod-list-row"
                         data-entry-id="{{ entry.id }}"
-                        data-status="{{ entry.status or custom.get('status_booking', '') }}"
-                        data-area="{{ custom.get('bereich', '') }}">
+                        data-order-index="{{ loop.index0 }}"
+                        data-name="{{ row_meta.get('name', '') }}"
+                        data-status="{{ row_meta.get('status', '') }}"
+                        data-area="{{ row_meta.get('areas', [])|join(', ') }}"
+                        data-areas='{{ row_meta.get("areas", [])|tojson }}'>
 
                         <td class="text-center text-muted small">{{ loop.index }}</td>
 
                         {% for f in fields %}
                         {% if f.field_type != 'action_accept' %}
                         {% set val = custom.get(f.field_key, '') %}
-                        <td style="min-width: {{ f.width }}px;">
+                        <td style="min-width: {{ f.width }}px;" data-field-key="{{ f.field_key }}">
                             {% if f.field_key in ('auftrittsname_projektname', 'project_name', 'artist_name', 'name') or loop.first %}
                             <a href="{{ url_for('booking_personal.act_detail', event_id=current_event.id, entry_id=entry.id) }}"
                                class="bp-artist-link fw-semibold text-decoration-none"
@@ -289,18 +319,10 @@
                             </span>
                             {% elif f.field_type == 'form_link' %}
                             {% set form_url = url_for('booking_personal.public_form', token=entry.form_token, _external=True) %}
-                            <a href="{{ form_url }}" target="_blank" class="bp-link small me-1"
+                            <a href="{{ form_url }}" target="_blank" class="bp-link small"
                                 title="Formular im neuen Tab öffnen">
                                 {{ form_url|truncate(26) }}
                             </a>
-                            <button type="button" class="btn btn-link btn-xs p-0 text-muted"
-                                onclick="copyToClipboard('{{ form_url }}')" title="Link kopieren">
-                                <i class="bi bi-clipboard"></i>
-                            </button>
-                            <button type="button" class="btn btn-link btn-xs p-0 text-primary ms-1"
-                                onclick="openMailPreview({{ entry.id }}, 'invite')" title="Einladungs-Mail senden">
-                                <i class="bi bi-send"></i>
-                            </button>
                             {% elif f.field_type == 'formula' %}
                             <span class="bp-cell-formula fw-semibold" data-field-key="{{ f.field_key }}">
                                 {{ val or '€0.00' }}
@@ -321,6 +343,19 @@
                                 <span class="bp-cell-empty">-</span>
                                 {% endif %}
                             </div>
+                            {% elif f.field_type == 'file_upload' %}
+                            {% set file_list = val if (val and val is iterable and val is not string) else ([val] if (val and val is string and val != '-') else []) %}
+                            {% set file_count = file_list|length %}
+                            {% if file_count > 0 %}
+                            <a href="{{ url_for('booking_personal.act_detail', event_id=current_event.id, entry_id=entry.id) }}"
+                               class="bp-file-count-badge text-decoration-none"
+                               title="{{ file_count }} {{ 'Datei hinterlegt' if file_count == 1 else 'Dateien hinterlegt' }}">
+                                <i class="bi bi-paperclip" aria-hidden="true"></i>
+                                <span>{{ file_count }} {{ 'Datei' if file_count == 1 else 'Dateien' }}</span>
+                            </a>
+                            {% else %}
+                            <span class="bp-cell-empty">-</span>
+                            {% endif %}
                             {% elif f.field_type == 'badge_select' %}
                             <div class="bp-cell-editable" data-entry-id="{{ entry.id }}"
                                 data-field-key="{{ f.field_key }}" data-field-type="badge_select"
@@ -363,14 +398,25 @@
                                 {% endif %}
                             </div>
                             {% elif f.field_type == 'currency' %}
+                            {% set formatted_val = entry.format_currency_value(val) %}
                             <div class="bp-cell-editable" data-entry-id="{{ entry.id }}"
                                 data-field-key="{{ f.field_key }}" data-field-type="currency"
-                                data-raw-value="{{ val }}">
-                                {% if val and val != '-' %}
-                                {{ val }}
+                                data-raw-value="{{ formatted_val }}">
+                                {% if formatted_val %}
+                                {{ formatted_val }}
                                 {% else %}
                                 <span class="bp-cell-empty">-</span>
                                 {% endif %}
+                            </div>
+                            {% elif f.field_type == 'boolean' %}
+                            {% set is_checked = val in (True, 'true', 'True', '1', 1, 'ja', 'Ja') %}
+                            <div class="form-check form-switch m-0 d-inline-flex align-items-center gap-2 bp-cell-boolean-wrap">
+                                <input class="form-check-input bp-cell-boolean-toggle" type="checkbox" role="switch"
+                                    data-entry-id="{{ entry.id }}"
+                                    data-field-key="{{ f.field_key }}"
+                                    {% if is_checked %}checked{% endif %}
+                                    aria-label="{{ f.label }}">
+                                <span class="small text-muted bp-boolean-label">{{ 'Ja' if is_checked else 'Nein' }}</span>
                             </div>
                             {% else %}
                             <div class="bp-cell-editable" data-entry-id="{{ entry.id }}"
@@ -387,7 +433,8 @@
                         {% endif %}
                         {% endfor %}
 
-                        <td class="text-end" style="width: 12rem; min-width: 12rem;">
+                        <td class="text-end" style="width: 14rem; min-width: 14rem;">
+                            {% set row_form_url = url_for('booking_personal.public_form', token=entry.form_token, _external=True) %}
                             <div class="mod-list-actions">
                                 <div class="mod-list-hover-actions">
                                     <a class="btn btn-sm btn-link" href="{{ url_for('booking_personal.act_detail', event_id=current_event.id, entry_id=entry.id) }}" title="Artist-Dossier öffnen">
@@ -404,6 +451,9 @@
                                     </button>
                                     <button type="button" class="btn btn-sm btn-link" onclick="openMailPreview({{ entry.id }}, 'invite')" title="Fragebogen senden">
                                         <i class="bi bi-send"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-link" onclick="copyToClipboard('{{ row_form_url }}')" title="Formular-Link kopieren">
+                                        <i class="bi bi-clipboard"></i>
                                     </button>
                                     <button type="button" class="btn btn-sm btn-link" onclick="deleteEntry({{ entry.id }})" title="Act löschen">
                                         <i class="bi bi-trash"></i>
@@ -439,6 +489,11 @@
                                                 <i class="bi bi-send me-2"></i>Fragebogen senden
                                             </a>
                                         </li>
+                                        <li>
+                                            <a class="dropdown-item" href="#" onclick="copyToClipboard('{{ row_form_url }}'); return false;">
+                                                <i class="bi bi-clipboard me-2"></i>Formular-Link kopieren
+                                            </a>
+                                        </li>
                                         <li><hr class="dropdown-divider"></li>
                                         <li>
                                             <button class="dropdown-item text-danger" type="button" onclick="deleteEntry({{ entry.id }})">
@@ -459,7 +514,78 @@
                         </td>
                     </tr>
                     {% endfor %}
+                    {% if entries %}
+                    <tr id="bpNoFilterResultsRow" class="d-none">
+                        <td colspan="{{ fields|length + 2 }}" class="text-center py-4 text-muted">
+                            <i class="bi bi-search me-1" aria-hidden="true"></i>
+                            {{ _('booking_personal.no_filter_results') }}
+                        </td>
+                    </tr>
+                    {% endif %}
                 </tbody>
+                {% set visible_fields = fields|rejectattr('field_type', 'equalto', 'action_accept')|list %}
+                {% set ns_fin = namespace(target_key='') %}
+                {% for f in visible_fields %}
+                    {% if f.field_key == 'gesamt' %}
+                        {% set ns_fin.target_key = 'gesamt' %}
+                    {% elif f.field_key == 'gage' and ns_fin.target_key == '' %}
+                        {% set ns_fin.target_key = 'gage' %}
+                    {% elif f.field_type in ('formula', 'currency') and ns_fin.target_key == '' %}
+                        {% set ns_fin.target_key = f.field_key %}
+                    {% endif %}
+                {% endfor %}
+                <tfoot id="bpFinanceFooter"
+                       data-event-id="{{ current_event.id }}"
+                       data-finance-col-key="{{ ns_fin.target_key }}"
+                       data-total-budget="{{ current_event.total_budget if current_event.total_budget is not none else '' }}">
+                    <tr class="bp-finance-footer-row">
+                        <td class="text-center text-muted small">Σ</td>
+                        {% for f in visible_fields %}
+                        <td style="min-width: {{ f.width }}px;">
+                            {% if f.field_key in ('auftrittsname_projektname', 'project_name', 'artist_name', 'name') or loop.first %}
+                            <div class="d-inline-flex align-items-center gap-1.5 text-nowrap">
+                                <i class="bi bi-people text-primary" aria-hidden="true"></i>
+                                <span class="text-muted small">Artists:</span>
+                                <strong id="bpFooterArtistCount">0</strong>
+                            </div>
+                            {% elif f.field_key in (status_field_key, area_field_key) %}
+                            <div class="bp-footer-counts-grid" data-footer-counts-for="{{ f.field_key }}"></div>
+                            {% elif f.field_key == ns_fin.target_key %}
+                            <div class="d-inline-flex align-items-center gap-1.5 text-nowrap">
+                                <strong id="bpFooterTotalSpent" class="text-body">€0.00</strong>
+                                <span class="text-muted">/</span>
+                                <button type="button"
+                                    id="bpFooterBudgetDisplayBtn"
+                                    class="btn btn-link btn-sm p-0 text-decoration-none fw-semibold text-body d-inline-flex align-items-center gap-1"
+                                    title="Gesamtbudget bearbeiten"
+                                    aria-label="Gesamtbudget bearbeiten">
+                                    <span id="bpFooterBudgetDisplayText">
+                                        {{ '€%.2f'|format(current_event.total_budget) if current_event.total_budget is not none else 'Budget festlegen' }}
+                                    </span>
+                                    <i class="bi bi-pencil text-muted small" style="font-size: 0.72rem;" aria-hidden="true"></i>
+                                </button>
+                                <div class="input-group input-group-sm d-none" id="bpFooterBudgetEditWrap" style="width: 8.75rem;">
+                                    <input type="number" step="0.01" min="0" id="bpFooterBudgetInput"
+                                        class="form-control mod-pill-input rounded-start-pill px-2"
+                                        placeholder="Budget €"
+                                        aria-label="Gesamtbudget in Euro"
+                                        value="{{ '%.2f'|format(current_event.total_budget) if current_event.total_budget is not none else '' }}">
+                                    <button type="button" class="btn mod-pill-btn mod-pill-btn--outline rounded-end-pill px-2"
+                                        id="bpFooterBudgetSaveBtn" title="Gesamtbudget speichern" aria-label="Gesamtbudget speichern">
+                                        <i class="bi bi-check2"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="small mt-1 d-flex align-items-center gap-1 text-nowrap" id="bpFooterRemainingWrap">
+                                <i class="bi bi-wallet2 text-secondary" id="bpFooterRemainingIcon" aria-hidden="true"></i>
+                                <span id="bpFooterRemaining" class="text-muted">Kein Budget hinterlegt</span>
+                            </div>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                        <td class="text-end" style="width: 14rem; min-width: 14rem;"></td>
+                    </tr>
+                </tfoot>
             </table>
         </div>
         {% else %}
@@ -500,6 +626,10 @@
                     <div class="mb-3">
                         <label class="form-label small fw-semibold">Name der Veranstaltung</label>
                         <input type="text" name="name" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. Sommerfestival 2026" required autofocus>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Gesamtbudget (€) <span class="text-muted fw-normal">(optional)</span></label>
+                        <input type="number" step="0.01" min="0" name="total_budget" class="form-control mod-pill-input rounded-pill px-3 py-2" placeholder="z. B. 15000.00">
                     </div>
                     <div class="mb-3">
                         <label class="form-label small fw-semibold">Tabellen-Vorlage (Spalten-Set)</label>
@@ -676,8 +806,26 @@
                         <!-- Formel-Definition -->
                         <div class="col-12" id="bpColFormulaGroup" style="display: none;">
                             <label class="form-label small fw-semibold">Formel-Berechnung</label>
-                            <input type="text" id="bpColFormula" class="form-control mod-pill-input rounded-pill px-3 py-2 font-monospace" placeholder="z. B. gage + booking_fee + travel + unterkunft">
-                            <div class="form-text small">Summiert Werte anhand der Spalten-Keys.</div>
+                            <input type="text" id="bpColFormula" class="form-control mod-pill-input rounded-pill px-3 py-2 font-monospace" placeholder="z. B. (gage + booking_fee) * (1 + 19%)">
+                            <div class="d-flex flex-wrap align-items-center gap-1 mt-2">
+                                <span class="small text-muted me-1">Operatoren:</span>
+                                {% for op in ['+', '-', '*', '/', '(', ')', '%'] %}
+                                <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted font-monospace px-2 py-0" onclick="insertFormulaToken('bpColFormula', '{{ op }}', true)">{{ op }}</button>
+                                {% endfor %}
+                            </div>
+                            {% if fields %}
+                            <div class="d-flex flex-wrap gap-1.5 mt-2">
+                                <span class="small text-muted align-self-center me-1">Felder auswählen:</span>
+                                {% for nf in fields %}
+                                {% if is_bp_formula_field(nf) %}
+                                <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted" onclick="insertFormulaToken('bpColFormula', '{{ nf.field_key }}', false)">
+                                    <i class="bi bi-plus-circle text-primary me-1"></i>{{ nf.label }}
+                                </button>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            <div class="form-text small">Unterstützt +, -, *, /, Klammern () und Prozentwerte (z. B. 19% oder Steuersatz).</div>
                         </div>
 
                         <!-- Schalter für Sichtbarkeit / Formular -->

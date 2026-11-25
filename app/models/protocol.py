@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import re
 
 from app import db
 
@@ -87,4 +88,78 @@ class ProtocolAgendaItem(db.Model):
             'position': self.position,
             'title': self.title,
             'content_html': self.content_html or '',
+        }
+
+
+class ProtocolTemplate(db.Model):
+    """Reusable meeting protocol template with prepared members and TOPs."""
+
+    __tablename__ = 'protocol_templates'
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(255), nullable=False)
+    members_text = db.Column(db.Text, nullable=True)
+    visibility = db.Column(db.String(20), nullable=False, default='public')
+    team_id = db.Column(db.Integer, db.ForeignKey('teams.id', ondelete='SET NULL'), nullable=True, index=True)
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    creator = db.relationship('User', backref='created_protocol_templates')
+    team = db.relationship('Team', backref='protocol_templates')
+    agenda_items = db.relationship(
+        'ProtocolTemplateAgendaItem',
+        back_populates='template',
+        cascade='all, delete-orphan',
+        order_by='ProtocolTemplateAgendaItem.position',
+    )
+
+    def members_list(self) -> list[str]:
+        """Return deduplicated list of prepared member names in order."""
+        seen = set()
+        result = []
+        for part in re.split(r'[\n,;]+', self.members_text or ''):
+            name = part.strip()
+            if not name:
+                continue
+            key = name.lower()
+            if key not in seen:
+                seen.add(key)
+                result.append(name)
+        return result
+
+    def to_dict(self) -> dict:
+        return {
+            'id': self.id,
+            'title': self.title,
+            'members_text': self.members_text or '',
+            'visibility': self.visibility,
+            'team_id': self.team_id,
+            'agenda_items': [item.to_dict() for item in self.agenda_items],
+        }
+
+
+class ProtocolTemplateAgendaItem(db.Model):
+    """Prepared agenda item (TOP) belonging to a ProtocolTemplate."""
+
+    __tablename__ = 'protocol_template_agenda_items'
+
+    id = db.Column(db.Integer, primary_key=True)
+    template_id = db.Column(
+        db.Integer,
+        db.ForeignKey('protocol_templates.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    position = db.Column(db.Integer, nullable=False, default=0)
+    title = db.Column(db.String(500), nullable=False, default='')
+
+    template = db.relationship('ProtocolTemplate', back_populates='agenda_items')
+
+    def to_dict(self) -> dict:
+        return {
+            'id': self.id,
+            'template_id': self.template_id,
+            'position': self.position,
+            'title': self.title,
         }

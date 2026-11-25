@@ -617,3 +617,100 @@ def test_booking_personal_mobile_navigation(client, app):
     assert 'mod-mobile-topbar' in html_settings
     assert 'id="bpMobileNav"' in html_settings
 
+
+def test_currency_formatting_on_save_and_render(client, app):
+    with app.app_context():
+        _login_test_user(client)
+
+        event = BookingPersonalEvent(name='Currency Test Event')
+        db.session.add(event)
+        db.session.flush()
+        apply_template_to_event(event, FESTIVAL_STANDARD_FIELDS, db.session)
+
+        entry = BookingPersonalEntry(event=event, name='DJ Euro')
+        # Unformatierter Bestandswert in DB
+        entry.set_value('gage', '150')
+        entry.set_value('booking_fee', '50')
+        db.session.add(entry)
+        db.session.commit()
+        event_id = event.id
+        entry_id = entry.id
+
+    # 1. SSR-Rendering formatiert auch unformatierte Bestandswerte als €-Betrag
+    resp = client.get(f'/booking-personal/?event_id={event_id}')
+    assert resp.status_code == 200
+    html = resp.get_data(as_text=True)
+    assert '€150.00' in html
+    assert '€50.00' in html
+
+    # 2. Inline-Cell-Save normalisiert rohe Zahlenwerte (inkl. Komma) auf €X.XX
+    res = client.post(
+        f'/booking-personal/api/entry/{entry_id}/cell',
+        data=json.dumps({'field_key': 'booking_fee', 'value': '75,5'}),
+        content_type='application/json'
+    )
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data['success'] is True
+    assert data['updated_custom_data']['booking_fee'] == '€75.50'
+
+    # 3. Update-All normalisiert ebenfalls Währungsfelder
+    res_all = client.post(
+        f'/booking-personal/api/entry/{entry_id}/update-all',
+        data=json.dumps({'gage': '200'}),
+        content_type='application/json'
+    )
+    assert res_all.status_code == 200
+    data_all = res_all.get_json()
+    assert data_all['success'] is True
+    assert data_all['entry']['custom_data']['gage'] == '€200.00'
+
+
+def test_file_display_in_list_and_act_detail(client, app):
+    """Prüft die Dateizähler-Anzeige in der Liste und die strukturierte Dateiliste in der Übersicht."""
+    with app.app_context():
+        _login_test_user(client)
+
+        event = BookingPersonalEvent(name='File Display Event')
+        db.session.add(event)
+        db.session.flush()
+        apply_template_to_event(event, FESTIVAL_STANDARD_FIELDS, db.session)
+
+        entry = BookingPersonalEntry(event=event, name='Tech Act')
+        db.session.add(entry)
+        db.session.flush()
+
+        file_path = f'/uploads/booking_personal/{event.id}/{entry.id}_techrider_attachments_20261125204426_Stage_Plot.pdf'
+        entry.set_value('techrider_attachments', [file_path])
+
+        from app.models.booking_personal import BookingPersonalFile
+        db.session.add(BookingPersonalFile(
+            entry_id=entry.id,
+            field_key='techrider_attachments',
+            file_path=file_path,
+            file_name='Stage Plot.pdf',
+            is_image=False,
+        ))
+        db.session.commit()
+        event_id = event.id
+        entry_id = entry.id
+
+    # 1. Liste zeigt kompakten Zähler statt rohem Pfad-Array
+    resp_list = client.get(f'/booking-personal/?event_id={event_id}')
+    assert resp_list.status_code == 200
+    html_list = resp_list.get_data(as_text=True)
+    assert 'bp-file-count-badge' in html_list
+    assert '1 Datei' in html_list
+    assert '/uploads/booking_personal/' not in html_list
+
+    # 2. Detail-Übersicht zeigt sauberen Dateinamen in strukturierter Dateiliste
+    resp_detail = client.get(f'/booking-personal/event/{event_id}/act/{entry_id}')
+    assert resp_detail.status_code == 200
+    html_detail = resp_detail.get_data(as_text=True)
+    assert 'bp-detail-file-list' in html_detail
+    assert 'bp-detail-file-item' in html_detail
+    assert 'title="Stage Plot.pdf"' in html_detail
+    assert 'bi-file-earmark-pdf' in html_detail
+
+
+

@@ -1,0 +1,72 @@
+{# ToDos sidebar: Privat, Teams, Public #}
+{% set active_nav = active_nav|default('private') %}
+{% set view_mode = view_mode|default('today') %}
+{% set allowed_vis = allowed_visibilities|default(['private', 'team', 'public']) %}
+{% set teams = teams|default([]) %}
+{% macro team_nav_icon(t) -%}
+{%- if t.color -%}
+<span class="todos-team-dot" style="background:{{ t.color }};" aria-hidden="true"></span>
+{%- else -%}
+<i class="bi bi-people me-2" aria-hidden="true"></i>
+{%- endif -%}
+{%- endmacro %}
+
+<aside class="mod-sidebar d-none d-lg-flex flex-column">
+  <div class="mod-sidebar-brand">
+    <i class="bi bi-check2-circle" aria-hidden="true"></i>
+    <span>{{ _('todos.title') }}</span>
+  </div>
+  <div class="mod-sidebar-new-wrap w-100 d-grid gap-2">
+    <button type="button" class="btn mod-sidebar-new w-100 text-start" data-bs-toggle="modal" data-bs-target="#createTodoModal">
+      <i class="bi bi-plus-lg me-2" aria-hidden="true"></i>{{ _('todos.new') }}
+    </button>
+  </div>
+  <nav class="mod-sidebar-nav nav flex-column gap-1 mt-2" aria-label="{{ _('todos.title') }}">
+    {% if 'private' in allowed_vis %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'private' %} active{% endif %}" href="{{ url_for('todos.index', section='private', view=view_mode) }}">
+      <i class="bi bi-lock me-2" aria-hidden="true"></i>{{ _('todos.nav.private') }}
+    </a>
+    {% endif %}
+    {% if 'team' in allowed_vis %}
+    {% for t in teams %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'team-' ~ t.id %} active{% endif %}" href="{{ url_for('todos.index', section='team', team_id=t.id, view=view_mode) }}">
+      {{ team_nav_icon(t) }}{{ t.name }}
+    </a>
+    {% endfor %}
+    {% endif %}
+    {% if 'public' in allowed_vis %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'public' %} active{% endif %}" href="{{ url_for('todos.index', section='public', view=view_mode) }}">
+      <i class="bi bi-globe2 me-2" aria-hidden="true"></i>{{ _('todos.nav.public') }}
+    </a>
+    {% endif %}
+  </nav>
+</aside>
+
+<div class="offcanvas offcanvas-start mod-offcanvas" tabindex="-1" id="todosMobileNav">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title">{{ _('todos.title') }}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="{{ _('common.close') }}"></button>
+  </div>
+  <div class="offcanvas-body d-grid gap-1">
+    <button type="button" class="btn mod-sidebar-new w-100 text-start mb-2" data-bs-toggle="modal" data-bs-target="#createTodoModal" data-bs-dismiss="offcanvas">
+      <i class="bi bi-plus-lg me-2" aria-hidden="true"></i>{{ _('todos.new') }}
+    </button>
+    {% if 'private' in allowed_vis %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'private' %} active{% endif %}" href="{{ url_for('todos.index', section='private', view=view_mode) }}">
+      <i class="bi bi-lock me-2" aria-hidden="true"></i>{{ _('todos.nav.private') }}
+    </a>
+    {% endif %}
+    {% if 'team' in allowed_vis %}
+    {% for t in teams %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'team-' ~ t.id %} active{% endif %}" href="{{ url_for('todos.index', section='team', team_id=t.id, view=view_mode) }}">
+      {{ team_nav_icon(t) }}{{ t.name }}
+    </a>
+    {% endfor %}
+    {% endif %}
+    {% if 'public' in allowed_vis %}
+    <a class="nav-link mod-nav-link{% if active_nav == 'public' %} active{% endif %}" href="{{ url_for('todos.index', section='public', view=view_mode) }}">
+      <i class="bi bi-globe2 me-2" aria-hidden="true"></i>{{ _('todos.nav.public') }}
+    </a>
+    {% endif %}
+  </div>
+</div>

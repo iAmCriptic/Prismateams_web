@@ -165,6 +165,13 @@ def _validate_user_for_login(user):
                 db.session.commit()
             raise ValueError(translate('auth.flash.guest_access_expired_contact_admin'))
 
+    if not user.is_super_admin and user.account_active_until and portal_now_naive().date() > user.account_active_until:
+        if user.is_active:
+            user.is_active = False
+            user.auto_deactivated_at = datetime.utcnow()
+            db.session.commit()
+        raise ValueError(translate('auth.flash.account_expired_contact_admin'))
+
     if not user.is_active:
         if user.is_guest:
             raise ValueError(translate('auth.flash.guest_access_expired_contact_admin'))
@@ -491,7 +498,7 @@ def _resolve_invite_code(raw_code):
 @auth_bp.route('/coderegister/<code>', methods=['GET', 'POST'])
 @limiter.limit("10 per 15 minutes", methods=["POST"])
 def coderegister(code=None):
-    """Team invite registration — not linked from login/register; optionally indexed."""
+    """Team invite registration — linked from /register; optionally indexed."""
     from app.blueprints.setup import is_setup_needed
     from app.models.team import TeamMember
 
@@ -513,6 +520,9 @@ def coderegister(code=None):
             invite_team=team_preview,
             invite_valid=bool(invite_preview and team_preview),
             invite_is_portal=bool(invite_preview and invite_preview.is_portal_user),
+            invite_account_active_until=(
+                invite_preview.account_active_until if (invite_preview and team_preview) else None
+            ),
         )
         ctx.update(extra)
         return ctx
@@ -585,6 +595,7 @@ def coderegister(code=None):
             can_access_public=is_portal_user,
             can_access_private=is_portal_user,
             can_access_team=True,
+            account_active_until=invite.account_active_until if invite else None,
         )
         new_user.set_password(password)
 
@@ -846,6 +857,14 @@ def login():
                     db.session.commit()
                 flash(translate('auth.flash.guest_access_expired_contact_admin'), 'warning')
                 return render_template('auth/login.html', **_auth_template_kwargs())
+
+        if not user.is_super_admin and user.account_active_until and portal_now_naive().date() > user.account_active_until:
+            if user.is_active:
+                user.is_active = False
+                user.auto_deactivated_at = datetime.utcnow()
+                db.session.commit()
+            flash(translate('auth.flash.account_expired_contact_admin'), 'warning')
+            return render_template('auth/login.html', **_auth_template_kwargs())
         
         if not user.is_active:
             if user.is_guest:
@@ -1064,8 +1083,36 @@ def google_callback():
     if state and state == session.get('cloud_import_google_oauth_state'):
         return _google_callback_cloud_import(code, state, err)
 
+    # 2c) Kalender-Synchronisation (Google Calendar readonly)
+    if state and state == session.get('calendar_google_oauth_state'):
+        return _google_callback_calendar(code, state, err)
+
     # 3) Login / Registrierung / Account-Verknüpfung
     return _google_callback_auth(code, state, err)
+
+
+def _google_callback_calendar(code, state, err):
+    """Beendet Google-OAuth für die Kalender-Synchronisation."""
+    from flask_login import current_user
+    from app.utils.google_calendar_sync import handle_google_calendar_callback
+
+    if not current_user.is_authenticated:
+        flash(translate('calendar.import.google_oauth_error', error='login_required'), 'danger')
+        return redirect(url_for('auth.login'))
+
+    if err:
+        msg = request.args.get('error_description') or err
+        flash(translate('calendar.import.google_oauth_error', error=msg), 'danger')
+        return redirect(url_for('calendar.import_calendar'))
+    if not code:
+        flash(translate('calendar.import.google_oauth_error', error='no_code'), 'danger')
+        return redirect(url_for('calendar.import_calendar'))
+    try:
+        handle_google_calendar_callback(code, state)
+        flash(translate('calendar.import.google_connected'), 'success')
+    except Exception as e:
+        flash(translate('calendar.import.google_oauth_error', error=str(e)), 'danger')
+    return redirect(url_for('calendar.import_calendar'))
 
 
 def _google_callback_cloud_import(code, state, err):
@@ -1148,6 +1195,7 @@ def _google_callback_auth(code, state, err):
         exchange_google_login_code,
         ensure_gmail_mailbox_for_user,
         ensure_google_drive_connection_for_user,
+        ensure_google_calendar_connection_for_user,
         store_google_register_prefill,
         clear_google_register_prefill,
         save_google_profile_picture,
@@ -1194,6 +1242,7 @@ def _google_callback_auth(code, state, err):
                 save_google_profile_picture(current_user, picture_url)
             ensure_gmail_mailbox_for_user(current_user, result)
             ensure_google_drive_connection_for_user(current_user, result)
+            ensure_google_calendar_connection_for_user(current_user, result)
             db.session.commit()
         except Exception as exc:
             db.session.rollback()
@@ -1249,6 +1298,7 @@ def _google_callback_auth(code, state, err):
     try:
         ensure_gmail_mailbox_for_user(user, result)
         ensure_google_drive_connection_for_user(user, result)
+        ensure_google_calendar_connection_for_user(user, result)
         if google_email:
             user.google_email = google_email
         db.session.commit()

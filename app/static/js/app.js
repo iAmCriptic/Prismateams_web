@@ -776,6 +776,13 @@ function isRunningAsInstalledPwa() {
         || window.navigator.standalone === true;
 }
 
+function isAppleMobileOrTablet() {
+    var ua = navigator.userAgent || '';
+    var isClassicIos = /iPad|iPhone|iPod/.test(ua);
+    var isIpadOsDesktop = (/Macintosh/.test(ua) && (navigator.maxTouchPoints || 0) > 1);
+    return isClassicIos || isIpadOsDesktop;
+}
+
 function hidePwaInstallPrompt() {
     const prompt = document.getElementById(PWA_INSTALL_PROMPT_ID);
     if (prompt) {
@@ -832,10 +839,11 @@ window.addEventListener('beforeinstallprompt', function(e) {
 });
 
 function showInstallPrompt() {
-    if (disablePublicPrompts || isPwaInstallDismissed() || isPwaInstallLaterThisSession()) {
+    if (disablePublicPrompts || isRunningAsInstalledPwa() || isPwaInstallDismissed() || isPwaInstallLaterThisSession()) {
         return;
     }
-    if (!window.deferredPrompt) {
+    const isAppleMode = !window.deferredPrompt && isAppleMobileOrTablet();
+    if (!window.deferredPrompt && !isAppleMode) {
         return;
     }
     if (document.getElementById(PWA_INSTALL_PROMPT_ID)) {
@@ -850,18 +858,24 @@ function showInstallPrompt() {
     prompt.setAttribute('aria-modal', 'false');
     prompt.setAttribute('aria-labelledby', 'pwaInstallTitle');
     prompt.setAttribute('aria-describedby', 'pwaInstallDesc');
+    const descriptionText = isAppleMode
+        ? ptI18nPwa('ios_description', 'Tippe in Safari auf das Teilen-Symbol und wähle „Zum Home-Bildschirm“.')
+        : ptI18nPwa('description', 'Installiere das Portal als App für schnelleren Zugriff und Offline-Nutzung.');
+    const installButtonHtml = isAppleMode
+        ? ''
+        : `<button type="button" class="btn btn-sm pwa-install-prompt__btn pwa-install-prompt__btn--install" data-pwa-action="install">
+                        ${ptI18nPwa('install', 'Installieren')}
+                    </button>`;
     prompt.innerHTML = `
         <div class="pwa-install-prompt__body">
             <div class="pwa-install-prompt__icon" aria-hidden="true">
-                <i class="bi bi-download"></i>
+                <i class="bi ${isAppleMode ? 'bi-box-arrow-up' : 'bi-download'}"></i>
             </div>
             <div class="pwa-install-prompt__content">
                 <h6 class="pwa-install-prompt__title" id="pwaInstallTitle">${ptI18nPwa('title', 'App installieren')}</h6>
-                <p class="pwa-install-prompt__text" id="pwaInstallDesc">${ptI18nPwa('description', 'Installiere das Portal als App für schnelleren Zugriff und Offline-Nutzung.')}</p>
+                <p class="pwa-install-prompt__text" id="pwaInstallDesc">${descriptionText}</p>
                 <div class="pwa-install-prompt__actions">
-                    <button type="button" class="btn btn-sm pwa-install-prompt__btn pwa-install-prompt__btn--install" data-pwa-action="install">
-                        ${ptI18nPwa('install', 'Installieren')}
-                    </button>
+                    ${installButtonHtml}
                     <button type="button" class="btn btn-sm pwa-install-prompt__btn pwa-install-prompt__btn--later" data-pwa-action="later">
                         ${ptI18nPwa('later', 'Später')}
                     </button>
@@ -940,6 +954,14 @@ window.addEventListener('appinstalled', function() {
     hidePwaInstallPrompt();
     window.deferredPrompt = null;
 });
+
+if (!disablePublicPrompts && !isRunningAsInstalledPwa() && !isPwaInstallDismissed() && !isPwaInstallLaterThisSession() && isAppleMobileOrTablet()) {
+    setTimeout(function() {
+        if (!window.deferredPrompt && !isRunningAsInstalledPwa()) {
+            showInstallPrompt();
+        }
+    }, 2800);
+}
 
 // Push Notifications
 let pushSubscription = null;

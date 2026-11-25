@@ -167,6 +167,16 @@ def _fetch_url_title(raw_url: str, timeout: float = 3.5) -> str | None:
 @kanban_bp.route('/api/fetch-url-title', methods=['GET', 'POST'])
 @login_or_share_required
 def api_fetch_url_title():
+    if not current_user.is_authenticated:
+        token = _share_token_from_request()
+        share = get_share_by_token(token) if token else None
+        if (
+            not share
+            or share.resource_type != 'kanban_board'
+            or share_is_expired(share)
+            or (share.password_hash and not _share_guest_ok(token))
+        ):
+            return jsonify({'error': 'Unauthorized'}), 401
     if request.method == 'POST':
         data = request.get_json(silent=True) or {}
         raw_url = (data.get('url') or '').strip()
@@ -313,43 +323,110 @@ def api_upload_attachment(card_id):
             'attachment': _serialize_attachment(att, share_token=_share_token_from_request()),
         }), 201
 
-    f = request.files.get('file')
-    if not f or not f.filename:
+    uploaded_files = [
+        f for f in (request.files.getlist('files') + request.files.getlist('file'))
+        if f and f.filename
+    ]
+    if not uploaded_files:
         return jsonify({'error': 'No file'}), 400
-    original = secure_filename(f.filename) or 'file'
-    stored = f'{uuid.uuid4().hex}_{original}'
-    path = os.path.join(_upload_root(), stored)
-    f.save(path)
-    mime = f.mimetype or mimetypes.guess_type(original)[0]
-    att = KanbanAttachment(
-        card_id=card.id,
-        filename=stored,
-        original_filename=original,
-        mime_type=mime,
-        file_size=os.path.getsize(path),
-        storage_path=path,
-        uploaded_by=_actor_user_id(board),
-    )
-    db.session.add(att)
-    db.session.flush()
-    if not card.cover_attachment_id and (mime or '').startswith('image/'):
-        card.cover_attachment_id = att.id
-    _log_activity(board.id, 'attachment_added', original, card.id)
-    db.session.commit()
-    payload = _serialize_card_detail(card, share_token=_share_token_from_request())
+
+    saved_paths = []
+    created_attachments = []
+    actor_id = _actor_user_id(board)
+    upload_root = _upload_root()
+
+    try:
+        for f in uploaded_files:
+            original = secure_filename(f.filename) or 'file'
+            stored = f'{uuid.uuid4().hex}_{original}'
+            path = os.path.join(upload_root, stored)
+            f.save(path)
+            saved_paths.append(path)
+            mime = mimetypes.guess_type(original)[0] or f.mimetype
+            att = KanbanAttachment(
+                card_id=card.id,
+                filename=stored,
+                original_filename=original,
+                mime_type=mime,
+                file_size=os.path.getsize(path),
+                storage_path=path,
+                uploaded_by=actor_id,
+            )
+            db.session.add(att)
+            created_attachments.append((att, original, mime))
+        db.session.flush()
+        for att, original, mime in created_attachments:
+            safe_mime = (mime or '').split(';', 1)[0].strip().lower()
+            if not card.cover_attachment_id and safe_mime in _SAFE_INLINE_IMAGE_MIMES:
+                card.cover_attachment_id = att.id
+            _log_activity(board.id, 'attachment_added', original, card.id)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        for path in saved_paths:
+            try:
+                if os.path.isfile(path):
+                    os.remove(path)
+            except OSError:
+                pass
+        raise
+
+    share_token = _share_token_from_request()
+    payload = _serialize_card_detail(card, share_token=share_token)
     _emit_board(board.id, 'card_updated', payload)
+    notify_detail = ', '.join(orig for _, orig, _ in created_attachments[:3])
+    if len(created_attachments) > 3:
+        notify_detail = f'{notify_detail} (+{len(created_attachments) - 3})'
     _enqueue_kanban_notify(
         board,
         card.id,
         'upload',
-        detail=original,
-        push_suffix=f'upload:{att.id}',
+        detail=notify_detail,
+        push_suffix=f'upload:{created_attachments[0][0].id}',
     )
+    serialized = [_serialize_attachment(att, share_token=share_token) for att, _, _ in created_attachments]
     return jsonify({
         'success': True,
         'card': payload,
-        'attachment': _serialize_attachment(att, share_token=_share_token_from_request()),
+        'attachment': serialized[0],
+        'attachments': serialized,
     }), 201
+
+
+_SAFE_INLINE_IMAGE_MIMES = frozenset({
+    'image/png',
+    'image/jpeg',
+    'image/jpg',
+    'image/gif',
+    'image/webp',
+})
+
+
+def _resolve_external_or_portal_redirect(att: KanbanAttachment, *, preview: bool = False, is_share: bool = False):
+    import re
+    raw_url = (att.url or '').strip()
+    portal_match = re.match(r'^portal-file://(\d+)$', raw_url)
+    if portal_match:
+        if is_share:
+            return jsonify({'error': 'Forbidden'}), 403
+        file_id = int(portal_match.group(1))
+        endpoint = 'files.view_file' if preview else 'files.download_file'
+        return redirect(url_for(endpoint, file_id=file_id))
+    if raw_url.startswith(('http://', 'https://')):
+        return redirect(raw_url)
+    abort(404)
+
+
+def _send_attachment_preview(att: KanbanAttachment):
+    name = att.original_filename or att.filename or 'download'
+    guessed = mimetypes.guess_type(name)[0]
+    mime = (guessed or att.mime_type or 'application/octet-stream').split(';', 1)[0].strip().lower()
+    if mime in _SAFE_INLINE_IMAGE_MIMES or mime == 'application/pdf':
+        resp = send_file(att.storage_path, mimetype=mime, as_attachment=False)
+    else:
+        resp = send_file(att.storage_path, as_attachment=True, download_name=name)
+    resp.headers['X-Content-Type-Options'] = 'nosniff'
+    return resp
 
 
 @kanban_bp.route('/attachments/<int:attachment_id>/download')
@@ -363,10 +440,12 @@ def download_attachment(attachment_id):
     if not can_view_board(current_user, board):
         abort(404)
     if att.url and not att.storage_path:
-        return redirect(att.url)
+        return _resolve_external_or_portal_redirect(att, preview=False, is_share=False)
     if not att.storage_path or not os.path.isfile(att.storage_path):
         abort(404)
-    return send_file(att.storage_path, as_attachment=True, download_name=att.original_filename or att.filename)
+    resp = send_file(att.storage_path, as_attachment=True, download_name=att.original_filename or att.filename)
+    resp.headers['X-Content-Type-Options'] = 'nosniff'
+    return resp
 
 
 # ── Euro-Office for Kanban attachments ───────────────────────────────────
@@ -638,19 +717,19 @@ def onlyoffice_forcesave(attachment_id):
     """Force-save an open Kanban OnlyOffice attachment."""
     import logging
 
-    from app.utils.onlyoffice import send_onlyoffice_command
+    from app.utils.onlyoffice import onlyoffice_document_key_matches_resource, send_onlyoffice_command
 
     if not is_onlyoffice_enabled():
         return jsonify({'error': 'ONLYOFFICE not enabled'}), 404
 
     att = KanbanAttachment.query.get_or_404(attachment_id)
     board = att.card.list.board
-    if not can_view_board(current_user, board):
+    if not can_edit_board(current_user, board):
         return jsonify({'success': False, 'error': 'Forbidden'}), 403
 
     payload = request.get_json(silent=True) or {}
     key = (payload.get('key') or '').strip()
-    if not key or len(key) > 128:
+    if not key or len(key) > 128 or not onlyoffice_document_key_matches_resource(key, 'kanban_att', attachment_id):
         return jsonify({'success': False, 'error': 'invalid_key'}), 400
 
     ok, error_code, detail = send_onlyoffice_command('forcesave', key)
@@ -672,13 +751,10 @@ def preview_attachment(attachment_id):
     if not can_view_board(current_user, board, allow_closed=True):
         abort(404)
     if att.url and not att.storage_path:
-        return redirect(att.url)
+        return _resolve_external_or_portal_redirect(att, preview=True, is_share=False)
     if not att.storage_path or not os.path.isfile(att.storage_path):
         return jsonify({'error': 'Not found'}), 404
-    mime = att.mime_type or 'application/octet-stream'
-    if mime.startswith('image/') or mime == 'application/pdf':
-        return send_file(att.storage_path, mimetype=mime)
-    return send_file(att.storage_path, as_attachment=True, download_name=att.original_filename or att.filename)
+    return _send_attachment_preview(att)
 
 
 def _get_share_attachment(token: str, attachment_id: int):
@@ -706,17 +782,10 @@ def share_preview_attachment(token, attachment_id):
     if err:
         return err
     if att.url and not att.storage_path:
-        return redirect(att.url)
+        return _resolve_external_or_portal_redirect(att, preview=True, is_share=True)
     if not att.storage_path or not os.path.isfile(att.storage_path):
         return jsonify({'error': 'Not found'}), 404
-    mime = att.mime_type or 'application/octet-stream'
-    if mime.startswith('image/') or mime == 'application/pdf':
-        return send_file(att.storage_path, mimetype=mime)
-    return send_file(
-        att.storage_path,
-        as_attachment=True,
-        download_name=att.original_filename or att.filename,
-    )
+    return _send_attachment_preview(att)
 
 
 @kanban_bp.route('/share/<token>/attachments/<int:attachment_id>/download')
@@ -725,14 +794,16 @@ def share_download_attachment(token, attachment_id):
     if err:
         return err
     if att.url and not att.storage_path:
-        return redirect(att.url)
+        return _resolve_external_or_portal_redirect(att, preview=False, is_share=True)
     if not att.storage_path or not os.path.isfile(att.storage_path):
         return jsonify({'error': 'Not found'}), 404
-    return send_file(
+    resp = send_file(
         att.storage_path,
         as_attachment=True,
         download_name=att.original_filename or att.filename,
     )
+    resp.headers['X-Content-Type-Options'] = 'nosniff'
+    return resp
 
 
 @kanban_bp.route('/api/attachments/<int:attachment_id>', methods=['DELETE'])

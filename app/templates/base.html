@@ -88,7 +88,7 @@
         {% elif request.endpoint.startswith('contacts.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/contacts.css') }}">
         {% elif request.endpoint.startswith('booking_personal.') %}
-            <link rel="stylesheet" href="{{ url_for('static', filename='css/booking_personal.css') }}">
+            <link rel="stylesheet" href="{{ url_for('static', filename='css/booking_personal.css', v='20261125_2137') }}">
         {% elif request.endpoint.startswith('booking.') %}
             <link rel="stylesheet" href="{{ url_for('static', filename='css/booking.css') }}">
         {% elif request.endpoint.startswith('setup.') %}

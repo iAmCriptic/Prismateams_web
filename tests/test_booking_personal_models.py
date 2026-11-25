@@ -95,3 +95,77 @@ def test_entry_custom_data_and_formula_calculation(app):
         assert gesamt == '€440.00'
         assert entry.form_token is not None
         assert entry.overview_token is not None
+
+
+def test_formula_parentheses_and_percentages(app):
+    with app.app_context():
+        event = BookingPersonalEvent(name='Formel Test Event')
+        db.session.add(event)
+        db.session.flush()
+        apply_template_to_event(event, FESTIVAL_STANDARD_FIELDS, db.session)
+
+        f_brutto = BookingPersonalField(
+            event_id=event.id,
+            field_key='brutto_summe',
+            label='Brutto',
+            field_type='formula',
+            formula_definition='(gage + booking_fee) * (1 + 19%)',
+            field_order=90,
+        )
+        f_mwst = BookingPersonalField(
+            event_id=event.id,
+            field_key='mwst_anteil',
+            label='MwSt',
+            field_type='formula',
+            formula_definition='(gage + booking_fee) * 19%',
+            field_order=91,
+        )
+        f_steuersatz = BookingPersonalField(
+            event_id=event.id,
+            field_key='mit_steuersatz',
+            label='Mit Steuersatz',
+            field_type='formula',
+            formula_definition='(gage + booking_fee) * (1 + steuersatz)',
+            field_order=92,
+        )
+        f_rabatt = BookingPersonalField(
+            event_id=event.id,
+            field_key='rabatt',
+            label='Rabatt',
+            field_type='formula',
+            formula_definition='gage - (gage * 10%)',
+            field_order=93,
+        )
+        f_split = BookingPersonalField(
+            event_id=event.id,
+            field_key='split',
+            label='Split',
+            field_type='formula',
+            formula_definition='(gage + booking_fee) / 2',
+            field_order=94,
+        )
+        f_div_zero = BookingPersonalField(
+            event_id=event.id,
+            field_key='div_zero',
+            label='DivZero',
+            field_type='formula',
+            formula_definition='gage / 0',
+            field_order=95,
+        )
+        db.session.add_all([f_brutto, f_mwst, f_steuersatz, f_rabatt, f_split, f_div_zero])
+        db.session.commit()
+
+        entry = BookingPersonalEntry(event_id=event.id, name='Formula Artist')
+        entry.set_value('gage', '€100.00')
+        entry.set_value('booking_fee', '€50.00')
+        entry.set_value('steuersatz', '7%')
+        entry.compute_formula_values(event.fields)
+
+        assert entry.get_value('brutto_summe') == '€178.50'
+        assert entry.get_value('mwst_anteil') == '€28.50'
+        assert entry.get_value('mit_steuersatz') == '€160.50'
+        assert entry.get_value('rabatt') == '€90.00'
+        assert entry.get_value('split') == '€75.00'
+        assert entry.get_value('div_zero') == '€0.00'
+        # Abwärtskompatibilität für Standard-GESAMT (7% auf Gage = 107 + 50 = 157)
+        assert entry.get_value('gesamt') == '€157.00'

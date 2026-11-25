@@ -302,7 +302,7 @@ def admin_team_detail(team_id):
         if action == 'create_invite_code':
             from app.models.team import TeamInviteCode
             import secrets
-            from datetime import timedelta
+            from datetime import date, timedelta
 
             max_uses_raw = (request.form.get('max_uses') or '').strip()
             max_uses = None
@@ -319,6 +319,18 @@ def admin_team_detail(team_id):
                     flash(translate('settings.admin.teams.invite.flash_invalid_expires'), 'danger')
                     return redirect(url_for('settings.admin_team_detail', team_id=team.id))
                 expires_at = datetime.utcnow() + timedelta(days=int(expires_days_raw))
+
+            account_active_until = None
+            account_active_until_raw = (request.form.get('account_active_until') or '').strip()
+            if account_active_until_raw:
+                try:
+                    account_active_until = date.fromisoformat(account_active_until_raw)
+                except ValueError:
+                    flash(translate('settings.admin.teams.invite.flash_invalid_account_active_until'), 'danger')
+                    return redirect(url_for('settings.admin_team_detail', team_id=team.id))
+                if account_active_until < portal_now_naive().date():
+                    flash(translate('settings.admin.teams.invite.flash_invalid_account_active_until'), 'danger')
+                    return redirect(url_for('settings.admin_team_detail', team_id=team.id))
 
             code = secrets.token_urlsafe(8)
             while TeamInviteCode.query.filter_by(code=code).first():
@@ -337,6 +349,7 @@ def admin_team_detail(team_id):
                 max_uses=max_uses,
                 uses_count=0,
                 expires_at=expires_at,
+                account_active_until=account_active_until,
                 is_active=True,
                 role=role,
             )
@@ -453,6 +466,7 @@ def admin_team_detail(team_id):
         email_multi_enabled=is_email_multi_enabled(),
         can_edit_team_meta=has_admin_card_access(current_user, 'admin_teams'),
         can_create_portal_invite=is_team_invite_portal_user_allowed(),
+        today_iso=portal_now_naive().date().isoformat(),
     )
 
 

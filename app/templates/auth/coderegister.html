@@ -23,6 +23,11 @@
             {% else %}
             {{ _('auth.coderegister.code_team_hint', team=invite_team.name) }}
             {% endif %}
+            {% if invite_account_active_until %}
+            <div class="mt-1">
+                <i class="bi bi-calendar-event me-1"></i>{{ _('auth.coderegister.account_active_until_hint', date=invite_account_active_until.strftime('%d.%m.%Y')) }}
+            </div>
+            {% endif %}
         </div>
         {% endif %}
     </div>

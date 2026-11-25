@@ -38,7 +38,8 @@
       "meetings": "Meetings",
       "duty_roster": "Dienstplan",
       "booking_personal": "Booking",
-      "helpers": "Helferverwaltung"
+      "helpers": "Helferverwaltung",
+      "todos": "ToDos"
     },
     "brand": {
       "separator": "–",
@@ -92,7 +93,8 @@
       "description": "Installiere das Portal als App für schnelleren Zugriff und Offline-Nutzung.",
       "install": "Installieren",
       "later": "Später",
-      "never": "Nicht mehr anzeigen"
+      "never": "Nicht mehr anzeigen",
+      "ios_description": "Tippe in Safari auf das Teilen-Symbol und wähle „Zum Home-Bildschirm“."
     },
     "pwa_update": {
       "title": "Neue Version verfügbar",
@@ -227,7 +229,9 @@
       "flash_company_mail_success": "Registrierung erfolgreich! Ihr Konto und Firmenpostfach wurden aktiviert. Sie können sich nun anmelden.",
       "company_email_hint": "Registrierung nur mit autorisierter Firmen-E-Mail möglich ({domains}).",
       "company_email_only_hint": "Registrierung nur mit autorisierter Firmen-E-Mail möglich",
-      "company_mailbox_login_note": "Bitte verwenden Sie Ihr Firmenpostfach-Passwort."
+      "company_mailbox_login_note": "Bitte verwenden Sie Ihr Firmenpostfach-Passwort.",
+      "with_invite_code": "Mit Einladungscode",
+      "with_invite_code_aria": "Mit Einladungscode registrieren"
     },
     "confirm_email": {
       "title": "E-Mail bestätigen",
@@ -333,7 +337,8 @@
       "admin_mailserver_down_login_notice": "Der Unternehmens-Mailserver ist derzeit nicht erreichbar. Sie wurden als Administrator über Ihr lokales Passwort angemeldet.",
       "user_mailserver_down_login_notice": "Der Unternehmens-Mailserver ist derzeit nicht erreichbar. Sie wurden im Offline-Modus angemeldet.",
       "mailserver_unreachable_login_blocked": "Der Unternehmens-Mailserver ist derzeit nicht erreichbar. Die Anmeldung ist vorübergehend nicht möglich.",
-      "company_mailbox_blocked_or_invalid": "Anmeldung am Firmenpostfach fehlgeschlagen oder Konto gesperrt."
+      "company_mailbox_blocked_or_invalid": "Anmeldung am Firmenpostfach fehlgeschlagen oder Konto gesperrt.",
+      "account_expired_contact_admin": "Ihr Account ist abgelaufen und wurde deaktiviert. Bitte wenden Sie sich an einen Administrator."
     },
     "bot_protection": {
       "recaptcha_required": "Bitte bestätigen Sie, dass Sie kein Roboter sind."
@@ -380,7 +385,8 @@
       "submit": "Mit Code registrieren",
       "flash_code_required": "Bitte gib einen Einladungscode ein.",
       "flash_code_invalid": "Dieser Einladungscode ist ungültig, abgelaufen oder aufgebraucht.",
-      "code_team_portal_hint": "Mit diesem Code erhältst du einen vollwertigen Portal-Account und wirst Mitglied im Team „{team}“."
+      "code_team_portal_hint": "Mit diesem Code erhältst du einen vollwertigen Portal-Account und wirst Mitglied im Team „{team}“.",
+      "account_active_until_hint": "Dein Account bleibt bis einschließlich {date} aktiv."
     },
     "maintenance": {
       "title": "Wartungsarbeiten",
@@ -699,6 +705,12 @@
         "title": "Helferverwaltung",
         "helpers_count": "{count} Helfer",
         "empty": "Keine Helfer-Veranstaltungen vorhanden."
+      },
+      "todos": {
+        "title": "ToDos",
+        "empty": "Keine offenen ToDos für heute",
+        "overdue": "Überfällig",
+        "today": "Heute"
       }
     },
     "module_bar": {
@@ -741,7 +753,19 @@
       "add_selected": "Hinzufügen",
       "resize_width": "Breite",
       "resize_height": "Höhe",
-      "resize_size": "Größe"
+      "resize_size": "Größe",
+      "size_section": "Größe & Layout",
+      "size_tab_mobile": "Mobil",
+      "size_tab_desktop": "Desktop (PC)",
+      "size_width": "Breite",
+      "size_height": "Höhe",
+      "size_half": "Halb (1/2)",
+      "size_full": "Voll (2/2)",
+      "size_mobile_hint": "Gilt nur für die Smartphone-Ansicht (< 768px) und beeinflusst den PC nicht.",
+      "size_desktop_hint": "Gilt nur für die Desktop-Ansicht (≥ 768px) und beeinflusst Mobilgeräte nicht.",
+      "mobile_height_decrease": "Höhe verringern",
+      "mobile_height_increase": "Höhe vergrößern",
+      "mobile_width_toggle": "Breite umschalten"
     },
     "guest": {
       "use_modules": "Nutzen Sie die Modul-Leiste oben, um zu Ihren freigegebenen Bereichen zu gelangen."
@@ -841,6 +865,10 @@
           "excalidraw": {
             "label": "Excalidraw-Boards",
             "description": "Zuletzt bearbeitete Whiteboards und Skizzen."
+          },
+          "todos": {
+            "label": "ToDos",
+            "description": "Offene und überfällige Checklisten-Aufgaben für heute"
           }
         },
         "add": "Widget hinzufügen",
@@ -1544,7 +1572,19 @@
       "mirotalk_inactive": "Nicht aktiv",
       "hycanvas_label": "HyCanvas",
       "hycanvas_active": "Aktiv",
-      "hycanvas_inactive": "Nicht aktiv"
+      "hycanvas_inactive": "Nicht aktiv",
+      "apple_shortcut": {
+        "title": "Apple (iOS / iPadOS) Teilen-Kurzbefehl",
+        "info": "Safari auf iOS/iPadOS unterstützt das PWA-Teilen-Menü nicht nativ. Mit einem Apple-Kurzbefehl kannst du Links trotzdem direkt aus dem Teilen-Menü an Prismateams senden.",
+        "description": "So richtest du das Teilen für iPhone & iPad im Apple-Teilen-Menü ein:",
+        "step_1": "Öffne die Apple-App „Kurzbefehle“, tippe auf „+“ und aktiviere unter Info (i) „Im Share-Sheet anzeigen“ (für URLs & Text).",
+        "step_2": "Füge die Aktion „URL“ ein, kopiere die Adresse unten und hänge die Kurzbefehl-Eingabe direkt an „?url=“ an.",
+        "step_3": "Füge danach die Aktion „URLs öffnen“ hinzu – fertig.",
+        "url_label": "Kurzbefehl-Ziel-URL",
+        "copy_btn": "URL kopieren",
+        "copied": "Kopiert",
+        "open_share_screen": "Teilen-Screen öffnen"
+      }
     },
     "admin": {
       "page_title": "Administration - Einstellungen",
@@ -1595,7 +1635,9 @@
         "module_duty_roster": "Dienstplan",
         "module_booking_personal": "Booking",
         "module_helpers": "Helferverwaltung",
-        "module_canvas": "Canvas (HyCanvas)"
+        "module_canvas": "Canvas (HyCanvas)",
+        "module_todos": "ToDos",
+        "module_protocols": "Protokollführung"
       },
       "users": {
         "page_title": "Benutzerverwaltung - Administration",
@@ -2695,7 +2737,11 @@
           "role_portal_user_badge": "Portal-Nutzer",
           "role_team_only_help": "Neuer Benutzer erhält nur Zugriff auf Team-Bereiche",
           "role_portal_user_help": "Neuer Benutzer erhält vollen Zugriff (Public/Private/Team)",
-          "col_access": "Zugriff"
+          "col_access": "Zugriff",
+          "account_active_until": "Account aktiv bis",
+          "account_active_until_col": "Account bis",
+          "account_active_until_help": "Optional: Datum, bis zu dem registrierte Accounts aktiv bleiben dürfen. Am Folgetag werden sie deaktiviert und 7 Tage später gelöscht, falls sie nicht reaktiviert werden.",
+          "flash_invalid_account_active_until": "Ungültiges Ablaufdatum für den Account (darf nicht in der Vergangenheit liegen)."
         },
         "badge_member": "Mitglied"
       },
@@ -5041,7 +5087,21 @@
       "sync_edit": "Bearbeiten",
       "sync_save": "Speichern",
       "sync_color": "Farbe",
-      "sync_empty": "Noch keine Sync-Links. Jeder Benutzer kann einen hinzufügen — sichtbar für alle."
+      "sync_empty": "Noch keine Sync-Links. Jeder Benutzer kann einen hinzufügen — sichtbar für alle.",
+      "google_title": "Google Kalender (OAuth)",
+      "google_intro": "Importieren Sie auch geteilte Google-Kalender, in denen Sie nur Leserechte haben und keinen öffentlichen iCal-Link abrufen können.",
+      "google_connect_btn": "Mit Google verbinden",
+      "google_reconnect": "Konto wechseln / neu verbinden",
+      "google_reauth_hint": "Die Google-Kalender-Berechtigung fehlt oder ist abgelaufen. Bitte verbinden Sie Ihr Google-Konto erneut.",
+      "google_primary": "Hauptkalender",
+      "google_already_synced": "Bereits synchronisiert",
+      "google_add_btn": "Synchronisieren",
+      "google_empty": "Keine Google-Kalender gefunden.",
+      "google_not_configured": "Google OAuth ist in den Integrationen noch nicht konfiguriert.",
+      "google_connected": "Google-Konto für die Kalender-Synchronisation verbunden.",
+      "google_oauth_error": "Google-Kalender-Verbindung fehlgeschlagen: {error}",
+      "google_connect_first": "Bitte verbinden Sie zuerst Ihr Google-Konto.",
+      "google_already_added": "Dieser Google-Kalender ist bereits verknüpft — Synchronisation wurde gestartet."
     },
     "index": {
       "page_title": "Termine - Team Portal",
@@ -7405,6 +7465,7 @@
       "background_image_optional": "Optional: eigenes Bild hochladen (wird über der Farbe angezeigt)",
       "search_placeholder": "Karten oder Listen suchen…",
       "no_search_results": "Keine passenden Karten oder Listen gefunden",
+      "toggle_actions": "Board-Funktionen ein-/ausblenden",
       "move_list_left": "Nach links verschieben",
       "move_list_right": "Nach rechts verschieben",
       "list_default_fields": "Standard-Felder für neue Karten",
@@ -7418,7 +7479,11 @@
       "notifications_unread_only": "Nur ungelesene",
       "notifications_mark_all": "Alle als gelesen markieren",
       "notifications_mark_all_short": "Alle als gelesen",
-      "notifications_loading": "Lade Benachrichtigungen…"
+      "notifications_loading": "Lade Benachrichtigungen…",
+      "notifications_external_filter": "Portal & Push (außerhalb des Boards)",
+      "notifications_mode_all": "Alles",
+      "notifications_mode_assigned": "Zugewiesene Karten & Erwähnungen",
+      "notifications_mode_mentions_checklist": "Nur @Erwähnungen & Checklisten"
     },
     "custom_fields": {
       "title": "Benutzerdefinierte Felder",
@@ -7507,7 +7572,13 @@
       "delete_confirm": "Karte löschen?",
       "delete_list_confirm": "Liste und alle Karten löschen?",
       "delete_attachment_confirm": "Anhang löschen?",
-      "delete_poll_confirm": "Abstimmung entfernen?"
+      "delete_poll_confirm": "Abstimmung entfernen?",
+      "edit_eurooffice": "In Euro-Office bearbeiten",
+      "template_banner": "Dies ist eine Kartenvorlage.",
+      "create_from_template": "Karte aus Vorlage erstellen",
+      "template_badge": "Diese Karte ist eine Vorlage",
+      "mark_template": "Als Vorlage markieren",
+      "unmark_template": "Vorlage aufheben"
     },
     "filter": {
       "keyword": "Stichwort",
@@ -7568,6 +7639,23 @@
       "error_invalid_zip": "Ungültige ZIP-Datei",
       "error_empty_zip": "ZIP enthält keine JSON/CSV-Dateien",
       "visibility": "Sichtbarkeit"
+    },
+    "transfer": {
+      "title": "Kopieren / Verschieben",
+      "new_title": "Neuer Titel",
+      "target_board": "Ziel-Board",
+      "target_list": "Ziel-Liste",
+      "target_card": "Ziel-Karte",
+      "position": "Position",
+      "copy_card": "Karte kopieren…",
+      "move_card": "Karte verschieben…",
+      "copy_list": "Liste kopieren…",
+      "move_list": "Liste verschieben…",
+      "copy_checklist": "Checkliste kopieren…",
+      "move_checklist": "Checkliste verschieben…",
+      "copy_board": "Board kopieren…",
+      "move_board": "Board verschieben…",
+      "success": "Erfolgreich durchgeführt"
     }
   },
   "visibility": {
@@ -7979,6 +8067,48 @@
       "size_normal": "Normal",
       "size_large": "Groß",
       "size_huge": "Sehr groß"
+    },
+    "templates": {
+      "nav": "Vorlagen",
+      "title": "Protokollvorlagen",
+      "new": "Neue Vorlage",
+      "edit_title": "Vorlage bearbeiten",
+      "subtitle": "Vorbereitete Mitglieder und TOPs für wiederkehrende Besprechungen.",
+      "search_placeholder": "Vorlagen suchen…",
+      "empty": "Noch keine Vorlagen vorhanden.",
+      "title_label": "Name der Vorlage / Besprechung",
+      "title_placeholder": "z. B. Gesamtteamsitzung",
+      "title_required": "Bitte geben Sie einen Namen für die Vorlage ein.",
+      "members_label": "Vorbereitete Mitglieder",
+      "members_hint": "Namen mit Enter als Pille hinzufügen. Beim Start eines Protokolls können Sie sie einfach anhaken.",
+      "agenda_label": "Vorbereitete Tagesordnungspunkte (TOPs)",
+      "agenda_hint": "Diese TOPs werden beim Starten aus der Vorlage direkt übernommen.",
+      "save": "Vorlage speichern",
+      "delete_confirm": "Vorlage wirklich löschen?",
+      "save_as_template": "Als Vorlage speichern",
+      "start_action": "Protokoll führen",
+      "start_title": "Protokoll aus Vorlage starten",
+      "start_subtitle": "Anwesenheit anhaken und direkt mit den vorbereiteten TOPs loslegen.",
+      "start_submit": "Protokoll jetzt starten",
+      "start_edit_agenda": "Tagesordnung anpassen",
+      "pick_heading": "Schnellstart aus Vorlage",
+      "pick_hint": "Vorlage wählen, Mitglieder anhaken und direkt loslegen:",
+      "attendance_heading": "Anwesenheit abhaken",
+      "attendance_hint": "Haken Sie an, wer da ist. Nicht anwesende Personen können als entschuldigt oder unentschuldigt markiert werden.",
+      "mark_all_present": "Alle anwesend",
+      "mark_all_absent": "Alle abwählen",
+      "status_present": "Anwesend",
+      "status_excused": "Entschuldigt",
+      "status_absent": "Unentschuldigt",
+      "extra_participants": "Weitere Teilnehmer*innen (optional)",
+      "members_count": "{count} Mitglieder",
+      "tops_count": "{count} TOPs",
+      "no_members": "Keine Mitglieder in dieser Vorlage hinterlegt.",
+      "flash": {
+        "created": "Vorlage angelegt.",
+        "deleted": "Vorlage gelöscht.",
+        "saved_from_protocol": "Als Vorlage gespeichert. Sie können sie jetzt noch anpassen."
+      }
     }
   },
   "meetings": {
@@ -8503,5 +8633,67 @@
       "message_label": "Nachricht",
       "message_placeholder": "Optionale Nachricht zur Datei…"
     }
+  },
+  "todos": {
+    "title": "ToDos",
+    "new": "Neu",
+    "search_placeholder": "ToDos durchsuchen...",
+    "nav": {
+      "private": "Privat",
+      "public": "Public"
+    },
+    "view": {
+      "today": "Tagesansicht",
+      "all": "Alle ToDos"
+    },
+    "empty": "Keine offenen ToDos vorhanden.",
+    "completed_section": "Erledigt",
+    "modal": {
+      "create_title": "Neues ToDo erstellen",
+      "create_submit": "Erstellen",
+      "due_title": "Fälligkeit festlegen",
+      "clear_due": "Datum entfernen",
+      "assignee_title": "Person zuweisen"
+    },
+    "field": {
+      "title": "Titel",
+      "title_placeholder": "Aufgabe beschreiben...",
+      "due_date": "Fälligkeitsdatum (optional)",
+      "due_time": "Uhrzeit (optional)",
+      "assignee": "Zuweisen an (optional)",
+      "unassigned_pool": "Offener Aufgabenpool (nicht zugewiesen)"
+    },
+    "action": {
+      "claim": "Übernehmen",
+      "add_due": "Datum setzen",
+      "assign": "Person zuweisen"
+    },
+    "source": {
+      "kanban": "Kanban",
+      "event": "Veranstaltung"
+    }
+  },
+  "booking_personal": {
+    "search_placeholder": "In Booking suchen...",
+    "search_clear": "Suche löschen",
+    "filter_title": "Filter & Sortierung",
+    "filter_button_title": "Tabelle filtern & sortieren",
+    "filter_active": "Filter aktiv",
+    "filter_reset": "Zurücksetzen",
+    "filter_status": "Status",
+    "filter_status_all": "Alle Status",
+    "filter_area": "Bereich / Stage",
+    "filter_area_all": "Alle Bereiche",
+    "sort_by": "Sortieren nach",
+    "sort_default": "Standardreihenfolge",
+    "sort_name_asc": "Name (A–Z)",
+    "sort_name_desc": "Name (Z–A)",
+    "sort_status_asc": "Status (A–Z)",
+    "sort_status_desc": "Status (Z–A)",
+    "sort_area_asc": "Stage / Bereich (A–Z)",
+    "sort_area_desc": "Stage / Bereich (Z–A)",
+    "sort_total_desc": "Gesamt (höchste zuerst)",
+    "sort_total_asc": "Gesamt (niedrigste zuerst)",
+    "no_filter_results": "Keine Einträge passend zu Suche oder Filter gefunden."
   }
 }

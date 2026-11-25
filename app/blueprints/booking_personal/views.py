@@ -18,6 +18,7 @@ from app.models.booking_personal import (
     BookingPersonalEntry,
     BookingPersonalFile,
     BookingPersonalTemplate,
+    is_booking_formula_field,
 )
 from app.utils.access_control import check_module_access
 from app.utils.common import is_module_enabled
@@ -32,6 +33,11 @@ from .mail import (
     send_booking_personal_mail,
 )
 from . import booking_personal_bp
+
+
+@booking_personal_bp.app_template_global('is_bp_formula_field')
+def _template_is_bp_formula_field(field, include_formula=False):
+    return is_booking_formula_field(field, include_formula=include_formula)
 
 
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
@@ -77,6 +83,142 @@ def before_request():
     _check_access()
 
 
+def _cleanup_legacy_netto_field(event):
+    """Entfernt eventuell zuvor angelegte 'gage_netto'/'booking_fee_netto'-Felder, da Gage immer netto ist."""
+    removed = False
+    for f in list(event.fields):
+        if f.field_key in ('gage_netto', 'booking_fee_netto'):
+            db.session.delete(f)
+            removed = True
+    if removed:
+        db.session.commit()
+
+
+def _extract_option_values(field):
+    """Extrahiert definierte Option-Werte aus einem BookingPersonalField."""
+    values = []
+    if not field:
+        return values
+    for opt in field.get_options():
+        val = opt.get('value') if isinstance(opt, dict) else opt
+        if val is not None:
+            s = str(val).strip()
+            if s and s not in values:
+                values.append(s)
+    return values
+
+
+def _normalize_area_values(raw_val, area_field=None):
+    """Normalisiert Bereich/Stage-Werte (Einzelwert oder Multi-Select-Liste) zu einer String-Liste."""
+    if not raw_val:
+        return []
+    if area_field is not None:
+        return [v.strip() for v in area_field.parse_multi_value(raw_val) if str(v).strip()]
+    if isinstance(raw_val, list):
+        return [str(v).strip() for v in raw_val if str(v).strip()]
+    s = str(raw_val).strip()
+    if not s or s == '-':
+        return []
+    if s.startswith('[') and s.endswith(']'):
+        try:
+            parsed = json.loads(s)
+            if isinstance(parsed, list):
+                return [str(v).strip() for v in parsed if str(v).strip()]
+        except Exception:
+            pass
+    return [s]
+
+
+def _build_index_filter_metadata(fields, entries):
+    """Bereitet Status-/Bereichs-Optionen und normalisierte Zeilen-Metadaten für Filter & Sortierung auf."""
+    status_field = next(
+        (f for f in fields if f.field_key in ('status_booking', 'status')),
+        None
+    )
+    area_field = next(
+        (
+            f for f in fields
+            if f.field_key in ('bereich', 'stage', 'area', 'buehne')
+            or 'bereich' in (f.label or '').lower()
+            or 'stage' in (f.label or '').lower()
+            or 'stage' in (f.label_en or '').lower()
+        ),
+        None
+    )
+
+    status_field_key = status_field.field_key if status_field else 'status_booking'
+    area_field_key = area_field.field_key if area_field else 'bereich'
+
+    status_options = _extract_option_values(status_field)
+    area_options = _extract_option_values(area_field)
+    entry_filter_meta = {}
+
+    for entry in entries:
+        custom = entry.get_custom_data()
+        row_status = str(custom.get(status_field_key) or entry.status or '').strip()
+        if row_status and row_status != '-' and row_status not in status_options:
+            status_options.append(row_status)
+
+        raw_area = custom.get(area_field_key)
+        row_areas = _normalize_area_values(raw_area, area_field)
+        for area_val in row_areas:
+            if area_val != '-' and area_val not in area_options:
+                area_options.append(area_val)
+
+        row_name = str(
+            custom.get('project_name')
+            or custom.get('auftrittsname_projektname')
+            or custom.get('artist_name')
+            or custom.get('name')
+            or entry.name
+            or ''
+        ).strip()
+
+        entry_filter_meta[entry.id] = {
+            'status': row_status,
+            'areas': row_areas,
+            'name': row_name,
+        }
+
+    return status_field_key, area_field_key, status_options, area_options, entry_filter_meta
+
+
+def _build_dynamic_filters_and_sorts(fields, entries):
+    """Erstellt dynamische Filter (alle badge_select/multi_select-Felder) und Sortier-Optionen für beliebige Listen."""
+    dynamic_filters = []
+    dynamic_sorts = []
+    non_sortable_types = ('action_accept', 'form_link', 'image_upload', 'file_upload')
+
+    entry_custom_list = [e.get_custom_data() for e in entries]
+
+    for f in fields:
+        if f.field_type == 'action_accept':
+            continue
+
+        if f.field_type in ('badge_select', 'multi_select'):
+            opts = _extract_option_values(f)
+            for custom in entry_custom_list:
+                raw_val = custom.get(f.field_key)
+                for val in _normalize_area_values(raw_val, f):
+                    if val and val != '-' and val not in opts:
+                        opts.append(val)
+            if opts:
+                dynamic_filters.append({
+                    'field_key': f.field_key,
+                    'label': f.label,
+                    'options': opts,
+                })
+
+        if f.field_type not in non_sortable_types:
+            dynamic_sorts.append({
+                'field_key': f.field_key,
+                'label': f.label,
+                'is_numeric': f.field_type in ('currency', 'counter', 'number', 'formula'),
+            })
+
+    return dynamic_filters, dynamic_sorts
+
+
 @booking_personal_bp.route('/')
 @booking_personal_bp.route('/event/<int:event_id>')
 def index(event_id=None):
@@ -104,11 +246,17 @@ def index(event_id=None):
     fields = []
     entries = []
     if current_event:
+        _cleanup_legacy_netto_field(current_event)
         fields = current_event.fields
         entries = current_event.entries
         # Stelle sicher, dass Formelwerte aktuell berechnet sind
         for entry in entries:
             entry.compute_formula_values(fields)
+
+    status_field_key, area_field_key, status_options, area_options, entry_filter_meta = (
+        _build_index_filter_metadata(fields, entries)
+    )
+    dynamic_filters, dynamic_sorts = _build_dynamic_filters_and_sorts(fields, entries)
 
     return render_template(
         'booking_personal/index.html',
@@ -118,6 +266,13 @@ def index(event_id=None):
         entries=entries,
         templates=templates,
         mailboxes=mailboxes,
+        status_field_key=status_field_key,
+        area_field_key=area_field_key,
+        status_options=status_options,
+        area_options=area_options,
+        entry_filter_meta=entry_filter_meta,
+        dynamic_filters=dynamic_filters,
+        dynamic_sorts=dynamic_sorts,
     )
 
 
@@ -150,6 +305,12 @@ def act_detail(event_id, entry_id):
             categories[cat] = []
         categories[cat].append(f)
 
+    file_names = {
+        bf.file_path: bf.file_name
+        for bf in BookingPersonalFile.query.filter_by(entry_id=entry.id).all()
+        if bf.file_path and bf.file_name
+    }
+
     return render_template(
         'booking_personal/act_detail.html',
         events=events,
@@ -160,6 +321,7 @@ def act_detail(event_id, entry_id):
         templates=templates,
         mailboxes=mailboxes,
         categories=categories,
+        file_names=file_names,
     )
 
 
@@ -172,8 +334,19 @@ def create_event():
         return redirect(url_for('booking_personal.index'))
 
     template_id = request.form.get('template_id')
+    raw_budget = request.form.get('total_budget', '').strip()
+    total_budget = None
+    if raw_budget:
+        try:
+            parsed_budget = float(raw_budget.replace('€', '').replace(',', '.').strip())
+            if parsed_budget >= 0:
+                total_budget = round(parsed_budget, 2)
+        except (ValueError, TypeError):
+            total_budget = None
+
     event = BookingPersonalEvent(
         name=name,
+        total_budget=total_budget,
         created_by=current_user.id
     )
     db.session.add(event)
@@ -229,9 +402,21 @@ def update_event_settings(event_id):
     event = BookingPersonalEvent.query.get_or_404(event_id)
     active_tab = request.form.get('active_tab', 'emails')
 
-    name = request.form.get('name', '').strip()
+    name = (request.form.get('event_name') or request.form.get('name') or '').strip()
     if name:
         event.name = name
+
+    if 'total_budget' in request.form:
+        raw_budget = request.form.get('total_budget', '').strip()
+        if not raw_budget:
+            event.total_budget = None
+        else:
+            try:
+                parsed_budget = float(raw_budget.replace('€', '').replace(',', '.').strip())
+                if parsed_budget >= 0:
+                    event.total_budget = round(parsed_budget, 2)
+            except (ValueError, TypeError):
+                pass
 
     mailbox_id = request.form.get('mailbox_id')
     if mailbox_id and mailbox_id.isdigit():
@@ -334,6 +519,10 @@ def api_save_cell(entry_id):
     if not field_key:
         return jsonify({'success': False, 'error': 'field_key fehlt'}), 400
 
+    field_obj = next((f for f in entry.event.fields if f.field_key == field_key), None)
+    if field_obj and field_obj.field_type == 'currency':
+        value = BookingPersonalEntry.format_currency_value(value)
+
     entry.set_value(field_key, value)
     entry.compute_formula_values(entry.event.fields)
     db.session.commit()
@@ -364,6 +553,16 @@ def api_create_entry(event_id):
     entry.set_value('project_name', name)
     entry.set_value('status_booking', 'Angefragt')
     entry.set_value('gage', '€0.00')
+
+    if data.get('gage') not in (None, ''):
+        try:
+            gage_num = float(str(data.get('gage')).replace('€', '').replace(',', '.').strip() or 0)
+            entry.set_value('gage', f'€{gage_num:.2f}')
+        except (ValueError, TypeError):
+            pass
+    if data.get('steuersatz'):
+        entry.set_value('steuersatz', str(data.get('steuersatz')).strip())
+
     entry.compute_formula_values(event.fields)
 
     db.session.add(entry)
@@ -375,6 +574,32 @@ def api_create_entry(event_id):
     })
 
 
+@booking_personal_bp.route('/api/event/<int:event_id>/budget', methods=['POST'])
+def api_update_event_budget(event_id):
+    """Aktualisiert das Gesamtbudget eines Events."""
+    event = BookingPersonalEvent.query.get_or_404(event_id)
+    data = request.get_json() or {}
+    raw_val = data.get('total_budget')
+
+    if raw_val in (None, ''):
+        event.total_budget = None
+    else:
+        try:
+            cleaned = str(raw_val).replace('€', '').replace(' ', '').replace(',', '.').strip()
+            budget = float(cleaned)
+            if budget < 0:
+                return jsonify({'success': False, 'error': 'Das Gesamtbudget darf nicht negativ sein.'}), 400
+            event.total_budget = round(budget, 2)
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'Ungültiger Budget-Betrag.'}), 400
+
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'total_budget': event.total_budget,
+    })
+
+
 @booking_personal_bp.route('/api/entry/<int:entry_id>/delete', methods=['POST'])
 def api_delete_entry(entry_id):
     """Löscht einen Eintrag aus der Tabelle."""
@@ -382,6 +607,97 @@ def api_delete_entry(entry_id):
     db.session.delete(entry)
     db.session.commit()
     return jsonify({'success': True})
+
+
+_BOOKING_IMAGE_EXTS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+_BOOKING_ALLOWED_EXTS = _BOOKING_IMAGE_EXTS | {'pdf', 'doc', 'docx', 'txt', 'zip', 'xlsx', 'xls', 'csv'}
+
+
+@booking_personal_bp.route('/api/entry/<int:entry_id>/upload', methods=['POST'])
+def api_upload_entry_file(entry_id):
+    """Ermöglicht Admins den direkten Datei- oder Bild-Upload für ein Act-Feld."""
+    entry = BookingPersonalEntry.query.get_or_404(entry_id)
+    field_key = (request.form.get('field_key') or '').strip()
+    if not field_key:
+        return jsonify({'success': False, 'error': 'field_key fehlt'}), 400
+
+    files = request.files.getlist('files') or request.files.getlist('file')
+    if not files:
+        return jsonify({'success': False, 'error': 'Keine Datei ausgewählt.'}), 400
+
+    upload_dir = os.path.join(
+        current_app.config.get('UPLOAD_FOLDER', 'uploads'),
+        'booking_personal',
+        str(entry.event_id),
+    )
+    os.makedirs(upload_dir, exist_ok=True)
+
+    custom_data = entry.get_custom_data()
+    uploaded_paths = custom_data.get(field_key, [])
+    if not isinstance(uploaded_paths, list):
+        uploaded_paths = [uploaded_paths] if uploaded_paths and uploaded_paths != '-' else []
+
+    added_count = 0
+    for file_item in files:
+        if not file_item or not file_item.filename or '.' not in file_item.filename:
+            continue
+        ext = file_item.filename.rsplit('.', 1)[1].lower()
+        if ext not in _BOOKING_ALLOWED_EXTS:
+            continue
+        filename = secure_filename(
+            f"{entry.id}_{field_key}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{file_item.filename}"
+        )
+        save_path = os.path.join(upload_dir, filename)
+        file_item.save(save_path)
+        rel_url = f"/uploads/booking_personal/{entry.event_id}/{filename}"
+        uploaded_paths.append(rel_url)
+
+        db_file = BookingPersonalFile(
+            entry_id=entry.id,
+            field_key=field_key,
+            file_path=rel_url,
+            file_name=file_item.filename,
+            is_image=(ext in _BOOKING_IMAGE_EXTS),
+            mime_type=file_item.mimetype,
+        )
+        db.session.add(db_file)
+        added_count += 1
+
+    if added_count == 0:
+        return jsonify({'success': False, 'error': 'Dateityp nicht erlaubt oder ungültige Datei.'}), 400
+
+    custom_data[field_key] = uploaded_paths
+    entry.set_custom_data(custom_data)
+    db.session.commit()
+
+    return jsonify({'success': True, 'paths': uploaded_paths})
+
+
+@booking_personal_bp.route('/api/entry/<int:entry_id>/file-delete', methods=['POST'])
+def api_delete_entry_file(entry_id):
+    """Entfernt eine hochgeladene Datei / ein Bild aus einem Act-Feld."""
+    entry = BookingPersonalEntry.query.get_or_404(entry_id)
+    data = request.get_json() or {}
+    field_key = (data.get('field_key') or '').strip()
+    file_path = (data.get('file_path') or '').strip()
+    if not field_key or not file_path:
+        return jsonify({'success': False, 'error': 'Parameter fehlen.'}), 400
+
+    custom_data = entry.get_custom_data()
+    cur_vals = custom_data.get(field_key, [])
+    if not isinstance(cur_vals, list):
+        cur_vals = [cur_vals] if cur_vals else []
+
+    new_vals = [p for p in cur_vals if p != file_path]
+    custom_data[field_key] = new_vals
+    entry.set_custom_data(custom_data)
+
+    BookingPersonalFile.query.filter_by(
+        entry_id=entry.id, field_key=field_key, file_path=file_path
+    ).delete()
+    db.session.commit()
+
+    return jsonify({'success': True, 'paths': new_vals})
 
 
 @booking_personal_bp.route('/api/entry/<int:entry_id>', methods=['GET'])
@@ -402,7 +718,11 @@ def api_update_entry_all(entry_id):
     entry = BookingPersonalEntry.query.get_or_404(entry_id)
     data = request.get_json() or {}
 
+    fields_by_key = {f.field_key: f for f in entry.event.fields}
     for k, v in data.items():
+        field_obj = fields_by_key.get(k)
+        if field_obj and field_obj.field_type == 'currency':
+            v = BookingPersonalEntry.format_currency_value(v)
         entry.set_value(k, v)
 
     entry.compute_formula_values(entry.event.fields)
@@ -904,6 +1224,7 @@ def template_field_add(template_id):
     raw_width = request.form.get('width')
     width = int(raw_width) if raw_width and int(raw_width) > 0 else auto_column_width(field_type, label)
     options_raw = request.form.get('options', '').strip()
+    formula_definition = request.form.get('formula_definition', '').strip() if field_type == 'formula' else ''
 
     if not label:
         flash('Bitte eine Feldbezeichnung angeben.', 'warning')
@@ -948,15 +1269,27 @@ def template_field_add(template_id):
         'visible_in_overview': visible_in_overview,
         'width': width,
         'options': options,
-        'formula_definition': '',
+        'formula_definition': formula_definition,
         'help_text': '',
         'is_required': False,
     }
     fields.append(new_field_def)
+
+    added_tax_field = False
+    label_key_text = f"{label.lower()} {label_en.lower()} {field_key.lower()}"
+    if any(w in label_key_text for w in ('fee', 'gage')) and 'steuersatz' not in existing_keys:
+        steuer_preset = next((f for f in FESTIVAL_STANDARD_FIELDS if f.get('field_key') == 'steuersatz'), None)
+        if steuer_preset:
+            fields.append(dict(steuer_preset))
+            added_tax_field = True
+
     template.set_fields(fields)
     db.session.commit()
 
-    flash(f'Spalte „{label}“ erfolgreich zur Vorlage hinzugefügt.', 'success')
+    if added_tax_field:
+        flash(f'Spalte „{label}“ sowie automatisch „Steuersatz“ zur Vorlage hinzugefügt.', 'success')
+    else:
+        flash(f'Spalte „{label}“ erfolgreich zur Vorlage hinzugefügt.', 'success')
     return redirect(url_for('booking_personal.templates_view', template_id=template.id))
 
 

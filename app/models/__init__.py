@@ -95,7 +95,7 @@ from .survey import (
     SurveyEmailVerification,
     SurveyResponseLock,
 )
-from .protocol import Protocol, ProtocolAgendaItem
+from .protocol import Protocol, ProtocolAgendaItem, ProtocolTemplate, ProtocolTemplateAgendaItem
 from .meetings import Meeting, MeetingInvite
 from .duty_roster import (
     DutyRoster,
@@ -144,6 +144,7 @@ from .kanban import (
     KanbanCardFieldEnabled,
     KanbanCardFieldValue,
 )
+from .todo import TodoItem
 
 __all__ = [
     'User', 'UserSession',
@@ -189,7 +190,7 @@ __all__ = [
     'ExcalidrawDrawing', 'ExcalidrawDrawingVersion',
     'Survey', 'SurveyPage', 'SurveyQuestion', 'SurveyLogicRule',
     'SurveyResponse', 'SurveyAnswer', 'SurveyEmailVerification', 'SurveyResponseLock',
-    'Protocol', 'ProtocolAgendaItem',
+    'Protocol', 'ProtocolAgendaItem', 'ProtocolTemplate', 'ProtocolTemplateAgendaItem',
     'Meeting', 'MeetingInvite',
     'DutyRoster', 'DutyRosterDay', 'DutyRosterColumn', 'DutyRosterEntry',
     'DutyPersonConfig', 'DutyExternalPerson', 'DutyRosterPlanner', 'DutyTimeEntry',
@@ -198,6 +199,7 @@ __all__ = [
     'HelperEvent', 'Helper', 'HelperArea', 'HelperAreaWish',
     'HelperShift', 'HelperFieldConfig', 'HelperVoucherRule',
     'BookingRoom', 'BookingForm', 'BookingFormField', 'BookingFormImage', 'BookingRequest', 'BookingRequestMessage', 'BookingRequestField', 'BookingRequestFile', 'BookingFormRole', 'BookingFormRoleUser', 'BookingRequestApproval',
+    'TodoItem',
 ]
 
 

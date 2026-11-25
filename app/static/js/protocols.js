@@ -202,11 +202,6 @@
         var hidden = document.getElementById('contentHtml');
         if (!editorEl || !form || !hidden || typeof Quill === 'undefined') return;
 
-        var hasBetterTable = typeof quillBetterTable !== 'undefined';
-        if (hasBetterTable) {
-            Quill.register({ 'modules/better-table': quillBetterTable }, true);
-        }
-
         var toolbarOptions = [
             [{ size: ['small', false, 'large', 'huge'] }],
             ['bold', 'italic', 'underline', 'strike'],
@@ -224,12 +219,7 @@
                 container: toolbarEl || toolbarOptions,
                 handlers: {
                     table: function () {
-                        if (!hasBetterTable) {
-                            insertFallbackTable(this.quill);
-                            return;
-                        }
-                        var tableModule = this.quill.getModule('better-table');
-                        if (tableModule) tableModule.insertTable(3, 3);
+                        insertFallbackTable(this.quill);
                     },
                 },
             },
@@ -277,30 +267,6 @@
             });
         }
 
-        if (hasBetterTable) {
-            modules.table = false;
-            modules['better-table'] = {
-                operationMenu: {
-                    items: {
-                        insertColumnRight: { text: 'Spalte rechts' },
-                        insertColumnLeft: { text: 'Spalte links' },
-                        insertRowUp: { text: 'Zeile darüber' },
-                        insertRowDown: { text: 'Zeile darunter' },
-                        mergeCells: { text: 'Zellen verbinden' },
-                        unmergeCells: { text: 'Zellen trennen' },
-                        deleteColumn: { text: 'Spalte löschen' },
-                        deleteRow: { text: 'Zeile löschen' },
-                        deleteTable: { text: 'Tabelle löschen' },
-                    },
-                },
-            };
-            if (quillBetterTable.keyboardBindings) {
-                modules.keyboard = {
-                    bindings: quillBetterTable.keyboardBindings,
-                };
-            }
-        }
-
         var quill = new Quill('#protocolsEditor', {
             theme: 'snow',
             modules: modules,
@@ -328,35 +294,65 @@
         var statusEl = document.getElementById('protocolsAutosaveStatus');
         var autosaveUrl = form.getAttribute('data-autosave-url');
         var timer = null;
+        var inFlightSave = null;
         var i18n = window.PROTOCOLS_I18N || {};
 
+        function getCsrfToken() {
+            if (window.PrismateamsCsrf && typeof window.PrismateamsCsrf.getToken === 'function') {
+                return window.PrismateamsCsrf.getToken();
+            }
+            var meta = document.querySelector('meta[name="csrf-token"]');
+            return (meta && meta.content) ? meta.content : '';
+        }
+
         function autosave() {
-            if (!autosaveUrl) return;
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
             syncHidden();
+            if (!autosaveUrl) return Promise.resolve();
             if (statusEl) statusEl.textContent = i18n.saving || '';
             var titleInput = document.getElementById('itemTitle');
-            fetch(autosaveUrl, {
+            var payload = JSON.stringify({
+                title: titleInput ? titleInput.value : '',
+                content_html: hidden.value,
+            });
+            var headers = {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            };
+            var csrfToken = getCsrfToken();
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken;
+            }
+            var req = fetch(autosaveUrl, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                body: JSON.stringify({
-                    title: titleInput ? titleInput.value : '',
-                    content_html: hidden.value,
-                }),
+                headers: headers,
+                body: payload,
                 credentials: 'same-origin',
             })
-                .then(function (r) { return r.json(); })
+                .then(function (r) {
+                    if (!r.ok) throw new Error('autosave_failed');
+                    return r.json();
+                })
                 .then(function (data) {
-                    if (statusEl && data && data.ok) {
+                    if (data && data.ok && statusEl) {
                         statusEl.textContent = i18n.autosaved || '';
                     }
                 })
-                .catch(function () { /* ignore */ });
+                .catch(function () { /* ignore */ })
+                .finally(function () {
+                    if (inFlightSave === req) {
+                        inFlightSave = null;
+                    }
+                });
+            inFlightSave = req;
+            return req;
         }
 
         function scheduleAutosave() {
+            syncHidden();
             if (timer) clearTimeout(timer);
             timer = setTimeout(autosave, 1200);
         }
@@ -365,9 +361,38 @@
         var titleInput = document.getElementById('itemTitle');
         if (titleInput) titleInput.addEventListener('input', scheduleAutosave);
 
+        document.querySelectorAll('button[form="protocolsItemForm"], #protocolsItemForm button[type="submit"]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                syncHidden();
+            });
+        });
+
         form.addEventListener('submit', function () {
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
             syncHidden();
         });
+
+        // Always save before navigating via TOP-pills, step-links, or back/close buttons
+        var workspace = form.closest('.protocols-workspace--editor');
+        if (workspace) {
+            workspace.addEventListener('click', function (e) {
+                var link = e.target.closest('a[href]');
+                if (!link || link.target === '_blank' || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+                e.preventDefault();
+                var href = link.href;
+                var waitForInFlight = inFlightSave ? inFlightSave.catch(function () {}) : Promise.resolve();
+                waitForInFlight
+                    .then(function () {
+                        return autosave();
+                    })
+                    .finally(function () {
+                        window.location.href = href;
+                    });
+            });
+        }
     }
 
     function insertFallbackTable(quill) {
@@ -435,9 +460,68 @@
         el.classList.add('protocols-ql-toolbar', 'ql-toolbar', 'ql-snow');
     }
 
+    function initAttendanceChecklist() {
+        var container = document.querySelector('[data-attendance-checklist]');
+        if (!container) return;
+
+        var rows = container.querySelectorAll('[data-attendance-row]');
+
+        function setRowStatus(row, status) {
+            var checkbox = row.querySelector('[data-member-present]');
+            var statusInput = row.querySelector('[data-member-status]');
+            var pills = row.querySelectorAll('[data-absent-choice]');
+            if (!statusInput || !checkbox) return;
+
+            if (status === 'present') {
+                checkbox.checked = true;
+                row.classList.add('is-present');
+                statusInput.value = 'present';
+            } else {
+                checkbox.checked = false;
+                row.classList.remove('is-present');
+                var choice = status === 'excused' ? 'excused' : 'absent';
+                statusInput.value = choice;
+                pills.forEach(function (pill) {
+                    pill.classList.toggle('is-selected', pill.getAttribute('data-absent-choice') === choice);
+                });
+            }
+        }
+
+        rows.forEach(function (row) {
+            var checkbox = row.querySelector('[data-member-present]');
+            var pills = row.querySelectorAll('[data-absent-choice]');
+            if (checkbox) {
+                checkbox.addEventListener('change', function () {
+                    if (checkbox.checked) {
+                        setRowStatus(row, 'present');
+                    } else {
+                        var selected = row.querySelector('[data-absent-choice].is-selected');
+                        setRowStatus(row, selected ? selected.getAttribute('data-absent-choice') : 'absent');
+                    }
+                });
+            }
+            pills.forEach(function (pill) {
+                pill.addEventListener('click', function () {
+                    var choice = pill.getAttribute('data-absent-choice') || 'absent';
+                    setRowStatus(row, choice);
+                });
+            });
+        });
+
+        container.querySelectorAll('[data-attendance-all]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var target = btn.getAttribute('data-attendance-all');
+                rows.forEach(function (row) {
+                    setRowStatus(row, target === 'present' ? 'present' : 'absent');
+                });
+            });
+        });
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
         initChipFields();
         initAgenda();
+        initAttendanceChecklist();
         initQuillEditor();
     });
 })();

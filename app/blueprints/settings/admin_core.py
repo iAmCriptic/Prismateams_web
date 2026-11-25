@@ -1195,23 +1195,54 @@ def admin_modules():
         # Meetings nur mit MiroTalk — ohne URL immer aus (kein „stuck“ True in der DB)
         if not mirotalk_configured():
             modules['module_meetings'] = False
+        existing_settings = {
+            s.key: s
+            for s in SystemSettings.query.filter(
+                SystemSettings.key.in_(
+                    list(AVAILABLE_MODULES) + [SETTING_ALLOW_PRIVATE, SETTING_ALLOW_TEAM, SETTING_ALLOW_PUBLIC]
+                )
+            ).all()
+        }
+
         for module_key, enabled in modules.items():
-            module_setting = SystemSettings.query.filter_by(key=module_key).first()
+            target_val = str(enabled)
+            module_setting = existing_settings.get(module_key)
             if module_setting:
-                module_setting.value = str(enabled)
+                if module_setting.value != target_val:
+                    module_setting.value = target_val
             else:
-                db.session.add(SystemSettings(key=module_key, value=str(enabled), description=f'Modul {module_key} aktiviert'))
+                db.session.add(SystemSettings(key=module_key, value=target_val, description=f'Modul {module_key} aktiviert'))
 
         allow_private = request.form.get('modules_allow_private') == 'on'
         allow_team = request.form.get('modules_allow_team') == 'on'
         allow_public = request.form.get('modules_allow_public') == 'on'
+
+        prev_private = (existing_settings.get(SETTING_ALLOW_PRIVATE).value if existing_settings.get(SETTING_ALLOW_PRIVATE) else None)
+        prev_team = (existing_settings.get(SETTING_ALLOW_TEAM).value if existing_settings.get(SETTING_ALLOW_TEAM) else None)
+        prev_public = (existing_settings.get(SETTING_ALLOW_PUBLIC).value if existing_settings.get(SETTING_ALLOW_PUBLIC) else None)
+
         upsert_setting(SETTING_ALLOW_PRIVATE, str(allow_private).lower(), 'Module: Private Varianten')
         upsert_setting(SETTING_ALLOW_TEAM, str(allow_team).lower(), 'Module: Team-Varianten')
         upsert_setting(SETTING_ALLOW_PUBLIC, str(allow_public).lower(), 'Module: Public-Varianten')
-        sync_legacy_visibility_keys(allow_private, allow_team, allow_public)
 
-        db.session.commit()
-        return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.admin_modules')
+        if (
+            prev_private != str(allow_private).lower()
+            or prev_team != str(allow_team).lower()
+            or prev_public != str(allow_public).lower()
+        ):
+            sync_legacy_visibility_keys(allow_private, allow_team, allow_public)
+
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+        return _settings_save_response(
+            True,
+            translate('settings.autosave.saved'),
+            'settings.admin_modules',
+            full_reload=True,
+        )
     
     # Get module settings
     from app.utils.common import is_module_enabled, AVAILABLE_MODULES

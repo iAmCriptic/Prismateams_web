@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+{% block title %}{{ _('todos.title') }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/todos.css') }}">
+{% endblock %}
+
+{% block navbar_search %}
+<div class="mod-search" role="search">
+  <label class="mod-search-field" for="todosSearchInput">
+    <i class="bi bi-search" aria-hidden="true"></i>
+    <input type="text"
+           id="todosSearchInput"
+           class="mod-search-input"
+           value="{{ search_query|default('') }}"
+           placeholder="{{ _('todos.search_placeholder') }}"
+           autocomplete="off"
+           spellcheck="false"
+           enterkeyhint="search">
+  </label>
+  <button type="button" class="btn mod-search-clear{% if not search_query %} d-none{% endif %}" id="todosSearchClear" aria-label="{{ _('common.cancel') }}">
+    <i class="bi bi-x-lg" aria-hidden="true"></i>
+  </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="todos-shell mod-shell--nav"
+     id="todosShell"
+     data-section="{{ section }}"
+     data-team-id="{{ team_id or '' }}"
+     data-view="{{ view_mode }}"
+     data-today="{{ today_iso }}">
+  {% include 'todos/_sidebar.html' %}
+
+  <div class="mod-main todos-main">
+    <div class="mod-mobile-topbar d-lg-none">
+      <button type="button" class="btn mod-menu-btn" data-bs-toggle="offcanvas" data-bs-target="#todosMobileNav" aria-label="{{ _('common.menu') }}">
+        <i class="bi bi-list" aria-hidden="true"></i>
+      </button>
+      <span class="mod-mobile-title">
+        {% if section == 'team' and active_team %}{{ active_team.name }}{% elif section == 'public' %}{{ _('todos.nav.public') }}{% else %}{{ _('todos.nav.private') }}{% endif %}
+      </span>
+      <button type="button" class="btn mod-pill-btn mod-pill-btn--new mod-pill-btn--accent btn-accent" data-bs-toggle="modal" data-bs-target="#createTodoModal" aria-label="{{ _('todos.new') }}">
+        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+      </button>
+    </div>
+
+    <div class="page-toolbar-row mod-toolbar d-flex flex-wrap align-items-center gap-2 mb-3">
+      <h1 class="h4 mb-0 d-none d-lg-block">
+        {% if section == 'team' and active_team %}{{ active_team.name }}{% elif section == 'public' %}{{ _('todos.nav.public') }}{% else %}{{ _('todos.nav.private') }}{% endif %}
+      </h1>
+
+      <div class="mod-search d-lg-none flex-grow-1" role="search">
+        <label class="mod-search-field" for="todosSearchInputMobile">
+          <i class="bi bi-search" aria-hidden="true"></i>
+          <input type="text"
+                 id="todosSearchInputMobile"
+                 class="mod-search-input"
+                 value="{{ search_query|default('') }}"
+                 placeholder="{{ _('todos.search_placeholder') }}"
+                 autocomplete="off"
+                 spellcheck="false"
+                 enterkeyhint="search">
+        </label>
+        <button type="button" class="btn mod-search-clear{% if not search_query %} d-none{% endif %}" id="todosSearchClearMobile" aria-label="{{ _('common.cancel') }}">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+      </div>
+
+      <div class="mod-toolbar-actions ms-auto d-flex align-items-center gap-2">
+        <div class="mod-view-toggle mod-view-toggle--labeled" data-view="{{ view_mode }}" role="group" aria-label="{{ _('todos.view.today') }} / {{ _('todos.view.all') }}">
+          <a class="mod-view-toggle__btn{% if view_mode == 'today' %} active is-active{% endif %}"
+             href="{{ url_for('todos.index', section=section, team_id=team_id, view='today', q=search_query or None) }}"
+             data-view-btn="today"{% if view_mode == 'today' %} aria-current="page"{% endif %}>
+            <i class="bi bi-calendar-day" aria-hidden="true"></i><span>{{ _('todos.view.today') }}</span>
+          </a>
+          <a class="mod-view-toggle__btn{% if view_mode == 'all' %} active is-active{% endif %}"
+             href="{{ url_for('todos.index', section=section, team_id=team_id, view='all', q=search_query or None) }}"
+             data-view-btn="all"{% if view_mode == 'all' %} aria-current="page"{% endif %}>
+            <i class="bi bi-list-check" aria-hidden="true"></i><span>{{ _('todos.view.all') }}</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div id="todosListContainer">
+      <div class="todos-list-card{% if not open_items %} d-none{% endif %}" id="todosOpenCard">
+        <div id="todosOpenList">
+          {% for item in open_items %}
+            {% include 'todos/_item_row.html' %}
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="text-muted py-4 text-center{% if open_items %} d-none{% endif %}" id="todosEmptyState">
+        <i class="bi bi-check2-circle fs-3 d-block mb-2" aria-hidden="true"></i>
+        <span>{{ _('todos.empty') }}</span>
+      </div>
+
+      <div class="mt-3{% if not completed_items %} d-none{% endif %}" id="todosCompletedSection">
+        <button class="todo-completed-toggle" type="button" data-bs-toggle="collapse" data-bs-target="#todosCompletedCollapse" aria-expanded="false">
+          <i class="bi bi-chevron-down" aria-hidden="true"></i>
+          <span>{{ _('todos.completed_section') }} (<span id="todosCompletedCount">{{ completed_items|length }}</span>)</span>
+        </button>
+        <div class="collapse mt-1" id="todosCompletedCollapse">
+          <div class="todos-list-card" id="todosCompletedList">
+            {% for item in completed_items %}
+              {% include 'todos/_item_row.html' %}
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modals außerhalb von .mod-shell--nav gemäß STYLEGUIDE.md -->
+<div class="modal fade" id="createTodoModal" tabindex="-1" aria-labelledby="createTodoModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form id="createTodoForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="createTodoModalLabel">{{ _('todos.modal.create_title') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+        </div>
+        <div class="modal-body d-grid gap-3">
+          <div>
+            <label class="form-label" for="createTodoTitle">{{ _('todos.field.title') }}</label>
+            <input type="text" class="form-control mod-pill-input" id="createTodoTitle" required maxlength="500" placeholder="{{ _('todos.field.title_placeholder') }}">
+          </div>
+          <div class="row g-2">
+            <div class="col-7">
+              <label class="form-label" for="createTodoDueDate">{{ _('todos.field.due_date') }}</label>
+              <input type="date" class="form-control mod-pill-input" id="createTodoDueDate" value="{{ today_iso if view_mode == 'today' else '' }}">
+            </div>
+            <div class="col-5">
+              <label class="form-label" for="createTodoDueTime">{{ _('todos.field.due_time') }}</label>
+              <input type="time" class="form-control mod-pill-input" id="createTodoDueTime">
+            </div>
+          </div>
+          {% if section != 'private' %}
+          <div>
+            <label class="form-label" for="createTodoAssignee">{{ _('todos.field.assignee') }}</label>
+            <select class="form-select mod-pill-input" id="createTodoAssignee">
+              <option value="">{{ _('todos.field.unassigned_pool') }}</option>
+              {% for u in assignable_users %}
+              <option value="{{ u.id }}">{{ u.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn mod-pill-btn mod-pill-btn--outline-muted" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+          <button type="submit" class="btn mod-pill-btn mod-pill-btn--accent btn-accent">{{ _('todos.modal.create_submit') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="todoDueModal" tabindex="-1" aria-labelledby="todoDueModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <form id="todoDueForm">
+        <div class="modal-header">
+          <h5 class="modal-title" id="todoDueModalLabel">{{ _('todos.modal.due_title') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+        </div>
+        <div class="modal-body d-grid gap-2">
+          <div>
+            <label class="form-label" for="todoDueDateInput">{{ _('todos.field.due_date') }}</label>
+            <input type="date" class="form-control mod-pill-input" id="todoDueDateInput">
+          </div>
+          <div>
+            <label class="form-label" for="todoDueTimeInput">{{ _('todos.field.due_time') }}</label>
+            <input type="time" class="form-control mod-pill-input" id="todoDueTimeInput">
+          </div>
+        </div>
+        <div class="modal-footer justify-content-between">
+          <button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--outline-muted" id="todoDueClearBtn">{{ _('todos.modal.clear_due') }}</button>
+          <button type="submit" class="btn btn-sm mod-pill-btn mod-pill-btn--accent btn-accent">{{ _('common.save') }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="todoAssigneeModal" tabindex="-1" aria-labelledby="todoAssigneeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="todoAssigneeModalLabel">{{ _('todos.modal.assignee_title') }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ _('common.close') }}"></button>
+      </div>
+      <div class="modal-body d-grid gap-1">
+        <button type="button" class="btn btn-sm text-start mod-nav-link" data-assign-user="">
+          <i class="bi bi-person-dash me-2" aria-hidden="true"></i>{{ _('todos.field.unassigned_pool') }}
+        </button>
+        {% for u in assignable_users %}
+        <button type="button" class="btn btn-sm text-start mod-nav-link" data-assign-user="{{ u.id }}">
+          <i class="bi bi-person me-2" aria-hidden="true"></i>{{ u.name }}
+        </button>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  window.TODOS_I18N = {
+    claim: {{ _('todos.action.claim')|tojson }},
+    addDue: {{ _('todos.action.add_due')|tojson }},
+    assign: {{ _('todos.action.assign')|tojson }},
+    deleteItem: {{ _('common.delete')|tojson }},
+    sourceKanban: {{ _('todos.source.kanban')|tojson }},
+    sourceEvent: {{ _('todos.source.event')|tojson }}
+  };
+</script>
+<script src="{{ url_for('static', filename='js/todos.js') }}"></script>
+{% endblock %}

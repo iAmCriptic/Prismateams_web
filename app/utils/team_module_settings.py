@@ -25,6 +25,7 @@ TEAM_SECTION_MODULES = {
     'duty_roster': 'module_duty_roster',
     'booking_personal': 'module_booking_personal',
     'helpers': 'module_helpers',
+    'todos': 'module_todos',
 }
 
 

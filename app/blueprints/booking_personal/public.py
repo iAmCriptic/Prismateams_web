@@ -130,7 +130,11 @@ def public_form_submit(token):
         else:
             val = request.form.get(f_key)
             if val is not None:
-                custom_data[f_key] = val.strip()
+                custom_data[f_key] = (
+                    BookingPersonalEntry.format_currency_value(val)
+                    if f_type == 'currency'
+                    else val.strip()
+                )
 
     # Aktualisiere Basis-Felder falls im Formular
     if 'contact_name' in custom_data and custom_data['contact_name']:
@@ -323,7 +327,11 @@ def public_apply_submit(token):
         else:
             val = request.form.get(f_key)
             if val is not None:
-                custom_data[f_key] = val.strip()
+                custom_data[f_key] = (
+                    BookingPersonalEntry.format_currency_value(val)
+                    if f_type == 'currency'
+                    else val.strip()
+                )
 
     # Alle übermittelten Formularwerte erfassen
     for k, v in request.form.items():

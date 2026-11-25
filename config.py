@@ -3,8 +3,8 @@ from datetime import timedelta
 from dotenv import load_dotenv
 
 # About-Seite (Release / Build)
-ABOUT_RELEASE_VERSION = 'V3.5.2'
-ABOUT_BUILD_NUMBER = 'B352.24112026.01'
+ABOUT_RELEASE_VERSION = 'V3.5.3'
+ABOUT_BUILD_NUMBER = 'B353.25112026.01'
 
 load_dotenv()
 

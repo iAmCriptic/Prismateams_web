@@ -1,5 +1,6 @@
 from datetime import datetime
 import os
+import time
 
 from flask import (
     Blueprint,
@@ -130,8 +131,23 @@ def _apply_create_visibility(doc):
 
 
 def _attach_hycanvas_cookies(resp, user):
+    theme_key = (bool(getattr(user, 'dark_mode', False)), bool(getattr(user, 'oled_mode', False)))
+    auth_ttl = int(current_app.config.get('HYCANVAS_AUTH_CACHE_TTL', 600) or 0)
+    cached_names = session.get('hycanvas_cookie_names') or []
+    now = time.time()
+    if (
+        auth_ttl > 0
+        and cached_names
+        and session.get('hycanvas_auth_uid') == getattr(user, 'id', None)
+        and session.get('hycanvas_auth_theme') == list(theme_key)
+        and (now - float(session.get('hycanvas_auth_ts') or 0)) < auth_ttl
+        and all(name in request.cookies for name in cached_names)
+    ):
+        return resp
+
     cookie_secure = bool(current_app.config.get('SESSION_COOKIE_SECURE', False)) and request.is_secure
     hycanvas_sess = authenticate_hycanvas_session(user)
+    set_names: list[str] = []
     if hycanvas_sess:
         for cookie in hycanvas_sess.cookies:
             resp.set_cookie(
@@ -142,6 +158,7 @@ def _attach_hycanvas_cookies(resp, user):
                 secure=cookie_secure,
                 path='/',
             )
+            set_names.append(cookie.name)
     else:
         sso_jwt = build_hycanvas_sso_jwt(user)
         if sso_jwt:
@@ -153,6 +170,13 @@ def _attach_hycanvas_cookies(resp, user):
                 secure=cookie_secure,
                 path='/',
             )
+            set_names.append('hycanvas_token')
+
+    if set_names:
+        session['hycanvas_auth_ts'] = now
+        session['hycanvas_auth_uid'] = getattr(user, 'id', None)
+        session['hycanvas_auth_theme'] = list(theme_key)
+        session['hycanvas_cookie_names'] = set_names
     return resp
 
 
@@ -388,4 +412,4 @@ def avatar(token):
     path = os.path.abspath(os.path.join(upload_dir, 'profile_pics', user.profile_picture))
     if not os.path.isfile(path):
         abort(404)
-    return send_file(path)
+    return send_file(path, max_age=3600, conditional=True)

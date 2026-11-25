@@ -169,7 +169,7 @@
 
             {% set has_large_content = false %}
             {% for f in cat_fields %}
-                {% if f.field_type in ('textarea', 'image_upload') or f.field_key in ('promotext', 'promo_pictures') %}
+                {% if f.field_type in ('textarea', 'image_upload', 'file_upload') or f.field_key in ('promotext', 'promo_pictures') %}
                     {% set has_large_content = true %}
                 {% endif %}
             {% endfor %}
@@ -199,12 +199,115 @@
                         {% for f in cat_fields %}
                             {% set val = custom_data.get(f.field_key) %}
                             {% if f.field_type not in ('action_accept', 'form_link') or cat_name == 'Aktionen & Links' %}
+                            {% if f.field_type in ('image_upload', 'file_upload') %}
+                            {% set is_img_field = (f.field_type == 'image_upload') %}
+                            {% set media_list = val if (val and val is iterable and val is not string) else ([val] if (val and val is string and val != '-') else []) %}
+                            {% set media_count = media_list|length %}
+                            <div class="bp-detail-media-block py-2 px-2 rounded-3">
+                                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                                    <div class="d-flex align-items-center gap-2 min-width-0">
+                                        <span class="text-muted small">{{ f.label }}:</span>
+                                        {% if media_count > 0 %}
+                                        <span class="bp-file-count-badge">
+                                            <i class="bi {{ 'bi-images' if is_img_field else 'bi-paperclip' }}" aria-hidden="true"></i>
+                                            <span>{{ media_count }} {{ ('Bild' if media_count == 1 else 'Bilder') if is_img_field else ('Datei' if media_count == 1 else 'Dateien') }}</span>
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted small opacity-75">{{ 'Keine Bilder' if is_img_field else 'Keine Dateien' }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <label class="btn btn-sm mod-pill-btn mod-pill-btn--outline px-2.5 py-1 mb-0 bp-upload-trigger">
+                                        <i class="bi bi-upload me-1" aria-hidden="true"></i>{{ 'Bild hochladen' if is_img_field else 'Datei hochladen' }}
+                                        <input type="file" class="d-none"
+                                               accept="{{ 'image/*' if is_img_field else '.pdf,.doc,.docx,.txt,.zip,.xlsx,.xls,.csv,image/*' }}"
+                                               multiple
+                                               onchange="uploadAdminEntryFiles({{ entry.id }}, '{{ f.field_key }}', this)">
+                                    </label>
+                                </div>
+                                {% if media_count > 0 %}
+                                <div class="bp-detail-file-list mt-2">
+                                    {% for item_url in media_list %}
+                                    {% set raw_name = item_url.split('/')[-1] %}
+                                    {% set mapped_name = file_names.get(item_url) if file_names is defined and file_names else None %}
+                                    {% if mapped_name %}
+                                        {% set display_name = mapped_name %}
+                                    {% else %}
+                                        {% set prefix = entry.id|string ~ '_' ~ f.field_key ~ '_' %}
+                                        {% if raw_name.startswith(prefix) %}
+                                            {% set after_prefix = raw_name[prefix|length:] %}
+                                            {% set parts = after_prefix.split('_', 1) %}
+                                            {% set display_name = parts[1] if (parts|length == 2 and parts[0]|length == 14 and parts[0].isdigit()) else after_prefix %}
+                                        {% else %}
+                                            {% set display_name = raw_name %}
+                                        {% endif %}
+                                    {% endif %}
+                                    {% set ext = (display_name.rsplit('.', 1)[-1]|lower) if '.' in display_name else '' %}
+                                    {% set file_icon = 'bi-file-earmark-text' %}
+                                    {% if ext == 'pdf' %}
+                                        {% set file_icon = 'bi-file-earmark-pdf' %}
+                                    {% elif ext in ('doc', 'docx', 'odt', 'rtf') %}
+                                        {% set file_icon = 'bi-file-earmark-word' %}
+                                    {% elif ext in ('xls', 'xlsx', 'csv', 'ods') %}
+                                        {% set file_icon = 'bi-file-earmark-excel' %}
+                                    {% elif ext in ('zip', 'rar', '7z', 'tar', 'gz') %}
+                                        {% set file_icon = 'bi-file-earmark-zip' %}
+                                    {% elif ext in ('png', 'jpg', 'jpeg', 'webp', 'gif', 'svg') %}
+                                        {% set file_icon = 'bi-file-earmark-image' %}
+                                    {% elif ext in ('mp3', 'wav', 'flac', 'aac', 'ogg') %}
+                                        {% set file_icon = 'bi-file-earmark-music' %}
+                                    {% elif ext in ('mp4', 'mov', 'avi', 'mkv', 'webm') %}
+                                        {% set file_icon = 'bi-file-earmark-play' %}
+                                    {% endif %}
+                                    <div class="bp-detail-file-item">
+                                        <div class="d-flex align-items-center gap-2.5 min-width-0 flex-grow-1">
+                                            {% if is_img_field %}
+                                            <a href="{{ item_url }}" target="_blank" class="bp-detail-file-thumb-link flex-shrink-0" title="Vorschau öffnen">
+                                                <img src="{{ item_url }}" alt="{{ display_name }}" class="bp-detail-file-thumb">
+                                            </a>
+                                            {% else %}
+                                            <span class="bp-detail-file-icon flex-shrink-0" aria-hidden="true">
+                                                <i class="bi {{ file_icon }}"></i>
+                                            </span>
+                                            {% endif %}
+                                            <div class="min-width-0 flex-grow-1">
+                                                <a href="{{ item_url }}" target="_blank" class="bp-detail-file-name text-truncate d-block text-decoration-none" title="{{ display_name }}">
+                                                    {{ display_name }}
+                                                </a>
+                                                {% if ext %}
+                                                <span class="bp-detail-file-ext text-uppercase">{{ ext }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="bp-detail-file-actions d-inline-flex align-items-center gap-1 flex-shrink-0">
+                                            <a href="{{ item_url }}" target="_blank"
+                                               class="bp-detail-file-action-btn"
+                                               title="Ansehen / Öffnen" aria-label="Ansehen">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{{ item_url }}" download="{{ display_name }}"
+                                               class="bp-detail-file-action-btn bp-detail-file-action-btn--accent"
+                                               title="Herunterladen" aria-label="Herunterladen">
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                            <button type="button"
+                                                    class="bp-detail-file-action-btn bp-detail-file-action-btn--danger"
+                                                    onclick="deleteAdminEntryFile({{ entry.id }}, '{{ f.field_key }}', '{{ item_url }}')"
+                                                    title="Entfernen" aria-label="Entfernen">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% else %}
                             <div class="bp-detail-field-row d-flex align-items-center justify-content-between py-1.5 px-2 rounded-3 bp-editable-row"
                                  data-entry-id="{{ entry.id }}"
                                  data-field-key="{{ f.field_key }}"
                                  data-field-type="{{ f.field_type }}"
                                  data-field-label="{{ f.label }}"
-                                 data-raw-value="{{ val if val is not none else '' }}"
+                                 data-raw-value="{{ entry.format_currency_value(val) if f.field_type == 'currency' else (val if val is not none else '') }}"
                                  {% if f.field_type in ('badge_select', 'multi_select') and f.options_json %}data-options="{{ f.options_json|e }}"{% endif %}
                                  role="button"
                                  tabindex="0"
@@ -237,46 +340,22 @@
                                                 <span class="text-muted small">-</span>
                                             {% endif %}
                                         {% elif f.field_type == 'currency' or f.field_key == 'gesamt' %}
+                                            {% set display_val = (entry.format_currency_value(val) or '€0.00') if f.field_type == 'currency' else (val or '-') %}
                                             <span class="{% if f.field_key == 'gesamt' %}fw-bold text-primary fs-6 bp-cell-formula{% else %}fw-semibold text-body{% endif %} small"
-                                                  data-field-key="{{ f.field_key }}">{{ val or ('€0.00' if f.field_type == 'currency' else '-') }}</span>
+                                                  data-field-key="{{ f.field_key }}">{{ display_val }}</span>
+                                        {% elif f.field_type == 'boolean' %}
+                                            {% set is_checked = val in (True, 'true', 'True', '1', 1, 'ja', 'Ja') %}
+                                            <div class="form-check form-switch m-0 d-inline-flex align-items-center gap-2" onclick="event.stopPropagation()">
+                                                <input class="form-check-input bp-detail-boolean-toggle" type="checkbox" role="switch"
+                                                    data-entry-id="{{ entry.id }}"
+                                                    data-field-key="{{ f.field_key }}"
+                                                    {% if is_checked %}checked{% endif %}
+                                                    onchange="toggleDetailBoolean(this)"
+                                                    aria-label="{{ f.label }}">
+                                                <span class="small text-body fw-semibold bp-boolean-label">{{ 'Ja (zzgl. Steuern)' if is_checked else 'Nein' }}</span>
+                                            </div>
                                         {% elif f.field_type == 'counter' %}
                                             <span class="badge rounded-pill bg-body-secondary text-body border px-2.5 py-0.5 fw-bold small">{{ val or '0' }}</span>
-                                        {% elif f.field_type == 'image_upload' %}
-                                            {% if val %}
-                                                <div class="d-flex gap-1.5 flex-wrap justify-content-end">
-                                                {% if val is iterable and val is not string %}
-                                                    {% for img in val %}
-                                                    <a href="{{ img }}" target="_blank" onclick="event.stopPropagation()">
-                                                        <img src="{{ img }}" alt="Promo Bild" class="rounded-3 border" style="width: 48px; height: 48px; object-fit: cover;">
-                                                    </a>
-                                                    {% endfor %}
-                                                {% else %}
-                                                    <a href="{{ val }}" target="_blank" onclick="event.stopPropagation()">
-                                                        <img src="{{ val }}" alt="Promo Bild" class="rounded-3 border" style="width: 48px; height: 48px; object-fit: cover;">
-                                                    </a>
-                                                {% endif %}
-                                                </div>
-                                            {% else %}
-                                                <span class="text-muted small">Keine Bilder</span>
-                                            {% endif %}
-                                        {% elif f.field_type == 'file_upload' %}
-                                            {% if val %}
-                                                {% if val is iterable and val is not string %}
-                                                    <div class="d-flex flex-column gap-1 align-items-end">
-                                                    {% for att in val %}
-                                                    <a href="{{ att }}" target="_blank" class="btn btn-sm btn-outline-secondary mod-pill-btn d-inline-flex align-items-center gap-1" onclick="event.stopPropagation()">
-                                                        <i class="bi bi-file-earmark-arrow-down text-primary"></i>Datei
-                                                    </a>
-                                                    {% endfor %}
-                                                    </div>
-                                                {% else %}
-                                                <a href="{{ val }}" target="_blank" class="btn btn-sm btn-outline-secondary mod-pill-btn d-inline-flex align-items-center gap-1" onclick="event.stopPropagation()">
-                                                    <i class="bi bi-file-earmark-arrow-down text-primary"></i>Datei
-                                                </a>
-                                                {% endif %}
-                                            {% else %}
-                                                <span class="text-muted small">Keine Datei</span>
-                                            {% endif %}
                                         {% elif f.field_type == 'textarea' %}
                                             <div class="p-2 bg-body-tertiary rounded-3 text-body small text-start" style="white-space: pre-wrap; font-size: 0.82rem;">{{ val or '-' }}</div>
                                         {% elif f.field_type == 'form_link' %}
@@ -311,11 +390,12 @@
                                             {% endif %}
                                         {% endif %}
                                     </span>
-                                    {% if f.field_type not in ('formula', 'file_upload', 'image_upload', 'form_link', 'action_accept') and f.field_key != 'gesamt' %}
+                                    {% if f.field_type not in ('formula', 'file_upload', 'image_upload', 'form_link', 'action_accept', 'boolean') and f.field_key != 'gesamt' %}
                                     <i class="bi bi-pencil bp-field-edit-pen text-primary opacity-0 ms-1" style="font-size: 0.75rem;" aria-hidden="true"></i>
                                     {% endif %}
                                 </span>
                             </div>
+                            {% endif %}
                             {% endif %}
                         {% endfor %}
                     </div>
@@ -476,6 +556,99 @@ function deleteEntryFromDetail(entryId) {
             }
         }
     });
+}
+
+async function uploadAdminEntryFiles(entryId, fieldKey, inputEl) {
+    if (!inputEl.files || inputEl.files.length === 0) return;
+    const formData = new FormData();
+    formData.append('field_key', fieldKey);
+    for (const f of inputEl.files) {
+        formData.append('files', f);
+    }
+    try {
+        const resp = await fetch(`/booking-personal/api/entry/${entryId}/upload`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: formData
+        });
+        const res = await resp.json();
+        if (res.success) {
+            showToast('Datei(en) erfolgreich hochgeladen.', 'success');
+            setTimeout(() => window.location.reload(), 250);
+        } else {
+            showToast(res.error || 'Fehler beim Hochladen.', 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('Netzwerkfehler beim Hochladen.', 'error');
+    } finally {
+        inputEl.value = '';
+    }
+}
+
+async function deleteAdminEntryFile(entryId, fieldKey, filePath) {
+    try {
+        const resp = await fetch(`/booking-personal/api/entry/${entryId}/file-delete`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({ field_key: fieldKey, file_path: filePath })
+        });
+        const res = await resp.json();
+        if (res.success) {
+            showToast('Datei entfernt.', 'info');
+            setTimeout(() => window.location.reload(), 200);
+        } else {
+            showToast(res.error || 'Fehler beim Entfernen.', 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        showToast('Netzwerkfehler.', 'error');
+    }
+}
+
+async function toggleDetailBoolean(checkbox) {
+    const entryId = checkbox.dataset.entryId;
+    const fieldKey = checkbox.dataset.fieldKey;
+    const checked = checkbox.checked;
+    const label = checkbox.parentElement.querySelector('.bp-boolean-label');
+    if (label) label.textContent = checked ? 'Ja (zzgl. Steuern)' : 'Nein';
+
+    try {
+        const resp = await fetch(`/booking-personal/api/entry/${entryId}/cell`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            },
+            body: JSON.stringify({ field_key: fieldKey, value: checked })
+        });
+        const res = await resp.json();
+        if (res.success && res.updated_custom_data) {
+            const totalBox = document.getElementById('bpDetailTotalCostVal');
+            if (totalBox && res.updated_custom_data.gesamt) {
+                totalBox.textContent = res.updated_custom_data.gesamt;
+            }
+            for (const [k, v] of Object.entries(res.updated_custom_data)) {
+                document.querySelectorAll(`.bp-cell-formula[data-field-key="${k}"]`).forEach(el => {
+                    el.textContent = v || '€0.00';
+                });
+            }
+        } else if (!res.success) {
+            checkbox.checked = !checked;
+            if (label) label.textContent = !checked ? 'Ja (zzgl. Steuern)' : 'Nein';
+            showToast(res.error || 'Fehler beim Speichern.', 'error');
+        }
+    } catch (e) {
+        console.error(e);
+        checkbox.checked = !checked;
+        if (label) label.textContent = !checked ? 'Ja (zzgl. Steuern)' : 'Nein';
+        showToast('Netzwerkfehler.', 'error');
+    }
 }
 
 async function changeActStatus(entryId, newStatus) {

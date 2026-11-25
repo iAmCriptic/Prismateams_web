@@ -79,6 +79,13 @@ def register_auth_routes(api_bp, require_api_auth, limiter):
                     db.session.commit()
                 return jsonify({"success": False, "error": "Gast-Account ist abgelaufen"}), 401
 
+            if not user.is_super_admin and user.account_active_until and portal_now_naive().date() > user.account_active_until:
+                if user.is_active:
+                    user.is_active = False
+                    user.auto_deactivated_at = datetime.utcnow()
+                    db.session.commit()
+                return jsonify({"success": False, "error": "Account ist abgelaufen"}), 401
+
             if not user.is_active:
                 return jsonify({"success": False, "error": "Account ist nicht aktiviert"}), 403
 

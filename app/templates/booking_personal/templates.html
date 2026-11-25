@@ -27,7 +27,7 @@
         {{ booking_personal_sidebar(events, none, "templates") }}
 
     <!-- Hauptbereich: Vorlagenverwaltung -->
-    <main class="mod-main flex-grow-1 min-width-0 overflow-y-auto p-4" id="bpTemplatesContainer">
+    <main class="mod-main flex-grow-1 min-width-0 overflow-y-auto p-3 p-md-4" id="bpTemplatesContainer">
         <!-- Mobile Topbar (< 992px) mit einklappbarer Navbar / Offcanvas-Sidebar -->
         <div class="mod-mobile-topbar d-lg-none mb-3">
             <div class="d-flex justify-content-between align-items-center gap-2">
@@ -219,7 +219,6 @@
                                         <th style="width: 44px;" class="text-center">#</th>
                                         <th>Spaltenbezeichnung (DE / EN)</th>
                                         <th>Kategorie</th>
-                                        <th>Schlüssel (Key)</th>
                                         <th>Feldtyp</th>
                                         <th>Herkunft / Pflege</th>
                                         <th>Zusage-Übersicht</th>
@@ -246,15 +245,14 @@
                                             </span>
                                         </td>
                                         <td>
-                                            <code class="small text-secondary">{{ f.field_key }}</code>
-                                        </td>
-                                        <td>
                                             {% if f.field_type == 'badge_select' %}
                                             <span class="badge rounded-pill bg-body-secondary text-body border">Badge / Dropdown</span>
                                             {% elif f.field_type == 'multi_select' %}
                                             <span class="badge rounded-pill bg-body-secondary text-body border">Multiple Choice</span>
                                             {% elif f.field_type == 'currency' %}
                                             <span class="badge rounded-pill bg-body-secondary text-body border">Währung (€)</span>
+                                            {% elif f.field_type == 'boolean' %}
+                                            <span class="badge rounded-pill bg-body-secondary text-body border">Schalter (Ja/Nein)</span>
                                             {% elif f.field_type == 'counter' %}
                                             <span class="badge rounded-pill bg-body-secondary text-body border">Zahl / Counter</span>
                                             {% elif f.field_type == 'formula' %}
@@ -301,7 +299,7 @@
                                     {% endif %}
                                     {% else %}
                                     <tr>
-                                        <td colspan="8" class="text-center py-4 text-muted">
+                                        <td colspan="{{ 7 if not selected_template.is_system_default else 6 }}" class="text-center py-4 text-muted">
                                             Keine Spalten in dieser Vorlage definiert.
                                         </td>
                                     </tr>
@@ -450,6 +448,7 @@
                             <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('multi_select')"><i class="bi bi-ui-checks text-primary"></i>Multiple Choice</button>
                             <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('form_link')"><i class="bi bi-link-45deg text-primary"></i>Formular-Link</button>
                             <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('gage')"><i class="bi bi-cash text-primary"></i>Gage (€)</button>
+                            <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('gesamt')"><i class="bi bi-calculator text-primary"></i>GESAMT (Formel)</button>
                             <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('techrider')"><i class="bi bi-file-earmark-pdf text-primary"></i>Techrider</button>
                             <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('promo_images')"><i class="bi bi-images text-primary"></i>Promo-Bilder</button>
                             <button type="button" class="bp-preset-chip" onclick="applyTmplColPreset('pronoun')"><i class="bi bi-person-badge text-primary"></i>Pronomen</button>
@@ -474,6 +473,7 @@
                             <option value="text">Text (Einzeilig)</option>
                             <option value="textarea">Text (Mehrzeilig)</option>
                             <option value="currency">Zahl / Währung (€)</option>
+                            <option value="formula">Berechnete Formel (€)</option>
                             <option value="counter">Zahl / Zähler (z. B. Gästeliste)</option>
                             <option value="badge_select">Dropdown / Status-Badges (Single Choice)</option>
                             <option value="multi_select">Multiple Choice / Badges (Mehrfachauswahl)</option>
@@ -501,9 +501,34 @@
                         <div class="form-text small">Farben: primary, success, danger, warning, info, secondary</div>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Technischer Feld-Key (optional)</label>
-                        <input type="text" name="field_key" id="tmplFieldKey" class="form-control mod-pill-input rounded-pill px-3 py-2 font-monospace small" placeholder="wird automatisch generiert">
+                    <div class="mb-3 d-none" id="bpTmplFormulaGroup">
+                        <label class="form-label fw-semibold">Formel-Definition</label>
+                        <input type="text" name="formula_definition" id="tmplFieldFormula" class="form-control mod-pill-input rounded-pill px-3 py-2 font-monospace small" placeholder="z. B. (gage + booking_fee) * (1 + 19%)">
+                        <div class="d-flex flex-wrap align-items-center gap-1 mt-2">
+                            <span class="small text-muted me-1">Operatoren:</span>
+                            {% for op in ['+', '-', '*', '/', '(', ')', '%'] %}
+                            <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted font-monospace px-2 py-0" onclick="insertTmplFormulaToken('{{ op }}', true)">{{ op }}</button>
+                            {% endfor %}
+                        </div>
+                        {% if selected_template %}
+                        {% set formula_fields = [] %}
+                        {% for tf in selected_template.get_fields() %}
+                            {% if is_bp_formula_field(tf) %}
+                                {% set _ = formula_fields.append(tf) %}
+                            {% endif %}
+                        {% endfor %}
+                        {% if formula_fields %}
+                        <div class="d-flex flex-wrap gap-1.5 mt-2">
+                            <span class="small text-muted align-self-center me-1">Felder auswählen:</span>
+                            {% for nf in formula_fields %}
+                            <button type="button" class="bp-preset-chip" onclick="insertTmplFormulaToken('{{ nf.field_key }}', false)">
+                                <i class="bi bi-plus-circle text-primary"></i>{{ nf.label }}
+                            </button>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        {% endif %}
+                        <div class="form-text small">Unterstützt +, -, *, /, Klammern () und Prozentwerte (z. B. 19% oder Steuersatz).</div>
                     </div>
 
                     <div class="form-check form-switch mb-2">
@@ -633,6 +658,51 @@ function toggleTmplFieldOptions(val) {
     if (optGrp) {
         optGrp.classList.toggle('d-none', val !== 'badge_select' && val !== 'multi_select');
     }
+    const formGrp = document.getElementById('bpTmplFormulaGroup');
+    if (formGrp) {
+        formGrp.classList.toggle('d-none', val !== 'formula');
+    }
+}
+
+function insertTmplFormulaToken(token, isOperator) {
+    const input = document.getElementById('tmplFieldFormula');
+    if (!input) return;
+    const val = input.value;
+    const start = typeof input.selectionStart === 'number' ? input.selectionStart : val.length;
+    const end = typeof input.selectionEnd === 'number' ? input.selectionEnd : val.length;
+    const before = val.slice(0, start);
+    const after = val.slice(end);
+    const trimmedBefore = before.trimEnd();
+
+    let insertText = token;
+    if (isOperator) {
+        if (['+', '-', '*', '/'].includes(token)) {
+            const needLeadSpace = trimmedBefore.length > 0 && !before.endsWith(' ');
+            insertText = `${needLeadSpace ? ' ' : ''}${token} `;
+        } else {
+            insertText = token;
+        }
+    } else {
+        const lastChar = trimmedBefore.slice(-1);
+        const afterBinaryOrOpen = !trimmedBefore || ['+', '-', '*', '/', '('].includes(lastChar);
+        if (afterBinaryOrOpen) {
+            const needSpace = trimmedBefore.length > 0 && lastChar !== '(' && !before.endsWith(' ');
+            insertText = `${needSpace ? ' ' : ''}${token}`;
+        } else {
+            insertText = ` + ${token}`;
+        }
+    }
+
+    input.value = before + insertText + after;
+    const newPos = before.length + insertText.length;
+    input.focus();
+    if (typeof input.setSelectionRange === 'function') {
+        input.setSelectionRange(newPos, newPos);
+    }
+}
+
+function appendTmplFormulaField(fieldKey) {
+    insertTmplFormulaToken(fieldKey, false);
 }
 
 function applyTmplColPreset(key) {
@@ -679,6 +749,17 @@ function applyTmplColPreset(key) {
             type: 'currency',
             category: 'Finanzen',
             options: '',
+            formula: '',
+            is_external: false,
+            overview: true
+        },
+        'gesamt': {
+            label: 'GESAMT',
+            label_en: 'Total',
+            type: 'formula',
+            category: 'Finanzen',
+            options: '',
+            formula: 'gage + booking_fee + travel + unterkunft + sonst_ausgaben + verpflegungspauschale_kosten',
             is_external: false,
             overview: true
         },
@@ -737,6 +818,7 @@ function applyTmplColPreset(key) {
     const typeEl = document.getElementById('bpTmplFieldTypeSelect');
     const catEl = document.getElementById('tmplFieldCategory');
     const optEl = document.getElementById('tmplFieldOptions');
+    const formEl = document.getElementById('tmplFieldFormula');
     const extEl = document.getElementById('tmplFieldExternal');
     const overEl = document.getElementById('tmplFieldOverview');
 
@@ -744,7 +826,8 @@ function applyTmplColPreset(key) {
     if (labelEnEl) labelEnEl.value = p.label_en;
     if (typeEl) typeEl.value = p.type;
     if (catEl) catEl.value = p.category;
-    if (optEl) optEl.value = p.options;
+    if (optEl) optEl.value = p.options || '';
+    if (formEl) formEl.value = p.formula || '';
     if (extEl) extEl.checked = p.is_external;
     if (overEl) overEl.checked = p.overview;
 

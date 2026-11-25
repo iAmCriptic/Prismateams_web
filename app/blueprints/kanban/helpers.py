@@ -224,6 +224,8 @@ def _enqueue_kanban_notify(
     *,
     detail: str | None = None,
     push_suffix: str | None = None,
+    target_user_ids: set[int] | None = None,
+    is_checklist_assignment: bool = False,
 ) -> None:
     from app.utils.notifications import enqueue_kanban_notification
 
@@ -237,6 +239,8 @@ def _enqueue_kanban_notify(
         card_id=card_id,
         detail=detail,
         push_suffix=push_suffix,
+        target_user_ids=target_user_ids,
+        is_checklist_assignment=is_checklist_assignment,
     )
 
 
@@ -493,7 +497,39 @@ def _cleanup_unreferenced_kanban_files(candidate_paths: list[str] | set[str]) ->
     }
     if not resolved_candidates:
         return 0
-    referenced = _referenced_kanban_file_paths()
+    basenames = {os.path.basename(p) for p in resolved_candidates if os.path.basename(p)}
+    referenced: set[str] = set()
+    if basenames:
+        att_filters = [KanbanAttachment.storage_path.endswith(name) for name in basenames]
+        att_rows = (
+            db.session.query(KanbanAttachment.storage_path)
+            .filter(
+                KanbanAttachment.storage_path.isnot(None),
+                KanbanAttachment.storage_path != '',
+                db.or_(*att_filters),
+            )
+            .all()
+        )
+        for (raw_path,) in att_rows:
+            resolved = _resolve_kanban_file_path(raw_path)
+            if resolved:
+                referenced.add(resolved)
+
+        cover_filters = [KanbanBoard.cover_path.endswith(name) for name in basenames]
+        board_rows = (
+            db.session.query(KanbanBoard.cover_path)
+            .filter(
+                KanbanBoard.cover_path.isnot(None),
+                KanbanBoard.cover_path != '',
+                db.or_(*cover_filters),
+            )
+            .all()
+        )
+        for (raw_cover,) in board_rows:
+            resolved = _resolve_kanban_file_path(raw_cover)
+            if resolved:
+                referenced.add(resolved)
+
     removed = 0
     for path in resolved_candidates - referenced:
         try:
@@ -801,12 +837,11 @@ def _serialize_card_summary(
     comment_count: int | None = None,
     comment_counts: dict[int, int] | None = None,
 ) -> dict:
-    actor_id = _actor_user_id(card.list.board if card.list else None)
     cover = None
     if card.cover_attachment_id:
         att = next((a for a in card.attachments if a.id == card.cover_attachment_id), None)
         if not att:
-            att = KanbanAttachment.query.get(card.cover_attachment_id)
+            att = db.session.get(KanbanAttachment, card.cover_attachment_id)
         if att:
             cover = _serialize_attachment(att, share_token=share_token)
     if comment_count is None:
@@ -824,6 +859,7 @@ def _serialize_card_summary(
         'position': card.position,
         'archived': bool(card.archived_at),
         'completed': bool(card.completed_at),
+        'is_template': bool(card.is_template),
         'cover': cover,
         'cover_attachment_id': card.cover_attachment_id,
         'labels': [
@@ -1099,12 +1135,20 @@ def _require_list_edit(list_id: int):
 def _track_view(board: KanbanBoard):
     if not current_user.is_authenticated:
         return
-    view = KanbanBoardView.query.filter_by(board_id=board.id, user_id=current_user.id).first()
+    from sqlalchemy.exc import IntegrityError
     now = portal_now_naive()
+    view = KanbanBoardView.query.filter_by(board_id=board.id, user_id=current_user.id).first()
     if view:
         view.viewed_at = now
     else:
-        db.session.add(KanbanBoardView(board_id=board.id, user_id=current_user.id, viewed_at=now))
+        try:
+            with db.session.begin_nested():
+                db.session.add(KanbanBoardView(board_id=board.id, user_id=current_user.id, viewed_at=now))
+                db.session.flush()
+        except IntegrityError:
+            existing = KanbanBoardView.query.filter_by(board_id=board.id, user_id=current_user.id).first()
+            if existing:
+                existing.viewed_at = now
     board.last_viewed_at = now
 
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from flask import current_app
+from flask import current_app, g, has_request_context
 
 from app.models.kanban import KanbanBoard, KanbanBoardMember, KanbanCard, KanbanList
 from app.models.team import Team, TeamMember
@@ -27,6 +27,15 @@ def is_kanban_module_enabled() -> bool:
 
 def get_allowed_visibilities(user=None) -> list[str]:
     """Board types that may be created / openly discovered."""
+    uid = getattr(user, 'id', None) if user is not None else None
+    if has_request_context():
+        cache = getattr(g, '_kanban_allowed_vis_cache', None)
+        if cache is None:
+            cache = {}
+            g._kanban_allowed_vis_cache = cache
+        if uid in cache:
+            return list(cache[uid])
+
     from app.utils.module_visibility_settings import (
         is_global_private_enabled,
         is_global_public_enabled,
@@ -45,6 +54,8 @@ def get_allowed_visibilities(user=None) -> list[str]:
         allowed = [VISIBILITY_PRIVATE]
     if user is not None:
         allowed = filter_visibilities_for_user(allowed, user)
+    if has_request_context():
+        g._kanban_allowed_vis_cache[uid] = list(allowed)
     return allowed
 
 
@@ -128,9 +139,20 @@ def allowed_import_board_targets(user) -> list[dict]:
 def user_team_ids(user) -> set[int]:
     if not user or not getattr(user, 'id', None):
         return set()
-    ids = {m.team_id for m in TeamMember.query.filter_by(user_id=user.id).all()}
-    led = {t.id for t in Team.query.filter_by(leader_id=user.id).all()}
-    return ids | led
+    uid = user.id
+    if has_request_context():
+        cache = getattr(g, '_kanban_user_team_ids_cache', None)
+        if cache is None:
+            cache = {}
+            g._kanban_user_team_ids_cache = cache
+        if uid in cache:
+            return set(cache[uid])
+    ids = {m.team_id for m in TeamMember.query.filter_by(user_id=uid).all()}
+    led = {t.id for t in Team.query.filter_by(leader_id=uid).all()}
+    result = ids | led
+    if has_request_context():
+        g._kanban_user_team_ids_cache[uid] = set(result)
+    return result
 
 
 def get_board_membership(board: KanbanBoard, user) -> KanbanBoardMember | None:
@@ -165,23 +187,33 @@ def get_board_member_roles(board: KanbanBoard) -> dict[int, str]:
         candidate_ids = set(explicit)
         if board.created_by:
             candidate_ids.add(board.created_by)
+        active_ids = {
+            user.id
+            for user in User.query.filter(User.id.in_(candidate_ids), User.is_active.is_(True)).all()
+        } if candidate_ids else set()
     elif board.visibility == VISIBILITY_TEAM and board.team_id:
         team = board.team or Team.query.get(board.team_id)
         candidate_ids = _team_member_user_ids(team)
         candidate_ids.update(explicit)
         if board.created_by:
             candidate_ids.add(board.created_by)
-        candidate_ids &= _kanban_eligible_user_ids()
+        active_ids = {
+            user.id
+            for user in User.query.filter(User.id.in_(candidate_ids), User.is_active.is_(True)).all()
+            if has_module_access(user, 'module_kanban')
+        } if candidate_ids else set()
     elif board.visibility == VISIBILITY_PUBLIC:
-        candidate_ids = _kanban_eligible_user_ids()
-        candidate_ids.update(explicit)
+        active_ids = {
+            user.id
+            for user in User.query.filter_by(is_active=True).all()
+            if has_module_access(user, 'module_kanban') or user.id in explicit
+        }
     else:
         candidate_ids = set(explicit)
-
-    active_ids = {
-        user.id
-        for user in User.query.filter(User.id.in_(candidate_ids), User.is_active.is_(True)).all()
-    } if candidate_ids else set()
+        active_ids = {
+            user.id
+            for user in User.query.filter(User.id.in_(candidate_ids), User.is_active.is_(True)).all()
+        } if candidate_ids else set()
 
     roles: dict[int, str] = {}
     for user_id in active_ids:

@@ -23,12 +23,13 @@ GOOGLE_USERINFO_URL = 'https://www.googleapis.com/oauth2/v2/userinfo'
 
 GOOGLE_REGISTER_SESSION_KEY = 'google_register'
 
-# Login/Link/Register: Identität + Gmail XOAUTH2 + Drive Readonly (z. B. Kanban-Links)
+# Login/Link/Register: Identität + Gmail XOAUTH2 + Drive Readonly + Calendar Readonly
 GOOGLE_LOGIN_SCOPES = (
     'openid email profile '
     'https://mail.google.com/ '
     'https://www.googleapis.com/auth/userinfo.email '
-    'https://www.googleapis.com/auth/drive.readonly'
+    'https://www.googleapis.com/auth/drive.readonly '
+    'https://www.googleapis.com/auth/calendar.readonly'
 )
 
 
@@ -317,4 +318,22 @@ def ensure_google_drive_connection_for_user(user, token_result: dict):
         return conn
     except Exception as exc:
         logger.warning('Google-Drive-Verbindung konnte nicht gespeichert werden (user=%s): %s', getattr(user, 'id', None), exc)
+        return None
+
+
+def ensure_google_calendar_connection_for_user(user, token_result: dict):
+    """Legt/aktualisiert die Google-Calendar-Verbindung aus dem Google-Login-Token."""
+    if not user or not getattr(user, 'id', None) or not token_result.get('access_token'):
+        return None
+    try:
+        from app.utils.google_calendar_sync import (
+            GOOGLE_CALENDAR_SCOPE,
+            save_google_calendar_connection,
+        )
+
+        payload = dict(token_result)
+        payload.setdefault('scope', GOOGLE_CALENDAR_SCOPE)
+        return save_google_calendar_connection(user, payload)
+    except Exception as exc:
+        logger.warning('Google-Calendar-Verbindung konnte nicht gespeichert werden (user=%s): %s', getattr(user, 'id', None), exc)
         return None
