@@ -463,30 +463,150 @@ class BookingPersonalEntry(db.Model):
         except (ValueError, TypeError):
             return 0.0
 
+    @staticmethod
+    def _parse_numeric_value(val, allow_percent=False):
+        if val is None:
+            return 0.0
+        s = str(val).strip()
+        if not s or s == '-':
+            return 0.0
+        is_pct = '%' in s
+        if is_pct:
+            if not allow_percent:
+                return 0.0
+            match = re.search(r'(-?\d+(?:[.,]\d+)?)\s*%', s)
+            if not match:
+                return 0.0
+            try:
+                return float(match.group(1).replace(',', '.')) / 100.0
+            except (ValueError, TypeError):
+                return 0.0
+        cleaned = s.replace('€', '').replace(' ', '')
+        if '.' in cleaned and ',' in cleaned:
+            if cleaned.rfind(',') > cleaned.rfind('.'):
+                cleaned = cleaned.replace('.', '').replace(',', '.')
+            else:
+                cleaned = cleaned.replace(',', '')
+        elif ',' in cleaned:
+            cleaned = cleaned.replace(',', '.')
+        try:
+            return float(cleaned)
+        except (ValueError, TypeError):
+            return 0.0
+
+    @classmethod
+    def _evaluate_formula_expression(cls, expr, data, tax_rate=0.0, apply_gage_tax=False):
+        """Wertet eine Formel mit +, -, *, /, Klammern () und Prozent % sicher aus."""
+        token_spec = [
+            ('NUMBER', r'\d+(?:[.,]\d+)?'),
+            ('IDENT', r'[A-Za-z_][A-Za-z0-9_]*'),
+            ('OP', r'[+\-*/()%]'),
+            ('SKIP', r'\s+'),
+        ]
+        tok_regex = '|'.join(f'(?P<{name}>{pattern})' for name, pattern in token_spec)
+        tokens = []
+        referenced_idents = set()
+        for m in re.finditer(tok_regex, expr):
+            kind = m.lastgroup
+            val = m.group()
+            if kind == 'SKIP':
+                continue
+            if kind == 'IDENT':
+                referenced_idents.add(val)
+            tokens.append((kind, val))
+
+        if not tokens:
+            return 0.0
+
+        explicit_tax_ref = 'steuersatz' in referenced_idents
+        pos = [0]
+
+        def peek():
+            return tokens[pos[0]] if pos[0] < len(tokens) else None
+
+        def consume():
+            tok = tokens[pos[0]]
+            pos[0] += 1
+            return tok
+
+        def parse_expr():
+            left = parse_term()
+            while (tok := peek()) and tok[0] == 'OP' and tok[1] in ('+', '-'):
+                op = consume()[1]
+                right = parse_term()
+                left = left + right if op == '+' else left - right
+            return left
+
+        def parse_term():
+            left = parse_factor()
+            while (tok := peek()) and tok[0] == 'OP' and tok[1] in ('*', '/'):
+                op = consume()[1]
+                right = parse_factor()
+                if op == '*':
+                    left = left * right
+                else:
+                    left = (left / right) if right != 0 else 0.0
+            return left
+
+        def parse_factor():
+            tok = peek()
+            if tok and tok[0] == 'OP' and tok[1] in ('+', '-'):
+                op = consume()[1]
+                val = parse_factor()
+                return -val if op == '-' else val
+            val = parse_primary()
+            while (tok := peek()) and tok[0] == 'OP' and tok[1] == '%':
+                consume()
+                val = val / 100.0
+            return val
+
+        def parse_primary():
+            tok = peek()
+            if not tok:
+                raise ValueError('Unerwartetes Formel-Ende')
+            kind, val = tok
+            if kind == 'NUMBER':
+                consume()
+                return float(val.replace(',', '.'))
+            if kind == 'IDENT':
+                consume()
+                num = cls._parse_numeric_value(data.get(val), allow_percent=True)
+                if val == 'gage' and apply_gage_tax and not explicit_tax_ref and tax_rate > 0:
+                    num = num * (1.0 + tax_rate)
+                return num
+            if kind == 'OP' and val == '(':
+                consume()
+                inner = parse_expr()
+                closing = peek()
+                if not closing or closing != ('OP', ')'):
+                    raise ValueError('Fehlende schließende Klammer')
+                consume()
+                return inner
+            raise ValueError(f'Unerwartetes Token: {val}')
+
+        result = parse_expr()
+        if pos[0] != len(tokens):
+            raise ValueError('Ungültige Formel-Syntax')
+        return result
+
     def compute_formula_values(self, fields):
-        """Berechnet Formelfelder wie GESAMT."""
+        """Berechnet Formelfelder wie GESAMT (inkl. +, -, *, /, Klammern und %)."""
         data = self.get_custom_data()
         changed = False
         tax_rate = self._parse_tax_rate(data.get('steuersatz'))
 
         for f in fields:
             if f.field_type == 'formula' and f.formula_definition:
-                expr = f.formula_definition
-                # Unterstütze Standard-Formel: gage + booking_fee + travel + lodging + other_expenses + food_allowance_cost
-                total = 0.0
+                expr = f.formula_definition.strip()
+                if not expr:
+                    continue
                 try:
-                    # Zerlege nach +
-                    terms = [t.strip() for t in expr.split('+')]
-                    for t in terms:
-                        val = data.get(t)
-                        if val is not None:
-                            try:
-                                num = float(str(val).replace('€', '').replace(',', '.').strip() or 0)
-                                if t == 'gage' and tax_rate > 0:
-                                    num = num * (1.0 + tax_rate)
-                                total += num
-                            except (ValueError, TypeError):
-                                pass
+                    total = self._evaluate_formula_expression(
+                        expr,
+                        data,
+                        tax_rate=tax_rate,
+                        apply_gage_tax=(f.field_key == 'gesamt'),
+                    )
                     data[f.field_key] = f"€{total:.2f}"
                     changed = True
                 except Exception:
@@ -540,6 +660,39 @@ class BookingPersonalFile(db.Model):
             'is_image': self.is_image,
             'uploaded_at': self.uploaded_at.isoformat() if self.uploaded_at else None,
         }
+
+
+_NUMERIC_OPTION_RE = re.compile(r'^-?\s*€?\s*\d+(?:[.,]\d+)?\s*%?$')
+
+
+def is_booking_formula_field(field, *, include_formula: bool = False) -> bool:
+    """Return True if a BookingPersonalField or template field dict can be used in formulas/placeholders."""
+    if isinstance(field, dict):
+        ftype = field.get('field_type')
+        fkey = field.get('field_key')
+        opts = field.get('options') or []
+    else:
+        ftype = getattr(field, 'field_type', None)
+        fkey = getattr(field, 'field_key', None)
+        opts = field.get_options() if hasattr(field, 'get_options') else []
+
+    if ftype in ('currency', 'counter', 'number') or fkey == 'steuersatz':
+        return True
+    if include_formula and ftype == 'formula':
+        return True
+    if ftype != 'badge_select' or not opts:
+        return False
+
+    has_numeric = False
+    for opt in opts:
+        raw = opt.get('value') if isinstance(opt, dict) else str(opt or '')
+        val = (raw or '').strip()
+        if not val or val == '-':
+            continue
+        if not _NUMERIC_OPTION_RE.match(val):
+            return False
+        has_numeric = True
+    return has_numeric
 
 
 class BookingPersonalTemplate(db.Model):

@@ -1511,3 +1511,199 @@ body.bp-public-body {
     border-top: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.12));
     padding: 0.9rem 1.4rem;
 }
+
+/* ==========================================================================
+   Dateien & Medien Darstellung (Liste & Detail-Übersicht)
+   ========================================================================== */
+.bp-file-count-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.22rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.76rem;
+    font-weight: 500;
+    line-height: 1.2;
+    color: var(--bs-body-color);
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 10%, var(--bs-tertiary-bg));
+    border: 1px solid color-mix(in srgb, var(--accent-color, var(--bs-primary)) 22%, var(--bs-border-color));
+    white-space: nowrap;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+a.bp-file-count-badge:hover {
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 16%, var(--bs-tertiary-bg));
+    border-color: var(--accent-color, var(--bs-primary));
+    color: var(--accent-color, var(--bs-primary));
+}
+
+.bp-file-count-badge .bi {
+    color: var(--accent-color, var(--bs-primary));
+    font-size: 0.8rem;
+}
+
+.bp-detail-media-block {
+    background-color: transparent;
+    border: 1px solid transparent;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.bp-detail-media-block:hover {
+    background-color: color-mix(in srgb, var(--bs-tertiary-bg) 60%, transparent);
+    border-color: var(--bs-border-color-translucent, var(--bs-border-color));
+}
+
+.bp-upload-trigger {
+    cursor: pointer;
+    font-size: 0.78rem;
+}
+
+.bp-upload-trigger .bi {
+    color: var(--accent-color, var(--bs-primary));
+}
+
+.bp-detail-file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    width: 100%;
+}
+
+.bp-detail-file-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 0.75rem;
+    background-color: var(--bs-tertiary-bg);
+    border: 1px solid var(--bs-border-color);
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.bp-detail-file-item:hover {
+    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 45%, var(--bs-border-color));
+}
+
+.bp-detail-file-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: 0.5rem;
+    object-fit: cover;
+    border: 1px solid var(--bs-border-color);
+    display: block;
+}
+
+.bp-detail-file-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 0.55rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 12%, transparent);
+    color: var(--accent-color, var(--bs-primary));
+    font-size: 1.1rem;
+}
+
+.bp-detail-file-name {
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: var(--bs-body-color);
+    line-height: 1.3;
+}
+
+.bp-detail-file-name:hover {
+    color: var(--accent-color, var(--bs-primary));
+}
+
+.bp-detail-file-ext {
+    display: inline-block;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--bs-secondary-color);
+}
+
+.bp-detail-file-action-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--bs-secondary-color);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.bp-detail-file-action-btn:hover {
+    background-color: color-mix(in srgb, var(--bs-body-color) 8%, transparent);
+    color: var(--bs-body-color);
+}
+
+.bp-detail-file-action-btn--accent:hover {
+    background-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 14%, transparent);
+    color: var(--accent-color, var(--bs-primary));
+}
+
+.bp-detail-file-action-btn--danger:hover {
+    background-color: color-mix(in srgb, var(--bs-danger) 14%, transparent);
+    color: var(--bs-danger);
+}
+
+/* ── Vorlagen-Verwaltung: Mobile Responsive Table ──────────────────────── */
+@media (max-width: 767.98px) {
+    #templateFieldsTable {
+        table-layout: auto;
+    }
+
+    #templateFieldsTable thead {
+        display: none;
+    }
+
+    #templateFieldsTable,
+    #templateFieldsTable tbody {
+        display: block;
+        width: 100%;
+    }
+
+    #templateFieldsTable tr.template-field-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.45rem 0.6rem;
+        padding: 0.85rem 0.5rem;
+        border-bottom: 1px solid var(--bs-border-color-translucent, rgba(127, 127, 127, 0.16));
+    }
+
+    #templateFieldsTable tr.template-field-row:last-child {
+        border-bottom: 0;
+    }
+
+    #templateFieldsTable tr.template-field-row > td {
+        display: block;
+        width: auto;
+        padding: 0 !important;
+        border: 0 !important;
+    }
+
+    #templateFieldsTable tr.template-field-row > td:first-child {
+        min-width: 1.4rem;
+        text-align: left !important;
+        font-weight: 600;
+    }
+
+    #templateFieldsTable tr.template-field-row > td:nth-child(2) {
+        flex: 1 1 calc(100% - 5rem);
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    #templateFieldsTable tr.template-field-row > td.text-end {
+        margin-left: auto;
+    }
+}

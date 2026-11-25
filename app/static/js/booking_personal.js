@@ -849,6 +849,44 @@
     // -------------------------------------------------------------
     // Spalten-Manager (Custom Fields)
     // -------------------------------------------------------------
+    window.insertFormulaToken = function (inputId, token, isOperator = false) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        const val = input.value;
+        const start = typeof input.selectionStart === 'number' ? input.selectionStart : val.length;
+        const end = typeof input.selectionEnd === 'number' ? input.selectionEnd : val.length;
+        const before = val.slice(0, start);
+        const after = val.slice(end);
+        const trimmedBefore = before.trimEnd();
+
+        let insertText = token;
+        if (isOperator) {
+            if (['+', '-', '*', '/'].includes(token)) {
+                const needLeadSpace = trimmedBefore.length > 0 && !before.endsWith(' ');
+                const needTrailSpace = after.length > 0 && !after.startsWith(' ');
+                insertText = `${needLeadSpace ? ' ' : ''}${token}${needTrailSpace ? ' ' : ' '}`;
+            } else {
+                insertText = token;
+            }
+        } else {
+            const lastChar = trimmedBefore.slice(-1);
+            const afterBinaryOrOpen = !trimmedBefore || ['+', '-', '*', '/', '('].includes(lastChar);
+            if (afterBinaryOrOpen) {
+                const needSpace = trimmedBefore.length > 0 && lastChar !== '(' && !before.endsWith(' ');
+                insertText = `${needSpace ? ' ' : ''}${token}`;
+            } else {
+                insertText = ` + ${token}`;
+            }
+        }
+
+        input.value = before + insertText + after;
+        const newPos = before.length + insertText.length;
+        input.focus();
+        if (typeof input.setSelectionRange === 'function') {
+            input.setSelectionRange(newPos, newPos);
+        }
+    };
+
     const bpColType = document.getElementById('bpColType');
     if (bpColType) {
         bpColType.addEventListener('change', function () {

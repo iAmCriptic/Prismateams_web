@@ -2202,10 +2202,14 @@
       }
     }
 
-    const lightboxItems = (attachments || [])
-      .filter((a) => a && a.is_image && (a.preview_url || a.url) && a.portal_file_access !== false)
+    const lightboxItems = (atts || [])
+      .filter((a) => a && a.portal_file_access !== false && (
+        (a.is_image && (a.preview_url || a.url)) ||
+        (!a.is_link && a.is_pdf && a.preview_url)
+      ))
       .map((a) => ({
         id: a.id,
+        kind: (!a.is_link && a.is_pdf) ? 'pdf' : 'image',
         src: a.preview_url || a.url,
         title: a.filename || '',
         meta: a.created_at ? formatAddedAt(a.created_at) : '',
@@ -2242,7 +2246,10 @@
         const lbIdx = lightboxIndexById.get(Number(a.id));
         return `<img class="kanban-attach-thumb" src="${esc(a.preview_url)}" alt=""${lbIdx != null ? ` data-lightbox-index="${lbIdx}"` : ''}>`;
       }
-      if (a.is_pdf) return `<div class="kanban-attach-thumb kanban-attach-thumb--badge">PDF</div>`;
+      if (a.is_pdf) {
+        const lbIdx = lightboxIndexById.get(Number(a.id));
+        return `<div class="kanban-attach-thumb kanban-attach-thumb--badge"${lbIdx != null ? ` data-lightbox-index="${lbIdx}"` : ''}>PDF</div>`;
+      }
       const ext = ((a.filename || '').split('.').pop() || '').toUpperCase().slice(0, 4);
       return `<div class="kanban-attach-thumb kanban-attach-thumb--badge">${esc(ext || 'FILE')}</div>`;
     }
@@ -2257,8 +2264,9 @@
       const accessBlocked = a.google_access === false || a.portal_file_access === false;
       const openDisabled = a.portal_file_access === false;
       const openTarget = useEuroOffice ? '_self' : '_blank';
-      const lbIdx = !useEuroOffice ? lightboxIndexById.get(Number(a.id)) : undefined;
+      const lbIdx = lightboxIndexById.get(Number(a.id));
       const lbAttr = lbIdx != null ? ` data-lightbox-index="${lbIdx}"` : '';
+      const useLightboxForAction = lbIdx != null && !useEuroOffice;
       return `<div class="kanban-attach-row${isCover ? ' is-cover' : ''}" data-att-id="${a.id}">
         ${attachThumb(a)}
         <div class="kanban-attach-row__info">
@@ -2272,7 +2280,7 @@
           </div>
         </div>
         <div class="kanban-attach-row__actions">
-          ${openDisabled ? '' : `<a class="btn btn-sm mod-pill-btn mod-pill-btn--icon" href="${esc(viewUrl)}"${lbIdx != null ? lbAttr : ` target="${openTarget}" rel="noopener"`} title="${esc(useEuroOffice ? (i18n.editEuroOffice || 'In Euro-Office bearbeiten') : (i18n.view || 'Ansehen'))}"><i class="bi ${useEuroOffice ? 'bi-pencil-square' : (lbIdx != null ? 'bi-arrows-fullscreen' : 'bi-box-arrow-up-right')}"></i></a>`}
+          ${openDisabled ? '' : `<a class="btn btn-sm mod-pill-btn mod-pill-btn--icon" href="${esc(viewUrl)}"${useLightboxForAction ? lbAttr : ` target="${openTarget}" rel="noopener"`} title="${esc(useEuroOffice ? (i18n.editEuroOffice || 'In Euro-Office bearbeiten') : (i18n.view || 'Ansehen'))}"><i class="bi ${useEuroOffice ? 'bi-pencil-square' : (useLightboxForAction ? 'bi-arrows-fullscreen' : 'bi-box-arrow-up-right')}"></i></a>`}
           ${!openDisabled && useEuroOffice && downloadUrl ? `<a class="btn btn-sm mod-pill-btn mod-pill-btn--icon" href="${esc(downloadUrl)}" target="_blank" rel="noopener" title="${esc(i18n.download || 'Herunterladen')}"><i class="bi bi-download"></i></a>` : ''}
           ${canEdit && a.is_image && !isCover ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-set-cover="${a.id}" title="${esc(i18n.setCover || 'Titelbild')}"><i class="bi bi-image"></i></button>` : ''}
           ${canEdit && isCover ? `<button type="button" class="btn btn-sm mod-pill-btn mod-pill-btn--icon" data-clear-cover="1" title="${esc(i18n.removeCover || 'Titelbild entfernen')}"><i class="bi bi-image-fill text-warning"></i></button>` : ''}
@@ -4755,6 +4763,8 @@
   const lbRoot = document.getElementById('kanbanImageLightbox');
   const lbStage = document.getElementById('kanbanLightboxStage');
   const lbImg = document.getElementById('kanbanLightboxImg');
+  const lbPdf = document.getElementById('kanbanLightboxPdf');
+  const lbZoomControls = document.getElementById('kanbanLightboxZoomControls');
   const lbTitle = document.getElementById('kanbanLightboxTitle');
   const lbMeta = document.getElementById('kanbanLightboxMeta');
   const lbOpenTab = document.getElementById('kanbanLightboxOpenTab');
@@ -4804,9 +4814,24 @@
   function renderLightboxSlide() {
     const item = lbItems[lbIndex];
     if (!item || !lbImg) return;
+    const isPdf = item.kind === 'pdf';
     resetLightboxZoom();
-    lbImg.src = item.src || '';
-    lbImg.alt = item.title || '';
+    if (lbZoomControls) lbZoomControls.hidden = isPdf;
+    if (isPdf && lbPdf) {
+      lbImg.hidden = true;
+      lbImg.src = '';
+      lbPdf.hidden = false;
+      lbPdf.src = item.src || '';
+      lbPdf.title = item.title || 'PDF';
+    } else {
+      if (lbPdf) {
+        lbPdf.hidden = true;
+        lbPdf.src = '';
+      }
+      lbImg.hidden = false;
+      lbImg.src = item.src || '';
+      lbImg.alt = item.title || '';
+    }
     if (lbTitle) lbTitle.textContent = item.title || '';
     if (lbMeta) {
       lbMeta.textContent = item.meta || '';
@@ -4863,7 +4888,14 @@
   function closeImageLightbox() {
     if (!lbRoot || lbRoot.hidden) return;
     lbRoot.hidden = true;
-    if (lbImg) lbImg.src = '';
+    if (lbImg) {
+      lbImg.src = '';
+      lbImg.hidden = false;
+    }
+    if (lbPdf) {
+      lbPdf.src = '';
+      lbPdf.hidden = true;
+    }
     document.removeEventListener('keydown', onLightboxKeyDown, true);
   }
 

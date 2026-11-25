@@ -169,7 +169,7 @@
 
             {% set has_large_content = false %}
             {% for f in cat_fields %}
-                {% if f.field_type in ('textarea', 'image_upload') or f.field_key in ('promotext', 'promo_pictures') %}
+                {% if f.field_type in ('textarea', 'image_upload', 'file_upload') or f.field_key in ('promotext', 'promo_pictures') %}
                     {% set has_large_content = true %}
                 {% endif %}
             {% endfor %}
@@ -199,6 +199,109 @@
                         {% for f in cat_fields %}
                             {% set val = custom_data.get(f.field_key) %}
                             {% if f.field_type not in ('action_accept', 'form_link') or cat_name == 'Aktionen & Links' %}
+                            {% if f.field_type in ('image_upload', 'file_upload') %}
+                            {% set is_img_field = (f.field_type == 'image_upload') %}
+                            {% set media_list = val if (val and val is iterable and val is not string) else ([val] if (val and val is string and val != '-') else []) %}
+                            {% set media_count = media_list|length %}
+                            <div class="bp-detail-media-block py-2 px-2 rounded-3">
+                                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap">
+                                    <div class="d-flex align-items-center gap-2 min-width-0">
+                                        <span class="text-muted small">{{ f.label }}:</span>
+                                        {% if media_count > 0 %}
+                                        <span class="bp-file-count-badge">
+                                            <i class="bi {{ 'bi-images' if is_img_field else 'bi-paperclip' }}" aria-hidden="true"></i>
+                                            <span>{{ media_count }} {{ ('Bild' if media_count == 1 else 'Bilder') if is_img_field else ('Datei' if media_count == 1 else 'Dateien') }}</span>
+                                        </span>
+                                        {% else %}
+                                        <span class="text-muted small opacity-75">{{ 'Keine Bilder' if is_img_field else 'Keine Dateien' }}</span>
+                                        {% endif %}
+                                    </div>
+                                    <label class="btn btn-sm mod-pill-btn mod-pill-btn--outline px-2.5 py-1 mb-0 bp-upload-trigger">
+                                        <i class="bi bi-upload me-1" aria-hidden="true"></i>{{ 'Bild hochladen' if is_img_field else 'Datei hochladen' }}
+                                        <input type="file" class="d-none"
+                                               accept="{{ 'image/*' if is_img_field else '.pdf,.doc,.docx,.txt,.zip,.xlsx,.xls,.csv,image/*' }}"
+                                               multiple
+                                               onchange="uploadAdminEntryFiles({{ entry.id }}, '{{ f.field_key }}', this)">
+                                    </label>
+                                </div>
+                                {% if media_count > 0 %}
+                                <div class="bp-detail-file-list mt-2">
+                                    {% for item_url in media_list %}
+                                    {% set raw_name = item_url.split('/')[-1] %}
+                                    {% set mapped_name = file_names.get(item_url) if file_names is defined and file_names else None %}
+                                    {% if mapped_name %}
+                                        {% set display_name = mapped_name %}
+                                    {% else %}
+                                        {% set prefix = entry.id|string ~ '_' ~ f.field_key ~ '_' %}
+                                        {% if raw_name.startswith(prefix) %}
+                                            {% set after_prefix = raw_name[prefix|length:] %}
+                                            {% set parts = after_prefix.split('_', 1) %}
+                                            {% set display_name = parts[1] if (parts|length == 2 and parts[0]|length == 14 and parts[0].isdigit()) else after_prefix %}
+                                        {% else %}
+                                            {% set display_name = raw_name %}
+                                        {% endif %}
+                                    {% endif %}
+                                    {% set ext = (display_name.rsplit('.', 1)[-1]|lower) if '.' in display_name else '' %}
+                                    {% set file_icon = 'bi-file-earmark-text' %}
+                                    {% if ext == 'pdf' %}
+                                        {% set file_icon = 'bi-file-earmark-pdf' %}
+                                    {% elif ext in ('doc', 'docx', 'odt', 'rtf') %}
+                                        {% set file_icon = 'bi-file-earmark-word' %}
+                                    {% elif ext in ('xls', 'xlsx', 'csv', 'ods') %}
+                                        {% set file_icon = 'bi-file-earmark-excel' %}
+                                    {% elif ext in ('zip', 'rar', '7z', 'tar', 'gz') %}
+                                        {% set file_icon = 'bi-file-earmark-zip' %}
+                                    {% elif ext in ('png', 'jpg', 'jpeg', 'webp', 'gif', 'svg') %}
+                                        {% set file_icon = 'bi-file-earmark-image' %}
+                                    {% elif ext in ('mp3', 'wav', 'flac', 'aac', 'ogg') %}
+                                        {% set file_icon = 'bi-file-earmark-music' %}
+                                    {% elif ext in ('mp4', 'mov', 'avi', 'mkv', 'webm') %}
+                                        {% set file_icon = 'bi-file-earmark-play' %}
+                                    {% endif %}
+                                    <div class="bp-detail-file-item">
+                                        <div class="d-flex align-items-center gap-2.5 min-width-0 flex-grow-1">
+                                            {% if is_img_field %}
+                                            <a href="{{ item_url }}" target="_blank" class="bp-detail-file-thumb-link flex-shrink-0" title="Vorschau öffnen">
+                                                <img src="{{ item_url }}" alt="{{ display_name }}" class="bp-detail-file-thumb">
+                                            </a>
+                                            {% else %}
+                                            <span class="bp-detail-file-icon flex-shrink-0" aria-hidden="true">
+                                                <i class="bi {{ file_icon }}"></i>
+                                            </span>
+                                            {% endif %}
+                                            <div class="min-width-0 flex-grow-1">
+                                                <a href="{{ item_url }}" target="_blank" class="bp-detail-file-name text-truncate d-block text-decoration-none" title="{{ display_name }}">
+                                                    {{ display_name }}
+                                                </a>
+                                                {% if ext %}
+                                                <span class="bp-detail-file-ext text-uppercase">{{ ext }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="bp-detail-file-actions d-inline-flex align-items-center gap-1 flex-shrink-0">
+                                            <a href="{{ item_url }}" target="_blank"
+                                               class="bp-detail-file-action-btn"
+                                               title="Ansehen / Öffnen" aria-label="Ansehen">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            <a href="{{ item_url }}" download="{{ display_name }}"
+                                               class="bp-detail-file-action-btn bp-detail-file-action-btn--accent"
+                                               title="Herunterladen" aria-label="Herunterladen">
+                                                <i class="bi bi-download"></i>
+                                            </a>
+                                            <button type="button"
+                                                    class="bp-detail-file-action-btn bp-detail-file-action-btn--danger"
+                                                    onclick="deleteAdminEntryFile({{ entry.id }}, '{{ f.field_key }}', '{{ item_url }}')"
+                                                    title="Entfernen" aria-label="Entfernen">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% else %}
                             <div class="bp-detail-field-row d-flex align-items-center justify-content-between py-1.5 px-2 rounded-3 bp-editable-row"
                                  data-entry-id="{{ entry.id }}"
                                  data-field-key="{{ f.field_key }}"
@@ -253,57 +356,6 @@
                                             </div>
                                         {% elif f.field_type == 'counter' %}
                                             <span class="badge rounded-pill bg-body-secondary text-body border px-2.5 py-0.5 fw-bold small">{{ val or '0' }}</span>
-                                        {% elif f.field_type == 'image_upload' or f.field_type == 'file_upload' %}
-                                            {% set is_img_field = (f.field_type == 'image_upload') %}
-                                            <div class="d-flex flex-column gap-2 align-items-end w-100" onclick="event.stopPropagation()">
-                                                {% if val %}
-                                                {% set media_list = val if (val is iterable and val is not string) else [val] %}
-                                                <div class="d-flex flex-column gap-1.5 w-100" style="max-width: 24rem;">
-                                                    {% for item_url in media_list %}
-                                                    {% set raw_name = item_url.split('/')[-1] %}
-                                                    <div class="d-flex align-items-center justify-content-between gap-2 bg-body-tertiary border rounded-3 px-2.5 py-1.5">
-                                                        <div class="d-flex align-items-center gap-2 min-width-0">
-                                                            {% if is_img_field %}
-                                                            <a href="{{ item_url }}" target="_blank" class="flex-shrink-0">
-                                                                <img src="{{ item_url }}" alt="{{ raw_name }}" class="rounded-2 border" style="width: 34px; height: 34px; object-fit: cover;">
-                                                            </a>
-                                                            {% else %}
-                                                            <i class="bi bi-file-earmark-text text-primary fs-5 flex-shrink-0" aria-hidden="true"></i>
-                                                            {% endif %}
-                                                            <span class="small text-body text-truncate" title="{{ raw_name }}">{{ raw_name }}</span>
-                                                        </div>
-                                                        <div class="d-inline-flex align-items-center gap-1 flex-shrink-0">
-                                                            <a href="{{ item_url }}" target="_blank"
-                                                               class="btn btn-sm btn-link text-secondary p-1"
-                                                               title="Ansehen / Öffnen" aria-label="Ansehen">
-                                                                <i class="bi bi-eye"></i>
-                                                            </a>
-                                                            <a href="{{ item_url }}" download
-                                                               class="btn btn-sm btn-link text-primary p-1"
-                                                               title="Herunterladen" aria-label="Herunterladen">
-                                                                <i class="bi bi-download"></i>
-                                                            </a>
-                                                            <button type="button"
-                                                                    class="btn btn-sm btn-link text-danger p-1"
-                                                                    onclick="deleteAdminEntryFile({{ entry.id }}, '{{ f.field_key }}', '{{ item_url }}')"
-                                                                    title="Entfernen" aria-label="Entfernen">
-                                                                <i class="bi bi-trash"></i>
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    {% endfor %}
-                                                </div>
-                                                {% else %}
-                                                <span class="text-muted small">{{ 'Keine Bilder' if is_img_field else 'Keine Datei' }}</span>
-                                                {% endif %}
-                                                <label class="btn btn-sm btn-outline-secondary mod-pill-btn px-2.5 py-1 mb-0" style="cursor: pointer;">
-                                                    <i class="bi bi-upload text-primary me-1"></i>{{ 'Bild hochladen' if is_img_field else 'Datei hochladen' }}
-                                                    <input type="file" class="d-none"
-                                                           accept="{{ 'image/*' if is_img_field else '.pdf,.doc,.docx,.txt,.zip,.xlsx,.xls,.csv,image/*' }}"
-                                                           multiple
-                                                           onchange="uploadAdminEntryFiles({{ entry.id }}, '{{ f.field_key }}', this)">
-                                                </label>
-                                            </div>
                                         {% elif f.field_type == 'textarea' %}
                                             <div class="p-2 bg-body-tertiary rounded-3 text-body small text-start" style="white-space: pre-wrap; font-size: 0.82rem;">{{ val or '-' }}</div>
                                         {% elif f.field_type == 'form_link' %}
@@ -343,6 +395,7 @@
                                     {% endif %}
                                 </span>
                             </div>
+                            {% endif %}
                             {% endif %}
                         {% endfor %}
                     </div>

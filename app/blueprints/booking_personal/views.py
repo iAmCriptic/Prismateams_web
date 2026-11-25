@@ -18,6 +18,7 @@ from app.models.booking_personal import (
     BookingPersonalEntry,
     BookingPersonalFile,
     BookingPersonalTemplate,
+    is_booking_formula_field,
 )
 from app.utils.access_control import check_module_access
 from app.utils.common import is_module_enabled
@@ -32,6 +33,11 @@ from .mail import (
     send_booking_personal_mail,
 )
 from . import booking_personal_bp
+
+
+@booking_personal_bp.app_template_global('is_bp_formula_field')
+def _template_is_bp_formula_field(field, include_formula=False):
+    return is_booking_formula_field(field, include_formula=include_formula)
 
 
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp', 'gif'}
@@ -299,6 +305,12 @@ def act_detail(event_id, entry_id):
             categories[cat] = []
         categories[cat].append(f)
 
+    file_names = {
+        bf.file_path: bf.file_name
+        for bf in BookingPersonalFile.query.filter_by(entry_id=entry.id).all()
+        if bf.file_path and bf.file_name
+    }
+
     return render_template(
         'booking_personal/act_detail.html',
         events=events,
@@ -309,6 +321,7 @@ def act_detail(event_id, entry_id):
         templates=templates,
         mailboxes=mailboxes,
         categories=categories,
+        file_names=file_names,
     )
 
 

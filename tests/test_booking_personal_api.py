@@ -666,3 +666,51 @@ def test_currency_formatting_on_save_and_render(client, app):
     assert data_all['entry']['custom_data']['gage'] == '€200.00'
 
 
+def test_file_display_in_list_and_act_detail(client, app):
+    """Prüft die Dateizähler-Anzeige in der Liste und die strukturierte Dateiliste in der Übersicht."""
+    with app.app_context():
+        _login_test_user(client)
+
+        event = BookingPersonalEvent(name='File Display Event')
+        db.session.add(event)
+        db.session.flush()
+        apply_template_to_event(event, FESTIVAL_STANDARD_FIELDS, db.session)
+
+        entry = BookingPersonalEntry(event=event, name='Tech Act')
+        db.session.add(entry)
+        db.session.flush()
+
+        file_path = f'/uploads/booking_personal/{event.id}/{entry.id}_techrider_attachments_20261125204426_Stage_Plot.pdf'
+        entry.set_value('techrider_attachments', [file_path])
+
+        from app.models.booking_personal import BookingPersonalFile
+        db.session.add(BookingPersonalFile(
+            entry_id=entry.id,
+            field_key='techrider_attachments',
+            file_path=file_path,
+            file_name='Stage Plot.pdf',
+            is_image=False,
+        ))
+        db.session.commit()
+        event_id = event.id
+        entry_id = entry.id
+
+    # 1. Liste zeigt kompakten Zähler statt rohem Pfad-Array
+    resp_list = client.get(f'/booking-personal/?event_id={event_id}')
+    assert resp_list.status_code == 200
+    html_list = resp_list.get_data(as_text=True)
+    assert 'bp-file-count-badge' in html_list
+    assert '1 Datei' in html_list
+    assert '/uploads/booking_personal/' not in html_list
+
+    # 2. Detail-Übersicht zeigt sauberen Dateinamen in strukturierter Dateiliste
+    resp_detail = client.get(f'/booking-personal/event/{event_id}/act/{entry_id}')
+    assert resp_detail.status_code == 200
+    html_detail = resp_detail.get_data(as_text=True)
+    assert 'bp-detail-file-list' in html_detail
+    assert 'bp-detail-file-item' in html_detail
+    assert 'title="Stage Plot.pdf"' in html_detail
+    assert 'bi-file-earmark-pdf' in html_detail
+
+
+

@@ -27,7 +27,7 @@
         {{ booking_personal_sidebar(events, none, "templates") }}
 
     <!-- Hauptbereich: Vorlagenverwaltung -->
-    <main class="mod-main flex-grow-1 min-width-0 overflow-y-auto p-4" id="bpTemplatesContainer">
+    <main class="mod-main flex-grow-1 min-width-0 overflow-y-auto p-3 p-md-4" id="bpTemplatesContainer">
         <!-- Mobile Topbar (< 992px) mit einklappbarer Navbar / Offcanvas-Sidebar -->
         <div class="mod-mobile-topbar d-lg-none mb-3">
             <div class="d-flex justify-content-between align-items-center gap-2">
@@ -502,22 +502,33 @@
                     </div>
 
                     <div class="mb-3 d-none" id="bpTmplFormulaGroup">
-                        <label class="form-label fw-semibold">Formel-Definition (Addition mit +)</label>
-                        <input type="text" name="formula_definition" id="tmplFieldFormula" class="form-control mod-pill-input rounded-pill px-3 py-2 font-monospace small" placeholder="z. B. gage + booking_fee + travel">
+                        <label class="form-label fw-semibold">Formel-Definition</label>
+                        <input type="text" name="formula_definition" id="tmplFieldFormula" class="form-control mod-pill-input rounded-pill px-3 py-2 font-monospace small" placeholder="z. B. (gage + booking_fee) * (1 + 19%)">
+                        <div class="d-flex flex-wrap align-items-center gap-1 mt-2">
+                            <span class="small text-muted me-1">Operatoren:</span>
+                            {% for op in ['+', '-', '*', '/', '(', ')', '%'] %}
+                            <button type="button" class="btn btn-xs mod-pill-btn mod-pill-btn--outline-muted font-monospace px-2 py-0" onclick="insertTmplFormulaToken('{{ op }}', true)">{{ op }}</button>
+                            {% endfor %}
+                        </div>
                         {% if selected_template %}
-                        {% set numeric_fields = selected_template.get_fields()|selectattr('field_type', 'in', ['currency', 'counter', 'number'])|list %}
-                        {% if numeric_fields %}
+                        {% set formula_fields = [] %}
+                        {% for tf in selected_template.get_fields() %}
+                            {% if is_bp_formula_field(tf) %}
+                                {% set _ = formula_fields.append(tf) %}
+                            {% endif %}
+                        {% endfor %}
+                        {% if formula_fields %}
                         <div class="d-flex flex-wrap gap-1.5 mt-2">
-                            <span class="small text-muted align-self-center me-1">Felder einfügen:</span>
-                            {% for nf in numeric_fields %}
-                            <button type="button" class="bp-preset-chip" onclick="appendTmplFormulaField('{{ nf.field_key }}')">
+                            <span class="small text-muted align-self-center me-1">Felder auswählen:</span>
+                            {% for nf in formula_fields %}
+                            <button type="button" class="bp-preset-chip" onclick="insertTmplFormulaToken('{{ nf.field_key }}', false)">
                                 <i class="bi bi-plus-circle text-primary"></i>{{ nf.label }}
                             </button>
                             {% endfor %}
                         </div>
                         {% endif %}
                         {% endif %}
-                        <div class="form-text small">Summiert alle angegebenen Felder automatisch (inkl. Steuersatz-Aufschlag auf Gage).</div>
+                        <div class="form-text small">Unterstützt +, -, *, /, Klammern () und Prozentwerte (z. B. 19% oder Steuersatz).</div>
                     </div>
 
                     <div class="form-check form-switch mb-2">
@@ -653,12 +664,45 @@ function toggleTmplFieldOptions(val) {
     }
 }
 
-function appendTmplFormulaField(fieldKey) {
+function insertTmplFormulaToken(token, isOperator) {
     const input = document.getElementById('tmplFieldFormula');
     if (!input) return;
-    const cur = input.value.trim();
-    input.value = cur ? `${cur} + ${fieldKey}` : fieldKey;
+    const val = input.value;
+    const start = typeof input.selectionStart === 'number' ? input.selectionStart : val.length;
+    const end = typeof input.selectionEnd === 'number' ? input.selectionEnd : val.length;
+    const before = val.slice(0, start);
+    const after = val.slice(end);
+    const trimmedBefore = before.trimEnd();
+
+    let insertText = token;
+    if (isOperator) {
+        if (['+', '-', '*', '/'].includes(token)) {
+            const needLeadSpace = trimmedBefore.length > 0 && !before.endsWith(' ');
+            insertText = `${needLeadSpace ? ' ' : ''}${token} `;
+        } else {
+            insertText = token;
+        }
+    } else {
+        const lastChar = trimmedBefore.slice(-1);
+        const afterBinaryOrOpen = !trimmedBefore || ['+', '-', '*', '/', '('].includes(lastChar);
+        if (afterBinaryOrOpen) {
+            const needSpace = trimmedBefore.length > 0 && lastChar !== '(' && !before.endsWith(' ');
+            insertText = `${needSpace ? ' ' : ''}${token}`;
+        } else {
+            insertText = ` + ${token}`;
+        }
+    }
+
+    input.value = before + insertText + after;
+    const newPos = before.length + insertText.length;
     input.focus();
+    if (typeof input.setSelectionRange === 'function') {
+        input.setSelectionRange(newPos, newPos);
+    }
+}
+
+function appendTmplFormulaField(fieldKey) {
+    insertTmplFormulaToken(fieldKey, false);
 }
 
 function applyTmplColPreset(key) {
