@@ -420,9 +420,27 @@
     const navSearchClear = document.getElementById('bpSearchClear');
     const tableSearchInput = document.getElementById('bpTableSearchInput');
     const tableSearchClear = document.getElementById('bpTableSearchClear');
-    const statusFilter = document.getElementById('bpStatusFilter');
-    const areaFilter = document.getElementById('bpAreaFilter');
+    const dynamicFilters = Array.from(document.querySelectorAll('.bp-dynamic-filter'));
     const sortSelect = document.getElementById('bpSortSelect');
+
+    function getCellRawOrText(row, fieldKey) {
+        const td = row.querySelector(`td[data-field-key="${fieldKey}"]`);
+        if (!td) return '';
+        const editable = td.querySelector('[data-raw-value]');
+        if (editable && editable.dataset.rawValue !== undefined) {
+            return String(editable.dataset.rawValue).trim();
+        }
+        const formula = td.querySelector('.bp-cell-formula');
+        if (formula) {
+            return formula.textContent.trim();
+        }
+        const boolToggle = td.querySelector('.bp-cell-boolean-toggle');
+        if (boolToggle) {
+            return boolToggle.checked ? 'Ja' : 'Nein';
+        }
+        const txt = td.textContent.trim();
+        return txt === '-' ? '' : txt;
+    }
 
     function parseAreaValues(raw) {
         if (!raw) return [];
@@ -482,13 +500,14 @@
         if (!tbody) return;
 
         const q = getSearchQuery();
-        const statusVal = (statusFilter?.value || '').trim().toLowerCase();
-        const areaVal = (areaFilter?.value || '').trim().toLowerCase();
+        const activeFilters = dynamicFilters
+            .map(sel => ({ key: sel.dataset.fieldKey, val: (sel.value || '').trim().toLowerCase() }))
+            .filter(f => f.key && f.val);
         const sortVal = (sortSelect?.value || '').trim();
 
         const filterIndicator = document.getElementById('bpFilterIndicator');
         const filterBtn = document.getElementById('bpFilterDropdownBtn');
-        const hasActiveFilterOrSort = Boolean(statusVal || areaVal || sortVal);
+        const hasActiveFilterOrSort = Boolean(activeFilters.length > 0 || sortVal);
         if (filterIndicator) {
             filterIndicator.classList.toggle('d-none', !hasActiveFilterOrSort);
         }
@@ -502,6 +521,19 @@
         rows.sort((a, b) => {
             if (!sortVal) {
                 return Number(a.dataset.orderIndex || 0) - Number(b.dataset.orderIndex || 0);
+            }
+            if (sortVal.startsWith('col:')) {
+                const parts = sortVal.split(':');
+                const fieldKey = parts[1];
+                const dir = parts[2];
+                const valA = getCellRawOrText(a, fieldKey);
+                const valB = getCellRawOrText(b, fieldKey);
+                if (dir === 'num_asc' || dir === 'num_desc') {
+                    const diff = parseCurrencyVal(valA) - parseCurrencyVal(valB);
+                    return dir === 'num_asc' ? diff : -diff;
+                }
+                const cmp = compareText(valA, valB);
+                return dir === 'text_asc' ? cmp : -cmp;
             }
             if (sortVal === 'name_asc' || sortVal === 'name_desc') {
                 const cmp = compareText((a.dataset.name || '').trim(), (b.dataset.name || '').trim());
@@ -530,14 +562,14 @@
         rows.forEach(row => {
             tbody.appendChild(row);
             const rowText = row.textContent.toLowerCase();
-            const rowStatus = (row.dataset.status || '').trim().toLowerCase();
-            const rowAreas = getRowAreas(row).map(v => v.toLowerCase());
-
             const matchesSearch = !q || rowText.includes(q);
-            const matchesStatus = !statusVal || rowStatus === statusVal;
-            const matchesArea = !areaVal || rowAreas.includes(areaVal);
+            const matchesAllDynamic = activeFilters.every(f => {
+                const raw = getCellRawOrText(row, f.key);
+                const vals = parseAreaValues(raw).map(v => v.toLowerCase());
+                return vals.includes(f.val);
+            });
 
-            const isVisible = matchesSearch && matchesStatus && matchesArea;
+            const isVisible = matchesSearch && matchesAllDynamic;
             row.style.display = isVisible ? '' : 'none';
 
             if (isVisible) {
@@ -582,21 +614,16 @@
         });
     }
 
-    if (statusFilter) statusFilter.addEventListener('change', applyFiltersAndSort);
-    if (areaFilter) areaFilter.addEventListener('change', applyFiltersAndSort);
+    dynamicFilters.forEach(sel => sel.addEventListener('change', applyFiltersAndSort));
     if (sortSelect) sortSelect.addEventListener('change', applyFiltersAndSort);
 
     const resetFiltersBtn = document.getElementById('bpResetFiltersBtn');
     if (resetFiltersBtn) {
         resetFiltersBtn.addEventListener('click', function () {
-            if (statusFilter) {
-                statusFilter.value = '';
-                if (window.InventoryPillSelect) window.InventoryPillSelect.sync(statusFilter);
-            }
-            if (areaFilter) {
-                areaFilter.value = '';
-                if (window.InventoryPillSelect) window.InventoryPillSelect.sync(areaFilter);
-            }
+            dynamicFilters.forEach(sel => {
+                sel.value = '';
+                if (window.InventoryPillSelect) window.InventoryPillSelect.sync(sel);
+            });
             if (sortSelect) {
                 sortSelect.value = '';
                 if (window.InventoryPillSelect) window.InventoryPillSelect.sync(sortSelect);
@@ -615,11 +642,7 @@
     if (addActBtn && addActModalEl) {
         addActBtn.addEventListener('click', function () {
             const input = document.getElementById('bpAddActNameInput');
-            const gageInput = document.getElementById('bpAddActGageInput');
-            const taxSelect = document.getElementById('bpAddActTaxRateSelect');
             if (input) input.value = '';
-            if (gageInput) gageInput.value = '';
-            if (taxSelect) taxSelect.value = '';
             const modal = new bootstrap.Modal(addActModalEl);
             modal.show();
             setTimeout(() => input && input.focus(), 300);
@@ -632,19 +655,12 @@
             const name = (input ? input.value : '').trim();
             if (!name) return;
 
-            const gageVal = document.getElementById('bpAddActGageInput')?.value || '';
-            const taxVal = document.getElementById('bpAddActTaxRateSelect')?.value || '';
-
             const eventId = addActBtn.dataset.eventId;
             try {
                 const resp = await fetch(`/booking-personal/api/event/${eventId}/entry`, {
                     method: 'POST',
                     headers: getHeaders(),
-                    body: JSON.stringify({
-                        name: name,
-                        gage: gageVal,
-                        steuersatz: taxVal
-                    })
+                    body: JSON.stringify({ name: name })
                 });
                 const data = await resp.json();
                 if (data.success) {
@@ -1724,11 +1740,50 @@
                 }
             }
         }
+
+        // Zähler pro Status & Stage/Bereich in der Fußzeile aktualisieren (3 übereinander, dann daneben)
+        footer.querySelectorAll('.bp-footer-counts-grid[data-footer-counts-for]').forEach(grid => {
+            const key = grid.dataset.footerCountsFor;
+            const counts = new Map();
+            rows.forEach(row => {
+                if (row.style.display === 'none') return;
+                const raw = getCellRawOrText(row, key);
+                const vals = parseAreaValues(raw);
+                vals.forEach(v => {
+                    counts.set(v, (counts.get(v) || 0) + 1);
+                });
+            });
+            if (counts.size === 0) {
+                grid.innerHTML = '<span class="text-muted">-</span>';
+            } else {
+                const items = Array.from(counts.entries())
+                    .sort((a, b) => b[1] - a[1] || compareText(a[0], b[0]))
+                    .map(([label, cnt]) => `<span class="text-nowrap"><span class="text-muted">${escapeHtml(label)}:</span> <strong class="text-body">${cnt}</strong></span>`);
+                grid.innerHTML = items.join('');
+            }
+        });
     }
 
     const budgetInput = document.getElementById('bpFooterBudgetInput');
     const budgetSaveBtn = document.getElementById('bpFooterBudgetSaveBtn');
+    const budgetDisplayBtn = document.getElementById('bpFooterBudgetDisplayBtn');
+    const budgetDisplayText = document.getElementById('bpFooterBudgetDisplayText');
+    const budgetEditWrap = document.getElementById('bpFooterBudgetEditWrap');
     const financeFooterEl = document.getElementById('bpFinanceFooter');
+
+    function closeBudgetEditMode() {
+        if (budgetEditWrap) budgetEditWrap.classList.add('d-none');
+        if (budgetDisplayBtn) budgetDisplayBtn.classList.remove('d-none');
+    }
+
+    function openBudgetEditMode() {
+        if (budgetDisplayBtn) budgetDisplayBtn.classList.add('d-none');
+        if (budgetEditWrap) budgetEditWrap.classList.remove('d-none');
+        if (budgetInput) {
+            budgetInput.focus();
+            budgetInput.select();
+        }
+    }
 
     async function saveEventBudget() {
         if (!financeFooterEl || !budgetInput) return;
@@ -1742,12 +1797,17 @@
             });
             const data = await resp.json();
             if (data.success) {
-                financeFooterEl.dataset.totalBudget = data.total_budget !== null && data.total_budget !== undefined ? String(data.total_budget) : '';
-                if (data.total_budget !== null && data.total_budget !== undefined) {
-                    budgetInput.value = Number(data.total_budget).toFixed(2);
+                const hasBudget = data.total_budget !== null && data.total_budget !== undefined;
+                financeFooterEl.dataset.totalBudget = hasBudget ? String(data.total_budget) : '';
+                if (hasBudget) {
+                    const formatted = Number(data.total_budget).toFixed(2);
+                    budgetInput.value = formatted;
+                    if (budgetDisplayText) budgetDisplayText.textContent = `€${formatted}`;
                 } else {
                     budgetInput.value = '';
+                    if (budgetDisplayText) budgetDisplayText.textContent = 'Budget festlegen';
                 }
+                closeBudgetEditMode();
                 updateFinanceFooter();
                 showToast('Gesamtbudget gespeichert.', 'success');
             } else {
@@ -1759,6 +1819,9 @@
         }
     }
 
+    if (budgetDisplayBtn) {
+        budgetDisplayBtn.addEventListener('click', openBudgetEditMode);
+    }
     if (budgetSaveBtn) {
         budgetSaveBtn.addEventListener('click', saveEventBudget);
     }
@@ -1767,7 +1830,19 @@
             if (e.key === 'Enter') {
                 e.preventDefault();
                 saveEventBudget();
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                const rawBudget = financeFooterEl?.dataset.totalBudget || '';
+                budgetInput.value = rawBudget !== '' ? Number(rawBudget).toFixed(2) : '';
+                closeBudgetEditMode();
             }
+        });
+        budgetInput.addEventListener('blur', function () {
+            setTimeout(() => {
+                if (document.activeElement !== budgetSaveBtn && budgetEditWrap && !budgetEditWrap.classList.contains('d-none')) {
+                    saveEventBudget();
+                }
+            }, 150);
         });
     }
 

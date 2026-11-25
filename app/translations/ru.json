@@ -93,7 +93,8 @@
             "description": "Установите портал как приложение для быстрого доступа и офлайн-работы.",
             "install": "Установить",
             "later": "Позже",
-            "never": "Больше не показывать"
+            "never": "Больше не показывать",
+            "ios_description": "В Safari нажмите кнопку «Поделиться» и выберите «На экран „Домой“»."
         },
         "pwa_update": {
             "title": "Доступна новая версия",
@@ -1537,7 +1538,19 @@
             "mirotalk_inactive": "Не активно",
             "hycanvas_label": "HyCanvas",
             "hycanvas_active": "Активно",
-            "hycanvas_inactive": "Не активно"
+            "hycanvas_inactive": "Не активно",
+            "apple_shortcut": {
+                "title": "Быстрая команда Apple (iOS / iPadOS)",
+                "info": "Safari на iOS/iPadOS не поддерживает PWA Share Target нативно. С помощью быстрой команды Apple можно отправлять ссылки в Prismateams прямо из меню «Поделиться».",
+                "description": "Как настроить отправку для iPhone и iPad в меню «Поделиться»:",
+                "step_1": "Откройте приложение «Команды» от Apple, нажмите «+» и включите «Показать на листе „Поделиться“» в Инфо (i) (для URL и текста).",
+                "step_2": "Добавьте действие «URL», скопируйте адрес ниже и вставьте входные данные команды сразу после «?url=».",
+                "step_3": "Затем добавьте действие «Открыть URL» — готово.",
+                "url_label": "Целевой URL команды",
+                "copy_btn": "Копировать URL",
+                "copied": "Скопировано",
+                "open_share_screen": "Открыть экран отправки"
+            }
         },
         "admin": {
             "page_title": "Администрирование — Настройки",
@@ -1589,7 +1602,8 @@
                 "module_booking_personal": "Booking",
                 "module_helpers": "Управление волонтёрами",
                 "module_canvas": "Canvas (HyCanvas)",
-                "module_todos": "Задачи"
+                "module_todos": "Задачи",
+                "module_protocols": "Протоколы"
             },
             "users": {
                 "page_title": "Управление пользователями — Администрирование",

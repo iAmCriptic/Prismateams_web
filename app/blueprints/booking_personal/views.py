@@ -177,6 +177,42 @@ def _build_index_filter_metadata(fields, entries):
     return status_field_key, area_field_key, status_options, area_options, entry_filter_meta
 
 
+def _build_dynamic_filters_and_sorts(fields, entries):
+    """Erstellt dynamische Filter (alle badge_select/multi_select-Felder) und Sortier-Optionen für beliebige Listen."""
+    dynamic_filters = []
+    dynamic_sorts = []
+    non_sortable_types = ('action_accept', 'form_link', 'image_upload', 'file_upload')
+
+    entry_custom_list = [e.get_custom_data() for e in entries]
+
+    for f in fields:
+        if f.field_type == 'action_accept':
+            continue
+
+        if f.field_type in ('badge_select', 'multi_select'):
+            opts = _extract_option_values(f)
+            for custom in entry_custom_list:
+                raw_val = custom.get(f.field_key)
+                for val in _normalize_area_values(raw_val, f):
+                    if val and val != '-' and val not in opts:
+                        opts.append(val)
+            if opts:
+                dynamic_filters.append({
+                    'field_key': f.field_key,
+                    'label': f.label,
+                    'options': opts,
+                })
+
+        if f.field_type not in non_sortable_types:
+            dynamic_sorts.append({
+                'field_key': f.field_key,
+                'label': f.label,
+                'is_numeric': f.field_type in ('currency', 'counter', 'number', 'formula'),
+            })
+
+    return dynamic_filters, dynamic_sorts
+
+
 @booking_personal_bp.route('/')
 @booking_personal_bp.route('/event/<int:event_id>')
 def index(event_id=None):
@@ -214,6 +250,7 @@ def index(event_id=None):
     status_field_key, area_field_key, status_options, area_options, entry_filter_meta = (
         _build_index_filter_metadata(fields, entries)
     )
+    dynamic_filters, dynamic_sorts = _build_dynamic_filters_and_sorts(fields, entries)
 
     return render_template(
         'booking_personal/index.html',
@@ -228,6 +265,8 @@ def index(event_id=None):
         status_options=status_options,
         area_options=area_options,
         entry_filter_meta=entry_filter_meta,
+        dynamic_filters=dynamic_filters,
+        dynamic_sorts=dynamic_sorts,
     )
 
 
@@ -551,6 +590,97 @@ def api_delete_entry(entry_id):
     db.session.delete(entry)
     db.session.commit()
     return jsonify({'success': True})
+
+
+_BOOKING_IMAGE_EXTS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+_BOOKING_ALLOWED_EXTS = _BOOKING_IMAGE_EXTS | {'pdf', 'doc', 'docx', 'txt', 'zip', 'xlsx', 'xls', 'csv'}
+
+
+@booking_personal_bp.route('/api/entry/<int:entry_id>/upload', methods=['POST'])
+def api_upload_entry_file(entry_id):
+    """Ermöglicht Admins den direkten Datei- oder Bild-Upload für ein Act-Feld."""
+    entry = BookingPersonalEntry.query.get_or_404(entry_id)
+    field_key = (request.form.get('field_key') or '').strip()
+    if not field_key:
+        return jsonify({'success': False, 'error': 'field_key fehlt'}), 400
+
+    files = request.files.getlist('files') or request.files.getlist('file')
+    if not files:
+        return jsonify({'success': False, 'error': 'Keine Datei ausgewählt.'}), 400
+
+    upload_dir = os.path.join(
+        current_app.config.get('UPLOAD_FOLDER', 'uploads'),
+        'booking_personal',
+        str(entry.event_id),
+    )
+    os.makedirs(upload_dir, exist_ok=True)
+
+    custom_data = entry.get_custom_data()
+    uploaded_paths = custom_data.get(field_key, [])
+    if not isinstance(uploaded_paths, list):
+        uploaded_paths = [uploaded_paths] if uploaded_paths and uploaded_paths != '-' else []
+
+    added_count = 0
+    for file_item in files:
+        if not file_item or not file_item.filename or '.' not in file_item.filename:
+            continue
+        ext = file_item.filename.rsplit('.', 1)[1].lower()
+        if ext not in _BOOKING_ALLOWED_EXTS:
+            continue
+        filename = secure_filename(
+            f"{entry.id}_{field_key}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{file_item.filename}"
+        )
+        save_path = os.path.join(upload_dir, filename)
+        file_item.save(save_path)
+        rel_url = f"/uploads/booking_personal/{entry.event_id}/{filename}"
+        uploaded_paths.append(rel_url)
+
+        db_file = BookingPersonalFile(
+            entry_id=entry.id,
+            field_key=field_key,
+            file_path=rel_url,
+            file_name=file_item.filename,
+            is_image=(ext in _BOOKING_IMAGE_EXTS),
+            mime_type=file_item.mimetype,
+        )
+        db.session.add(db_file)
+        added_count += 1
+
+    if added_count == 0:
+        return jsonify({'success': False, 'error': 'Dateityp nicht erlaubt oder ungültige Datei.'}), 400
+
+    custom_data[field_key] = uploaded_paths
+    entry.set_custom_data(custom_data)
+    db.session.commit()
+
+    return jsonify({'success': True, 'paths': uploaded_paths})
+
+
+@booking_personal_bp.route('/api/entry/<int:entry_id>/file-delete', methods=['POST'])
+def api_delete_entry_file(entry_id):
+    """Entfernt eine hochgeladene Datei / ein Bild aus einem Act-Feld."""
+    entry = BookingPersonalEntry.query.get_or_404(entry_id)
+    data = request.get_json() or {}
+    field_key = (data.get('field_key') or '').strip()
+    file_path = (data.get('file_path') or '').strip()
+    if not field_key or not file_path:
+        return jsonify({'success': False, 'error': 'Parameter fehlen.'}), 400
+
+    custom_data = entry.get_custom_data()
+    cur_vals = custom_data.get(field_key, [])
+    if not isinstance(cur_vals, list):
+        cur_vals = [cur_vals] if cur_vals else []
+
+    new_vals = [p for p in cur_vals if p != file_path]
+    custom_data[field_key] = new_vals
+    entry.set_custom_data(custom_data)
+
+    BookingPersonalFile.query.filter_by(
+        entry_id=entry.id, field_key=field_key, file_path=file_path
+    ).delete()
+    db.session.commit()
+
+    return jsonify({'success': True, 'paths': new_vals})
 
 
 @booking_personal_bp.route('/api/entry/<int:entry_id>', methods=['GET'])
@@ -1073,6 +1203,7 @@ def template_field_add(template_id):
     raw_width = request.form.get('width')
     width = int(raw_width) if raw_width and int(raw_width) > 0 else auto_column_width(field_type, label)
     options_raw = request.form.get('options', '').strip()
+    formula_definition = request.form.get('formula_definition', '').strip() if field_type == 'formula' else ''
 
     if not label:
         flash('Bitte eine Feldbezeichnung angeben.', 'warning')
@@ -1117,7 +1248,7 @@ def template_field_add(template_id):
         'visible_in_overview': visible_in_overview,
         'width': width,
         'options': options,
-        'formula_definition': '',
+        'formula_definition': formula_definition,
         'help_text': '',
         'is_required': False,
     }

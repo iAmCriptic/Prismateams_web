@@ -76,6 +76,7 @@ def _guest_account_form_options():
         ('module_excalidraw', 'Excalidraw'),
         ('module_canvas', 'Canvas'),
         ('module_surveys', 'Umfragen'),
+        ('module_protocols', 'Protokollführung'),
         ('module_meetings', 'Meetings'),
         ('module_todos', 'ToDos'),
     ]

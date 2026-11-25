@@ -141,9 +141,78 @@
     </section>
   </div>
 
+  <section class="sp-group mt-4" aria-labelledby="about-apple-shortcut-heading" id="about-apple-shortcut" data-settings-search-id="about-apple-shortcut">
+    <div class="sp-group-head">
+      <h2 id="about-apple-shortcut-heading" class="sp-group-title"><i class="bi bi-apple" aria-hidden="true"></i>{{ _('settings.about.apple_shortcut.title') }}</h2>
+      {{ sp_info(_('settings.about.apple_shortcut.info')) }}
+    </div>
+    <div class="sp-group-body">
+      <div class="sp-row sp-row--stack">
+        <div class="sp-row-label">
+          <span class="sp-row-label-text">{{ _('settings.about.apple_shortcut.description') }}</span>
+          <ol class="small text-body-secondary mb-0 mt-2 ps-3">
+            <li>{{ _('settings.about.apple_shortcut.step_1') }}</li>
+            <li>{{ _('settings.about.apple_shortcut.step_2') }}</li>
+            <li>{{ _('settings.about.apple_shortcut.step_3') }}</li>
+          </ol>
+        </div>
+        <div class="sp-row-control d-flex flex-column align-items-stretch gap-2 w-100">
+          <div class="input-group input-group-sm">
+            <input type="text"
+                   id="appleShortcutShareUrl"
+                   class="form-control mod-pill-input settings-about-meta-value--mono"
+                   value="{{ url_for('share_target.index', _external=True) }}?url="
+                   readonly
+                   aria-label="{{ _('settings.about.apple_shortcut.url_label') }}">
+            <button type="button"
+                    class="btn btn-outline-secondary rounded-pill mod-pill-btn ms-2"
+                    id="copyAppleShortcutUrlBtn"
+                    data-copied-label="{{ _('settings.about.apple_shortcut.copied') }}">
+              <i class="bi bi-clipboard me-1" aria-hidden="true"></i><span>{{ _('settings.about.apple_shortcut.copy_btn') }}</span>
+            </button>
+          </div>
+          <div>
+            <a href="{{ url_for('share_target.index') }}" class="btn btn-accent rounded-pill mod-pill-btn">
+              <i class="bi bi-share me-1" aria-hidden="true"></i>{{ _('settings.about.apple_shortcut.open_share_screen') }}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <footer class="settings-about-footer">
     <p class="settings-about-footer-author"><strong>{{ _('settings.about.author_label') }}</strong> Enrico R. Matzke</p>
     <p class="settings-about-footer-copy">{{ _('settings.about.copyright') }}</p>
   </footer>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var btn = document.getElementById('copyAppleShortcutUrlBtn');
+  var input = document.getElementById('appleShortcutShareUrl');
+  if (!btn || !input) return;
+  var label = btn.querySelector('span');
+  var defaultText = label ? label.textContent : '';
+  btn.addEventListener('click', function () {
+    var val = input.value || '';
+    var done = function () {
+      if (!label) return;
+      label.textContent = btn.dataset.copiedLabel || defaultText;
+      setTimeout(function () { label.textContent = defaultText; }, 1800);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(val).then(done).catch(function () {
+        input.select();
+        try { document.execCommand('copy'); done(); } catch (_) {}
+      });
+    } else {
+      input.select();
+      try { document.execCommand('copy'); done(); } catch (_) {}
+    }
+  });
+})();
+</script>
 {% endblock %}

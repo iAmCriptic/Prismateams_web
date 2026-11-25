@@ -93,7 +93,8 @@
             "description": "Installiere das Portal als App für schnelleren Zugriff und Offline-Nutzung.",
             "install": "Installieren",
             "later": "Später",
-            "never": "Nicht mehr anzeigen"
+            "never": "Nicht mehr anzeigen",
+            "ios_description": "Tippe in Safari auf das Teilen-Symbol und wähle „Zum Home-Bildschirm“."
         },
         "pwa_update": {
             "title": "Neue Version verfügbar",
@@ -1571,7 +1572,19 @@
             "mirotalk_inactive": "Nicht aktiv",
             "hycanvas_label": "HyCanvas",
             "hycanvas_active": "Aktiv",
-            "hycanvas_inactive": "Nicht aktiv"
+            "hycanvas_inactive": "Nicht aktiv",
+            "apple_shortcut": {
+                "title": "Apple (iOS / iPadOS) Teilen-Kurzbefehl",
+                "info": "Safari auf iOS/iPadOS unterstützt das PWA-Teilen-Menü nicht nativ. Mit einem Apple-Kurzbefehl kannst du Links trotzdem direkt aus dem Teilen-Menü an Prismateams senden.",
+                "description": "So richtest du das Teilen für iPhone & iPad im Apple-Teilen-Menü ein:",
+                "step_1": "Öffne die Apple-App „Kurzbefehle“, tippe auf „+“ und aktiviere unter Info (i) „Im Share-Sheet anzeigen“ (für URLs & Text).",
+                "step_2": "Füge die Aktion „URL“ ein, kopiere die Adresse unten und hänge die Kurzbefehl-Eingabe direkt an „?url=“ an.",
+                "step_3": "Füge danach die Aktion „URLs öffnen“ hinzu – fertig.",
+                "url_label": "Kurzbefehl-Ziel-URL",
+                "copy_btn": "URL kopieren",
+                "copied": "Kopiert",
+                "open_share_screen": "Teilen-Screen öffnen"
+            }
         },
         "admin": {
             "page_title": "Administration - Einstellungen",
@@ -1623,7 +1636,8 @@
                 "module_booking_personal": "Booking",
                 "module_helpers": "Helferverwaltung",
                 "module_canvas": "Canvas (HyCanvas)",
-                "module_todos": "ToDos"
+                "module_todos": "ToDos",
+                "module_protocols": "Protokollführung"
             },
             "users": {
                 "page_title": "Benutzerverwaltung - Administration",

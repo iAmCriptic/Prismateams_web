@@ -93,7 +93,8 @@
             "description": "Instala el portal como app para un acceso más rápido y uso sin conexión.",
             "install": "Instalar",
             "later": "Más tarde",
-            "never": "No mostrar de nuevo"
+            "never": "No mostrar de nuevo",
+            "ios_description": "En Safari, pulsa el icono de compartir y elige «Añadir a la pantalla de inicio»."
         },
         "pwa_update": {
             "title": "Nueva versión disponible",
@@ -1537,7 +1538,19 @@
             "mirotalk_inactive": "Inactivo",
             "hycanvas_label": "HyCanvas",
             "hycanvas_active": "Activo",
-            "hycanvas_inactive": "Inactivo"
+            "hycanvas_inactive": "Inactivo",
+            "apple_shortcut": {
+                "title": "Atajo para compartir en Apple (iOS / iPadOS)",
+                "info": "Safari en iOS/iPadOS no admite de forma nativa el destino para compartir de PWA. Con un atajo de Apple puedes enviar enlaces directamente desde el menú compartir a Prismateams.",
+                "description": "Cómo configurar el envío para iPhone y iPad en el menú compartir de Apple:",
+                "step_1": "Abre la app «Atajos» de Apple, pulsa «+» y activa «Mostrar en hoja para compartir» en Info (i) (para URL y texto).",
+                "step_2": "Añade la acción «URL», copia la dirección de abajo y añade la entrada del atajo justo después de «?url=».",
+                "step_3": "Añade después la acción «Abrir URL» y listo.",
+                "url_label": "URL de destino del atajo",
+                "copy_btn": "Copiar URL",
+                "copied": "Copiado",
+                "open_share_screen": "Abrir pantalla de compartir"
+            }
         },
         "admin": {
             "page_title": "Administración - Ajustes",
@@ -1589,7 +1602,8 @@
                 "module_booking_personal": "Booking",
                 "module_helpers": "Gestión de voluntarios",
                 "module_canvas": "Canvas (HyCanvas)",
-                "module_todos": "ToDos"
+                "module_todos": "ToDos",
+                "module_protocols": "Actas"
             },
             "users": {
                 "page_title": "Gestión de usuarios - Administración",

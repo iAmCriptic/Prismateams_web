@@ -55,3 +55,16 @@ def test_share_target_kanban_boards_api(client, app):
     data = res.get_json()
     assert data['success'] is True
     assert any(b['title'] == 'Share Board' for b in data['boards'])
+
+
+def test_settings_about_renders_apple_shortcut_hint(client, app):
+    with app.app_context():
+        _create_user()
+
+    _login(client)
+    res = client.get('/settings/about')
+    assert res.status_code == 200
+    html = res.get_data(as_text=True)
+    assert 'about-apple-shortcut' in html
+    assert 'appleShortcutShareUrl' in html
+    assert '/share-target?url=' in html

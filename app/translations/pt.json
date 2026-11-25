@@ -54,7 +54,8 @@
             "description": "Instale o portal como app para acesso mais rápido e uso offline.",
             "install": "Instalar",
             "later": "Mais tarde",
-            "never": "Não mostrar novamente"
+            "never": "Não mostrar novamente",
+            "ios_description": "No Safari, toque no ícone de partilha e selecione \"Adicionar à Tela de Início\"."
         },
         "pwa_update": {
             "title": "Nova versão disponível",
@@ -1096,7 +1097,8 @@
                 "module_meetings": "Reuniões (videochamadas)",
                 "module_helpers": "Gestão de voluntários",
                 "module_canvas": "Canvas (HyCanvas)",
-                "module_todos": "ToDos"
+                "module_todos": "ToDos",
+                "module_protocols": "Atas"
             },
             "kanban": {
                 "lead_short": "Visibility and import.",
@@ -1534,7 +1536,19 @@
             "mirotalk_inactive": "Inativo",
             "hycanvas_label": "HyCanvas",
             "hycanvas_active": "Ativo",
-            "hycanvas_inactive": "Inativo"
+            "hycanvas_inactive": "Inativo",
+            "apple_shortcut": {
+                "title": "Atalho de partilha da Apple (iOS / iPadOS)",
+                "info": "O Safari no iOS/iPadOS não suporta nativamente a API Share Target para PWAs. Com um Atalho da Apple pode enviar links diretamente do menu de partilha para o Prismateams.",
+                "description": "Como configurar a partilha no iPhone e iPad no menu de partilha da Apple:",
+                "step_1": "Abra a app «Atalhos» da Apple, toque em «+» e ative «Mostrar na Folha de Partilha» em Info (i) (para URLs e texto).",
+                "step_2": "Adicione a ação «URL», copie o endereço abaixo e anexe a entrada do atalho logo após «?url=».",
+                "step_3": "Adicione em seguida a ação «Abrir URLs» — pronto.",
+                "url_label": "URL de destino do atalho",
+                "copy_btn": "Copiar URL",
+                "copied": "Copiado",
+                "open_share_screen": "Abrir ecrã de partilha"
+            }
         },
         "cloud_import": {
             "page_title": "Cloud import",

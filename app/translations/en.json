@@ -93,7 +93,8 @@
             "description": "Install the portal as an app for faster access and offline use.",
             "install": "Install",
             "later": "Later",
-            "never": "Don't show again"
+            "never": "Don't show again",
+            "ios_description": "In Safari, tap the Share button and choose \"Add to Home Screen\"."
         },
         "pwa_update": {
             "title": "New version available",
@@ -1571,7 +1572,19 @@
             "mirotalk_inactive": "Inactive",
             "hycanvas_label": "HyCanvas",
             "hycanvas_active": "Active",
-            "hycanvas_inactive": "Inactive"
+            "hycanvas_inactive": "Inactive",
+            "apple_shortcut": {
+                "title": "Apple (iOS / iPadOS) Share Shortcut",
+                "info": "Safari on iOS/iPadOS does not natively support the PWA Share Target API. With an Apple Shortcut, you can still send links directly from the Share Sheet to Prismateams.",
+                "description": "How to set up sharing for iPhone & iPad in the Apple Share Sheet:",
+                "step_1": "Open the Apple \"Shortcuts\" app, tap \"+\", and enable \"Show in Share Sheet\" under Info (i) (for URLs & Text).",
+                "step_2": "Add the \"URL\" action, copy the address below, and append the Shortcut Input right after \"?url=\".",
+                "step_3": "Add the \"Open URLs\" action afterwards — done.",
+                "url_label": "Shortcut target URL",
+                "copy_btn": "Copy URL",
+                "copied": "Copied",
+                "open_share_screen": "Open share screen"
+            }
         },
         "admin": {
             "page_title": "Administration - Settings",
@@ -1623,7 +1636,8 @@
                 "module_booking_personal": "Booking",
                 "module_helpers": "Helper Management",
                 "module_canvas": "Canvas (HyCanvas)",
-                "module_todos": "ToDos"
+                "module_todos": "ToDos",
+                "module_protocols": "Protocols"
             },
             "users": {
                 "page_title": "User Management - Administration",
