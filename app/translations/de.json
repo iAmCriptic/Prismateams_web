@@ -5101,7 +5101,8 @@
       "google_connected": "Google-Konto für die Kalender-Synchronisation verbunden.",
       "google_oauth_error": "Google-Kalender-Verbindung fehlgeschlagen: {error}",
       "google_connect_first": "Bitte verbinden Sie zuerst Ihr Google-Konto.",
-      "google_already_added": "Dieser Google-Kalender ist bereits verknüpft — Synchronisation wurde gestartet."
+      "google_already_added": "Dieser Google-Kalender ist bereits verknüpft — Synchronisation wurde gestartet.",
+      "sync_url_placeholder": "https://... oder webcal://..."
     },
     "index": {
       "page_title": "Termine - Team Portal",
