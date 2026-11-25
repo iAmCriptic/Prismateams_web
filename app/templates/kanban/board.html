@@ -389,7 +389,7 @@
               <div class="d-flex gap-1 flex-wrap">
                 <label class="btn btn-sm mod-pill-btn mb-0">
                   <i class="bi bi-upload me-1"></i>{{ _('kanban.card.attach_file') }}
-                  <input type="file" id="cardAttachFile" hidden>
+                  <input type="file" id="cardAttachFile" hidden multiple>
                 </label>
                 <button type="button" class="btn btn-sm mod-pill-btn" id="cardAttachLinkBtn">
                   <i class="bi bi-link-45deg me-1"></i>{{ _('kanban.card.attach_link') }}
@@ -555,6 +555,44 @@
       <div class="modal-body">
         <div id="kanbanInsertFieldsList"></div>
       </div>
+    </div>
+  </div>
+</div>
+
+{# Create card-local custom field modal #}
+<div class="modal fade" id="kanbanLocalFieldModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content kanban-modal">
+      <form id="kanbanLocalFieldForm">
+        <div class="modal-header">
+          <h5 class="modal-title">{{ _('kanban.custom_fields.create_local') }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label small mb-1" for="kanbanLocalFieldLabel">{{ _('kanban.custom_fields.label') }}</label>
+            <input type="text" class="form-control mod-pill-input" id="kanbanLocalFieldLabel" name="label" maxlength="200" placeholder="{{ _('kanban.custom_fields.label_ph') }}" required autocomplete="off">
+          </div>
+          <div class="mb-3">
+            <label class="form-label small mb-1" for="kanbanLocalFieldType">{{ _('kanban.custom_fields.type') }}</label>
+            <select class="form-select mod-pill-input" id="kanbanLocalFieldType" name="field_type">
+              <option value="text">{{ _('kanban.custom_fields.type_text') }}</option>
+              <option value="select">{{ _('kanban.custom_fields.type_select') }}</option>
+              <option value="date">{{ _('kanban.custom_fields.type_date') }}</option>
+              <option value="time">{{ _('kanban.custom_fields.type_time') }}</option>
+              <option value="checkbox">{{ _('kanban.custom_fields.type_checkbox') }}</option>
+            </select>
+          </div>
+          <div id="kanbanLocalFieldOptionsWrap" hidden>
+            <label class="form-label small mb-1" for="kanbanLocalFieldOptions">{{ _('kanban.custom_fields.options') }}</label>
+            <textarea class="form-control mod-pill-input" id="kanbanLocalFieldOptions" name="options" rows="3" placeholder="{{ _('kanban.custom_fields.options_ph') }}"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn mod-pill-btn mod-pill-btn--ghost" data-bs-dismiss="modal">{{ _('common.cancel') }}</button>
+          <button type="submit" class="btn btn-accent mod-pill-btn">{{ _('kanban.custom_fields.add') }}</button>
+        </div>
+      </form>
     </div>
   </div>
 </div>

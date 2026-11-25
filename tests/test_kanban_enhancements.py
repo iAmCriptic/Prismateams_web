@@ -342,3 +342,47 @@ def test_card_template_mark_and_copy_resets_template_flag(app, client):
     assert r_copy.status_code == 201
     new_card_data = r_copy.get_json()['card']
     assert new_card_data['is_template'] is False
+
+
+def test_multi_file_attachment_upload_and_board_input(app, client):
+    from io import BytesIO
+
+    alice = _make_user('alice_multi@example.com', 'Alice', 'Multi')
+    board = KanbanBoard(title='Multi Upload Board', created_by=alice.id, visibility='private')
+    db.session.add(board)
+    db.session.flush()
+    db.session.add(KanbanBoardMember(board_id=board.id, user_id=alice.id, role='owner'))
+    lst = KanbanList(board_id=board.id, title='To Do', position=0)
+    db.session.add(lst)
+    db.session.flush()
+    card = KanbanCard(list_id=lst.id, title='Multi Files', position=0, created_by=alice.id)
+    db.session.add(card)
+    db.session.commit()
+
+    _login(client, 'alice_multi@example.com')
+
+    # Board HTML exposes `multiple` on #cardAttachFile
+    board_resp = client.get(f'/kanban/board/{board.id}')
+    assert board_resp.status_code == 200
+    html = board_resp.get_data(as_text=True)
+    assert 'id="cardAttachFile"' in html
+    assert 'id="cardAttachFile" hidden multiple' in html
+
+    # Upload multiple files in one request via `files`
+    resp = client.post(
+        f'/kanban/api/cards/{card.id}/attachments',
+        data={
+            'files': [
+                (BytesIO(b'first file content'), 'doc1.txt'),
+                (BytesIO(b'second file content'), 'doc2.pdf'),
+            ]
+        },
+        content_type='multipart/form-data',
+    )
+    assert resp.status_code == 201
+    payload = resp.get_json()
+    assert payload['success'] is True
+    assert len(payload['attachments']) == 2
+    assert {a['filename'] for a in payload['attachments']} == {'doc1.txt', 'doc2.pdf'}
+    assert payload['attachment']['filename'] == 'doc1.txt'
+    assert len(payload['card']['attachments']) == 2

@@ -323,52 +323,73 @@ def api_upload_attachment(card_id):
             'attachment': _serialize_attachment(att, share_token=_share_token_from_request()),
         }), 201
 
-    f = request.files.get('file')
-    if not f or not f.filename:
+    uploaded_files = [
+        f for f in (request.files.getlist('files') + request.files.getlist('file'))
+        if f and f.filename
+    ]
+    if not uploaded_files:
         return jsonify({'error': 'No file'}), 400
-    original = secure_filename(f.filename) or 'file'
-    stored = f'{uuid.uuid4().hex}_{original}'
-    path = os.path.join(_upload_root(), stored)
-    f.save(path)
-    mime = mimetypes.guess_type(original)[0] or f.mimetype
-    att = KanbanAttachment(
-        card_id=card.id,
-        filename=stored,
-        original_filename=original,
-        mime_type=mime,
-        file_size=os.path.getsize(path),
-        storage_path=path,
-        uploaded_by=_actor_user_id(board),
-    )
-    db.session.add(att)
-    db.session.flush()
-    safe_mime = (mime or '').split(';', 1)[0].strip().lower()
-    if not card.cover_attachment_id and safe_mime in _SAFE_INLINE_IMAGE_MIMES:
-        card.cover_attachment_id = att.id
-    _log_activity(board.id, 'attachment_added', original, card.id)
+
+    saved_paths = []
+    created_attachments = []
+    actor_id = _actor_user_id(board)
+    upload_root = _upload_root()
+
     try:
+        for f in uploaded_files:
+            original = secure_filename(f.filename) or 'file'
+            stored = f'{uuid.uuid4().hex}_{original}'
+            path = os.path.join(upload_root, stored)
+            f.save(path)
+            saved_paths.append(path)
+            mime = mimetypes.guess_type(original)[0] or f.mimetype
+            att = KanbanAttachment(
+                card_id=card.id,
+                filename=stored,
+                original_filename=original,
+                mime_type=mime,
+                file_size=os.path.getsize(path),
+                storage_path=path,
+                uploaded_by=actor_id,
+            )
+            db.session.add(att)
+            created_attachments.append((att, original, mime))
+        db.session.flush()
+        for att, original, mime in created_attachments:
+            safe_mime = (mime or '').split(';', 1)[0].strip().lower()
+            if not card.cover_attachment_id and safe_mime in _SAFE_INLINE_IMAGE_MIMES:
+                card.cover_attachment_id = att.id
+            _log_activity(board.id, 'attachment_added', original, card.id)
         db.session.commit()
     except Exception:
         db.session.rollback()
-        try:
-            if os.path.isfile(path):
-                os.remove(path)
-        except OSError:
-            pass
+        for path in saved_paths:
+            try:
+                if os.path.isfile(path):
+                    os.remove(path)
+            except OSError:
+                pass
         raise
-    payload = _serialize_card_detail(card, share_token=_share_token_from_request())
+
+    share_token = _share_token_from_request()
+    payload = _serialize_card_detail(card, share_token=share_token)
     _emit_board(board.id, 'card_updated', payload)
+    notify_detail = ', '.join(orig for _, orig, _ in created_attachments[:3])
+    if len(created_attachments) > 3:
+        notify_detail = f'{notify_detail} (+{len(created_attachments) - 3})'
     _enqueue_kanban_notify(
         board,
         card.id,
         'upload',
-        detail=original,
-        push_suffix=f'upload:{att.id}',
+        detail=notify_detail,
+        push_suffix=f'upload:{created_attachments[0][0].id}',
     )
+    serialized = [_serialize_attachment(att, share_token=share_token) for att, _, _ in created_attachments]
     return jsonify({
         'success': True,
         'card': payload,
-        'attachment': _serialize_attachment(att, share_token=_share_token_from_request()),
+        'attachment': serialized[0],
+        'attachments': serialized,
     }), 201
 
 

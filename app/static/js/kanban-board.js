@@ -558,14 +558,42 @@
     </div>`;
   }
 
-  async function openLocalFieldForm() {
-    const label = await askPrompt(i18n.customFieldsLabel || 'Feldname', '', { title: i18n.customFieldCreateLocal || 'Feld für diese Karte' });
-    if (label == null || !String(label).trim()) return;
+  function syncLocalFieldOptionsVisibility() {
+    const type = document.getElementById('kanbanLocalFieldType')?.value;
+    const wrap = document.getElementById('kanbanLocalFieldOptionsWrap');
+    if (wrap) wrap.hidden = type !== 'select';
+  }
+
+  function openLocalFieldForm() {
+    if (!currentCardId) return;
+    const form = document.getElementById('kanbanLocalFieldForm');
+    if (form) form.reset();
+    syncLocalFieldOptionsVisibility();
+    const modalEl = document.getElementById('kanbanLocalFieldModal');
+    if (modalEl && !modalEl.dataset.boundFocus) {
+      modalEl.dataset.boundFocus = '1';
+      modalEl.addEventListener('shown.bs.modal', () => {
+        document.getElementById('kanbanLocalFieldLabel')?.focus();
+      });
+    }
+    getModal('kanbanLocalFieldModal')?.show();
+  }
+
+  document.getElementById('kanbanLocalFieldType')?.addEventListener('change', syncLocalFieldOptionsVisibility);
+
+  document.getElementById('kanbanLocalFieldForm')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!currentCardId) return;
+    const label = (document.getElementById('kanbanLocalFieldLabel')?.value || '').trim();
+    const fieldType = document.getElementById('kanbanLocalFieldType')?.value || 'text';
+    const options = document.getElementById('kanbanLocalFieldOptions')?.value || '';
+    if (!label) return;
     try {
       const r = await api(`/kanban/api/cards/${currentCardId}/custom-fields`, {
         method: 'POST',
-        body: { label: String(label).trim(), field_type: 'text' },
+        body: { label, field_type: fieldType, options },
       });
+      getModal('kanbanLocalFieldModal')?.hide();
       if (r.card) {
         currentCardDetail = r.card;
         renderCardCustomFields(r.card);
@@ -573,7 +601,7 @@
     } catch (err) {
       notify(err.message || 'Fehler');
     }
-  }
+  });
 
   async function saveCustomFieldValue(el) {
     if (!currentCardId) return;
@@ -2620,10 +2648,11 @@
     }
   });
 
-  async function uploadCardFile(file, { asCover } = {}) {
-    if (!file || !currentCardId) return;
+  async function uploadCardFiles(files, { asCover } = {}) {
+    const fileList = Array.from(files || []).filter(Boolean);
+    if (!fileList.length || !currentCardId) return;
     const fd = new FormData();
-    fd.append('file', file);
+    fileList.forEach((file) => fd.append('files', file));
     const headers = { 'X-Requested-With': 'XMLHttpRequest' };
     if (shareToken) headers['X-Share-Token'] = shareToken;
     const res = await fetch(`/kanban/api/cards/${currentCardId}/attachments`, {
@@ -2648,18 +2677,18 @@
     e.target.value = '';
     if (!file) return;
     try {
-      await uploadCardFile(file, { asCover: true });
+      await uploadCardFiles([file], { asCover: true });
     } catch (err) {
       notify(err.message || 'Upload fehlgeschlagen');
     }
   });
 
   document.getElementById('cardAttachFile')?.addEventListener('change', async (e) => {
-    const file = e.target.files && e.target.files[0];
+    const files = e.target.files ? Array.from(e.target.files) : [];
     e.target.value = '';
-    if (!file) return;
+    if (!files.length) return;
     try {
-      await uploadCardFile(file, { asCover: false });
+      await uploadCardFiles(files, { asCover: false });
     } catch (err) {
       notify(err.message || 'Upload fehlgeschlagen');
     }
