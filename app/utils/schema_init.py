@@ -495,6 +495,19 @@ def ensure_critical_columns(db) -> None:
                 except Exception as bpf_err:
                     logger.warning("Konnte booking_personal_fields.category nicht ergänzen: %s", bpf_err)
 
+        if "booking_personal_templates" in table_names:
+            bpt_cols = {c["name"] for c in inspector.get_columns("booking_personal_templates")}
+            if "total_budget" not in bpt_cols:
+                try:
+                    logger.info("Ergänze booking_personal_templates.total_budget ...")
+                    with db.engine.begin() as conn:
+                        conn.execute(
+                            text("ALTER TABLE booking_personal_templates ADD COLUMN total_budget FLOAT NULL")
+                        )
+                    logger.info("[OK] booking_personal_templates.total_budget ergänzt")
+                except Exception as bpt_err:
+                    logger.warning("Konnte booking_personal_templates.total_budget nicht ergänzen: %s", bpt_err)
+
         if "helper_events" in table_names:
             he_cols = {c["name"] for c in inspector.get_columns("helper_events")}
             he_col_defs = [
