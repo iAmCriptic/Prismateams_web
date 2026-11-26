@@ -759,9 +759,7 @@
                                 <span class="small">{{ _('files.view.audio_label') }}</span>
                             </div>
                         {% elif file.name.endswith('.pdf') %}
-                            <div class="pdf-mini-preview rounded overflow-hidden">
-                                <iframe data-lazy-src="{{ url_for('files.serve_pdf', file_id=file.id) }}#toolbar=0&navpanes=0&scrollbar=0&page=1" src="about:blank" title="PDF Vorschau"></iframe>
-                            </div>
+                            <div class="pdf-mini-preview rounded overflow-hidden" data-pdf-thumb-url="{{ url_for('files.serve_pdf', file_id=file.id) }}"></div>
                         {% elif file_preview_html %}
                             <div class="file-text-preview file-markdown-preview rounded p-3 text-start markdown-content">
                                 {{ file_preview_html|safe }}
@@ -1597,6 +1595,7 @@ window.FILES_MOVE_DESTINATIONS_URL = {{ url_for('files.api_move_destinations')|t
     });
 })();
 </script>
+<script src="{{ url_for('static', filename='js/pdf-embed.js') }}" defer></script>
 {% endblock %}
 
 

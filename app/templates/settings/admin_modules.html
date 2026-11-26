@@ -49,6 +49,7 @@
             ('module_todos', 'bi-check2-circle', _('settings.admin.admin_modules.module_todos'), module_todos_enabled)
           ] %}
           {% for key, icon, label, enabled in modules %}
+          {% if key != 'module_canvas' or hycanvas_installed %}
           <div class="sp-row settings-admin-modules-switch{% if key == 'module_meetings' and not mirotalk_ready %} settings-admin-modules-switch--disabled{% endif %}">
             <div class="sp-row-label">
               <label class="sp-row-label-text" for="{{ key }}"><i class="bi {{ icon }}" aria-hidden="true"></i> <span>{{ label }}</span></label>
@@ -64,6 +65,7 @@
               </div>
             </div>
           </div>
+          {% endif %}
           {% endfor %}
         </div>
       </div>

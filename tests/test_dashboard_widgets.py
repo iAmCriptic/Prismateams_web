@@ -254,3 +254,11 @@ def test_dashboard_mobile_and_pc_sizes_are_independent(client, app):
     assert 'data-mobile-row-span="5"' in html
     assert '--dash-mw: 2;' in html
     assert '--dash-mh: 5;' in html
+
+
+def test_default_dashboard_widgets_start_with_todos(app):
+    with app.app_context():
+        user = _create_admin()
+        config = user.get_dashboard_config()
+        widget_types = [w['type'] for w in config['widgets']]
+        assert widget_types == ['todos', 'nachrichten', 'emails', 'passwoerter']

@@ -7561,6 +7561,7 @@
       "markdown_toolbar": "Markdown formatting",
       "hide_done_items": "Hide completed items",
       "hide_pending_items": "Hide incomplete items",
+      "reorder_item": "Drag to reorder",
       "google_access_required": "Access must be requested",
       "attach_portal_file": "Portal file",
       "portal_file_search": "Search file…",

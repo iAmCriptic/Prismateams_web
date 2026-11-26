@@ -258,7 +258,7 @@ class User(UserMixin, db.Model):
         if widgets is None:
             enabled = config.get('enabled_widgets')
             if not isinstance(enabled, list):
-                enabled = ['termine', 'nachrichten', 'emails', 'passwoerter']
+                enabled = ['todos', 'nachrichten', 'emails', 'passwoerter']
             widgets = []
             for wtype in enabled:
                 if not wtype:

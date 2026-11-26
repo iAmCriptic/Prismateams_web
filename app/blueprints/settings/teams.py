@@ -416,6 +416,7 @@ def admin_team_detail(team_id):
         'contacts': translate('layout.nav.contacts'),
         'shortlinks': translate('layout.nav.shortlinks'),
         'excalidraw': translate('layout.nav.excalidraw'),
+        'canvas': translate('layout.nav.canvas'),
         'kanban': translate('settings.sidebar.kanban'),
         'calendar': translate('settings.admin.cards.calendar_settings.title'),
         'files': translate('settings.admin.cards.file_settings.title'),
@@ -424,6 +425,9 @@ def admin_team_detail(team_id):
         'surveys': translate('layout.nav.surveys'),
         'protocols': translate('layout.nav.protocols'),
         'duty_roster': translate('layout.nav.duty_roster'),
+        'booking_personal': translate('layout.nav.booking_personal'),
+        'helpers': translate('layout.nav.helpers'),
+        'todos': translate('layout.nav.todos'),
     }
 
     module_icons = {
@@ -433,6 +437,7 @@ def admin_team_detail(team_id):
         'contacts': 'bi-person-lines-fill',
         'shortlinks': 'bi-link-45deg',
         'excalidraw': 'bi-brush',
+        'canvas': 'bi-easel2',
         'kanban': 'bi-kanban',
         'calendar': 'bi-calendar3',
         'files': 'bi-folder2-open',
@@ -441,6 +446,9 @@ def admin_team_detail(team_id):
         'surveys': 'bi-bar-chart',
         'protocols': 'bi-file-text',
         'duty_roster': 'bi-calendar-check',
+        'booking_personal': 'bi-person-badge',
+        'helpers': 'bi-people-fill',
+        'todos': 'bi-check2-circle',
     }
 
     states = get_team_section_states(team.id)

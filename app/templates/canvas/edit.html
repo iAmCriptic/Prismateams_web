@@ -149,6 +149,7 @@
         </div>
     </header>
     <main class="canvas-editor-frame-wrap">
+        {% include 'canvas/_sync_prefs.html' %}
         <iframe src="{{ hycanvas_embed_url }}"
                 class="canvas-editor-frame"
                 title="{{ doc.name }}"

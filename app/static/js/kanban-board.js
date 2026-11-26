@@ -78,6 +78,7 @@
   let lastFocusedCardEl = null;
   const cardSortables = new Map();
   let listsSortable = null;
+  let checklistItemSortables = [];
   let lastBoardSig = '';
   let pollTimer = null;
   let sseLive = false;
@@ -828,6 +829,13 @@
     getModal('kanbanCustomFieldsModal')?.show();
   }
 
+  function destroyChecklistItemSortables() {
+    checklistItemSortables.forEach((inst) => {
+      try { inst.destroy(); } catch (_) { /* ignore */ }
+    });
+    checklistItemSortables = [];
+  }
+
   function destroySortables() {
     cardSortables.forEach((inst) => {
       try { inst.destroy(); } catch (_) { /* ignore */ }
@@ -837,6 +845,7 @@
       try { listsSortable.destroy(); } catch (_) { /* ignore */ }
       listsSortable = null;
     }
+    destroyChecklistItemSortables();
   }
 
   function htmlToElement(html) {
@@ -1807,6 +1816,7 @@
     renderCardCustomFields(card);
 
     const clRoot = document.getElementById('cardChecklists');
+    destroyChecklistItemSortables();
     clRoot.innerHTML = (card.checklists || []).map((cl) => {
       const done = (cl.items || []).filter((it) => it.done).length;
       const total = (cl.items || []).length;
@@ -1859,6 +1869,7 @@
           <span>${pct}%</span>
           <div class="kanban-checklist-progress__bar${pct === 100 ? ' is-complete' : ''}"><div style="width:${pct}%"></div></div>
         </div>
+        <div class="kanban-checklist-items" data-checklist-items="${cl.id}">
         ${(cl.items || []).map((it) => {
           const isHiddenByFilter = (it.done && fState.hideDone) || (!it.done && fState.hidePending);
           const dueState = getChecklistDueState(it.due_date, it.done);
@@ -1903,6 +1914,7 @@
 
           return `
           <div class="kanban-checklist-item${it.done ? ' is-done' : ''}${isHiddenByFilter ? ' is-filtered-hidden' : ''}" data-item-id="${it.id}" data-item-done="${it.done ? '1' : '0'}">
+            ${canEdit ? `<button type="button" class="kanban-checklist-item__drag" aria-label="${esc(i18n.reorderItem || 'Zum Verschieben ziehen')}" title="${esc(i18n.reorderItem || 'Zum Verschieben ziehen')}"><i class="bi bi-grip-vertical" aria-hidden="true"></i></button>` : ''}
             <input type="checkbox" class="form-check-input kanban-checklist-item__check" data-item-id="${it.id}" ${it.done ? 'checked' : ''} ${canEdit ? '' : 'disabled'}>
             <div class="kanban-checklist-item__body">
               <span class="kanban-checklist-item__text${canEdit ? ' is-editable' : ''}" data-item-text="${it.id}">${esc(it.text)}</span>
@@ -1949,6 +1961,7 @@
             </div>
           </div>`;
         }).join('')}
+        </div>
         ${canEdit ? `<form class="kanban-add-item-form mt-2" data-checklist-id="${cl.id}">
           <input class="form-control form-control-sm kanban-pill-input" name="text" placeholder="Item…" autocomplete="off">
         </form>` : ''}
@@ -2202,6 +2215,76 @@
         });
       }
       clRoot.querySelectorAll('.kanban-checklist-item__text.is-editable').forEach(attachChecklistItemEdit);
+
+      if (window.Sortable) {
+        const updateChecklistProgressUI = (updatedCard) => {
+          (updatedCard.checklists || []).forEach((cl) => {
+            const clEl = clRoot.querySelector(`.kanban-checklist[data-checklist-id="${cl.id}"]`);
+            if (!clEl) return;
+            const done = (cl.items || []).filter((it) => it.done).length;
+            const total = (cl.items || []).length;
+            const pct = total ? Math.round((done / total) * 100) : 0;
+            const pctLabel = clEl.querySelector('.kanban-checklist-progress > span');
+            if (pctLabel) pctLabel.textContent = `${pct}%`;
+            const bar = clEl.querySelector('.kanban-checklist-progress__bar');
+            if (bar) {
+              bar.classList.toggle('is-complete', pct === 100);
+              const fill = bar.querySelector('div');
+              if (fill) fill.style.width = `${pct}%`;
+            }
+            applyChecklistFilter(cl.id);
+          });
+        };
+
+        clRoot.querySelectorAll('.kanban-checklist-items').forEach((itemsContainer) => {
+          const inst = Sortable.create(itemsContainer, {
+            group: `kanban-checklist-items-${card.id}`,
+            animation: 180,
+            handle: '.kanban-checklist-item__drag',
+            draggable: '.kanban-checklist-item',
+            filter: '.is-editing',
+            preventOnFilter: false,
+            ghostClass: 'kanban-checklist-item--ghost',
+            chosenClass: 'kanban-checklist-item--chosen',
+            dragClass: 'kanban-checklist-item--drag',
+            touchStartThreshold: 4,
+            scrollSensitivity: 48,
+            scrollSpeed: 12,
+            onStart: () => {
+              clRoot.classList.add('is-dragging-item');
+            },
+            onEnd: async (evt) => {
+              clRoot.classList.remove('is-dragging-item');
+              if (evt.from === evt.to && evt.oldIndex === evt.newIndex) return;
+              const targetClId = Number(evt.to.dataset.checklistItems);
+              if (!targetClId) return;
+              const order = Array.from(evt.to.querySelectorAll('.kanban-checklist-item'))
+                .map((el) => Number(el.dataset.itemId))
+                .filter((id) => Number.isFinite(id) && id > 0);
+              ignoreSSE = true;
+              try {
+                const r = await api(`/kanban/api/checklists/${targetClId}/items/reorder`, {
+                  method: 'POST',
+                  body: { order },
+                });
+                if (r && r.card) {
+                  upsertCardLocal(r.card);
+                  if (evt.from !== evt.to) {
+                    updateChecklistProgressUI(r.card);
+                    renderBoard();
+                  }
+                }
+              } catch (err) {
+                notify(err.message || i18n.moveFailed || 'Verschieben fehlgeschlagen');
+                await openCard(cardId);
+              } finally {
+                ignoreSSE = false;
+              }
+            },
+          });
+          checklistItemSortables.push(inst);
+        });
+      }
     }
     clRoot.querySelectorAll('[data-del-checklist]').forEach((btn) => {
       btn.addEventListener('click', async () => {
@@ -3124,9 +3207,11 @@
               body: { assignee_id: nextId },
             });
             if (r.card) {
+              upsertCardLocal(r.card);
               currentCardDetail = r.card;
               checklistItemAssigneeTarget = null;
               getModal('kanbanMembersModal')?.hide();
+              renderBoard();
               openCard(currentCardId);
             }
           } else {
@@ -4866,23 +4951,43 @@
     applyLightboxTransform();
   }
 
+  function unmountLightboxPdf() {
+    if (!lbPdf) return;
+    if (window.PortalPdfEmbed && typeof window.PortalPdfEmbed.unmount === 'function') {
+      window.PortalPdfEmbed.unmount(lbPdf);
+    } else {
+      lbPdf.innerHTML = '';
+    }
+    lbPdf.hidden = true;
+    lbPdf.removeAttribute('data-pdf-url');
+    lbPdf.removeAttribute('data-download-url');
+    lbPdf.removeAttribute('aria-label');
+  }
+
   function renderLightboxSlide() {
     const item = lbItems[lbIndex];
     if (!item || !lbImg) return;
     const isPdf = item.kind === 'pdf';
     resetLightboxZoom();
     if (lbZoomControls) lbZoomControls.hidden = isPdf;
+    unmountLightboxPdf();
     if (isPdf && lbPdf) {
       lbImg.hidden = true;
       lbImg.src = '';
       lbPdf.hidden = false;
-      lbPdf.src = item.src || '';
-      lbPdf.title = item.title || 'PDF';
-    } else {
-      if (lbPdf) {
-        lbPdf.hidden = true;
-        lbPdf.src = '';
+      lbPdf.setAttribute('data-pdf-url', item.src || '');
+      lbPdf.setAttribute('data-download-url', item.downloadUrl || item.src || '');
+      lbPdf.setAttribute('aria-label', item.title || 'PDF');
+      if (window.PortalPdfEmbed && typeof window.PortalPdfEmbed.mount === 'function') {
+        window.PortalPdfEmbed.mount(lbPdf);
+      } else {
+        const frame = document.createElement('iframe');
+        frame.className = 'file-viewer-pdf-frame';
+        frame.src = item.src || '';
+        frame.title = item.title || 'PDF';
+        lbPdf.appendChild(frame);
       }
+    } else {
       lbImg.hidden = false;
       lbImg.src = item.src || '';
       lbImg.alt = item.title || '';
@@ -4947,10 +5052,7 @@
       lbImg.src = '';
       lbImg.hidden = false;
     }
-    if (lbPdf) {
-      lbPdf.src = '';
-      lbPdf.hidden = true;
-    }
+    unmountLightboxPdf();
     document.removeEventListener('keydown', onLightboxKeyDown, true);
   }
 
@@ -4983,6 +5085,7 @@
     });
 
     lbStage?.addEventListener('wheel', (e) => {
+      if (lbPdf && !lbPdf.hidden) return;
       e.preventDefault();
       const delta = e.deltaY < 0 ? 0.2 : -0.2;
       setLightboxZoom(lbScale + delta);

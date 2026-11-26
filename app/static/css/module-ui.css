@@ -458,11 +458,11 @@ button.mod-nav-link.active,
     max-width: 85vw;
 }
 
-/* Above fixed .mobile-nav (1001); keep panel clickable over backdrop */
+/* Above fixed .mobile-nav (1046); keep panel clickable over backdrop and below modals (1055) */
 .mod-offcanvas.offcanvas,
 .mod-mobile-offcanvas.offcanvas,
 .calendar-mobile-offcanvas.offcanvas {
-    z-index: 1045;
+    z-index: 1048;
 }
 
 .mod-offcanvas.offcanvas.show,

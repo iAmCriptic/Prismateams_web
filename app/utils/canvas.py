@@ -151,9 +151,19 @@ def get_hycanvas_status() -> tuple[bool, str | None]:
                     ver = data.get('version') or nested.get('version')
                     if ver:
                         return True, str(ver).strip()
+        except requests.RequestException:
+            logger.debug('HyCanvas status check failed for %s%s', api_url, path, exc_info=True)
+            if not reachable:
+                break
         except Exception:
             logger.debug('HyCanvas status check failed for %s%s', api_url, path, exc_info=True)
     return reachable, None
+
+
+def is_hycanvas_installed() -> bool:
+    """Return True if HyCanvas is enabled, configured, and reachable."""
+    installed, _ = get_hycanvas_status()
+    return installed
 
 
 def get_hycanvas_db_url() -> str | None:
@@ -229,8 +239,42 @@ def _get_hycanvas_avatar_col(conn) -> str | None:
     return avatar_col
 
 
-def _sync_single_hycanvas_user(engine, user, email: str, hc_theme: str) -> None:
-    """Fast-path: update only the current user's theme, verification and avatar."""
+def _get_hycanvas_lang_col(conn) -> str | None:
+    cache = current_app.extensions.setdefault('hycanvas_lang_col_cache', {})
+    if 'col' in cache:
+        return cache['col']
+    cols_rows = conn.execute(
+        text(
+            'SELECT column_name FROM information_schema.columns '
+            "WHERE table_name = 'users' AND table_schema = current_schema()"
+        )
+    ).fetchall()
+    user_cols = {r.column_name for r in cols_rows}
+    lang_col = next(
+        (c for c in ('locale', 'language', 'lang') if c in user_cols),
+        None,
+    )
+    cache['col'] = lang_col
+    return lang_col
+
+
+def get_user_hycanvas_theme(user) -> str:
+    return 'dark' if (getattr(user, 'dark_mode', False) or getattr(user, 'oled_mode', False)) else 'light'
+
+
+def get_user_hycanvas_language(user) -> str:
+    lang = (getattr(user, 'language', None) or 'de').strip().lower()
+    return lang.split('-')[0].split('_')[0] or 'de'
+
+
+def _sync_single_hycanvas_user(
+    engine,
+    user,
+    email: str,
+    hc_theme: str,
+    hc_lang: str | None = None,
+) -> None:
+    """Fast-path: update only the current user's theme, language, verification and avatar."""
     with engine.begin() as conn:
         conn.execute(
             text(
@@ -241,6 +285,18 @@ def _sync_single_hycanvas_user(engine, user, email: str, hc_theme: str) -> None:
             ),
             {'email': email, 'theme': hc_theme},
         )
+        if hc_lang:
+            lang_col = _get_hycanvas_lang_col(conn)
+            if lang_col:
+                col_ident = f'"{lang_col}"' if lang_col != lang_col.lower() else lang_col
+                conn.execute(
+                    text(
+                        f'UPDATE users '
+                        f'SET {col_ident} = :lang, updated_at = NOW() '
+                        f'WHERE lower(email) = :email AND {col_ident} IS DISTINCT FROM :lang'
+                    ),
+                    {'email': email, 'lang': hc_lang},
+                )
         if has_request_context():
             avatar_col = _get_hycanvas_avatar_col(conn)
             if avatar_col:
@@ -269,7 +325,8 @@ def sync_hycanvas_user_and_workspaces(user, *, force: bool = False) -> None:
         return
 
     email = (getattr(user, 'email', None) or f'user-{user.id}@portal.local').strip().lower()
-    hc_theme = 'dark' if (getattr(user, 'dark_mode', False) or getattr(user, 'oled_mode', False)) else 'light'
+    hc_theme = get_user_hycanvas_theme(user)
+    hc_lang = get_user_hycanvas_language(user)
 
     ttl = int(current_app.config.get('HYCANVAS_SYNC_TTL_SECONDS', HYCANVAS_FULL_SYNC_TTL_SECONDS) or 0)
     now = time.monotonic()
@@ -277,7 +334,7 @@ def sync_hycanvas_user_and_workspaces(user, *, force: bool = False) -> None:
 
     if not force and ttl > 0 and (now - last_sync) < ttl:
         try:
-            _sync_single_hycanvas_user(engine, user, email, hc_theme)
+            _sync_single_hycanvas_user(engine, user, email, hc_theme, hc_lang)
         except Exception as exc:
             logger.warning('HyCanvas single-user sync failed: %s', exc)
         return
@@ -285,7 +342,7 @@ def sync_hycanvas_user_and_workspaces(user, *, force: bool = False) -> None:
     if not _HYCANVAS_SYNC_LOCK.acquire(blocking=False):
         # Another request is already running the full workspace sync; only update current user.
         try:
-            _sync_single_hycanvas_user(engine, user, email, hc_theme)
+            _sync_single_hycanvas_user(engine, user, email, hc_theme, hc_lang)
         except Exception as exc:
             logger.warning('HyCanvas single-user sync failed: %s', exc)
         return
@@ -352,6 +409,18 @@ def sync_hycanvas_user_and_workspaces(user, *, force: bool = False) -> None:
                 ),
                 {'email': email, 'theme': hc_theme},
             )
+            if hc_lang:
+                lang_col = _get_hycanvas_lang_col(conn)
+                if lang_col:
+                    col_ident = f'"{lang_col}"' if lang_col != lang_col.lower() else lang_col
+                    conn.execute(
+                        text(
+                            f'UPDATE users '
+                            f'SET {col_ident} = :lang, updated_at = NOW() '
+                            f'WHERE lower(email) = :email AND {col_ident} IS DISTINCT FROM :lang'
+                        ),
+                        {'email': email, 'lang': hc_lang},
+                    )
             conn.execute(
                 text(
                     'UPDATE users '
@@ -566,11 +635,15 @@ def build_hycanvas_sso_jwt(user) -> str | None:
     if not secret:
         return None
     now = int(time.time())
+    hc_lang = get_user_hycanvas_language(user)
     payload = {
         'sub': str(user.id),
         'email': getattr(user, 'email', None) or f'user-{user.id}@portal.local',
         'name': getattr(user, 'full_name', None) or getattr(user, 'username', None) or f'User {user.id}',
         'avatar_url': get_user_avatar_external_url(user),
+        'theme': get_user_hycanvas_theme(user),
+        'locale': hc_lang,
+        'language': hc_lang,
         'iat': now,
         'exp': now + 3600 * 8,
     }
@@ -643,7 +716,8 @@ def authenticate_hycanvas_session(user) -> requests.Session | None:
         if sess.cookies:
             sync_hycanvas_user_and_workspaces(user)
             avatar_url = get_user_avatar_external_url(user)
-            hc_theme = 'dark' if (getattr(user, 'dark_mode', False) or getattr(user, 'oled_mode', False)) else 'light'
+            hc_theme = get_user_hycanvas_theme(user)
+            hc_lang = get_user_hycanvas_language(user)
             patch_payload: dict[str, Any] = {'name': name, 'theme': hc_theme}
             if avatar_url:
                 patch_payload['avatar_url'] = avatar_url
@@ -658,6 +732,18 @@ def authenticate_hycanvas_session(user) -> requests.Session | None:
                     logger.debug('HyCanvas PATCH /api/v1/me returned %s: %s', patch_resp.status_code, patch_resp.text[:200])
             except Exception as exc:
                 logger.debug('HyCanvas PATCH /api/v1/me failed: %s', exc)
+            if hc_lang:
+                for lang_field in ('locale', 'language'):
+                    try:
+                        lang_resp = sess.patch(
+                            f'{api_url}/api/v1/me',
+                            json={lang_field: hc_lang},
+                            timeout=2,
+                        )
+                        if lang_resp.ok:
+                            break
+                    except Exception:
+                        pass
             if has_app_context() and uid is not None:
                 g.setdefault('_hycanvas_auth_sessions', {})[uid] = sess
             return sess

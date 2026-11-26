@@ -347,6 +347,23 @@ body.files-dnd-dragging .files-space-drop {
     display: block;
 }
 
+.pdf-mini-preview .pdf-thumb-canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    pointer-events: none;
+}
+
+.pdf-mini-preview__placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: var(--bs-secondary-color);
+}
+
 [data-bs-theme="dark"] .file-item:hover,
 [data-bs-theme="dark"] .folder-item:hover {
     background-color: rgba(255, 255, 255, 0.05);

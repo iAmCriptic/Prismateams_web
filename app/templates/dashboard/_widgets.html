@@ -235,10 +235,10 @@ data-col-span="{{ col_span }}"
             </div>
             <p class="dash-widget-row-sub">{{ email.sender|decode_email_header }}</p>
             <div class="dash-email-actions">
-                <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="mod-pill-btn mod-pill-btn--outline mod-pill-btn--sm" data-stop-nav>
+                <a href="{{ url_for('email.view_email', email_id=email.id) }}" class="mod-pill-btn mod-pill-btn--outline-muted mod-pill-btn--sm" data-stop-nav>
                     <i class="bi bi-envelope-open"></i> {{ _('dashboard.widgets.email.open') }}
                 </a>
-                <a href="{{ url_for('email.reply', email_id=email.id) }}" class="mod-pill-btn mod-pill-btn--accent mod-pill-btn--sm" data-stop-nav>
+                <a href="{{ url_for('email.reply', email_id=email.id) }}" class="mod-pill-btn mod-pill-btn--outline mod-pill-btn--sm" data-stop-nav>
                     <i class="bi bi-reply"></i> {{ _('dashboard.widgets.email.reply') }}
                 </a>
             </div>

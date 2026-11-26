@@ -546,7 +546,7 @@ After=network.target mysql.service redis-server.service
 User=www-data
 Group=www-data
 WorkingDirectory=/var/www/teamportal
-Environment="PATH=/var/www/teamportal/venv/bin"
+Environment="PATH=/var/www/teamportal/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="FLASK_ENV=production"
 ExecStart=/var/www/teamportal/venv/bin/gunicorn \
     --worker-class gthread \
