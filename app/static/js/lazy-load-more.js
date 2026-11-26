@@ -199,6 +199,9 @@
     function init() {
         document.querySelectorAll('[data-lazy-more]').forEach(bind);
         initLazyMedia();
+        if (window.PortalPdfEmbed && typeof window.PortalPdfEmbed.autoMountThumbs === 'function') {
+            window.PortalPdfEmbed.autoMountThumbs();
+        }
     }
 
     if (document.readyState === 'loading') {
@@ -207,6 +210,11 @@
         init();
     }
 
-    document.addEventListener('lazy-more:loaded', () => initLazyMedia());
+    document.addEventListener('lazy-more:loaded', () => {
+        initLazyMedia();
+        if (window.PortalPdfEmbed && typeof window.PortalPdfEmbed.autoMountThumbs === 'function') {
+            window.PortalPdfEmbed.autoMountThumbs();
+        }
+    });
     window.PrismateamsLazyMore = { loadMore, bind, init };
 })();

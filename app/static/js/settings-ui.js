@@ -181,6 +181,12 @@
     var url = getSaveUrl(form);
     var silent = !!opts.silent;
 
+    form._spPendingSaves = (form._spPendingSaves || 0) + 1;
+    if (form._spReloadTimer) {
+      clearTimeout(form._spReloadTimer);
+      form._spReloadTimer = null;
+    }
+
     var csrfMeta = document.querySelector('meta[name="csrf-token"]');
     var headers = {
       'Accept': 'application/json',
@@ -230,15 +236,19 @@
         return { ok: res.ok, status: res.status, data: {} };
       });
     }).then(function (result) {
+      form._spPendingSaves = Math.max(0, (form._spPendingSaves || 1) - 1);
       if (result.ok) {
         form.dispatchEvent(new CustomEvent('sp:saved', { detail: result.data }));
         if (result.data) applyLiveAppearance(result.data);
+        if (form._spPendingSaves > 0) {
+          return result;
+        }
         if (result.data && result.data.full_reload) {
           if (!silent) {
             var msgFull = (result.data && result.data.message) || t('saved', 'Gespeichert');
             showToast(msgFull, 'success');
           }
-          setTimeout(function () { window.location.reload(); }, 180);
+          form._spReloadTimer = setTimeout(function () { window.location.reload(); }, 180);
           return result;
         }
         var needsReload = !!(result.data && result.data.reload) || form.dataset.spReloadOnSave === '1';
@@ -250,7 +260,7 @@
             }
           }).catch(function () {
             if (!silent) showToast(t('saved', 'Gespeichert'), 'success');
-            setTimeout(function () { window.location.reload(); }, 350);
+            form._spReloadTimer = setTimeout(function () { window.location.reload(); }, 350);
           });
         } else if (!silent) {
           var msgOk = (result.data && result.data.message) || t('saved', 'Gespeichert');
@@ -263,6 +273,7 @@
       }
       return result;
     }).catch(function () {
+      form._spPendingSaves = Math.max(0, (form._spPendingSaves || 1) - 1);
       showToast(t('error', 'Speichern fehlgeschlagen'), 'error');
       return { ok: false };
     });

@@ -30,6 +30,8 @@ from app.utils.canvas import (
     build_hycanvas_sso_jwt,
     get_hycanvas_browser_url,
     get_hycanvas_embed_url,
+    get_user_hycanvas_language,
+    get_user_hycanvas_theme,
     hycanvas_create_design,
     hycanvas_delete_design,
     hycanvas_export_hyc,
@@ -131,7 +133,8 @@ def _apply_create_visibility(doc):
 
 
 def _attach_hycanvas_cookies(resp, user):
-    theme_key = (bool(getattr(user, 'dark_mode', False)), bool(getattr(user, 'oled_mode', False)))
+    theme_key = [bool(getattr(user, 'dark_mode', False)), bool(getattr(user, 'oled_mode', False))]
+    lang_key = get_user_hycanvas_language(user)
     auth_ttl = int(current_app.config.get('HYCANVAS_AUTH_CACHE_TTL', 600) or 0)
     cached_names = session.get('hycanvas_cookie_names') or []
     now = time.time()
@@ -139,7 +142,8 @@ def _attach_hycanvas_cookies(resp, user):
         auth_ttl > 0
         and cached_names
         and session.get('hycanvas_auth_uid') == getattr(user, 'id', None)
-        and session.get('hycanvas_auth_theme') == list(theme_key)
+        and session.get('hycanvas_auth_theme') == theme_key
+        and session.get('hycanvas_auth_lang') == lang_key
         and (now - float(session.get('hycanvas_auth_ts') or 0)) < auth_ttl
         and all(name in request.cookies for name in cached_names)
     ):
@@ -175,7 +179,8 @@ def _attach_hycanvas_cookies(resp, user):
     if set_names:
         session['hycanvas_auth_ts'] = now
         session['hycanvas_auth_uid'] = getattr(user, 'id', None)
-        session['hycanvas_auth_theme'] = list(theme_key)
+        session['hycanvas_auth_theme'] = theme_key
+        session['hycanvas_auth_lang'] = lang_key
         session['hycanvas_cookie_names'] = set_names
     return resp
 
@@ -190,6 +195,8 @@ def index():
             'canvas/index.html',
             hycanvas_url=hycanvas_url,
             hycanvas_enabled=is_canvas_enabled(),
+            hycanvas_theme=get_user_hycanvas_theme(current_user),
+            hycanvas_lang=get_user_hycanvas_language(current_user),
         )
     )
     return _attach_hycanvas_cookies(resp, current_user)
@@ -275,6 +282,8 @@ def edit(doc_id):
             return_url=return_url,
             hycanvas_embed_url=embed_url,
             hycanvas_enabled=is_canvas_enabled(),
+            hycanvas_theme=get_user_hycanvas_theme(current_user),
+            hycanvas_lang=get_user_hycanvas_language(current_user),
             theme_dark=bool(getattr(current_user, 'dark_mode', False)),
             theme_oled=bool(getattr(current_user, 'oled_mode', False)),
         )

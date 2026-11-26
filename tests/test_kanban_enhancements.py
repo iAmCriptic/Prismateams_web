@@ -386,3 +386,124 @@ def test_multi_file_attachment_upload_and_board_input(app, client):
     assert {a['filename'] for a in payload['attachments']} == {'doc1.txt', 'doc2.pdf'}
     assert payload['attachment']['filename'] == 'doc1.txt'
     assert len(payload['card']['attachments']) == 2
+
+
+def test_reorder_checklist_items_within_and_across_checklists(app, client):
+    alice = _make_user('alice_cl_reorder@example.com', 'Alice', 'Reorder')
+    board = KanbanBoard(title='Reorder Board', created_by=alice.id, visibility='private')
+    db.session.add(board)
+    db.session.flush()
+    db.session.add(KanbanBoardMember(board_id=board.id, user_id=alice.id, role='owner'))
+    lst = KanbanList(board_id=board.id, title='Todo', position=0)
+    db.session.add(lst)
+    db.session.flush()
+    card = KanbanCard(list_id=lst.id, title='Card 1', position=0, created_by=alice.id)
+    other_card = KanbanCard(list_id=lst.id, title='Other Card', position=1, created_by=alice.id)
+    db.session.add_all([card, other_card])
+    db.session.flush()
+
+    cl1 = KanbanChecklist(card_id=card.id, title='Phase 1', position=0)
+    cl2 = KanbanChecklist(card_id=card.id, title='Phase 2', position=1)
+    cl_other = KanbanChecklist(card_id=other_card.id, title='Other', position=0)
+    db.session.add_all([cl1, cl2, cl_other])
+    db.session.flush()
+
+    it1 = KanbanChecklistItem(checklist_id=cl1.id, text='Item A', position=0)
+    it2 = KanbanChecklistItem(checklist_id=cl1.id, text='Item B', position=1)
+    it3 = KanbanChecklistItem(checklist_id=cl1.id, text='Item C', position=2)
+    it_other = KanbanChecklistItem(checklist_id=cl_other.id, text='Foreign', position=0)
+    db.session.add_all([it1, it2, it3, it_other])
+    db.session.commit()
+
+    _login(client, 'alice_cl_reorder@example.com')
+
+    # 1. Invalid order type returns 400
+    bad_resp = client.post(f'/kanban/api/checklists/{cl1.id}/items/reorder', json={'order': 'invalid'})
+    assert bad_resp.status_code == 400
+
+    # 2. Reorder within cl1 (and verify foreign item_id from another card is ignored)
+    resp = client.post(
+        f'/kanban/api/checklists/{cl1.id}/items/reorder',
+        json={'order': [it3.id, it_other.id, it1.id, it2.id]},
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data['success'] is True
+    cl1_items = next(c['items'] for c in data['card']['checklists'] if c['id'] == cl1.id)
+    assert [i['id'] for i in cl1_items] == [it3.id, it1.id, it2.id]
+    assert [i['position'] for i in cl1_items] == [0, 1, 2]
+    assert db.session.get(KanbanChecklistItem, it_other.id).checklist_id == cl_other.id
+
+    # 3. Move it1 from cl1 to cl2 via reorder on cl2
+    resp2 = client.post(
+        f'/kanban/api/checklists/{cl2.id}/items/reorder',
+        json={'order': [it1.id]},
+    )
+    assert resp2.status_code == 200
+    data2 = resp2.get_json()
+    cl1_items_after = next(c['items'] for c in data2['card']['checklists'] if c['id'] == cl1.id)
+    cl2_items_after = next(c['items'] for c in data2['card']['checklists'] if c['id'] == cl2.id)
+    assert [i['id'] for i in cl1_items_after] == [it3.id, it2.id]
+    assert [i['position'] for i in cl1_items_after] == [0, 1]
+    assert [i['id'] for i in cl2_items_after] == [it1.id]
+    assert [i['position'] for i in cl2_items_after] == [0]
+
+
+def test_checklist_item_assignee_adds_card_member(app, client):
+    alice = _make_user('alice_cla@example.com', 'Alice', 'Owner')
+    bob = _make_user('bob_cla@example.com', 'Bob', 'Member')
+    board = KanbanBoard(title='Checklist Member Board', created_by=alice.id, visibility='private')
+    db.session.add(board)
+    db.session.flush()
+    db.session.add(KanbanBoardMember(board_id=board.id, user_id=alice.id, role='owner'))
+    db.session.add(KanbanBoardMember(board_id=board.id, user_id=bob.id, role='member'))
+    lst = KanbanList(board_id=board.id, title='To Do', position=0)
+    db.session.add(lst)
+    db.session.flush()
+    card = KanbanCard(list_id=lst.id, title='Task Card', position=0, created_by=alice.id)
+    db.session.add(card)
+    db.session.flush()
+    cl = KanbanChecklist(card_id=card.id, title='Checkliste', position=0)
+    db.session.add(cl)
+    db.session.flush()
+    it1 = KanbanChecklistItem(checklist_id=cl.id, text='Step 1', position=0)
+    it2 = KanbanChecklistItem(checklist_id=cl.id, text='Step 2', position=1)
+    db.session.add_all([it1, it2])
+    db.session.commit()
+
+    assert KanbanCardAssignee.query.filter_by(card_id=card.id, user_id=bob.id).count() == 0
+
+    _login(client, 'alice_cla@example.com')
+    resp = client.patch(
+        f'/kanban/api/checklist-items/{it1.id}',
+        json={'assignee_id': bob.id},
+    )
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data['success'] is True
+    assert any(a['id'] == bob.id for a in data['card']['assignees'])
+    assert KanbanCardAssignee.query.filter_by(card_id=card.id, user_id=bob.id).count() == 1
+    assert (
+        KanbanActivity.query.filter_by(
+            board_id=board.id,
+            card_id=card.id,
+            action='assignee_added',
+        ).count()
+        == 1
+    )
+
+    # Assigning a second checklist item to Bob does not duplicate card membership
+    resp2 = client.patch(
+        f'/kanban/api/checklist-items/{it2.id}',
+        json={'assignee_id': bob.id},
+    )
+    assert resp2.status_code == 200
+    assert KanbanCardAssignee.query.filter_by(card_id=card.id, user_id=bob.id).count() == 1
+
+    # Unassigning checklist item leaves card membership intact
+    resp3 = client.patch(
+        f'/kanban/api/checklist-items/{it1.id}',
+        json={'assignee_id': None},
+    )
+    assert resp3.status_code == 200
+    assert KanbanCardAssignee.query.filter_by(card_id=card.id, user_id=bob.id).count() == 1

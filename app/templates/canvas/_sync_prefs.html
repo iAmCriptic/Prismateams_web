@@ -1,0 +1,14 @@
+<script>
+(function () {
+    var theme = {{ hycanvas_theme|default('light')|tojson }};
+    var lang = {{ hycanvas_lang|default('de')|tojson }};
+    try {
+        ['theme', 'hycanvas-theme', 'hycanvas_theme', 'color-theme'].forEach(function (k) {
+            localStorage.setItem(k, theme);
+        });
+        ['i18nextLng', 'locale', 'language', 'lang', 'hycanvas-locale', 'hycanvas_locale', 'hycanvas-lang', 'hycanvas_language'].forEach(function (k) {
+            localStorage.setItem(k, lang);
+        });
+    } catch (_) {}
+})();
+</script>

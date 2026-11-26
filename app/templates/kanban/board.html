@@ -4,6 +4,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/comments.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/files-markdown.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pdf-embed.css') }}">
 {% endblock %}
 
 {% block navbar_search %}
@@ -979,6 +980,7 @@
     moveListRight: {{ _('kanban.board.move_list_right') | tojson }},
     hideDoneItems: {{ _('kanban.card.hide_done_items') | tojson }},
     hidePendingItems: {{ _('kanban.card.hide_pending_items') | tojson }},
+    reorderItem: {{ _('kanban.card.reorder_item') | tojson }},
     listDefaultFields: {{ _('kanban.board.list_default_fields') | tojson }},
     listDefaultFieldsEmpty: {{ _('kanban.board.list_default_fields_empty') | tojson }},
     portalFileEmpty: {{ _('kanban.card.portal_file_empty') | tojson }},
@@ -1180,7 +1182,13 @@
 
   <div class="kanban-lightbox__stage" id="kanbanLightboxStage">
     <img class="kanban-lightbox__img" id="kanbanLightboxImg" src="" alt="" draggable="false">
-    <iframe class="kanban-lightbox__pdf" id="kanbanLightboxPdf" src="" title="" hidden></iframe>
+    <div class="kanban-lightbox__pdf"
+         id="kanbanLightboxPdf"
+         hidden
+         role="document"
+         data-loading="{{ _('files.view.pdf_loading') }}"
+         data-error="{{ _('files.view.pdf_error') }}"
+         data-download-label="{{ _('files.view.download') }}"></div>
   </div>
 
   <div class="kanban-lightbox__footer">
@@ -1199,6 +1207,7 @@
 
 <script>window.MARKDOWN_EDITOR_I18N = {{ i18n_ns('markdown', 'editor')|tojson }};</script>
 <script src="{{ url_for('static', filename='js/markdown-toolbar.js') }}"></script>
+<script src="{{ url_for('static', filename='js/pdf-embed.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="{{ url_for('static', filename='js/kanban-board.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}&t=20261125_03"></script>
+<script src="{{ url_for('static', filename='js/kanban-board.js') }}?v={{ config.ABOUT_BUILD_NUMBER }}&t=20261126_01"></script>
 {% endblock %}

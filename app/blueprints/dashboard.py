@@ -236,25 +236,9 @@ def _normalize_dashboard_widgets(widgets, cols=DASHBOARD_GRID_COLS, mobile_cols=
     return result
 
 
-_KANBAN_ACTIVITY_LABELS = {
-    'board_created': 'Board erstellt',
-    'board_closed': 'Board geschlossen',
-    'board_reopened': 'Board wieder geöffnet',
-    'list_created': 'Liste erstellt',
-    'list_updated': 'Liste aktualisiert',
-    'list_deleted': 'Liste gelöscht',
-    'card_created': 'Karte erstellt',
-    'card_updated': 'Karte aktualisiert',
-    'card_moved': 'Karte verschoben',
-    'card_archived': 'Karte archiviert',
-    'card_restored': 'Karte wiederhergestellt',
-    'member_added': 'Mitglied hinzugefügt',
-    'attachment_added': 'Anhang hinzugefügt',
-}
-
-
 def _kanban_activity_label(action: str) -> str:
-    return _KANBAN_ACTIVITY_LABELS.get(action or '', action or '')
+    from app.blueprints.kanban.helpers import kanban_activity_label
+    return kanban_activity_label(action)
 
 
 def _visibility_label(visibility: str) -> str:

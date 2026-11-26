@@ -140,7 +140,7 @@
 
 .calendar-header {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     background-color: var(--bs-tertiary-bg);
     border-bottom: 1px solid var(--bs-border-color);
 }
@@ -159,7 +159,7 @@
 
 .calendar-body {
     display: grid;
-    grid-template-columns: repeat(7, 1fr);
+    grid-template-columns: repeat(7, minmax(0, 1fr));
     grid-auto-rows: 1fr;
     flex: 1 1 auto;
     height: auto;
@@ -604,6 +604,8 @@
     padding: 0.25rem;
     position: relative;
     height: 100%;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .day-time-slot:hover {
@@ -636,44 +638,57 @@
     }
     
     .week-header {
-        grid-template-columns: 50px repeat(3, 1fr) !important;
+        grid-template-columns: 48px repeat(3, minmax(0, 1fr)) !important;
         min-width: auto !important;
     }
     
     .time-row {
-        grid-template-columns: 50px repeat(3, 1fr) !important;
+        grid-template-columns: 48px repeat(3, minmax(0, 1fr)) !important;
         height: auto;
         min-height: 0;
     }
     
     .time-column, .time-label {
-        padding: 0.2rem;
-        font-size: 0.7rem;
+        padding: 0.15rem 0.2rem;
+        font-size: 0.6875rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .week-multi-day-events .time-label,
+    .day-multi-day-events .day-time-label {
+        font-size: 0.6rem;
+        line-height: 1.1;
+        white-space: normal;
+        word-break: break-word;
+        overflow-wrap: anywhere;
     }
     
     .day-header {
         padding: 0.25rem;
         font-size: 0.7rem;
+        min-width: 0;
     }
     
     .day-multi-day-events {
-        grid-template-columns: 50px 1fr;
+        grid-template-columns: 48px minmax(0, 1fr);
         min-height: 2rem;
     }
     
     .day-time-row {
-        grid-template-columns: 50px 1fr;
+        grid-template-columns: 48px minmax(0, 1fr);
         height: auto;
         min-height: 0;
     }
     
     .day-time-label {
-        padding: 0.2rem;
-        font-size: 0.7rem;
+        padding: 0.15rem 0.2rem;
+        font-size: 0.6875rem;
     }
     
     .week-multi-day-events {
-        grid-template-columns: 50px repeat(3, 1fr) !important;
+        grid-template-columns: 48px repeat(3, minmax(0, 1fr)) !important;
         min-height: 2rem;
     }
     
@@ -726,19 +741,19 @@
     }
     
     .week-header {
-        grid-template-columns: 40px repeat(3, 1fr) !important;
+        grid-template-columns: 44px repeat(3, minmax(0, 1fr)) !important;
         min-width: auto !important;
     }
     
     .time-row {
-        grid-template-columns: 40px repeat(3, 1fr) !important;
+        grid-template-columns: 44px repeat(3, minmax(0, 1fr)) !important;
         height: auto;
         min-height: 0;
     }
     
     .time-column, .time-label {
-        padding: 0.2rem;
-        font-size: 0.6875rem;
+        padding: 0.1rem 0.15rem;
+        font-size: 0.65rem;
     }
     
     .day-header {
@@ -747,23 +762,23 @@
     }
     
     .day-multi-day-events {
-        grid-template-columns: 40px 1fr;
+        grid-template-columns: 44px minmax(0, 1fr);
         min-height: 2rem;
     }
     
     .day-time-row {
-        grid-template-columns: 40px 1fr;
+        grid-template-columns: 44px minmax(0, 1fr);
         height: auto;
         min-height: 0;
     }
     
     .day-time-label {
-        padding: 0.2rem;
-        font-size: 0.6875rem;
+        padding: 0.1rem 0.15rem;
+        font-size: 0.65rem;
     }
     
     .week-multi-day-events {
-        grid-template-columns: 40px repeat(3, 1fr) !important;
+        grid-template-columns: 44px repeat(3, minmax(0, 1fr)) !important;
         min-height: 2rem;
     }
     
@@ -1393,19 +1408,20 @@ body:not(.embed-scope):not(.assessment-scope-solo) .calendar-shell.mod-shell--na
     width: 1.05rem;
     height: 1.05rem;
     margin-top: 0;
-    border-color: color-mix(in srgb, var(--accent-color, var(--bs-primary)) 55%, #6c757d);
+    border-width: 2px;
+    border-color: var(--cal-color, var(--accent-color, var(--bs-primary)));
     background-color: transparent;
 }
 
 .calendar-visibility-check:checked {
-    background-color: var(--accent-color, var(--bs-primary)) !important;
-    border-color: var(--accent-color, var(--bs-primary)) !important;
+    background-color: var(--cal-color, var(--accent-color, var(--bs-primary))) !important;
+    border-color: var(--cal-color, var(--accent-color, var(--bs-primary))) !important;
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3e%3c/svg%3e") !important;
 }
 
 .calendar-visibility-check:focus {
-    border-color: var(--accent-color, var(--bs-primary));
-    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--accent-color, var(--bs-primary)) 25%, transparent);
+    border-color: var(--cal-color, var(--accent-color, var(--bs-primary)));
+    box-shadow: 0 0 0 0.2rem color-mix(in srgb, var(--cal-color, var(--accent-color, var(--bs-primary))) 25%, transparent);
 }
 
 .calendar-nav-group-label {
@@ -1744,11 +1760,12 @@ body:not(.embed-scope):not(.assessment-scope-solo) .calendar-shell.mod-shell--na
         overflow: hidden;
         display: flex;
         flex-direction: column;
-        padding-top: 0.5rem;
-        padding-bottom: 0;
+        padding-top: 0.5rem !important;
+        padding-bottom: 0 !important;
     }
 
     .calendar-shell.mod-shell--nav {
+        display: flex;
         flex: 1 1 auto;
         min-height: 0;
         height: 100%;
@@ -1762,7 +1779,7 @@ body:not(.embed-scope):not(.assessment-scope-solo) .calendar-shell.mod-shell--na
     .calendar-shell.mod-shell--nav .mod-main.calendar-main {
         flex: 1 1 auto;
         min-height: 0;
-        height: auto;
+        height: 100%;
         overflow: hidden;
     }
 

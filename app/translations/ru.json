@@ -7314,6 +7314,7 @@
       "markdown_toolbar": "Форматирование Markdown",
       "hide_done_items": "Скрыть выполненные элементы",
       "hide_pending_items": "Скрыть невыполненные элементы",
+      "reorder_item": "Перетащите для изменения порядка",
       "google_access_required": "Необходимо запросить доступ",
       "attach_portal_file": "Файл портала",
       "portal_file_search": "Поиск файла…",

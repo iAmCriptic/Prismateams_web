@@ -48,6 +48,7 @@ body.force-mobile-layout .canvas-shell {
 
 {% block content %}
 <div class="canvas-shell">
+    {% include 'canvas/_sync_prefs.html' %}
     <iframe name="hycanvasFrame"
             src="{{ hycanvas_url }}"
             class="canvas-embed-frame"

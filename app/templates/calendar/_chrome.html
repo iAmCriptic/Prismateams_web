@@ -260,9 +260,8 @@
              data-calendar-color="{{ cal.color }}"
              data-calendar-hidden="{{ '1' if cal.hidden_from_others else '0' }}">
             {% if interactive %}
-            <input class="form-check-input calendar-visibility-check flex-shrink-0" type="checkbox" value="{{ cal.id }}" id="calCheck{{ cal.id }}" {% if cal.id in selected_calendar_ids %}checked{% endif %}>
+            <input class="form-check-input calendar-visibility-check flex-shrink-0" type="checkbox" value="{{ cal.id }}" id="calCheck{{ cal.id }}"{% if cal.color %} style="--cal-color: {{ cal.color }};"{% endif %} {% if cal.id in selected_calendar_ids %}checked{% endif %}>
             <label class="nav-link calendar-nav-link flex-grow-1 mb-0 {% if focus_calendar_id == cal.id %}active{% endif %}" for="calCheck{{ cal.id }}">
-                <span class="calendar-color-dot" style="background:{{ cal.color }}"></span>
                 {{ label or cal.name }}
                 {% if cal.hidden_from_others %}<i class="bi bi-eye-slash ms-1 text-muted" title="{{ _('calendar.sidebar.hidden') }}"></i>{% endif %}
             </label>

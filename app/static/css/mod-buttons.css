@@ -4,6 +4,7 @@
 .btn.mod-pill-btn {
     border-radius: var(--mod-radius-pill, 1.5rem) !important;
     font-weight: 600;
+    text-decoration: none;
     display: inline-flex;
     align-items: center;
     justify-content: center;

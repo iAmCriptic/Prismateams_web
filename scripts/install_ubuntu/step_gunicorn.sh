@@ -86,7 +86,7 @@ After=network.target mysql.service redis-server.service
 User=www-data
 Group=www-data
 WorkingDirectory=${INSTALL_DIR}
-Environment="PATH=${INSTALL_DIR}/venv/bin"
+Environment="PATH=${INSTALL_DIR}/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 Environment="FLASK_ENV=production"
 Environment="PRISMATEAMS_SKIP_BACKGROUND_JOBS=0"
 ExecStart=${INSTALL_DIR}/venv/bin/gunicorn \\

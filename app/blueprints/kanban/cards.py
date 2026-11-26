@@ -505,9 +505,12 @@ def api_checklist_item(item_id):
             if item.assignee_id != assignee_id:
                 item.assignee_id = assignee_id
                 assigned_checklist_user_id = assignee_id
-                target_user = User.query.get(assignee_id)
-                uname = (target_user.full_name or target_user.email) if target_user else str(assignee_id)
+                target_user = db.session.get(User, assignee_id)
+                uname = (target_user.full_name or target_user.name or target_user.email) if target_user else str(assignee_id)
                 _log_activity(board.id, 'checklist_assignee_added', detail=f"{assignee_id}::{uname}::{cl_title}::{item.text}", card_id=card.id)
+                if not KanbanCardAssignee.query.filter_by(card_id=card.id, user_id=assignee_id).first():
+                    db.session.add(KanbanCardAssignee(card_id=card.id, user_id=assignee_id))
+                    _log_activity(board.id, 'assignee_added', detail=f"{assignee_id}::{uname}", card_id=card.id)
     db.session.commit()
     payload = _serialize_card_detail(card, share_token=_share_token_from_request())
     _emit_board(board.id, 'card_updated', payload)
@@ -529,6 +532,77 @@ def api_checklist_item(item_id):
             target_user_ids={assigned_checklist_user_id},
             is_checklist_assignment=True,
         )
+    return jsonify({'success': True, 'card': payload})
+
+
+@kanban_bp.route('/api/checklists/<int:checklist_id>/items/reorder', methods=['POST'])
+@login_or_share_required
+def api_reorder_checklist_items(checklist_id):
+    cl = db.session.get(KanbanChecklist, checklist_id)
+    if not cl:
+        return jsonify({'error': 'Not found'}), 404
+    card, err = _require_card_edit(cl.card_id)
+    if err:
+        return err
+    board = card.list.board
+    data = request.get_json(silent=True) or {}
+    raw_order = data.get('order')
+    if raw_order is None:
+        raw_order = []
+    elif not isinstance(raw_order, list):
+        return jsonify({'error': 'order must be a list'}), 400
+    order = _parse_int_list(raw_order)
+
+    touched_checklist_ids = {cl.id}
+    seen_ids: set[int] = set()
+    pos = 0
+    if order:
+        items_by_id = {
+            it.id: it
+            for it in KanbanChecklistItem.query.join(KanbanChecklist)
+            .filter(
+                KanbanChecklist.card_id == card.id,
+                KanbanChecklistItem.id.in_(order),
+            )
+            .all()
+        }
+        for item_id in order:
+            if item_id in seen_ids:
+                continue
+            it = items_by_id.get(item_id)
+            if not it:
+                continue
+            seen_ids.add(item_id)
+            if it.checklist_id != cl.id:
+                touched_checklist_ids.add(it.checklist_id)
+                it.checklist_id = cl.id
+            it.position = pos
+            pos += 1
+
+    remaining_q = KanbanChecklistItem.query.filter(
+        KanbanChecklistItem.checklist_id == cl.id,
+    )
+    if seen_ids:
+        remaining_q = remaining_q.filter(~KanbanChecklistItem.id.in_(seen_ids))
+    for it in remaining_q.order_by(KanbanChecklistItem.position, KanbanChecklistItem.id).all():
+        it.position = pos
+        pos += 1
+
+    for src_cl_id in touched_checklist_ids:
+        if src_cl_id == cl.id:
+            continue
+        src_q = KanbanChecklistItem.query.filter(
+            KanbanChecklistItem.checklist_id == src_cl_id,
+        )
+        if seen_ids:
+            src_q = src_q.filter(~KanbanChecklistItem.id.in_(seen_ids))
+        for idx, it in enumerate(src_q.order_by(KanbanChecklistItem.position, KanbanChecklistItem.id).all()):
+            it.position = idx
+
+    db.session.commit()
+    db.session.expire(card, ['checklists'])
+    payload = _serialize_card_detail(card, share_token=_share_token_from_request())
+    _emit_board(board.id, 'card_updated', payload)
     return jsonify({'success': True, 'card': payload})
 
 

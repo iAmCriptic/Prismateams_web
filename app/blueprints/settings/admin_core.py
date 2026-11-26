@@ -1192,9 +1192,12 @@ def admin_modules():
 
         modules = {key: request.form.get(key) == 'on' for key in AVAILABLE_MODULES}
         from app.utils.mirotalk import mirotalk_configured
+        from app.utils.canvas import is_hycanvas_installed
         # Meetings nur mit MiroTalk — ohne URL immer aus (kein „stuck“ True in der DB)
         if not mirotalk_configured():
             modules['module_meetings'] = False
+        if not is_hycanvas_installed():
+            modules['module_canvas'] = False
         existing_settings = {
             s.key: s
             for s in SystemSettings.query.filter(
@@ -1244,7 +1247,9 @@ def admin_modules():
             full_reload=True,
         )
     
-    # Get module settings
+    # Get module settings — immer frisch aus der DB laden (auch ohne Redis multi-worker-sicher)
+    from app.utils.system_settings_cache import invalidate_system_settings_cache
+    invalidate_system_settings_cache(bump_remote=False)
     from app.utils.common import is_module_enabled, AVAILABLE_MODULES
     from app.utils.module_visibility_settings import (
         is_global_private_enabled,
@@ -1252,6 +1257,7 @@ def admin_modules():
         is_global_team_enabled,
     )
     from app.utils.mirotalk import mirotalk_configured
+    from app.utils.canvas import is_hycanvas_installed
     module_flags = {f'{key}_enabled': is_module_enabled(key) for key in AVAILABLE_MODULES}
     
     return render_template(
@@ -1260,6 +1266,7 @@ def admin_modules():
         modules_allow_team=is_global_team_enabled(),
         modules_allow_public=is_global_public_enabled(),
         mirotalk_ready=mirotalk_configured(),
+        hycanvas_installed=is_hycanvas_installed(),
         **module_flags,
     )
 

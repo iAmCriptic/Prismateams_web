@@ -208,3 +208,105 @@ def test_canvas_auth_cookie_cache_skips_redundant_login(client, canvas_user, app
         resp2 = client.get('/canvas/')
         assert resp2.status_code == 200
         assert mock_auth.call_count == 1
+
+
+def _create_admin(app):
+    admin = User(
+        email='canvas-admin@example.com',
+        first_name='Admin',
+        last_name='Tester',
+        is_admin=True,
+        is_active=True,
+        is_email_confirmed=True,
+    )
+    admin.set_password('StrongPass!12345')
+    db.session.add(admin)
+    db.session.commit()
+    return admin
+
+
+def test_admin_modules_lists_hycanvas_only_when_installed(client, app):
+    admin = _create_admin(app)
+    _login(client, admin)
+
+    with patch('app.utils.canvas.is_hycanvas_installed', return_value=False):
+        resp = client.get('/settings/admin/modules')
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert 'id="module_canvas"' not in html
+
+    with patch('app.utils.canvas.is_hycanvas_installed', return_value=True):
+        resp = client.get('/settings/admin/modules')
+        assert resp.status_code == 200
+        html = resp.get_data(as_text=True)
+        assert 'id="module_canvas"' in html
+
+
+def test_admin_modules_post_forces_canvas_off_when_not_installed(client, app):
+    admin = _create_admin(app)
+    _login(client, admin)
+
+    with patch('app.utils.canvas.is_hycanvas_installed', return_value=False):
+        resp = client.post(
+            '/settings/admin/modules',
+            data={'module_canvas': 'on'},
+            follow_redirects=False,
+        )
+        assert resp.status_code in (200, 302)
+
+    setting = SystemSettings.query.filter_by(key='module_canvas').first()
+    assert setting is not None
+    assert setting.value == 'False'
+
+
+def test_is_hycanvas_installed_reflects_status(app):
+    from app.utils.canvas import is_hycanvas_installed
+
+    with app.app_context():
+        with patch('app.utils.canvas.get_hycanvas_status', return_value=(False, None)):
+            assert is_hycanvas_installed() is False
+        with patch('app.utils.canvas.get_hycanvas_status', return_value=(True, '1.2.3')):
+            assert is_hycanvas_installed() is True
+
+
+def test_canvas_syncs_theme_and_language_across_cache_and_html(client, canvas_user, app):
+    canvas_user.dark_mode = True
+    canvas_user.language = 'en'
+    db.session.commit()
+
+    _login(client, canvas_user)
+    app.config['HYCANVAS_JWT_SECRET'] = 'test-hycanvas-secret-1234567890'
+
+    with patch('app.blueprints.canvas.authenticate_hycanvas_session', return_value=None) as mock_auth:
+        resp1 = client.get('/canvas/')
+        assert resp1.status_code == 200
+        html1 = resp1.get_data(as_text=True)
+        assert '"dark"' in html1
+        assert '"en"' in html1
+        assert mock_auth.call_count == 1
+
+        # Changing language invalidates the HyCanvas auth cache even within TTL
+        canvas_user.language = 'de'
+        db.session.commit()
+        resp2 = client.get('/canvas/')
+        assert resp2.status_code == 200
+        html2 = resp2.get_data(as_text=True)
+        assert '"de"' in html2
+        assert mock_auth.call_count == 2
+
+
+def test_build_hycanvas_sso_jwt_includes_theme_and_language(app, canvas_user):
+    import jwt as pyjwt
+    from app.utils.canvas import build_hycanvas_sso_jwt
+
+    canvas_user.dark_mode = True
+    canvas_user.language = 'pt'
+    db.session.commit()
+
+    app.config['HYCANVAS_JWT_SECRET'] = 'test-hycanvas-secret-1234567890'
+    token = build_hycanvas_sso_jwt(canvas_user)
+    assert token is not None
+    claims = pyjwt.decode(token, 'test-hycanvas-secret-1234567890', algorithms=['HS256'])
+    assert claims['theme'] == 'dark'
+    assert claims['locale'] == 'pt'
+    assert claims['language'] == 'pt'

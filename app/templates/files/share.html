@@ -137,9 +137,7 @@
                                             <div class="fw-semibold text-break">{{ file.name }}</div>
                                         </div>
                                         {% if file.name.endswith('.pdf') %}
-                                        <div class="pdf-mini-preview mb-2">
-                                            <iframe src="{{ url_for('files.public_share_folder_file_pdf', token=token, file_id=file.id) }}#toolbar=0&navpanes=0&scrollbar=0&page=1" title="PDF Vorschau"></iframe>
-                                        </div>
+                                        <div class="pdf-mini-preview mb-2" data-pdf-thumb-url="{{ url_for('files.public_share_folder_file_pdf', token=token, file_id=file.id) }}"></div>
                                         {% elif file.name.endswith(('.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp')) %}
                                         <div class="mb-2">
                                             <img src="{{ url_for('files.public_share_folder_file_thumb', token=token, file_id=file.id) }}"
@@ -276,5 +274,6 @@
 {% if item_type == 'folder' %}
 <script src="{{ url_for('static', filename='js/mod-view-toggle.js') }}"></script>
 <script src="{{ url_for('static', filename='js/share-browser.js') }}"></script>
+<script src="{{ url_for('static', filename='js/pdf-embed.js') }}" defer></script>
 {% endif %}
 {% endblock %}

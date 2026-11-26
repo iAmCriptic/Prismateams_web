@@ -123,6 +123,7 @@ def profile():
                     )
         
         db.session.commit()
+        session.pop('hycanvas_auth_ts', None)
         return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.profile')
     
     from app.utils.account_deletion import can_self_delete, user_requires_second_factor, passkey_recently_verified
@@ -327,6 +328,7 @@ def notifications():
         sync_user_notification_flags(current_user, settings)
 
         db.session.commit()
+        session.pop('hycanvas_auth_ts', None)
         return _settings_save_response(True, translate('settings.autosave.saved'), 'settings.notifications')
     
     # Hole Benachrichtigungseinstellungen
@@ -449,6 +451,7 @@ def appearance():
             language_changed = True
 
         db.session.commit()
+        session.pop('hycanvas_auth_ts', None)
         return _settings_save_response(
             True,
             translate('settings.autosave.saved'),
