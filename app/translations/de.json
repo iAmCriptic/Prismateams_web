@@ -2159,7 +2159,10 @@
           "protocols": "Protokolle",
           "meetings": "Meetings",
           "duty_roster": "Dienstplan",
-          "booking_personal": "Persönliche Buchungen"
+          "booking_personal": "Persönliche Buchungen",
+          "canvas": "Canvas",
+          "todos": "ToDo",
+          "helpers": "Helferverwaltung"
         },
         "helps": {
           "settings": "Systemeinstellungen, Modul-Flags und Whitelist.",
@@ -2187,7 +2190,10 @@
           "protocols": "Sitzungsprotokolle und Tagesordnungspunkte",
           "meetings": "Video-Meetings und Einladungen",
           "duty_roster": "Dienstpläne, Schichten, Personen-Konfigurationen, externe Personen und Zeiterfassung",
-          "booking_personal": "Persönliche Buchungs-Events, Felder, Einträge, Dateien und Vorlagen"
+          "booking_personal": "Persönliche Buchungs-Events, Felder, Einträge, Dateien und Vorlagen",
+          "canvas": "Canvas-Dokumente, Snapshots (.hyc) und Vorschaubilder",
+          "todos": "Persönliche, Team- und globale ToDo-Aufgaben",
+          "helpers": "Helfer-Veranstaltungen, Bereiche, Helfer, Schichten, Felder und Markenregeln"
         },
         "lead_short": "Portal-Backup exportieren und importieren.",
         "estimated_size_label": "Ungefähre Backup-Größe:",

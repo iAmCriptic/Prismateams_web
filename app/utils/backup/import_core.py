@@ -73,11 +73,14 @@ from app.utils.backup.constants import SUPPORTED_BACKUP_VERSIONS, _category_sele
 from app.utils.backup.import_kanban import import_kanban_bundle
 from app.utils.backup.import_new_modules import (
     import_booking_personal_bundle,
+    import_canvas_bundle,
     import_duty_roster_bundle,
+    import_helpers_bundle,
     import_meetings_bundle,
     import_protocols_bundle,
     import_surveys_bundle,
     import_teams_bundle,
+    import_todos_bundle,
 )
 from app.utils.backup.import_submodels import (
     import_booking_submodels,
@@ -184,6 +187,7 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
             'inventory', 'chats', 'contacts', 'events', 'booking', 'music',
             'media_downloader', 'assessment', 'shortlinks', 'manuals',
             'teams', 'kanban', 'surveys', 'protocols', 'meetings', 'duty_roster', 'booking_personal',
+            'canvas', 'todos',
         ]
         needs_users = any(_category_selected(categories, cat) for cat in user_dependent_modules)
         
@@ -450,6 +454,10 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
         if _category_selected(categories, 'booking_personal'):
             bp_event_map = import_booking_personal_bundle(backup_data_dict, user_map, current_user_id, results)
 
+        helper_event_map = {}
+        if _category_selected(categories, 'helpers'):
+            helper_event_map = import_helpers_bundle(backup_data_dict, results)
+
         if _category_selected(categories, 'events'):
             event_id_map = {}
             if 'portal_events' in backup_data_dict:
@@ -470,7 +478,13 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
             if 'event_timeline_items' in backup_data_dict:
                 import_event_timeline_items(backup_data_dict['event_timeline_items'], event_id_map)
                 results['imported'].append('event_timeline_items')
-            import_event_submodels(backup_data_dict, event_id_map, user_map, bp_event_map=bp_event_map)
+            import_event_submodels(
+                backup_data_dict,
+                event_id_map,
+                user_map,
+                bp_event_map=bp_event_map,
+                helper_event_map=helper_event_map,
+            )
 
         if _category_selected(categories, 'booking'):
             import_booking_bundle(backup_data_dict, user_map, current_user_id, results)
@@ -520,6 +534,12 @@ def import_backup(file_path: str, categories: List[str], current_user_id: Option
 
         if _category_selected(categories, 'duty_roster'):
             import_duty_roster_bundle(backup_data_dict, user_map, current_user_id, results, team_map=team_map)
+
+        if _category_selected(categories, 'canvas'):
+            import_canvas_bundle(backup_data_dict, user_map, current_user_id, results, team_map=team_map)
+
+        if _category_selected(categories, 'todos'):
+            import_todos_bundle(backup_data_dict, user_map, current_user_id, results, team_map=team_map)
         
         db.session.commit()
 

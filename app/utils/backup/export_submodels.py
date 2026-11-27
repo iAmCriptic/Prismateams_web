@@ -24,6 +24,7 @@ from app.models import (
     EventCustomField,
     EventCustomFieldValue,
     EventDay,
+    EventHelperLink,
     EventLink,
     EventTodoItem,
     EventTodoList,
@@ -271,6 +272,11 @@ def export_event_submodels() -> Dict:
             "old_booking_personal_event_id": lnk.booking_personal_event_id,
             "created_at": lnk.created_at.isoformat() if lnk.created_at else None,
         } for lnk in EventBookingPersonalLink.query.all()],
+        "event_helper_links": [{
+            "old_event_id": lnk.event_id,
+            "old_helper_event_id": lnk.helper_event_id,
+            "created_at": lnk.created_at.isoformat() if lnk.created_at else None,
+        } for lnk in EventHelperLink.query.all()],
         "event_custom_fields": [{
             "old_id": cf.id,
             "label": cf.label,

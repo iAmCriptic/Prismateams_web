@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import os
 from typing import Dict, Optional
 
@@ -13,6 +14,7 @@ from app.models.booking_personal import (
     BookingPersonalFile,
     BookingPersonalTemplate,
 )
+from app.models.canvas import CanvasDocument
 from app.models.duty_roster import (
     DutyExternalPerson,
     DutyPersonConfig,
@@ -22,6 +24,16 @@ from app.models.duty_roster import (
     DutyRosterEntry,
     DutyRosterPlanner,
     DutyTimeEntry,
+)
+from app.models.email import Mailbox
+from app.models.helpers import (
+    Helper,
+    HelperArea,
+    HelperAreaWish,
+    HelperEvent,
+    HelperFieldConfig,
+    HelperShift,
+    HelperVoucherRule,
 )
 from app.models.meetings import Meeting, MeetingInvite
 from app.models.protocol import Protocol, ProtocolAgendaItem
@@ -34,6 +46,8 @@ from app.models.survey import (
     SurveyResponse,
 )
 from app.models.team import Team, TeamInviteCode, TeamMember, TeamModuleSetting
+from app.models.todo import TodoItem
+from app.models.user import User
 from app.utils.backup.file_io import (
     parse_date,
     parse_dt,
@@ -708,4 +722,267 @@ def import_booking_personal_bundle(
             uploaded_at=parse_dt(row.get("uploaded_at")),
         ))
 
+    return event_map
+
+
+def _fallback_user_id(user_map: Dict[str, int], current_user_id: Optional[int]) -> Optional[int]:
+    if current_user_id:
+        return current_user_id
+    if user_map:
+        return next(iter(user_map.values()))
+    first_user = User.query.order_by(User.id).first()
+    return first_user.id if first_user else None
+
+
+def import_canvas_bundle(
+    backup_data: Dict,
+    user_map: Dict[str, int],
+    current_user_id: Optional[int],
+    results: Dict,
+    team_map: Optional[Dict[str, int]] = None,
+) -> None:
+    docs_data = backup_data.get("canvas_documents")
+    if docs_data is None:
+        return
+
+    from app.utils.canvas import save_canvas_hyc_file, save_canvas_thumbnail
+
+    fallback_uid = _fallback_user_id(user_map, current_user_id)
+    for row in docs_data:
+        hyc_id = row.get("hycanvas_design_id")
+        if hyc_id and CanvasDocument.query.filter_by(hycanvas_design_id=hyc_id).first():
+            continue
+        creator_id = resolve_user_id(row.get("created_by_email"), user_map, fallback_uid)
+        if not creator_id:
+            continue
+        doc = CanvasDocument(
+            name=row.get("name") or "Canvas",
+            design_type=row.get("design_type") or "whiteboard",
+            preset_key=row.get("preset_key") or "whiteboard",
+            width=int(row.get("width") or 1920),
+            height=int(row.get("height") or 1080),
+            hycanvas_design_id=hyc_id,
+            created_by=creator_id,
+            visibility=row.get("visibility") or "private",
+            team_id=resolve_team_id(row.get("team_name"), team_map),
+            created_at=parse_dt(row.get("created_at")),
+            updated_at=parse_dt(row.get("updated_at")),
+        )
+        db.session.add(doc)
+        db.session.flush()
+
+        if row.get("file_content_base64"):
+            try:
+                raw_bytes = base64.b64decode(row["file_content_base64"])
+                doc.file_path = save_canvas_hyc_file(doc.id, doc.name, raw_bytes)
+            except Exception:
+                pass
+        if row.get("thumbnail_content_base64"):
+            try:
+                thumb_bytes = base64.b64decode(row["thumbnail_content_base64"])
+                doc.thumbnail_path = save_canvas_thumbnail(doc.id, thumb_bytes)
+            except Exception:
+                pass
+
+    results["imported"].append("canvas")
+
+
+def import_todos_bundle(
+    backup_data: Dict,
+    user_map: Dict[str, int],
+    current_user_id: Optional[int],
+    results: Dict,
+    team_map: Optional[Dict[str, int]] = None,
+) -> None:
+    todos_data = backup_data.get("todo_items")
+    if todos_data is None:
+        return
+
+    fallback_uid = _fallback_user_id(user_map, current_user_id)
+    for row in todos_data:
+        creator_id = resolve_user_id(row.get("created_by_email"), user_map, fallback_uid)
+        if not creator_id:
+            continue
+        db.session.add(TodoItem(
+            title=row.get("title") or "",
+            visibility=row.get("visibility") or "private",
+            team_id=resolve_team_id(row.get("team_name"), team_map),
+            created_by_id=creator_id,
+            assignee_id=resolve_user_id(row.get("assignee_email"), user_map),
+            due_date=parse_date(row.get("due_date")),
+            due_time=parse_time(row.get("due_time")),
+            is_completed=bool(row.get("is_completed", False)),
+            completed_at=parse_dt(row.get("completed_at")),
+            completed_by_id=resolve_user_id(row.get("completed_by_email"), user_map),
+            position=int(row.get("position") or 0),
+            created_at=parse_dt(row.get("created_at")),
+            updated_at=parse_dt(row.get("updated_at")),
+        ))
+
+    results["imported"].append("todos")
+
+
+def import_helpers_bundle(
+    backup_data: Dict,
+    results: Dict,
+) -> Dict[int, int]:
+    event_map: Dict[int, int] = {}
+    area_map: Dict[int, int] = {}
+    helper_map: Dict[int, int] = {}
+
+    if not any(k in backup_data for k in ("helper_events", "helper_areas", "helpers")):
+        return event_map
+
+    mb_by_name = {m.name: m.id for m in Mailbox.query.all()}
+
+    for row in backup_data.get("helper_events") or []:
+        old_id = row.get("old_id")
+        apply_token = row.get("apply_token")
+        ev = HelperEvent.query.filter_by(apply_token=apply_token).first() if apply_token else None
+        if not ev:
+            ev = HelperEvent(
+                name=row.get("name") or "Helfer-Event",
+                slug=row.get("slug"),
+                description=row.get("description"),
+                start_date=parse_date(row.get("start_date")),
+                end_date=parse_date(row.get("end_date")),
+                is_active=bool(row.get("is_active", True)),
+                apply_token=apply_token,
+                apply_enabled=bool(row.get("apply_enabled", True)),
+                voucher_calc_mode=row.get("voucher_calc_mode") or "per_shift",
+                mailbox_id=mb_by_name.get(row.get("mailbox_name")) if row.get("mailbox_name") else None,
+                mail_template_subject=row.get("mail_template_subject") or "Dein Schichtplan für {{ event_name }}",
+                mail_template_body=row.get("mail_template_body") or "",
+                created_at=parse_dt(row.get("created_at")),
+                updated_at=parse_dt(row.get("updated_at")),
+            )
+            db.session.add(ev)
+            db.session.flush()
+        if old_id is not None:
+            event_map[old_id] = ev.id
+
+    for row in backup_data.get("helper_areas") or []:
+        old_id = row.get("old_id")
+        ev_id = event_map.get(row.get("old_event_id"))
+        if not ev_id:
+            continue
+        name = row.get("name") or "Bereich"
+        area = HelperArea.query.filter_by(event_id=ev_id, name=name).first()
+        if not area:
+            area = HelperArea(
+                event_id=ev_id,
+                name=name,
+                description=row.get("description"),
+                is_public_selectable=bool(row.get("is_public_selectable", True)),
+                sort_order=int(row.get("sort_order") or 0),
+            )
+            db.session.add(area)
+            db.session.flush()
+        if old_id is not None:
+            area_map[old_id] = area.id
+
+    for row in backup_data.get("helpers") or []:
+        old_id = row.get("old_id")
+        ev_id = event_map.get(row.get("old_event_id"))
+        if not ev_id:
+            continue
+        email = row.get("email") or ""
+        helper = Helper.query.filter_by(event_id=ev_id, email=email).first() if email else None
+        if not helper:
+            helper = Helper(
+                event_id=ev_id,
+                first_name=row.get("first_name") or "",
+                last_name=row.get("last_name") or "",
+                email=email,
+                phone=row.get("phone"),
+                tshirt_size=row.get("tshirt_size"),
+                allergies=row.get("allergies"),
+                status=row.get("status") or "registered",
+                custom_fields=row.get("custom_fields") if row.get("custom_fields") is not None else {},
+                dsgvo_accepted=bool(row.get("dsgvo_accepted", False)),
+                dsgvo_accepted_at=parse_dt(row.get("dsgvo_accepted_at")),
+                vouchers_issued=bool(row.get("vouchers_issued", False)),
+                vouchers_issued_at=parse_dt(row.get("vouchers_issued_at")),
+                created_at=parse_dt(row.get("created_at")),
+                updated_at=parse_dt(row.get("updated_at")),
+            )
+            db.session.add(helper)
+            db.session.flush()
+        if old_id is not None:
+            helper_map[old_id] = helper.id
+
+    for row in backup_data.get("helper_area_wishes") or []:
+        h_id = helper_map.get(row.get("old_helper_id"))
+        a_id = area_map.get(row.get("old_area_id"))
+        if not (h_id and a_id):
+            continue
+        if not HelperAreaWish.query.filter_by(helper_id=h_id, area_id=a_id).first():
+            db.session.add(HelperAreaWish(
+                helper_id=h_id,
+                area_id=a_id,
+                priority=int(row.get("priority") or 1),
+                available_days=row.get("available_days") if row.get("available_days") is not None else [],
+                notes=row.get("notes"),
+            ))
+
+    for row in backup_data.get("helper_shifts") or []:
+        ev_id = event_map.get(row.get("old_event_id"))
+        a_id = area_map.get(row.get("old_area_id"))
+        if not (ev_id and a_id):
+            continue
+        db.session.add(HelperShift(
+            event_id=ev_id,
+            area_id=a_id,
+            helper_id=helper_map.get(row.get("old_helper_id")) if row.get("old_helper_id") else None,
+            group_count=int(row.get("group_count") or 1),
+            role_label=row.get("role_label"),
+            day_label=row.get("day_label") or "Freitag",
+            date=parse_date(row.get("date")),
+            start_time=row.get("start_time"),
+            end_time=row.get("end_time"),
+            hours=float(row.get("hours") or 0.0),
+            is_head=bool(row.get("is_head", False)),
+            food_override=row.get("food_override"),
+            drinks_override=row.get("drinks_override"),
+            notes=row.get("notes"),
+            created_at=parse_dt(row.get("created_at")),
+        ))
+
+    for row in backup_data.get("helper_field_configs") or []:
+        ev_id = event_map.get(row.get("old_event_id"))
+        field_key = row.get("field_key")
+        if not (ev_id and field_key):
+            continue
+        if not HelperFieldConfig.query.filter_by(event_id=ev_id, field_key=field_key).first():
+            db.session.add(HelperFieldConfig(
+                event_id=ev_id,
+                field_key=field_key,
+                label=row.get("label") or field_key,
+                field_type=row.get("field_type") or "text",
+                options=row.get("options") if row.get("options") is not None else [],
+                is_public=bool(row.get("is_public", True)),
+                is_required=bool(row.get("is_required", False)),
+                admin_only=bool(row.get("admin_only", False)),
+                show_in_overview=bool(row.get("show_in_overview", False)),
+                is_active=bool(row.get("is_active", True)),
+                is_core=bool(row.get("is_core", False)),
+                sort_order=int(row.get("sort_order") or 0),
+            ))
+
+    for row in backup_data.get("helper_voucher_rules") or []:
+        ev_id = event_map.get(row.get("old_event_id"))
+        if not ev_id:
+            continue
+        db.session.add(HelperVoucherRule(
+            event_id=ev_id,
+            area_id=area_map.get(row.get("old_area_id")) if row.get("old_area_id") else None,
+            name=row.get("name") or "Regel",
+            min_hours=float(row.get("min_hours") or 0.0),
+            max_hours=row.get("max_hours"),
+            food_count=int(row.get("food_count") or 0),
+            drinks_count=int(row.get("drinks_count") or 0),
+            head_bonus_drinks=int(row.get("head_bonus_drinks") or 0),
+        ))
+
+    results["imported"].append("helpers")
     return event_map

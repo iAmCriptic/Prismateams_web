@@ -26,6 +26,7 @@ from app.models import (
     EventCustomField,
     EventCustomFieldValue,
     EventDay,
+    EventHelperLink,
     EventLink,
     EventTodoItem,
     EventTodoList,
@@ -318,6 +319,7 @@ def import_event_submodels(
     event_id_map: Dict[int, int],
     user_map: Dict[str, int],
     bp_event_map: Optional[Dict[int, int]] = None,
+    helper_event_map: Optional[Dict[int, int]] = None,
 ):
     day_map: Dict[int, int] = {}
     todo_list_map: Dict[int, int] = {}
@@ -384,6 +386,13 @@ def import_event_submodels(
         bp_id = (bp_event_map or {}).get(old_bp_id, old_bp_id)
         if eid and bp_id and not EventBookingPersonalLink.query.filter_by(event_id=eid, booking_personal_event_id=bp_id).first():
             db.session.add(EventBookingPersonalLink(event_id=eid, booking_personal_event_id=bp_id))
+
+    for row in backup_data.get("event_helper_links") or []:
+        eid = event_id_map.get(row.get("old_event_id"))
+        old_he_id = row.get("old_helper_event_id")
+        he_id = (helper_event_map or {}).get(old_he_id, old_he_id)
+        if eid and he_id and not EventHelperLink.query.filter_by(event_id=eid, helper_event_id=he_id).first():
+            db.session.add(EventHelperLink(event_id=eid, helper_event_id=he_id))
 
     for row in backup_data.get("event_custom_fields") or []:
         old_id = row.get("old_id")

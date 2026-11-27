@@ -129,6 +129,16 @@ from app.models.kanban import (
     KanbanLabel,
     KanbanList,
 )
+from app.models.canvas import CanvasDocument
+from app.models.helpers import (
+    Helper,
+    HelperArea,
+    HelperAreaWish,
+    HelperEvent,
+    HelperFieldConfig,
+    HelperShift,
+    HelperVoucherRule,
+)
 from app.models.meetings import Meeting, MeetingInvite
 from app.models.protocol import Protocol, ProtocolAgendaItem
 from app.models.public_share import PublicShare
@@ -142,6 +152,7 @@ from app.models.survey import (
     SurveyResponse,
 )
 from app.models.team import Team, TeamInviteCode, TeamMember, TeamModuleSetting
+from app.models.todo import TodoItem
 from app.utils.backup.constants import CATEGORY_DEFINITIONS
 from app.utils.backup.file_io import resolve_existing_file, upload_root
 
@@ -538,6 +549,43 @@ def _estimate_booking_personal() -> int:
     return total
 
 
+def _estimate_canvas() -> int:
+    total = _tables_bytes([
+        (CanvasDocument, (), 320),
+    ])
+    canvas_dir = os.path.join(upload_root(), "canvas")
+    file_bytes = _sum_file_paths(
+        CanvasDocument,
+        CanvasDocument.file_path,
+        lambda p: (p, os.path.join(canvas_dir, os.path.basename(p))),
+    )
+    thumb_bytes = _sum_file_paths(
+        CanvasDocument,
+        CanvasDocument.thumbnail_path,
+        lambda p: (p, os.path.join(canvas_dir, os.path.basename(p))),
+    )
+    total += _b64_bytes(file_bytes + thumb_bytes)
+    return total
+
+
+def _estimate_todos() -> int:
+    return _tables_bytes([
+        (TodoItem, (TodoItem.title,), 220),
+    ])
+
+
+def _estimate_helpers() -> int:
+    return _tables_bytes([
+        (HelperEvent, (HelperEvent.description, HelperEvent.mail_template_body), 420),
+        (HelperArea, (HelperArea.description,), 240),
+        (Helper, (Helper.allergies,), 320),
+        (HelperAreaWish, (HelperAreaWish.notes,), 200),
+        (HelperShift, (HelperShift.notes,), 240),
+        (HelperFieldConfig, (), 220),
+        (HelperVoucherRule, (), 200),
+    ])
+
+
 _ESTIMATORS: Dict[str, Callable[[], int]] = {
     "settings": _estimate_settings,
     "users": _estimate_users,
@@ -565,6 +613,9 @@ _ESTIMATORS: Dict[str, Callable[[], int]] = {
     "meetings": _estimate_meetings,
     "duty_roster": _estimate_duty_roster,
     "booking_personal": _estimate_booking_personal,
+    "canvas": _estimate_canvas,
+    "todos": _estimate_todos,
+    "helpers": _estimate_helpers,
 }
 
 

@@ -169,3 +169,50 @@ def test_formula_parentheses_and_percentages(app):
         assert entry.get_value('div_zero') == '€0.00'
         # Abwärtskompatibilität für Standard-GESAMT (7% auf Gage = 107 + 50 = 157)
         assert entry.get_value('gesamt') == '€157.00'
+
+
+def test_custom_list_tax_dropdown_and_formula(app):
+    from app.models.booking_personal import is_booking_formula_field
+
+    with app.app_context():
+        event = BookingPersonalEvent(name='Eigene Liste Test')
+        db.session.add(event)
+        db.session.flush()
+
+        f_gage = BookingPersonalField(
+            event_id=event.id, field_key='gage', label='Gage', field_type='currency', field_order=1
+        )
+        f_fee = BookingPersonalField(
+            event_id=event.id, field_key='booking_fee', label='Booking Fee', field_type='currency', field_order=2
+        )
+        f_tax = BookingPersonalField(
+            event_id=event.id, field_key='mwst_auswahl', label='Besteuerung', field_type='badge_select', field_order=3
+        )
+        f_tax.set_options([
+            {'value': '0%', 'color': 'warning'},
+            {'value': '7%', 'color': 'info'},
+            {'value': '19%', 'color': 'primary'},
+        ])
+        f_total = BookingPersonalField(
+            event_id=event.id,
+            field_key='brutto_gesamt',
+            label='Brutto Gesamt',
+            field_type='formula',
+            formula_definition='(gage + booking_fee) * (1 + mwst_auswahl)',
+            field_order=4,
+        )
+        db.session.add_all([f_gage, f_fee, f_tax, f_total])
+        db.session.commit()
+
+        assert is_booking_formula_field(f_tax) is True
+
+        entry = BookingPersonalEntry(event_id=event.id, name='Custom Tax Act')
+        entry.set_value('gage', '1000')
+        entry.set_value('booking_fee', '200')
+        entry.set_value('mwst_auswahl', '19%')
+        entry.compute_formula_values(event.fields)
+        assert entry.get_value('brutto_gesamt') == '€1428.00'
+
+        entry.set_value('mwst_auswahl', '7%')
+        entry.compute_formula_values(event.fields)
+        assert entry.get_value('brutto_gesamt') == '€1284.00'

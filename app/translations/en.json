@@ -2565,7 +2565,10 @@
           "protocols": "Protocols",
           "meetings": "Meetings",
           "duty_roster": "Duty Roster",
-          "booking_personal": "Personal Bookings"
+          "booking_personal": "Personal Bookings",
+          "canvas": "Canvas",
+          "todos": "ToDo",
+          "helpers": "Helper Management"
         },
         "helps": {
           "settings": "System settings, module flags and whitelist.",
@@ -2593,7 +2596,10 @@
           "protocols": "Meeting protocols and agenda items",
           "meetings": "Video meetings and invites",
           "duty_roster": "Duty rosters, shifts, person configurations, external persons, and time tracking",
-          "booking_personal": "Personal booking events, fields, entries, files, and templates"
+          "booking_personal": "Personal booking events, fields, entries, files, and templates",
+          "canvas": "Canvas documents, snapshots (.hyc), and thumbnails",
+          "todos": "Personal, team, and global ToDo items",
+          "helpers": "Helper events, areas, helpers, shifts, field configs, and voucher rules"
         },
         "lead_short": "Export and import portal backups.",
         "estimated_size_label": "Estimated backup size:",

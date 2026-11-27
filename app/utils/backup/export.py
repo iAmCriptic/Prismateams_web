@@ -74,15 +74,18 @@ from app.utils.backup_extensions import (
     export_excalidraw_drawing_versions, import_excalidraw_drawing_versions,
 )
 
-from app.utils.backup.constants import BACKUP_VERSION, _category_selected
+from app.utils.backup.constants import BACKUP_VERSION, EXCLUDED_SETTING_KEYS, _category_selected
 from app.utils.backup.export_kanban import export_kanban_bundle
 from app.utils.backup.export_new_modules import (
     export_booking_personal_bundle,
+    export_canvas_bundle,
     export_duty_roster_bundle,
+    export_helpers_bundle,
     export_meetings_bundle,
     export_protocols_bundle,
     export_surveys_bundle,
     export_teams_bundle,
+    export_todos_bundle,
 )
 from app.utils.backup.export_submodels import (
     export_booking_submodels,
@@ -251,6 +254,12 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
         backup_data['data'].update(export_duty_roster_bundle())
     if _category_selected(categories, 'booking_personal'):
         backup_data['data'].update(export_booking_personal_bundle())
+    if _category_selected(categories, 'canvas'):
+        backup_data['data'].update(export_canvas_bundle())
+    if _category_selected(categories, 'todos'):
+        backup_data['data'].update(export_todos_bundle())
+    if _category_selected(categories, 'helpers'):
+        backup_data['data'].update(export_helpers_bundle())
     
     # Backup-Datei schreiben
     with open(output_path, 'w', encoding='utf-8') as f:
@@ -265,11 +274,13 @@ def export_backup(categories: List[str], output_path: str) -> Dict:
 
 
 def export_settings() -> List[Dict]:
-    """Exportiert System-Einstellungen."""
+    """Exportiert System-Einstellungen (ohne Bot-Schutz-Einstellungen)."""
     settings = SystemSettings.query.all()
     result = []
     
     for s in settings:
+        if s.key in EXCLUDED_SETTING_KEYS:
+            continue
         setting_data = {
             'key': s.key,
             'value': s.value,

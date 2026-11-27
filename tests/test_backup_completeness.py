@@ -86,7 +86,7 @@ from app.utils.backup import CATEGORY_DEFINITIONS, SUPPORTED_CATEGORIES, export_
 def test_backup_categories_and_translations_in_sync():
     def_keys = {c['key'] for c in CATEGORY_DEFINITIONS}
     assert def_keys == set(SUPPORTED_CATEGORIES.keys())
-    for required in ('teams', 'kanban', 'surveys', 'protocols', 'meetings', 'duty_roster', 'booking_personal'):
+    for required in ('teams', 'kanban', 'surveys', 'protocols', 'meetings', 'duty_roster', 'booking_personal', 'canvas', 'todos', 'helpers'):
         assert required in def_keys
 
     for lang in ('de', 'en'):
@@ -482,3 +482,202 @@ def test_estimate_backup_sizes_and_admin_backup_ui(app, client):
         assert 'id="backupSizeEstimate"' in html
         assert 'id="backupImportOverlay"' in html
         assert 'data-backup-size="' in html
+
+
+def test_bot_protection_excluded_from_backup_export_and_import(app, tmp_path):
+    from app.utils.bot_protection import SETTING_KEYS as BOT_KEYS
+
+    with app.app_context():
+        db.session.add(SystemSettings(key='portal_name', value='KeepMe', description='Portal'))
+        db.session.add(SystemSettings(key=BOT_KEYS['provider'], value='turnstile', description='Bot'))
+        db.session.add(SystemSettings(key=BOT_KEYS['login_enabled'], value='true', description='Login'))
+        db.session.add(SystemSettings(key=BOT_KEYS['turnstile_site_key'], value='site-123', description='Site'))
+        db.session.add(SystemSettings(key=BOT_KEYS['turnstile_secret_key'], value='secret-456', description='Secret'))
+        db.session.commit()
+
+        backup_file = str(tmp_path / 'settings.prismateams')
+        res = export_backup(['settings'], backup_file)
+        assert res['success'] is True
+
+        with open(backup_file, encoding='utf-8') as f:
+            payload = json.load(f)
+
+        exported_keys = {s['key'] for s in payload['data'].get('settings', [])}
+        assert 'portal_name' in exported_keys
+        for bot_key in BOT_KEYS.values():
+            assert bot_key not in exported_keys
+
+        # Simulate an older backup file that still contains bot-protection settings
+        payload['data']['settings'].append({
+            'key': BOT_KEYS['provider'],
+            'value': 'recaptcha',
+            'description': 'Legacy bot protection',
+        })
+        payload['data']['settings'].append({
+            'key': BOT_KEYS['login_enabled'],
+            'value': 'true',
+            'description': 'Legacy login bot protection',
+        })
+        payload['data']['settings'].append({
+            'key': BOT_KEYS['recaptcha_secret_key'],
+            'value': 'legacy-secret',
+            'description': 'Legacy secret',
+        })
+        legacy_file = str(tmp_path / 'legacy_with_bot.prismateams')
+        with open(legacy_file, 'w', encoding='utf-8') as f:
+            json.dump(payload, f)
+
+        SystemSettings.query.delete()
+        db.session.commit()
+
+        imp = import_backup(legacy_file, ['settings'])
+        assert imp['success'] is True
+
+        restored_keys = {s.key: s.value for s in SystemSettings.query.all()}
+        assert restored_keys.get('portal_name') == 'KeepMe'
+        for bot_key in BOT_KEYS.values():
+            assert bot_key not in restored_keys
+
+
+def test_canvas_todos_helpers_selective_backup_roundtrip(app, tmp_path):
+    from app.models import (
+        CanvasDocument,
+        Event,
+        EventHelperLink,
+        Helper,
+        HelperArea,
+        HelperAreaWish,
+        HelperEvent,
+        HelperFieldConfig,
+        HelperShift,
+        HelperVoucherRule,
+        TodoItem,
+    )
+
+    with app.app_context():
+        upload_dir = str(tmp_path / 'uploads')
+        app.config['UPLOAD_FOLDER'] = upload_dir
+        os.makedirs(upload_dir, exist_ok=True)
+
+        admin = User(
+            email='mod_admin@example.com',
+            first_name='Mod',
+            last_name='Admin',
+            is_active=True,
+            is_admin=True,
+            is_email_confirmed=True,
+        )
+        admin.set_password('Secret123!')
+        db.session.add(admin)
+        db.session.flush()
+
+        team = Team(name='Orga', description='Orga Team', color='#112233', leader_id=admin.id)
+        db.session.add(team)
+        db.session.flush()
+
+        # Canvas with .hyc & thumbnail
+        canvas_dir = os.path.join(upload_dir, 'canvas')
+        os.makedirs(canvas_dir, exist_ok=True)
+        hyc_path = os.path.join(canvas_dir, 'design.hyc')
+        thumb_path = os.path.join(canvas_dir, 'thumb.png')
+        with open(hyc_path, 'wb') as f:
+            f.write(b'HYCDATA')
+        with open(thumb_path, 'wb') as f:
+            f.write(b'THUMBPNG')
+        doc = CanvasDocument(
+            name='Bühnenplan',
+            design_type='whiteboard',
+            preset_key='whiteboard',
+            width=1920,
+            height=1080,
+            hycanvas_design_id='hyc-abc-1',
+            file_path=hyc_path,
+            thumbnail_path=thumb_path,
+            created_by=admin.id,
+            visibility='team',
+            team_id=team.id,
+        )
+        db.session.add(doc)
+
+        # TodoItem
+        todo = TodoItem(
+            title='Mikrofone testen',
+            visibility='team',
+            team_id=team.id,
+            created_by_id=admin.id,
+            assignee_id=admin.id,
+            due_date=date(2026, 7, 10),
+            due_time=time(14, 30),
+            is_completed=False,
+            position=1,
+        )
+        db.session.add(todo)
+
+        # Helpers + EventHelperLink
+        he = HelperEvent(
+            name='Sommerfest 2026',
+            slug='sommerfest-2026',
+            apply_token='tok-helper-1',
+            voucher_calc_mode='per_shift',
+        )
+        db.session.add(he)
+        db.session.flush()
+        ha = HelperArea(event_id=he.id, name='Technik', sort_order=1)
+        db.session.add(ha)
+        db.session.flush()
+        hlp = Helper(event_id=he.id, first_name='Max', last_name='Muster', email='max@example.com', tshirt_size='L')
+        db.session.add(hlp)
+        db.session.flush()
+        db.session.add(HelperAreaWish(helper_id=hlp.id, area_id=ha.id, priority=1, available_days=['Freitag']))
+        db.session.add(HelperShift(event_id=he.id, area_id=ha.id, helper_id=hlp.id, day_label='Freitag', hours=4.5))
+        db.session.add(HelperFieldConfig(event_id=he.id, field_key='driver_license', label='Führerschein', field_type='checkbox'))
+        db.session.add(HelperVoucherRule(event_id=he.id, area_id=ha.id, name='Standard', min_hours=2.0, food_count=1, drinks_count=2))
+
+        ev = Event(name='Sommerfest', owner_id=admin.id, created_by=admin.id)
+        db.session.add(ev)
+        db.session.flush()
+        db.session.add(EventHelperLink(event_id=ev.id, helper_event_id=he.id))
+        db.session.commit()
+
+        backup_file = str(tmp_path / 'modules.prismateams')
+        res = export_backup(['users', 'teams', 'canvas', 'todos', 'helpers', 'events'], backup_file)
+        assert res['success'] is True
+
+        # Wipe database
+        for model in (
+            EventHelperLink, Event,
+            HelperVoucherRule, HelperFieldConfig, HelperShift, HelperAreaWish, Helper, HelperArea, HelperEvent,
+            TodoItem, CanvasDocument, Team, User,
+        ):
+            model.query.delete()
+        db.session.commit()
+
+        # Selective import: only canvas + todos first (without helpers/events)
+        imp1 = import_backup(backup_file, ['users', 'teams', 'canvas', 'todos'])
+        assert imp1['success'] is True
+        assert CanvasDocument.query.count() == 1
+        assert TodoItem.query.count() == 1
+        assert HelperEvent.query.count() == 0
+
+        r_doc = CanvasDocument.query.first()
+        assert r_doc.name == 'Bühnenplan'
+        assert r_doc.hycanvas_design_id == 'hyc-abc-1'
+        assert r_doc.file_path and os.path.exists(r_doc.file_path)
+        assert r_doc.thumbnail_path and os.path.exists(r_doc.thumbnail_path)
+
+        r_todo = TodoItem.query.first()
+        assert r_todo.title == 'Mikrofone testen'
+        assert r_todo.due_date == date(2026, 7, 10)
+        assert r_todo.due_time == time(14, 30)
+
+        # Now import helpers + events
+        imp2 = import_backup(backup_file, ['helpers', 'events'])
+        assert imp2['success'] is True
+        assert HelperEvent.query.count() == 1
+        assert HelperArea.query.count() == 1
+        assert Helper.query.count() == 1
+        assert HelperAreaWish.query.count() == 1
+        assert HelperShift.query.count() == 1
+        assert HelperFieldConfig.query.count() == 1
+        assert HelperVoucherRule.query.count() == 1
+        assert EventHelperLink.query.count() == 1

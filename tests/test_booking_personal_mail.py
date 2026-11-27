@@ -131,3 +131,105 @@ def test_api_mail_preview_and_send(client, app, monkeypatch):
         updated = BookingPersonalEntry.query.get(entry_id)
         assert updated.acceptance_sent_at is not None
         assert updated.status == 'Zusage gesendet'
+
+
+def test_plain_text_to_email_html_linkifies_urls_and_escapes():
+    from app.blueprints.booking_personal.mail import plain_text_to_email_html
+
+    raw = (
+        'Hallo <Team>,\n\n'
+        'Hier ist der Link: https://festival.example.org/booking-personal/overview/abc123.\n'
+        'Und unsere Website: www.festival.example.org!'
+    )
+    rendered = plain_text_to_email_html(raw)
+    assert '&lt;Team&gt;' in rendered
+    assert '<a href="https://festival.example.org/booking-personal/overview/abc123"' in rendered
+    assert 'https://festival.example.org/booking-personal/overview/abc123</a>.' in rendered
+    assert '<a href="https://www.festival.example.org"' in rendered
+    assert 'www.festival.example.org</a>!' in rendered
+
+
+def test_event_email_logo_upload_and_html_mail_sending(client, app, tmp_path, monkeypatch):
+    from io import BytesIO
+    from app.blueprints.booking_personal.mail import send_booking_personal_mail
+
+    app.config['UPLOAD_FOLDER'] = str(tmp_path)
+
+    captured_messages = []
+
+    def fake_smtp_send(msg, smtp_cfg):
+        captured_messages.append((msg, smtp_cfg))
+
+    monkeypatch.setattr(
+        'app.blueprints.email.compose._send_flask_message_via_smtp',
+        fake_smtp_send,
+    )
+    monkeypatch.setattr(
+        'app.utils.multi_mailboxes.get_main_smtp_config',
+        lambda: {'server': 'smtp.example.org', 'port': 587, 'user': 'booking@example.org', 'sender': 'booking@example.org'},
+    )
+
+    with app.app_context():
+        _login_test_user(client)
+        event = BookingPersonalEvent(name='Logo Fest 2026')
+        db.session.add(event)
+        db.session.flush()
+        entry = BookingPersonalEntry(event_id=event.id, name='DJ Logo', email='dj@example.org')
+        db.session.add(entry)
+        db.session.commit()
+        event_id = event.id
+        entry_id = entry.id
+
+    # 1. Event-Logo über das bestehende Veranstaltungs-Bild-Feld hochladen
+    png_bytes = b'\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR'
+    resp = client.post(
+        f'/booking-personal/events/{event_id}/design',
+        data={
+            'header_image': (BytesIO(png_bytes), 'event_logo.png'),
+        },
+        content_type='multipart/form-data',
+        follow_redirects=True,
+    )
+    assert resp.status_code == 200
+
+    with app.app_context():
+        ev = db.session.get(BookingPersonalEvent, event_id)
+        assert ev.header_image_path.startswith(f'/uploads/booking_personal/{event_id}/header_')
+
+    # 2. Mail über API versenden & HTML + Event-Logo CID prüfen
+    send_resp = client.post(
+        f'/booking-personal/api/entry/{entry_id}/mail-send',
+        data=json.dumps({
+            'recipient': 'dj@example.org',
+            'subject': 'Zusage Logo Fest',
+            'body': 'Hallo DJ,\n\nLink: https://festival.example.org/overview/xyz',
+            'type': 'accept',
+        }),
+        content_type='application/json',
+    )
+    assert send_resp.status_code == 200
+    assert send_resp.get_json()['success'] is True
+
+    assert len(captured_messages) == 1
+    msg, _ = captured_messages[0]
+    assert msg.html is not None
+    assert 'email-container' in msg.html
+    assert 'cid:event_logo' in msg.html
+    assert '<a href="https://festival.example.org/overview/xyz"' in msg.html
+    assert any(
+        att.disposition == 'inline' and att.headers.get('Content-ID') == '<event_logo>' and att.data == png_bytes
+        for att in msg.attachments
+    )
+
+    # 3. Event-Logo wieder entfernen
+    resp_del = client.post(
+        f'/booking-personal/events/{event_id}/design',
+        data={
+            'delete_header_image': '1',
+        },
+        follow_redirects=True,
+    )
+    assert resp_del.status_code == 200
+    with app.app_context():
+        ev = db.session.get(BookingPersonalEvent, event_id)
+        assert ev.header_image_path is None

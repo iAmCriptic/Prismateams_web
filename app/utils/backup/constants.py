@@ -2,8 +2,14 @@
 
 from typing import List
 
+from app.utils.bot_protection import SETTING_KEYS as BOT_PROTECTION_SETTING_KEYS
+
 BACKUP_VERSION = "1.1"
 SUPPORTED_BACKUP_VERSIONS = {"1.0", "1.1"}
+
+# Bot-Schutz-Einstellungen dürfen weder exportiert noch importiert werden,
+# da Domain-/Key-Bindungen auf einer neuen Instanz den Login blockieren können.
+EXCLUDED_SETTING_KEYS = frozenset(BOT_PROTECTION_SETTING_KEYS.values())
 
 # Strukturierte Kategorien für UI + Orchestration (key, icon, i18n keys)
 CATEGORY_DEFINITIONS = [
@@ -33,6 +39,9 @@ CATEGORY_DEFINITIONS = [
     {'key': 'meetings', 'icon': 'bi-camera-video', 'label_key': 'settings.admin.backup.categories.meetings', 'help_key': 'settings.admin.backup.helps.meetings'},
     {'key': 'duty_roster', 'icon': 'bi-calendar3-week', 'label_key': 'settings.admin.backup.categories.duty_roster', 'help_key': 'settings.admin.backup.helps.duty_roster'},
     {'key': 'booking_personal', 'icon': 'bi-person-badge', 'label_key': 'settings.admin.backup.categories.booking_personal', 'help_key': 'settings.admin.backup.helps.booking_personal'},
+    {'key': 'canvas', 'icon': 'bi-easel2', 'label_key': 'settings.admin.backup.categories.canvas', 'help_key': 'settings.admin.backup.helps.canvas'},
+    {'key': 'todos', 'icon': 'bi-check2-square', 'label_key': 'settings.admin.backup.categories.todos', 'help_key': 'settings.admin.backup.helps.todos'},
+    {'key': 'helpers', 'icon': 'bi-person-raised-hand', 'label_key': 'settings.admin.backup.categories.helpers', 'help_key': 'settings.admin.backup.helps.helpers'},
 ]
 
 # Rückwärtskompatibel: key -> DE-Label (Fallback wenn i18n fehlt)
@@ -63,6 +72,9 @@ SUPPORTED_CATEGORIES = {
     'meetings': 'Meetings',
     'duty_roster': 'Dienstplan',
     'booking_personal': 'Persönliche Buchungen',
+    'canvas': 'Canvas',
+    'todos': 'ToDo',
+    'helpers': 'Helferverwaltung',
 }
 
 

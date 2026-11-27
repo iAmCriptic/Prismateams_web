@@ -12,6 +12,7 @@ from app.models.booking_personal import (
     BookingPersonalFile,
     BookingPersonalTemplate,
 )
+from app.models.canvas import CanvasDocument
 from app.models.duty_roster import (
     DutyExternalPerson,
     DutyPersonConfig,
@@ -21,6 +22,16 @@ from app.models.duty_roster import (
     DutyRosterEntry,
     DutyRosterPlanner,
     DutyTimeEntry,
+)
+from app.models.email import Mailbox
+from app.models.helpers import (
+    Helper,
+    HelperArea,
+    HelperAreaWish,
+    HelperEvent,
+    HelperFieldConfig,
+    HelperShift,
+    HelperVoucherRule,
 )
 from app.models.meetings import Meeting, MeetingInvite
 from app.models.protocol import Protocol, ProtocolAgendaItem
@@ -33,6 +44,7 @@ from app.models.survey import (
     SurveyResponse,
 )
 from app.models.team import Team, TeamInviteCode, TeamMember, TeamModuleSetting
+from app.models.todo import TodoItem
 from app.utils.backup.file_io import read_file_base64, upload_root
 from app.utils.backup_lookups import lookup_team_name, lookup_user_email
 
@@ -464,4 +476,169 @@ def export_booking_personal_bundle() -> Dict:
         "booking_personal_fields": fields_out,
         "booking_personal_entries": entries_out,
         "booking_personal_files": files_out,
+    }
+
+
+def export_canvas_bundle() -> Dict:
+    canvas_dir = os.path.join(upload_root(), "canvas")
+    docs_out = []
+    for doc in CanvasDocument.query.order_by(CanvasDocument.id).all():
+        item = {
+            "old_id": doc.id,
+            "name": doc.name,
+            "design_type": doc.design_type,
+            "preset_key": doc.preset_key,
+            "width": doc.width,
+            "height": doc.height,
+            "hycanvas_design_id": doc.hycanvas_design_id,
+            "file_path": doc.file_path,
+            "thumbnail_path": doc.thumbnail_path,
+            "created_by_email": lookup_user_email(doc.created_by) if doc.created_by else None,
+            "visibility": doc.visibility,
+            "team_name": lookup_team_name(doc.team_id) if doc.team_id else None,
+            "created_at": doc.created_at.isoformat() if doc.created_at else None,
+            "updated_at": doc.updated_at.isoformat() if doc.updated_at else None,
+        }
+        if doc.file_path:
+            b64 = read_file_base64([doc.file_path, os.path.join(canvas_dir, os.path.basename(doc.file_path))])
+            if b64:
+                item["file_content_base64"] = b64
+                item["file_original_name"] = os.path.basename(doc.file_path)
+        if doc.thumbnail_path:
+            tb64 = read_file_base64([doc.thumbnail_path, os.path.join(canvas_dir, os.path.basename(doc.thumbnail_path))])
+            if tb64:
+                item["thumbnail_content_base64"] = tb64
+        docs_out.append(item)
+    return {"canvas_documents": docs_out}
+
+
+def export_todos_bundle() -> Dict:
+    todos_out = [{
+        "old_id": t.id,
+        "title": t.title,
+        "visibility": t.visibility,
+        "team_name": lookup_team_name(t.team_id) if t.team_id else None,
+        "created_by_email": lookup_user_email(t.created_by_id) if t.created_by_id else None,
+        "assignee_email": lookup_user_email(t.assignee_id) if t.assignee_id else None,
+        "due_date": t.due_date.isoformat() if t.due_date else None,
+        "due_time": t.due_time.isoformat() if t.due_time else None,
+        "is_completed": t.is_completed,
+        "completed_at": t.completed_at.isoformat() if t.completed_at else None,
+        "completed_by_email": lookup_user_email(t.completed_by_id) if t.completed_by_id else None,
+        "position": t.position,
+        "created_at": t.created_at.isoformat() if t.created_at else None,
+        "updated_at": t.updated_at.isoformat() if t.updated_at else None,
+    } for t in TodoItem.query.order_by(TodoItem.id).all()]
+    return {"todo_items": todos_out}
+
+
+def export_helpers_bundle() -> Dict:
+    mb_names = {m.id: m.name for m in Mailbox.query.all()}
+
+    events_out = [{
+        "old_id": ev.id,
+        "name": ev.name,
+        "slug": ev.slug,
+        "description": ev.description,
+        "start_date": ev.start_date.isoformat() if ev.start_date else None,
+        "end_date": ev.end_date.isoformat() if ev.end_date else None,
+        "is_active": ev.is_active,
+        "apply_token": ev.apply_token,
+        "apply_enabled": ev.apply_enabled,
+        "voucher_calc_mode": ev.voucher_calc_mode,
+        "mailbox_name": mb_names.get(ev.mailbox_id) if ev.mailbox_id else None,
+        "mail_template_subject": ev.mail_template_subject,
+        "mail_template_body": ev.mail_template_body,
+        "created_at": ev.created_at.isoformat() if ev.created_at else None,
+        "updated_at": ev.updated_at.isoformat() if ev.updated_at else None,
+    } for ev in HelperEvent.query.order_by(HelperEvent.id).all()]
+
+    areas_out = [{
+        "old_id": a.id,
+        "old_event_id": a.event_id,
+        "name": a.name,
+        "description": a.description,
+        "is_public_selectable": a.is_public_selectable,
+        "sort_order": a.sort_order,
+    } for a in HelperArea.query.order_by(HelperArea.id).all()]
+
+    helpers_out = [{
+        "old_id": h.id,
+        "old_event_id": h.event_id,
+        "first_name": h.first_name,
+        "last_name": h.last_name,
+        "email": h.email,
+        "phone": h.phone,
+        "tshirt_size": h.tshirt_size,
+        "allergies": h.allergies,
+        "status": h.status,
+        "custom_fields": h.custom_fields,
+        "dsgvo_accepted": h.dsgvo_accepted,
+        "dsgvo_accepted_at": h.dsgvo_accepted_at.isoformat() if h.dsgvo_accepted_at else None,
+        "vouchers_issued": h.vouchers_issued,
+        "vouchers_issued_at": h.vouchers_issued_at.isoformat() if h.vouchers_issued_at else None,
+        "created_at": h.created_at.isoformat() if h.created_at else None,
+        "updated_at": h.updated_at.isoformat() if h.updated_at else None,
+    } for h in Helper.query.order_by(Helper.id).all()]
+
+    wishes_out = [{
+        "old_helper_id": w.helper_id,
+        "old_area_id": w.area_id,
+        "priority": w.priority,
+        "available_days": w.available_days,
+        "notes": w.notes,
+    } for w in HelperAreaWish.query.order_by(HelperAreaWish.id).all()]
+
+    shifts_out = [{
+        "old_event_id": s.event_id,
+        "old_area_id": s.area_id,
+        "old_helper_id": s.helper_id,
+        "group_count": s.group_count,
+        "role_label": s.role_label,
+        "day_label": s.day_label,
+        "date": s.date.isoformat() if s.date else None,
+        "start_time": s.start_time,
+        "end_time": s.end_time,
+        "hours": s.hours,
+        "is_head": s.is_head,
+        "food_override": s.food_override,
+        "drinks_override": s.drinks_override,
+        "notes": s.notes,
+        "created_at": s.created_at.isoformat() if s.created_at else None,
+    } for s in HelperShift.query.order_by(HelperShift.id).all()]
+
+    field_configs_out = [{
+        "old_event_id": fc.event_id,
+        "field_key": fc.field_key,
+        "label": fc.label,
+        "field_type": fc.field_type,
+        "options": fc.options,
+        "is_public": fc.is_public,
+        "is_required": fc.is_required,
+        "admin_only": fc.admin_only,
+        "show_in_overview": fc.show_in_overview,
+        "is_active": fc.is_active,
+        "is_core": fc.is_core,
+        "sort_order": fc.sort_order,
+    } for fc in HelperFieldConfig.query.order_by(HelperFieldConfig.id).all()]
+
+    voucher_rules_out = [{
+        "old_event_id": vr.event_id,
+        "old_area_id": vr.area_id,
+        "name": vr.name,
+        "min_hours": vr.min_hours,
+        "max_hours": vr.max_hours,
+        "food_count": vr.food_count,
+        "drinks_count": vr.drinks_count,
+        "head_bonus_drinks": vr.head_bonus_drinks,
+    } for vr in HelperVoucherRule.query.order_by(HelperVoucherRule.id).all()]
+
+    return {
+        "helper_events": events_out,
+        "helper_areas": areas_out,
+        "helpers": helpers_out,
+        "helper_area_wishes": wishes_out,
+        "helper_shifts": shifts_out,
+        "helper_field_configs": field_configs_out,
+        "helper_voucher_rules": voucher_rules_out,
     }

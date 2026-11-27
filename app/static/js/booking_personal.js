@@ -972,6 +972,20 @@
             is_external: false,
             overview: true
         },
+        'steuersatz': {
+            label: 'Steuersatz',
+            label_en: 'Tax Rate',
+            type: 'badge_select',
+            category: 'Finanzen',
+            options: [
+                { value: '0%', color: 'warning' },
+                { value: '7%', color: 'info' },
+                { value: '19%', color: 'primary' },
+                { value: 'Reverse Charge', color: 'secondary' }
+            ],
+            is_external: false,
+            overview: true
+        },
         'techrider': {
             label: 'Techrider (PDF)',
             label_en: 'Techrider (PDF)',

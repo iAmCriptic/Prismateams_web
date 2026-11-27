@@ -136,7 +136,7 @@ class BookingPersonalEvent(db.Model):
         nullable=True
     )
 
-    # Bild / Banner für öffentliche Formulare
+    # Bild / Banner für öffentliche Formulare & E-Mails
     header_image_path = db.Column(db.String(255), nullable=True)
 
     # Anpassbare Intro-Texte für die öffentlichen Formulare (DE & EN)

@@ -68,11 +68,17 @@ from app.utils.backup_extensions import (
     export_excalidraw_drawing_versions, import_excalidraw_drawing_versions,
 )
 
+from app.utils.backup.constants import EXCLUDED_SETTING_KEYS
+
+
 def import_settings(settings_data: List[Dict]):
-    """Importiert System-Einstellungen."""
+    """Importiert System-Einstellungen (ohne Bot-Schutz-Einstellungen)."""
     for s_data in settings_data:
+        key = s_data.get('key')
+        if not key or key in EXCLUDED_SETTING_KEYS:
+            continue
         # Spezielle Behandlung für portal_logo: Datei wiederherstellen
-        if s_data['key'] == 'portal_logo' and s_data.get('file_content_base64'):
+        if key == 'portal_logo' and s_data.get('file_content_base64'):
             try:
                 import base64
                 from werkzeug.utils import secure_filename
