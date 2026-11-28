@@ -23,6 +23,7 @@ def test_server_session_redis_uses_timeouts(app, monkeypatch):
         captured_kwargs.update(kwargs)
         return mock_client
 
+    monkeypatch.setattr(app, 'session_interface', app.session_interface)
     monkeypatch.setitem(app.config, 'REDIS_ENABLED', True)
     monkeypatch.setitem(app.config, 'REDIS_URL', 'redis://localhost:6379/0')
 
@@ -47,6 +48,7 @@ def test_sse_redis_uses_timeouts(app, monkeypatch):
 
     monkeypatch.setattr(sse, '_redis_client', None)
     monkeypatch.setattr(sse, '_redis_url', None)
+    monkeypatch.setattr(app, 'session_interface', app.session_interface)
     monkeypatch.setitem(app.config, 'REDIS_ENABLED', True)
     monkeypatch.setitem(app.config, 'REDIS_URL', 'redis://localhost:6379/0')
 

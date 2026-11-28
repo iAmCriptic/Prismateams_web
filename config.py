@@ -291,6 +291,7 @@ class TestingConfig(Config):
     SQLALCHEMY_ENGINE_OPTIONS = {}
     ENABLE_ERROR_TEST_ROUTES = False
     ENABLE_APP_GZIP = False
+    RATELIMIT_ENABLED = False
 
 
 config = {

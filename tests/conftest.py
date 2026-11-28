@@ -3,6 +3,7 @@ os.environ['PRISMATEAMS_SKIP_BACKGROUND_JOBS'] = '1'
 os.environ['PRISMATEAMS_SKIP_SCHEMA_INIT'] = '1'
 os.environ['PRISMATEAMS_RUNNING_MIGRATIONS'] = '1'
 os.environ['FLASK_ENV'] = 'testing'
+os.environ['RATELIMIT_ENABLED'] = 'false'
 
 import sys
 from unittest.mock import MagicMock
