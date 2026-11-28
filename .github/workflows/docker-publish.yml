@@ -68,7 +68,8 @@ jobs:
         with:
           images: iamcriptic/prismateams
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/Development' || github.event_name == 'workflow_dispatch' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch' }}
+            type=raw,value=dev,enable=${{ github.ref == 'refs/heads/Development' }}
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=sha-,format=short

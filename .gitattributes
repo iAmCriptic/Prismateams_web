@@ -1,0 +1,42 @@
+# Zeilenenden plattformübergreifend normalisieren
+* text=auto
+
+*.py text eol=lf
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binärdateien
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+
+# Entwicklungs- und CI-Dateien aus Release-Archiven (git archive / GitHub Releases) ausschließen
+.agents/ export-ignore
+.github/ export-ignore
+.gitignore export-ignore
+.gitattributes export-ignore
+.dockerignore export-ignore
+AGENTS.md export-ignore
+tests/ export-ignore
+scratch/ export-ignore
+windows/ export-ignore
+requirements-dev.txt export-ignore
+scripts/qa_css_design_guardrails.py export-ignore
+scripts/qa_module_audit.py export-ignore
+docs/QA_MODULE_AUDIT.json export-ignore
+docs/QA_MODULE_AUDIT.md export-ignore

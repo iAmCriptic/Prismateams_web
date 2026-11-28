@@ -72,10 +72,17 @@ graphify-out/
 claude.md
 
 
-System level files
+# System level files
 .cursor/
 .graphify_python
 Wiki/
+scratch/
+
+# Testing & Coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
 
 # Windows C++ Desktop App
 windows/

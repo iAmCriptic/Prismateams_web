@@ -1,5 +1,6 @@
 .git
 .gitignore
+.gitattributes
 .venv
 venv
 __pycache__
@@ -13,8 +14,13 @@ htmlcov
 .env
 .env.*
 !.env.example
+*.db
+*.sqlite
+*.sqlite3
+.schema_init.lock
 docs/Pictures
 docs/**/*.png
+docs/QA_MODULE_AUDIT.*
 uploads/**
 !uploads/.gitkeep
 instance/**
@@ -23,6 +29,15 @@ instance/**
 !docs/env.docker.example
 .cursor
 .github
+.agents
+AGENTS.md
+tests
+scratch
+windows
+scripts/qa_*.py
+requirements-dev.txt
+graphify-out
+.graphify_python
 agent-transcripts
 terminals
 *.log
