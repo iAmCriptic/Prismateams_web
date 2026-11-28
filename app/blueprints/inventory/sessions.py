@@ -507,7 +507,7 @@ def print_qr():
     if request.method == 'POST':
         product_ids = request.form.getlist('product_ids')
         set_ids = request.form.getlist('set_ids')
-        label_type = request.form.get('label_type', 'cable')  # 'cable' oder 'device'
+        label_type = request.form.get('label_type', 'cable')  # 'cable', 'cable_wrap' oder 'device'
 
         if not product_ids and not set_ids:
             flash(_('inventory.flash.select_products'), 'danger')
@@ -532,7 +532,12 @@ def print_qr():
             generate_qr_code_sheet_pdf(products, pdf_buffer, label_type=label_type, sets=sets)
             pdf_buffer.seek(0)
 
-            label_type_name = "Kabel" if label_type == 'cable' else "Geräte"
+            if label_type == 'cable':
+                label_type_name = "Kabel_Fahne"
+            elif label_type == 'cable_wrap':
+                label_type_name = "Kabel_Wicklung"
+            else:
+                label_type_name = "Geräte"
             if sets and not products:
                 label_type_name = "Sets"
             elif sets and products:

@@ -279,6 +279,76 @@ class CableLabelFlowable(Flowable):
         c.setDash([])
 
 
+class CableWrapLabelFlowable(Flowable):
+    """
+    Kabel-Wickeletikett zum Umwickeln (ähnlich selbstlaminierendem Kabel-Etikett):
+    Oben Druckbereich: [FARBSTREIFEN][QR schwarz/weiß][Länge & ID][FARBSTREIFEN]
+    Unten transparenter/leerer Wickelbereich zum Umrollen ums Kabel.
+    """
+    def __init__(self, product, qr_bytes, stripe_color_hex, label_width, label_height):
+        Flowable.__init__(self)
+        self.product = product
+        self.qr_bytes = qr_bytes
+        try:
+            self.stripe_color = colors.HexColor(stripe_color_hex)
+        except Exception:
+            self.stripe_color = colors.HexColor('#888888')
+        self.width = label_width
+        self.height = label_height
+
+    def draw(self):
+        c = self.canv
+        lw = self.width
+        lh = self.height
+        print_h = 2.1 * cm
+        wrap_h = lh - print_h
+        sw = 0.45 * cm  # Seitlicher Farbstreifen
+
+        # Weißer Hintergrund für Druckbereich
+        c.setFillColor(colors.white)
+        c.rect(0, wrap_h, lw, print_h, fill=1, stroke=0)
+
+        # Linker & rechter Farbstreifen im Druckbereich
+        c.setFillColor(self.stripe_color)
+        c.rect(0, wrap_h, sw, print_h, fill=1, stroke=0)
+        c.rect(lw - sw, wrap_h, sw, print_h, fill=1, stroke=0)
+
+        # QR-Code (schwarz auf weiß)
+        qr_margin = 0.15 * cm
+        qr_size = print_h - 2 * qr_margin
+        qr_x = sw + qr_margin
+        qr_y = wrap_h + qr_margin
+        c.drawImage(ImageReader(BytesIO(self.qr_bytes)), qr_x, qr_y, qr_size, qr_size)
+
+        # Textbereich: Länge & ID
+        c.setFillColor(colors.black)
+        text_x = qr_x + qr_size + 0.15 * cm
+        id_text = f'ID: {self.product.id}'
+        if self.product.length:
+            length_str = _format_length(self.product.length)
+            font_size = 8.5 if len(length_str) <= 6 else 7.5
+            c.setFont('Helvetica-Bold', font_size)
+            c.drawString(text_x, wrap_h + print_h * 0.58, length_str)
+            c.setFont('Helvetica', 7.5)
+            c.drawString(text_x, wrap_h + print_h * 0.28, id_text)
+        else:
+            c.setFont('Helvetica-Bold', 8.5)
+            c.drawString(text_x, wrap_h + print_h * 0.44, id_text)
+
+        # Trennlinie zwischen Druckbereich und Wickelbereich
+        c.setStrokeColor(colors.HexColor('#cccccc'))
+        c.setDash([2, 2])
+        c.setLineWidth(0.35)
+        c.line(0, wrap_h, lw, wrap_h)
+
+        # Gestrichelter Schnittrahmen
+        c.setStrokeColor(colors.HexColor('#aaaaaa'))
+        c.setDash([2, 2])
+        c.setLineWidth(0.4)
+        c.rect(0, 0, lw, lh, fill=0, stroke=1)
+        c.setDash([])
+
+
 def _format_length(value):
     """Gibt eine konsistente Meter-Darstellung zurück."""
     meters = parse_length_to_meters(value)
@@ -1040,6 +1110,53 @@ def _append_device_style_qr_grid(story, items, *, stand, styles, get_qr_payload,
         story.append(qr_table)
 
 
+def _get_cable_stripe_hex(product):
+    """Ermittelt den Farbcode-Hexwert für eine Kabellänge (Fallback: Grau)."""
+    stripe_hex = '#888888'
+    if product.length:
+        try:
+            color = get_color_for_length(product.length)
+            if color:
+                stripe_hex = color
+        except Exception:
+            pass
+    return stripe_hex
+
+
+def _append_cable_label_grid(story, products, *, label_w, label_h, labels_per_row, gap, build_label):
+    """Baut ein einheitliches Etiketten-Tabellenraster für Kabeletiketten."""
+    try:
+        initialize_color_mappings()
+    except Exception:
+        pass
+
+    rows = []
+    row_data = []
+    for product in products:
+        row_data.append(build_label(product, _get_cable_stripe_hex(product)))
+        if len(row_data) == labels_per_row:
+            rows.append(list(row_data))
+            row_data = []
+
+    if row_data:
+        while len(row_data) < labels_per_row:
+            row_data.append('')
+        rows.append(row_data)
+
+    col_widths = [label_w + gap] * labels_per_row
+    row_heights = [label_h + gap] * len(rows)
+    table = Table(rows, colWidths=col_widths, rowHeights=row_heights)
+    table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('LEFTPADDING', (0, 0), (-1, -1), 0),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 0),
+        ('TOPPADDING', (0, 0), (-1, -1), 0),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
+    ]))
+    story.append(table)
+
+
 def generate_qr_code_sheet_pdf(products=None, output=None, label_type='cable', sets=None):
     """
     Generiert einen QR-Code-Druckbogen für Produkte und/oder Sets.
@@ -1058,7 +1175,9 @@ def generate_qr_code_sheet_pdf(products=None, output=None, label_type='cable', s
     if sets:
         parts.append(f"{len(sets)} Sets")
     if label_type == 'cable' and products:
-        title = "QR-Codes (Kabel)"
+        title = "QR-Codes (Kabel – Fahne)"
+    elif label_type == 'cable_wrap' and products:
+        title = "QR-Codes (Kabel – Wicklung)"
     elif products and not sets:
         title = "QR-Codes (Geräte)"
     elif sets and not products:
@@ -1078,55 +1197,41 @@ def generate_qr_code_sheet_pdf(products=None, output=None, label_type='cable', s
     ]
 
     if products and label_type == 'cable':
-        try:
-            initialize_color_mappings()
-        except Exception:
-            pass
-
-        LABEL_W = 8.6 * cm
-        LABEL_H = 3.0 * cm
-        LABELS_PER_ROW = 2
-        GAP = 0.3 * cm
-
-        rows = []
-        row_data = []
-
-        for product in products:
-            stripe_hex = '#888888'
-            if product.length:
-                try:
-                    color = get_color_for_length(product.length)
-                    if color:
-                        stripe_hex = color
-                except Exception:
-                    pass
-
-            qr_url = generate_product_qr_code(product.id)
-            qr_bytes = generate_qr_code_inverted_bytes(qr_url, box_size=6, border=2)
-            label = CableLabelFlowable(product, qr_bytes, stripe_hex, LABEL_W, LABEL_H)
-            row_data.append(label)
-
-            if len(row_data) == LABELS_PER_ROW:
-                rows.append(list(row_data))
-                row_data = []
-
-        if row_data:
-            while len(row_data) < LABELS_PER_ROW:
-                row_data.append('')
-            rows.append(row_data)
-
-        col_widths = [LABEL_W + GAP] * LABELS_PER_ROW
-        row_heights = [LABEL_H + GAP] * len(rows)
-        table = Table(rows, colWidths=col_widths, rowHeights=row_heights)
-        table.setStyle(TableStyle([
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('LEFTPADDING', (0, 0), (-1, -1), 0),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 0),
-            ('TOPPADDING', (0, 0), (-1, -1), 0),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 0),
-        ]))
-        story.append(table)
+        label_w = 8.6 * cm
+        label_h = 3.0 * cm
+        _append_cable_label_grid(
+            story,
+            products,
+            label_w=label_w,
+            label_h=label_h,
+            labels_per_row=2,
+            gap=0.3 * cm,
+            build_label=lambda p, stripe_hex: CableLabelFlowable(
+                p,
+                generate_qr_code_inverted_bytes(generate_product_qr_code(p.id), box_size=6, border=2),
+                stripe_hex,
+                label_w,
+                label_h,
+            ),
+        )
+    elif products and label_type == 'cable_wrap':
+        label_w = 4.6 * cm
+        label_h = 6.2 * cm
+        _append_cable_label_grid(
+            story,
+            products,
+            label_w=label_w,
+            label_h=label_h,
+            labels_per_row=4,
+            gap=0.25 * cm,
+            build_label=lambda p, stripe_hex: CableWrapLabelFlowable(
+                p,
+                generate_qr_code_bytes(generate_product_qr_code(p.id), box_size=6, border=1),
+                stripe_hex,
+                label_w,
+                label_h,
+            ),
+        )
     elif products:
         _append_device_style_qr_grid(
             story,

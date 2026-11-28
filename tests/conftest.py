@@ -4,6 +4,9 @@ os.environ['PRISMATEAMS_SKIP_SCHEMA_INIT'] = '1'
 os.environ['PRISMATEAMS_RUNNING_MIGRATIONS'] = '1'
 os.environ['FLASK_ENV'] = 'testing'
 os.environ['RATELIMIT_ENABLED'] = 'false'
+if not os.environ.get('CREDENTIAL_ENCRYPTION_KEY'):
+    from cryptography.fernet import Fernet
+    os.environ['CREDENTIAL_ENCRYPTION_KEY'] = Fernet.generate_key().decode()
 
 import sys
 from unittest.mock import MagicMock

@@ -6137,7 +6137,8 @@
         "generate_pdf": "Generate PDF"
       },
       "label_types": {
-        "cable": "Cables (color stripe)",
+        "cable": "Cables (flag)",
+        "cable_wrap": "Cables (wrap)",
         "device": "Devices"
       },
       "folder": {

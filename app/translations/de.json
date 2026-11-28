@@ -6282,7 +6282,8 @@
         "generate_pdf": "PDF generieren"
       },
       "label_types": {
-        "cable": "Kabel (Farbstreifen)",
+        "cable": "Kabel (Fahne)",
+        "cable_wrap": "Kabel (Wicklung)",
         "device": "Geräte"
       },
       "folder": {

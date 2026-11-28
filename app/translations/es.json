@@ -5965,7 +5965,8 @@
         "generate_pdf": "Generar PDF"
       },
       "label_types": {
-        "cable": "Cables (franja de color)",
+        "cable": "Cables (bandera)",
+        "cable_wrap": "Cables (envoltura)",
         "device": "Equipos"
       },
       "folder": {

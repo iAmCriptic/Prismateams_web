@@ -1379,8 +1379,11 @@ def api_print_qr_codes():
         if not products:
             return jsonify({'error': translate('inventory.errors.no_valid_products')}), 404
         
+        label_type = data.get('label_type', 'cable')
+        if label_type not in ('cable', 'cable_wrap', 'device'):
+            label_type = 'cable'
         pdf_buffer = BytesIO()
-        generate_qr_code_sheet_pdf(products, pdf_buffer)
+        generate_qr_code_sheet_pdf(products, pdf_buffer, label_type=label_type)
         pdf_buffer.seek(0)
         
         return send_file(

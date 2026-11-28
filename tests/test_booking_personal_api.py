@@ -428,8 +428,7 @@ def test_compact_toolbar_and_excel_export(client, app):
 
     # Filter button & popup dropdown
     assert 'id="bpFilterDropdownBtn"' in html
-    assert 'id="bpStatusFilter"' in html
-    assert 'id="bpAreaFilter"' in html
+    assert 'bp-dynamic-filter' in html
     assert 'id="bpResetFiltersBtn"' in html
 
     # Export dropdown with CSV & XLSX
