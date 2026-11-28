@@ -37,7 +37,7 @@ class BorrowScannerManager {
         }
     }
 
-    _decodeWithZxing(canvas) {
+    _decodeZxingSingleCanvas(canvas) {
         const reader = this._ensureZxingReader();
         if (!reader || !canvas) return null;
         try {
@@ -71,8 +71,43 @@ class BorrowScannerManager {
             }
             const luminance = new ZX.HTMLCanvasElementLuminanceSource(canvas);
             const binary = new ZX.BinaryBitmap(new ZX.HybridBinarizer(luminance));
-            const result = this._zxingMultiReader.decode(binary);
-            return result && result.getText ? result.getText() : null;
+            try {
+                const result = this._zxingMultiReader.decode(binary);
+                if (result && result.getText) return result.getText();
+            } catch (_normalErr) {
+                if (typeof luminance.invert === 'function') {
+                    const invBinary = new ZX.BinaryBitmap(new ZX.HybridBinarizer(luminance.invert()));
+                    const invResult = this._zxingMultiReader.decode(invBinary);
+                    return invResult && invResult.getText ? invResult.getText() : null;
+                }
+            }
+            return null;
+        } catch (_err) {
+            return null;
+        }
+    }
+
+    _decodeWithZxing(canvas) {
+        const direct = this._decodeZxingSingleCanvas(canvas);
+        if (direct) return direct;
+
+        // 90°-Drehung als Fallback für vertikal/quer gehaltene Kabel-Barcodes
+        if (!canvas || !canvas.width || !canvas.height) return null;
+        try {
+            if (!this._zxingRotCanvas) {
+                this._zxingRotCanvas = document.createElement('canvas');
+            }
+            const rot = this._zxingRotCanvas;
+            rot.width = canvas.height;
+            rot.height = canvas.width;
+            const ctx = rot.getContext('2d');
+            if (!ctx) return null;
+            ctx.save();
+            ctx.translate(rot.width / 2, rot.height / 2);
+            ctx.rotate(Math.PI / 2);
+            ctx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
+            ctx.restore();
+            return this._decodeZxingSingleCanvas(rot);
         } catch (_err) {
             return null;
         }

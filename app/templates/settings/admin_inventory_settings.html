@@ -110,6 +110,17 @@
                    value="{{ ownership_text }}" placeholder="{{ _('settings.admin.inventory.ownership_placeholder') }}" autocomplete="off">
           </div>
         </div>
+        <div class="sp-row sp-row--stack">
+          <div class="sp-row-label">
+            <span class="sp-row-label-text">{{ _('settings.admin.inventory.label_header_label') }}</span>
+            {{ sp_info(_('settings.admin.inventory.label_header_help')) }}
+          </div>
+          <div class="sp-row-control" style="width:100%">
+            <input type="text" class="form-control" id="label_header_text" name="label_header_text"
+                   maxlength="24"
+                   value="{{ label_header_text }}" placeholder="{{ _('settings.admin.inventory.label_header_placeholder') }}" autocomplete="off">
+          </div>
+        </div>
       </div>
     </section>
 

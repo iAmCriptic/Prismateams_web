@@ -205,13 +205,14 @@ class DashedLine(Flowable):
 
 class CableLabelFlowable(Flowable):
     """
-    Kabel-Wickeletikett: [FARBSTREIFEN][QR weiß/schwarz][TEXT weiß/schwarz][FARBSTREIFEN]
-    Kann um ein Kabel gewickelt werden – eine Seite QR, andere Seite Text.
+    Kabel-Fahnenetikett: [FARBSTREIFEN][QR weiß/schwarz][TEXT weiß/schwarz][FARBSTREIFEN]
+    Kann um ein Kabel gefaltet werden – eine Seite QR, andere Seite Text.
     """
-    def __init__(self, product, qr_bytes, stripe_color_hex, label_width, label_height):
+    def __init__(self, product, qr_bytes, stripe_color_hex, label_width, label_height, header_text=''):
         Flowable.__init__(self)
         self.product = product
         self.qr_bytes = qr_bytes
+        self.header_text = (header_text or '').strip()[:24]
         try:
             self.stripe_color = colors.HexColor(stripe_color_hex)
         except Exception:
@@ -248,16 +249,17 @@ class CableLabelFlowable(Flowable):
         c.setFillColor(colors.white)
         text_x = sw + qr_size + qr_margin * 2 + 4
 
-        # Produktname (fett)
-        name = self.product.name or f'ID {self.product.id}'
-        if len(name) > 16:
-            name = name[:15] + u'…'
+        # Erste Zeile (fett): konfigurierter kurzer Kopftext oder Produktname
+        top_text = self.header_text or self.product.name or str(self.product.id)
+        if len(top_text) > 16:
+            top_text = top_text[:15] + u'…'
         c.setFont('Helvetica-Bold', 8)
-        c.drawString(text_x, lh * 0.70, name)
+        c.drawString(text_x, lh * 0.70, top_text)
 
-        # Produkt-ID
-        c.setFont('Helvetica', 6.5)
-        c.drawString(text_x, lh * 0.46, f'ID: {self.product.id}')
+        # Inventar-Nr. bzw. Portal-Produkt-ID (ohne "ID:")
+        display_id = _get_product_display_id(self.product)
+        c.setFont('Helvetica', 7)
+        c.drawString(text_x, lh * 0.46, display_id)
 
         # Länge mit farbigem Punkt
         if self.product.length:
@@ -281,14 +283,14 @@ class CableLabelFlowable(Flowable):
 
 class CableWrapLabelFlowable(Flowable):
     """
-    Kabel-Wickeletikett zum Umwickeln (ähnlich selbstlaminierendem Kabel-Etikett):
-    Oben Druckbereich: [FARBSTREIFEN][QR schwarz/weiß][Länge & ID][FARBSTREIFEN]
-    Unten transparenter/leerer Wickelbereich zum Umrollen ums Kabel.
+    Kabel-Wickeletikett (kompakt, invertiert):
+    [FARBSTREIFEN][Länge & optionaler Kopftext & ID (1 Zeile) + weißer Code-128 Barcode auf Schwarz][FARBSTREIFEN]
     """
-    def __init__(self, product, qr_bytes, stripe_color_hex, label_width, label_height):
+    def __init__(self, product, barcode_value, stripe_color_hex, label_width, label_height, header_text=''):
         Flowable.__init__(self)
         self.product = product
-        self.qr_bytes = qr_bytes
+        self.barcode_value = barcode_value
+        self.header_text = (header_text or '').strip()[:24]
         try:
             self.stripe_color = colors.HexColor(stripe_color_hex)
         except Exception:
@@ -297,49 +299,63 @@ class CableWrapLabelFlowable(Flowable):
         self.height = label_height
 
     def draw(self):
+        from reportlab.graphics.barcode import createBarcodeDrawing
+
         c = self.canv
         lw = self.width
         lh = self.height
-        print_h = 2.1 * cm
-        wrap_h = lh - print_h
-        sw = 0.45 * cm  # Seitlicher Farbstreifen
+        sw = 0.65 * cm  # Seitlicher Farbstreifen
 
-        # Weißer Hintergrund für Druckbereich
-        c.setFillColor(colors.white)
-        c.rect(0, wrap_h, lw, print_h, fill=1, stroke=0)
-
-        # Linker & rechter Farbstreifen im Druckbereich
-        c.setFillColor(self.stripe_color)
-        c.rect(0, wrap_h, sw, print_h, fill=1, stroke=0)
-        c.rect(lw - sw, wrap_h, sw, print_h, fill=1, stroke=0)
-
-        # QR-Code (schwarz auf weiß)
-        qr_margin = 0.15 * cm
-        qr_size = print_h - 2 * qr_margin
-        qr_x = sw + qr_margin
-        qr_y = wrap_h + qr_margin
-        c.drawImage(ImageReader(BytesIO(self.qr_bytes)), qr_x, qr_y, qr_size, qr_size)
-
-        # Textbereich: Länge & ID
+        # Schwarzer Hintergrund (invertiert)
         c.setFillColor(colors.black)
-        text_x = qr_x + qr_size + 0.15 * cm
-        id_text = f'ID: {self.product.id}'
+        c.rect(0, 0, lw, lh, fill=1, stroke=0)
+
+        # Linker & rechter Farbstreifen
+        c.setFillColor(self.stripe_color)
+        c.rect(0, 0, sw, lh, fill=1, stroke=0)
+        c.rect(lw - sw, 0, sw, lh, fill=1, stroke=0)
+
+        # Beschriftung oben in einer Zeile: Länge | mittiger Text | Produkt-ID / Inventar-Nr.
+        pad_x = 0.15 * cm
+        inner_left = sw + pad_x
+        inner_right = lw - sw - pad_x
+        inner_w = inner_right - inner_left
+        text_y = lh - 0.48 * cm
+
+        c.setFillColor(colors.white)
+        display_id = _get_product_display_id(self.product)
         if self.product.length:
             length_str = _format_length(self.product.length)
-            font_size = 8.5 if len(length_str) <= 6 else 7.5
-            c.setFont('Helvetica-Bold', font_size)
-            c.drawString(text_x, wrap_h + print_h * 0.58, length_str)
-            c.setFont('Helvetica', 7.5)
-            c.drawString(text_x, wrap_h + print_h * 0.28, id_text)
+            c.setFont('Helvetica-Bold', 8.5)
+            c.drawString(inner_left, text_y, length_str)
+            c.setFont('Helvetica-Bold', 8)
+            c.drawRightString(inner_right, text_y, display_id)
+        elif self.header_text:
+            c.setFont('Helvetica-Bold', 8)
+            c.drawRightString(inner_right, text_y, display_id)
         else:
             c.setFont('Helvetica-Bold', 8.5)
-            c.drawString(text_x, wrap_h + print_h * 0.44, id_text)
+            c.drawCentredString(lw / 2, text_y, display_id)
 
-        # Trennlinie zwischen Druckbereich und Wickelbereich
-        c.setStrokeColor(colors.HexColor('#cccccc'))
-        c.setDash([2, 2])
-        c.setLineWidth(0.35)
-        c.line(0, wrap_h, lw, wrap_h)
+        if self.header_text:
+            header_size = 7.5 if len(self.header_text) <= 14 else 6.5
+            c.setFont('Helvetica-Bold', header_size)
+            c.drawCentredString(lw / 2, text_y, self.header_text)
+
+        # Weißer 1D-Barcode (Code-128) auf schwarzem Grund
+        barcode_h = 1.25 * cm
+        barcode_w = min(inner_w, 6.0 * cm)
+        drawing = createBarcodeDrawing(
+            'Code128',
+            value=self.barcode_value,
+            barHeight=barcode_h,
+            width=barcode_w,
+            humanReadable=False,
+            barFillColor=colors.white,
+        )
+        barcode_x = inner_left + max(0, (inner_w - float(drawing.width)) / 2)
+        barcode_y = 0.18 * cm
+        drawing.drawOn(c, barcode_x, barcode_y)
 
         # Gestrichelter Schnittrahmen
         c.setStrokeColor(colors.HexColor('#aaaaaa'))
@@ -1110,6 +1126,32 @@ def _append_device_style_qr_grid(story, items, *, stand, styles, get_qr_payload,
         story.append(qr_table)
 
 
+def _get_product_display_id(product):
+    """Liefert die angezeigte ID: eigene Inventar-Nr. (external_barcode) oder Portal-Produkt-ID."""
+    ext = (getattr(product, 'external_barcode', None) or '').strip()
+    return ext or str(product.id)
+
+
+def _get_inventory_label_header_text():
+    """Liest den optionalen kurzen Kopftext für Kabel-Wicklungs-Etiketten aus SystemSettings."""
+    try:
+        from app.models.settings import SystemSettings
+        setting = SystemSettings.query.filter_by(key='inventory_label_header_text').first()
+        if setting and setting.value:
+            return setting.value.strip()[:24]
+    except Exception:
+        pass
+    return ''
+
+
+def _get_product_barcode_value(product):
+    """Liefert den 1D-Barcode-Wert: eigene Inventar-Nr. oder Portal-Code PROD-{id}."""
+    code = (getattr(product, 'external_barcode', None) or '').strip()
+    if code:
+        return code
+    return f'PROD-{int(product.id)}'
+
+
 def _get_cable_stripe_hex(product):
     """Ermittelt den Farbcode-Hexwert für eine Kabellänge (Fallback: Grau)."""
     stripe_hex = '#888888'
@@ -1177,7 +1219,7 @@ def generate_qr_code_sheet_pdf(products=None, output=None, label_type='cable', s
     if label_type == 'cable' and products:
         title = "QR-Codes (Kabel – Fahne)"
     elif label_type == 'cable_wrap' and products:
-        title = "QR-Codes (Kabel – Wicklung)"
+        title = "Barcodes (Kabel – Wicklung)"
     elif products and not sets:
         title = "QR-Codes (Geräte)"
     elif sets and not products:
@@ -1190,7 +1232,7 @@ def generate_qr_code_sheet_pdf(products=None, output=None, label_type='cable', s
             title,
             subtitle=f"Stand: {stand} · {' · '.join(parts)}",
             pagesize=A4,
-            show_logo=False,
+            show_logo=True,
             content_width=content_w,
         ),
         Spacer(1, 0.3 * cm),
@@ -1199,6 +1241,7 @@ def generate_qr_code_sheet_pdf(products=None, output=None, label_type='cable', s
     if products and label_type == 'cable':
         label_w = 8.6 * cm
         label_h = 3.0 * cm
+        header_text = _get_inventory_label_header_text()
         _append_cable_label_grid(
             story,
             products,
@@ -1212,24 +1255,27 @@ def generate_qr_code_sheet_pdf(products=None, output=None, label_type='cable', s
                 stripe_hex,
                 label_w,
                 label_h,
+                header_text=header_text,
             ),
         )
     elif products and label_type == 'cable_wrap':
-        label_w = 4.6 * cm
-        label_h = 6.2 * cm
+        label_w = 8.6 * cm
+        label_h = 2.2 * cm
+        header_text = _get_inventory_label_header_text()
         _append_cable_label_grid(
             story,
             products,
             label_w=label_w,
             label_h=label_h,
-            labels_per_row=4,
-            gap=0.25 * cm,
+            labels_per_row=2,
+            gap=0.3 * cm,
             build_label=lambda p, stripe_hex: CableWrapLabelFlowable(
                 p,
-                generate_qr_code_bytes(generate_product_qr_code(p.id), box_size=6, border=1),
+                _get_product_barcode_value(p),
                 stripe_hex,
                 label_w,
                 label_h,
+                header_text=header_text,
             ),
         )
     elif products:
@@ -1251,7 +1297,7 @@ def generate_qr_code_sheet_pdf(products=None, output=None, label_type='cable', s
                 "QR-Codes (Sets)",
                 subtitle=f"Stand: {stand} · {len(sets)} Sets",
                 pagesize=A4,
-                show_logo=False,
+                show_logo=True,
                 content_width=content_w,
             ))
             story.append(Spacer(1, 0.25 * cm))

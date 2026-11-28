@@ -1221,6 +1221,65 @@ class InventoryScannerManager {
         if (stopBtn) stopBtn.style.display = 'none';
     }
 
+    _decodeWithZxing(canvas) {
+        const ZX = window.ZXing;
+        if (!ZX || !canvas) return null;
+        try {
+            if (!this._zxingMultiReader && ZX.MultiFormatReader) {
+                this._zxingMultiReader = new ZX.MultiFormatReader();
+                const hints = new Map();
+                if (ZX.DecodeHintType && ZX.BarcodeFormat) {
+                    hints.set(ZX.DecodeHintType.POSSIBLE_FORMATS, [
+                        ZX.BarcodeFormat.CODE_128,
+                        ZX.BarcodeFormat.CODE_39,
+                        ZX.BarcodeFormat.EAN_13,
+                        ZX.BarcodeFormat.EAN_8,
+                        ZX.BarcodeFormat.ITF,
+                        ZX.BarcodeFormat.CODABAR,
+                    ]);
+                    hints.set(ZX.DecodeHintType.TRY_HARDER, true);
+                }
+                this._zxingMultiReader.setHints(hints);
+            }
+            if (!this._zxingMultiReader || !ZX.HTMLCanvasElementLuminanceSource || !ZX.BinaryBitmap) return null;
+            const decodeCanvas = (targetCanvas) => {
+                try {
+                    const luminance = new ZX.HTMLCanvasElementLuminanceSource(targetCanvas);
+                    const binary = new ZX.BinaryBitmap(new ZX.HybridBinarizer(luminance));
+                    try {
+                        const result = this._zxingMultiReader.decode(binary);
+                        if (result && result.getText) return result.getText();
+                    } catch (_normalErr) {
+                        if (typeof luminance.invert === 'function') {
+                            const invBinary = new ZX.BinaryBitmap(new ZX.HybridBinarizer(luminance.invert()));
+                            const invResult = this._zxingMultiReader.decode(invBinary);
+                            return invResult && invResult.getText ? invResult.getText() : null;
+                        }
+                    }
+                    return null;
+                } catch (_e) {
+                    return null;
+                }
+            };
+            const direct = decodeCanvas(canvas);
+            if (direct) return direct;
+            if (!this._zxingRotCanvas) this._zxingRotCanvas = document.createElement('canvas');
+            const rot = this._zxingRotCanvas;
+            rot.width = canvas.height;
+            rot.height = canvas.width;
+            const ctx = rot.getContext('2d');
+            if (!ctx) return null;
+            ctx.save();
+            ctx.translate(rot.width / 2, rot.height / 2);
+            ctx.rotate(Math.PI / 2);
+            ctx.drawImage(canvas, -canvas.width / 2, -canvas.height / 2);
+            ctx.restore();
+            return decodeCanvas(rot);
+        } catch (_err) {
+            return null;
+        }
+    }
+
     scanForQR() {
         if (!this.scanning) return;
         const video = document.getElementById('scannerVideo');
@@ -1247,10 +1306,17 @@ class InventoryScannerManager {
             const code = jsQRFunction(imageData.data, imageData.width, imageData.height, {
                 inversionAttempts: 'attemptBoth',
             });
-            if (code) {
+            let scannedText = code ? code.data : null;
+            if (!scannedText) {
+                this._zxingFrameSkip = ((this._zxingFrameSkip || 0) + 1) % 3;
+                if (this._zxingFrameSkip === 0) {
+                    scannedText = this._decodeWithZxing(canvas);
+                }
+            }
+            if (scannedText) {
                 this.scanning = false;
                 this.toolManager?.showScanSuccess();
-                this.toolManager?.handleScan(code.data).catch(() => {
+                this.toolManager?.handleScan(scannedText).catch(() => {
                     setTimeout(() => {
                         if (this.stream && !this.scanning) {
                             this.scanning = true;

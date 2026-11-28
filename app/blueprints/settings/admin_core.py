@@ -1594,6 +1594,7 @@ def admin_inventory_settings():
     
     if request.method == 'POST':
         ownership_text = request.form.get('ownership_text', '').strip()
+        label_header_text = request.form.get('label_header_text', '').strip()[:24]
         
         # Speichere Eigentumstext in SystemSettings
         ownership_setting = SystemSettings.query.filter_by(key='inventory_ownership_text').first()
@@ -1607,6 +1608,17 @@ def admin_inventory_settings():
             )
             db.session.add(ownership_setting)
 
+        # Speichere kurzen Label-Kopftext in SystemSettings
+        label_header_setting = SystemSettings.query.filter_by(key='inventory_label_header_text').first()
+        if label_header_setting:
+            label_header_setting.value = label_header_text
+        else:
+            db.session.add(SystemSettings(
+                key='inventory_label_header_text',
+                value=label_header_text,
+                description='Kurzer Text mittig auf Kabel-Wicklungs-Etiketten'
+            ))
+
         for key in FEATURE_KEYS:
             enabled = request.form.get(key) == 'on'
             _upsert_bool_setting(key, enabled)
@@ -1617,12 +1629,15 @@ def admin_inventory_settings():
     # Lade aktuelle Einstellungen
     ownership_setting = SystemSettings.query.filter_by(key='inventory_ownership_text').first()
     ownership_text = ownership_setting.value if ownership_setting and ownership_setting.value else 'Eigentum der Technik'
+    label_header_setting = SystemSettings.query.filter_by(key='inventory_label_header_text').first()
+    label_header_text = (label_header_setting.value or '').strip() if label_header_setting else ''
 
     from app.utils.dguv_signing import certificate_status
 
     return render_template(
         'settings/admin_inventory_settings.html',
         ownership_text=ownership_text,
+        label_header_text=label_header_text,
         inventory_borrow_enabled=is_inventory_borrow_enabled(),
         inventory_quick_scan_enabled=is_inventory_quick_scan_enabled(),
         inventory_dguv_enabled=is_inventory_dguv_enabled(),
